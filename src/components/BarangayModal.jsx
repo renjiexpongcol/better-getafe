@@ -1,131 +1,273 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react'
+import { MapPin, Users, UserRound, ExternalLink, X } from 'lucide-react'
 
 export default function BarangayModal({ barangay, onClose }) {
-  const modalRef = useRef(null);
-  
-  // Close on Escape key and prevent body scroll
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
+  const modalRef = useRef(null)
+  const closeButtonRef = useRef(null)
 
-    document.addEventListener('keydown', handleKeyDown);
-    
-    // Prevent background scrolling
-    const originalStyle = window.getComputedStyle(document.body).overflow;
-    document.body.style.overflow = 'hidden';
-    
-    // Auto focus the modal for accessibility
-    if (modalRef.current) {
-      modalRef.current.focus();
+  useEffect(() => {
+    if (!barangay) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+      }
     }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    requestAnimationFrame(() => {
+      closeButtonRef.current?.focus()
+    })
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = originalStyle;
-    };
-  }, [onClose]);
-
-  // Handle click outside
-  const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
+      document.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflow
     }
-  };
+  }, [barangay, onClose])
 
-  if (!barangay) return null;
+  if (!barangay) return null
 
-  // Build an OpenStreetMap embed centered on the barangay's coordinates.
-  const mapSrc = barangay.coords
+  const hasCoordinates =
+    barangay.coords &&
+    Number.isFinite(Number(barangay.coords.lat)) &&
+    Number.isFinite(Number(barangay.coords.lng))
+
+  const lat = hasCoordinates ? Number(barangay.coords.lat) : null
+  const lng = hasCoordinates ? Number(barangay.coords.lng) : null
+
+  const mapSrc = hasCoordinates
     ? (() => {
-        const { lat, lng } = barangay.coords;
-        const d = 0.012;
-        const bbox = `${lng - d},${lat - d * 0.6},${lng + d},${lat + d * 0.6}`;
-        return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(
-          bbox
-        )}&layer=mapnik&marker=${lat}%2C${lng}`;
+        const deltaLng = 0.012
+        const deltaLat = 0.007
+
+        const bbox = [
+          lng - deltaLng,
+          lat - deltaLat,
+          lng + deltaLng,
+          lat + deltaLat,
+        ].join(',')
+
+        return (
+          'https://www.openstreetmap.org/export/embed.html' +
+          `?bbox=${encodeURIComponent(bbox)}` +
+          '&layer=mapnik' +
+          `&marker=${lat}%2C${lng}`
+        )
       })()
-    : null;
-  const mapLink = barangay.coords
-    ? `https://www.openstreetmap.org/?mlat=${barangay.coords.lat}&mlon=${barangay.coords.lng}#map=15/${barangay.coords.lat}/${barangay.coords.lng}`
-    : null;
+    : null
+
+  const mapLink = hasCoordinates
+    ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`
+    : null
+
+  const population =
+    typeof barangay.population === 'number'
+      ? barangay.population.toLocaleString('en-PH')
+      : null
+
+  const hasCaptain =
+    typeof barangay.captain === 'string' &&
+    barangay.captain.trim().length > 0
+
+  const hasDescription =
+    typeof barangay.description === 'string' &&
+    barangay.description.trim().length > 0
+
+  const handleBackdropClick = (event) => {
+    if (event.target === event.currentTarget) {
+      onClose()
+    }
+  }
 
   return (
-    <div 
-      className="modal-backdrop" 
-      onClick={handleBackdropClick}
+    <div
+      className="modal-backdrop"
+      onMouseDown={handleBackdropClick}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="modal-title"
+      aria-labelledby="barangay-modal-title"
+      aria-describedby="barangay-modal-description"
     >
-      <div 
-        className="modal-content" 
-        ref={modalRef} 
+      <div
+        className="modal-content"
+        ref={modalRef}
         tabIndex={-1}
       >
-        <button 
-          className="modal-close" 
-          onClick={onClose}
-          aria-label="Close modal"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+        <div className="modal-header">
+          <div className="modal-header-text">
+            <span className="modal-eyebrow">
+              Municipality of Getafe
+            </span>
 
-        <h2 id="modal-title">Barangay {barangay.name}</h2>
-        
-        <div className="modal-body">
-          <div className="info-group">
-            <span className="info-label">Population</span>
-            <span className="info-value">
-              {barangay.population !== null ? barangay.population.toLocaleString() : <span className="unavailable">Information unavailable</span>}
-            </span>
-          </div>
-          
-          <div className="info-group">
-            <span className="info-label">Barangay Captain</span>
-            <span className="info-value">
-              {barangay.captain !== null ? barangay.captain : <span className="unavailable">Information unavailable</span>}
-            </span>
+            <h2 id="barangay-modal-title">
+              Barangay {barangay.name}
+            </h2>
+
+            <p id="barangay-modal-description">
+              Barangay information and location
+            </p>
           </div>
 
-          {mapSrc && (
-            <div className="modal-map">
-              <span className="info-label">Location</span>
-              <div className="modal-map-frame">
-                <iframe
-                  title={`Map of Barangay ${barangay.name}`}
-                  src={mapSrc}
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                />
-              </div>
-              {mapLink && (
-                <a href={mapLink} target="_blank" rel="noopener noreferrer" className="modal-map-link">
-                  Open in OpenStreetMap ↗
-                </a>
-              )}
-            </div>
-          )}
-
-          <div className="info-group">
-            <span className="info-label">Description</span>
-            <span className="info-value">
-              {barangay.description !== null ? barangay.description : <span className="unavailable">Information unavailable</span>}
-            </span>
-          </div>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className="modal-close"
+            onClick={onClose}
+            aria-label={`Close Barangay ${barangay.name} information`}
+          >
+            <X size={22} strokeWidth={2} />
+          </button>
         </div>
 
-        {barangay.lastUpdated && (
-          <div className="modal-footer">
-            Last updated: {barangay.lastUpdated}
+        <div className="modal-body">
+          <div className="modal-info-grid">
+            <div className="info-group">
+              <div className="info-icon">
+                <Users size={18} />
+              </div>
+
+              <div className="info-content">
+                <span className="info-label">Population</span>
+
+                {population ? (
+                  <strong className="info-value">
+                    {population}
+                  </strong>
+                ) : (
+                  <span className="info-value unavailable">
+                    Information unavailable
+                  </span>
+                )}
+
+                <small className="info-meta">
+                  2020 Census of Population and Housing
+                </small>
+              </div>
+            </div>
+
+            <div className="info-group">
+              <div className="info-icon">
+                <UserRound size={18} />
+              </div>
+
+              <div className="info-content">
+                <span className="info-label">
+                  Barangay Captain
+                </span>
+
+                {hasCaptain ? (
+                  <strong className="info-value">
+                    {barangay.captain}
+                  </strong>
+                ) : (
+                  <span className="info-value unavailable">
+                    Information unavailable
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-        )}
+
+          <section className="modal-section">
+            <div className="modal-section-heading">
+              <div>
+                <span className="info-label">Location</span>
+
+                <h3>
+                  {hasCoordinates
+                    ? 'Barangay location'
+                    : 'Location unavailable'}
+                </h3>
+              </div>
+
+              {hasCoordinates && (
+                <MapPin size={19} aria-hidden="true" />
+              )}
+            </div>
+
+            {hasCoordinates ? (
+              <>
+                <div className="modal-map-frame">
+                  <iframe
+                    title={`Map showing the location of Barangay ${barangay.name}, Getafe, Bohol`}
+                    src={mapSrc}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    style={{
+                      width: '100%',
+                      height: '300px',
+                      border: 0,
+                    }}
+                  />
+                </div>
+
+                <a
+                  href={mapLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="modal-map-link"
+                >
+                  <MapPin size={15} />
+                  <span>View on OpenStreetMap</span>
+                  <ExternalLink size={14} />
+                </a>
+              </>
+            ) : (
+              <div className="modal-unavailable-box">
+                <MapPin size={18} />
+
+                <span>
+                  Location coordinates are not currently
+                  available for this barangay.
+                </span>
+              </div>
+            )}
+          </section>
+
+          <section className="modal-section">
+            <div className="modal-section-heading">
+              <div>
+                <span className="info-label">About</span>
+                <h3>Barangay information</h3>
+              </div>
+            </div>
+
+            {hasDescription ? (
+              <p className="modal-description">
+                {barangay.description}
+              </p>
+            ) : (
+              <div className="modal-unavailable-box">
+                <span>
+                  A detailed description for Barangay{' '}
+                  {barangay.name} is not currently available.
+                </span>
+              </div>
+            )}
+          </section>
+        </div>
+
+        <div className="modal-footer">
+          <span>
+            {barangay.lastUpdated
+              ? `Data reference: ${barangay.lastUpdated}`
+              : 'Data reference unavailable'}
+          </span>
+
+          <button
+            type="button"
+            className="modal-footer-close"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
-  );
+  )
 }
