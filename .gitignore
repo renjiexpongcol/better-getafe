@@ -30,7 +30,7 @@ pnpm-debug.log*
 Thumbs.db
 
 # Local data / databases
-data/
+/data/
 *.db
 *.sqlite
 *.sqlite3
