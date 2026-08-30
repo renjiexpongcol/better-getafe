@@ -198,11 +198,6 @@ export default function BarangayModal({ barangay, onClose }) {
                     src={mapSrc}
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
-                    style={{
-                      width: '100%',
-                      height: '300px',
-                      border: 0,
-                    }}
                   />
                 </div>
 
