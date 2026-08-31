@@ -8,9 +8,14 @@ export async function getCmsPool() {
   if (cmsPool) return cmsPool;
   if ((process.env.CMS_DATABASE_PROVIDER || "local") !== "gcp") return null;
 
+  const instanceConnectionName = process.env.CMS_CLOUD_SQL_INSTANCE || process.env.INSTANCE_CONNECTION_NAME;
+  if (!instanceConnectionName) {
+    throw new Error('CMS_CLOUD_SQL_INSTANCE is required when CMS_DATABASE_PROVIDER=gcp');
+  }
+
   const connector = new Connector();
   const options = await connector.getOptions({
-    instanceConnectionName: process.env.CMS_CLOUD_SQL_INSTANCE || process.env.INSTANCE_CONNECTION_NAME,
+    instanceConnectionName,
     ipType: process.env.PRIVATE_IP === "true" ? IpAddressTypes.PRIVATE : IpAddressTypes.PUBLIC,
     authType: process.env.CMS_IAM_AUTH === "true" ? AuthTypes.IAM : AuthTypes.PASSWORD,
   });
@@ -31,9 +36,14 @@ export async function getPortalPool() {
   if (portalPool) return portalPool;
   if ((process.env.PORTAL_DATABASE_PROVIDER || process.env.USER_DATABASE_PROVIDER || "local") !== "gcp") return null;
 
+  const instanceConnectionName = process.env.PORTAL_CLOUD_SQL_INSTANCE || process.env.INSTANCE_CONNECTION_NAME;
+  if (!instanceConnectionName) {
+    throw new Error('PORTAL_CLOUD_SQL_INSTANCE is required when PORTAL_DATABASE_PROVIDER=gcp');
+  }
+
   const connector = new Connector();
   const options = await connector.getOptions({
-    instanceConnectionName: process.env.PORTAL_CLOUD_SQL_INSTANCE || process.env.INSTANCE_CONNECTION_NAME,
+    instanceConnectionName,
     ipType: process.env.PRIVATE_IP === "true" ? IpAddressTypes.PRIVATE : IpAddressTypes.PUBLIC,
     authType: process.env.PORTAL_IAM_AUTH === "true" ? AuthTypes.IAM : AuthTypes.PASSWORD,
   });

@@ -3,7 +3,7 @@ import path from "path";
 import crypto from "crypto";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { initializeServices } from "./src/services/initialization.js";
+import { initializeServices, serviceStatus } from "./src/services/initialization.js";
 import { uploadMedia, deleteMedia } from "./src/services/storage.js";
 import { getCategories, createCategory, updateCategory, deleteCategory } from "./src/repositories/categoryRepository.js";
 import { getNewsArticles, getNewsArticleBySlug, createNewsArticle, updateNewsArticle, deleteNewsArticle } from "./src/repositories/newsRepository.js";
@@ -323,19 +323,41 @@ app.get("/api/admin/dashboard", admin, async (req, res) => {
   });
 });
 
+// -- Health Endpoints --
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", service: "better-getafe" });
+});
+
+app.get("/ready", (req, res) => {
+  res.status(200).json({
+    status: "ready",
+    services: {
+      cmsDatabase: serviceStatus.cmsDatabase,
+      portalDatabase: serviceStatus.portalDatabase,
+      storage: serviceStatus.storage
+    }
+  });
+});
+
 app.use(express.static(path.join(__dirname, "dist")));
 app.use((req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
 
-async function startServer() {
-  try {
-    await initializeServices();
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Getafe Portal running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error('Application startup failed:', error);
-    process.exit(1);
-  }
+function startServer() {
+  const PORT = Number(process.env.PORT) || 8080;
+  
+  // Start HTTP server first so Cloud Run receives a healthy listening process
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`✓ Better Getafe HTTP server listening on port ${PORT}`);
+    
+    // Initialize services after HTTP server starts
+    initializeServices()
+      .then(() => {
+        console.log("✓ Application services initialized");
+      })
+      .catch(err => {
+        console.error("⚠ Service initialization encountered an error:", err);
+      });
+  });
 }
 
 startServer();
