@@ -1,17 +1,6 @@
 # Better Getafe
 
-<<<<<<< HEAD
 <img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/270f54cf-7398-4c68-95c9-1ac4c80cc071" />
-
-=======
-## Local News CMS
-
-The News & Updates section is now managed by the local CMS at `/admin`. Start the full application with `npm run build` followed by `npm start`; this serves both the website and CMS API. For front-end-only work, run `npm run dev` and use `npm start` in another terminal for the CMS API (port 8080), or configure a Vite proxy.
-
-Copy `.env.example` to `.env` and change both CMS values before deployment. The first start creates `data/cms.json` with categories and sample articles. Local development credentials are `admin@getafe.gov.ph` and `ChangeMe123!`. The generated data file and uploaded media are intentionally local and should not be committed.
-
-The API provides public `GET /api/news`, `GET /api/news/:slug`, and `GET /api/categories`; management requests require the CMS bearer token. Admin endpoints support article, category, and media CRUD.
->>>>>>> 7b3e219 (Add CMS for News & Updates)
 
 **Better Getafe** is a modern digital government portal for the **Municipality of Getafe, Bohol, Philippines**, designed to provide residents, visitors, businesses, and the wider community with centralized access to municipal information and digital services.
 
@@ -822,6 +811,14 @@ Before submitting a change:
 8. Keep commits focused and descriptive.
 
 ---
+
+## Local News CMS
+
+The News & Updates section is now managed by the local CMS at `/admin`. Start the full application with `npm run build` followed by `npm start`; this serves both the website and CMS API. For front-end-only work, run `npm run dev` and use `npm start` in another terminal for the CMS API (port 8080), or configure a Vite proxy.
+
+Copy `.env.example` to `.env` and change both CMS values before deployment. The first start creates `data/cms.json` with categories and sample articles. Local development credentials are `admin@getafe.gov.ph` and `ChangeMe123!`. The generated data file and uploaded media are intentionally local and should not be committed.
+
+The API provides public `GET /api/news`, `GET /api/news/:slug`, and `GET /api/categories`; management requests require the CMS bearer token. Admin endpoints support article, category, and media CRUD.
 
 # License
 
