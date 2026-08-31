@@ -358,70 +358,56 @@ app.use(express.static(path.join(__dirname, "dist")));
 app.use((req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
 
 async function startServer() {
-  const isProd = process.env.NODE_ENV === 'production';
-  
-  if (isProd) {
-    const requiredEnv = [
-      'CMS_DATABASE_PROVIDER', 'CMS_MEDIA_PROVIDER', 'USER_DATABASE_PROVIDER',
-      'GCP_PROJECT_ID', 'INSTANCE_CONNECTION_NAME', 'DB_NAME', 'DB_USER',
-      'USER_DB_NAME', 'USER_DB_USER', 'GCS_BUCKET'
-    ];
-    
-    const missing = requiredEnv.filter(env => !process.env[env]);
-    if (missing.length > 0) {
-      console.error('FATAL CONFIGURATION ERROR\n');
-      console.error('Production requires Google Cloud services.\n');
-      console.error(`Missing:\n- ${missing.join('\n- ')}\n`);
-      console.error('Local storage fallback is disabled.\nApplication startup aborted.');
-      process.exit(1);
-    }
-  }
-
   try {
+    console.log('[STARTUP 1/8] Process started');
+    const isProd = process.env.NODE_ENV === 'production';
+    console.log(`[STARTUP 2/8] Environment: ${process.env.NODE_ENV || 'development'}`);
+    
+    console.log('[STARTUP 3/8] Validating Cloud Run configuration');
+    if (isProd) {
+      const requiredEnv = [
+        'CMS_DATABASE_PROVIDER', 'CMS_MEDIA_PROVIDER', 'USER_DATABASE_PROVIDER',
+        'GCP_PROJECT_ID', 'INSTANCE_CONNECTION_NAME', 'DB_NAME', 'DB_USER',
+        'USER_DB_NAME', 'USER_DB_USER', 'GCS_BUCKET'
+      ];
+      
+      const missing = requiredEnv.filter(env => !process.env[env]);
+      if (missing.length > 0) {
+        console.error('\n========================================');
+        console.error('FATAL CONFIGURATION ERROR');
+        console.error('========================================\n');
+        console.error('Environment: production\n');
+        console.error('Missing required variables:');
+        missing.forEach(v => console.error(`- ${v}`));
+        console.error('\nAvailable configuration groups:');
+        console.error(`- CMS database: ${process.env.CMS_DATABASE_PROVIDER ? 'configured' : 'not configured'}`);
+        console.error(`- User database: ${process.env.USER_DATABASE_PROVIDER ? 'configured' : 'not configured'}`);
+        console.error(`- GCS storage: ${process.env.CMS_MEDIA_PROVIDER ? 'configured' : 'not configured'}\n`);
+        console.error('Application startup aborted.');
+        console.error('========================================\n');
+        process.exit(1);
+      }
+    }
+
+    console.log('[STARTUP 4/8] Initializing CMS database (and User database)');
+    console.log('[STARTUP 5/8] Initializing user database');
+    console.log('[STARTUP 6/8] Initializing Google Cloud Storage');
+    
+    // We already do timeouts internally in initializeServices
     await initializeServices();
     
-    if (isProd) {
-      console.log('========================================');
-      console.log('LGU Getafe Portal Startup Configuration');
-      console.log('========================================\n');
-      console.log('Environment: production\n');
-      console.log('CMS Database:');
-      console.log('Provider: Google Cloud SQL');
-      console.log(`Instance: ${process.env.INSTANCE_CONNECTION_NAME || process.env.CMS_CLOUD_SQL_INSTANCE}`);
-      console.log(`Database: ${process.env.DB_NAME || process.env.CMS_DB_NAME}\n`);
-      console.log('User Database:');
-      console.log('Provider: Google Cloud SQL');
-      console.log(`Instance: ${process.env.INSTANCE_CONNECTION_NAME || process.env.CMS_CLOUD_SQL_INSTANCE}`);
-      console.log(`Database: ${process.env.USER_DB_NAME || process.env.PORTAL_DB_NAME}\n`);
-      console.log('Media Storage:');
-      console.log('Provider: Google Cloud Storage');
-      console.log(`Bucket: ${process.env.GCS_BUCKET || process.env.GCS_BUCKET_NAME}\n`);
-      console.log('Local persistent storage: DISABLED\n');
-      console.log('Cloud SQL connection: VERIFIED');
-      console.log('Google Cloud Storage access: VERIFIED');
-      console.log('========================================');
-    } else {
-      console.log("✓ Application services initialized");
-    }
-
+    console.log('[STARTUP 7/8] Starting HTTP server');
     const PORT = Number(process.env.PORT) || 8080;
     app.listen(PORT, "0.0.0.0", () => {
-      console.log(`✓ Better Getafe HTTP server listening on port ${PORT}`);
+      console.log(`[STARTUP 8/8] Server listening on 0.0.0.0:${PORT}`);
     });
-  } catch (err) {
-    if (isProd) {
-      console.error('\nFATAL CONFIGURATION ERROR\n');
-      console.error('Google Cloud service initialization failed.\n');
-      console.error(`Error: ${err.message || 'Unknown error'}\n`);
-      console.error('Local fallback is disabled.\nApplication startup aborted.');
-      process.exit(1);
-    } else {
-      console.error("⚠ Service initialization encountered an error:", err);
-      const PORT = Number(process.env.PORT) || 8080;
-      app.listen(PORT, "0.0.0.0", () => {
-         console.log(`✓ Better Getafe HTTP server listening on port ${PORT} (Running with degraded services)`);
-      });
-    }
+  } catch (error) {
+    console.error('\n[STARTUP FAILED]');
+    console.error('Stage: Service initialization');
+    console.error(`Message: ${error.message || 'Unknown error'}`);
+    console.error(`Stack: ${error.stack}`);
+    console.error('Local fallback: DISABLED\n');
+    process.exit(1);
   }
 }
 
