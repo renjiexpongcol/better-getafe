@@ -7,7 +7,10 @@ const hash = (password, salt = crypto.randomBytes(16).toString("hex")) => `${sal
 
 export async function getPortalUserByEmail(email) {
   const pool = await getPortalPool();
-  if (!pool) throw new Error("Portal account database is not configured.");
+  if (!pool) {
+    console.warn("Portal account database is not configured. Returning null.");
+    return null;
+  }
   const [rows] = await pool.execute(
     "SELECT id, name, email, password, role FROM portal_users WHERE email = ?",
     [String(email).toLowerCase()]

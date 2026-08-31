@@ -78,18 +78,6 @@ const cmsSettings = () => ({
   databasePasswordConfigured: Boolean(process.env.CMS_DB_PASSWORD),
 });
 
-function updateEnv(values) {
-  let text = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
-  for (const [key, value] of Object.entries(values)) {
-    if (value === undefined || value === "") continue;
-    const line = `${key}=${String(value).replace(/[\r\n]/g, "")}`;
-    const matcher = new RegExp(`^${key}=.*$`, "m");
-    text = matcher.test(text) ? text.replace(matcher, line) : `${text}${text && !text.endsWith("\n") ? "\n" : ""}${line}\n`;
-    process.env[key] = String(value);
-  }
-  fs.writeFileSync(envPath, text);
-}
-
 function validateArticle(body, res) {
   if (!body.title?.trim() || !body.excerpt?.trim() || !body.content?.trim()) {
     res.status(422).json({ error: "Title, excerpt, and content are required." });
@@ -159,27 +147,9 @@ app.post("/api/portal-auth/register", async (req, res) => {
 app.get("/api/admin/settings", admin, (req, res) => res.json(cmsSettings()));
 
 app.put("/api/admin/settings", admin, (req, res) => {
-  const b = req.body || {};
-  if (b.databaseProvider === "gcp" && (!b.projectId || !b.instanceConnectionName || !b.databaseName || !b.databaseUser))
-    return res.status(422).json({ error: "Complete the Cloud SQL project, instance, database, and user fields." });
-  updateEnv({
-    CMS_DATABASE_PROVIDER: b.databaseProvider,
-    CMS_MEDIA_PROVIDER: b.mediaProvider,
-    GCP_PROJECT_ID: b.projectId,
-    CMS_CLOUD_SQL_INSTANCE: b.instanceConnectionName,
-    CMS_DB_NAME: b.databaseName,
-    CMS_DB_USER: b.databaseUser,
-    CMS_DB_PASSWORD: b.databasePassword,
-    PRIVATE_IP: String(Boolean(b.privateIp)),
-    GCS_BUCKET_NAME: b.bucket,
-    GCS_PUBLIC_BASE_URL: b.publicBaseUrl,
-  });
-  res.json({ ...cmsSettings(), restartRequired: true });
-});
-
-app.post("/api/admin/restart", admin, (req, res) => {
-  res.json({ message: "Server is restarting." });
-  setTimeout(() => process.exit(75), 250);
+  // CMS settings like site title or theme preferences would be saved to DB here in the future.
+  // Infrastructure settings are readonly via the dashboard in a Cloud Run environment.
+  res.json({ ...cmsSettings(), saved: true });
 });
 
 // -- CMS News --

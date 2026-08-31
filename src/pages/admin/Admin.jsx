@@ -19,4 +19,66 @@ export default function Admin() {
 }
 function ArticleTable({ articles, edit, remove }) { return <div className="cms-table"><div className="cms-table-head"><span>Title</span><span>Category</span><span>Status</span><span>Actions</span></div>{articles.map(a => <div className="cms-table-row" key={a.id}><strong>{a.title}</strong><span>{a.category?.name || '—'}</span><span className={`status ${a.status}`}>{a.status}</span><span><button onClick={() => edit(a)}>Edit</button><button className="danger" onClick={() => remove(a.id)}>Delete</button></span></div>)}</div> }
 function Categories({ token, categories, reload }) { const [name, setName] = useState(''); const add = async e => { e.preventDefault(); try { await api('/api/categories', token, { method: 'POST', body: JSON.stringify({ name }) }); setName(''); reload() } catch (e) { alert(e.message) } }; return <><h1>Categories</h1><form className="category-form" onSubmit={add}><input placeholder="New category name" value={name} onChange={e => setName(e.target.value)} /><button>Add category</button></form><div className="category-list">{categories.map(c => <div key={c.id}><span>{c.name}</span><button className="danger" onClick={async () => { if (confirm(`Delete ${c.name}?`)) { try { await api(`/api/categories/${c.id}`, token, { method: 'DELETE' }); reload() } catch (e) { alert(e.message) } } }}>Delete</button></div>)}</div></> }
-function Settings({ token, settings, setSettings, onSaved }) { if (!settings) return <p>Loading settings…</p>; const change = e => setSettings({ ...settings, [e.target.name]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }); const save = async e => { e.preventDefault(); try { await api('/api/admin/settings', token, { method: 'PUT', body: JSON.stringify(settings) }); onSaved('Cloud settings saved.'); } catch (err) { onSaved(err.message) } }; const restart = async () => { try { await api('/api/admin/restart', token, { method: 'POST' }); onSaved('Restarting server. Refresh in a few seconds.'); } catch (err) { onSaved(err.message) } }; return <form className="cms-editor" onSubmit={save}><div className="cms-title"><div><h1>Cloud settings</h1><p>Saved securely on this server. Passwords are never shown again.</p></div><span><button type="button" onClick={restart}>Restart server</button> <button>Save settings</button></span></div><div className="cms-row"><label>Database provider<select name="databaseProvider" value={settings.databaseProvider} onChange={change}><option value="local">Local development</option><option value="gcp">Google Cloud SQL</option></select></label><label>Media provider<select name="mediaProvider" value={settings.mediaProvider} onChange={change}><option value="local">Local uploads</option><option value="gcp">Google Cloud Storage</option></select></label><label>Use private IP<input name="privateIp" type="checkbox" checked={settings.privateIp} onChange={change} /></label></div><h2>Google Cloud SQL</h2><label>GCP project ID<input name="projectId" value={settings.projectId} onChange={change} /></label><label>Instance connection name<input name="instanceConnectionName" value={settings.instanceConnectionName} onChange={change} /></label><div className="cms-row"><label>Database name<input name="databaseName" value={settings.databaseName} onChange={change} /></label><label>Database user<input name="databaseUser" value={settings.databaseUser} onChange={change} /></label><label>Database password<input name="databasePassword" type="password" placeholder={settings.databasePasswordConfigured ? 'Saved — leave blank to keep' : 'Enter password'} onChange={change} /></label></div><h2>Google Cloud Storage</h2><label>Bucket<input name="bucket" value={settings.bucket} onChange={change} /></label><label>Public media base URL<input name="publicBaseUrl" value={settings.publicBaseUrl} onChange={change} /></label><small>Start the backend with <code>npm start</code> so this control can reload the saved settings.</small></form> }
+function Settings({ settings }) { 
+  if (!settings) return <p>Loading settings…</p>; 
+  
+  return (
+    <div className="cms-editor">
+      <div className="cms-title">
+        <div>
+          <h1>System Infrastructure</h1>
+          <p>These settings are managed via Cloud Run Environment Variables and cannot be changed here.</p>
+        </div>
+      </div>
+      
+      <div className="cms-row">
+        <label>
+          Database Provider
+          <input readOnly value={settings.databaseProvider === 'gcp' ? 'Google Cloud SQL' : 'Local Development (JSON)'} />
+        </label>
+        <label>
+          Media Provider
+          <input readOnly value={settings.mediaProvider === 'gcp' ? 'Google Cloud Storage' : 'Local File System'} />
+        </label>
+      </div>
+
+      <h2>Google Cloud SQL Configuration</h2>
+      <p style={{marginBottom: '1rem', color: '#666'}}>
+        {settings.databaseProvider === 'gcp' 
+          ? 'Connected via @google-cloud/cloud-sql-connector.' 
+          : 'Set CMS_DATABASE_PROVIDER=gcp in your deployment to enable Cloud SQL.'}
+      </p>
+      
+      <label>
+        Instance Connection Name
+        <input readOnly value={settings.instanceConnectionName || 'Not configured'} />
+      </label>
+      <div className="cms-row">
+        <label>
+          Database Name
+          <input readOnly value={settings.databaseName || 'Not configured'} />
+        </label>
+        <label>
+          Database User
+          <input readOnly value={settings.databaseUser || 'Not configured'} />
+        </label>
+      </div>
+
+      <h2>Google Cloud Storage Configuration</h2>
+      <p style={{marginBottom: '1rem', color: '#666'}}>
+        {settings.mediaProvider === 'gcp' 
+          ? 'Media uploads are piped directly to your bucket.' 
+          : 'Set CMS_MEDIA_PROVIDER=gcp in your deployment to enable Cloud Storage.'}
+      </p>
+
+      <label>
+        Bucket Name
+        <input readOnly value={settings.bucket || 'Not configured'} />
+      </label>
+      <label>
+        Public Media Base URL
+        <input readOnly value={settings.publicBaseUrl || 'Not configured'} />
+      </label>
+    </div>
+  ); 
+}
