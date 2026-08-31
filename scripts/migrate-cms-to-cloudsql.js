@@ -90,7 +90,7 @@ async function migrate() {
       if (fs.existsSync(localFile)) {
         const destFileName = `media/${media.filename}`;
         await bucket.upload(localFile, { destination: destFileName });
-        newFilepath = `${process.env.GCS_PUBLIC_BASE_URL || `https://storage.googleapis.com/${bucketName}`}/${destFileName}`;
+        newFilepath = destFileName;
         console.log(`Uploaded ${media.filename} to Cloud Storage.`);
       } else {
         console.warn(`Local file ${localFile} not found.`);
@@ -111,12 +111,12 @@ async function migrate() {
   // 4. Migrate News
   console.log(`Migrating ${data.news?.length || 0} news articles...`);
   for (const news of data.news || []) {
-    // Map old media paths to new public URLs if applicable
+    // Map old media paths to new raw paths if applicable
     let updatedFeaturedImage = news.featured_image;
     if (bucket && updatedFeaturedImage && updatedFeaturedImage.startsWith('/uploads/')) {
       const oldMediaRecord = data.media?.find(m => m.filepath === updatedFeaturedImage);
       if (oldMediaRecord) {
-        updatedFeaturedImage = `${process.env.GCS_PUBLIC_BASE_URL || `https://storage.googleapis.com/${bucketName}`}/media/${oldMediaRecord.filename}`;
+        updatedFeaturedImage = `media/${oldMediaRecord.filename}`;
       }
     }
 

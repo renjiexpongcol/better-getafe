@@ -68,10 +68,14 @@ function seed() {
       created_at: created,
       updated_at: created,
     })),
+    portal_users: []
   };
 }
 
 export async function getLocalDb() {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error("Local JSON database is explicitly disabled in production. Configure Google Cloud SQL.");
+  }
   if (!fs.existsSync(dataPath)) {
     fs.mkdirSync(path.dirname(dataPath), { recursive: true });
     fs.writeFileSync(dataPath, JSON.stringify(seed(), null, 2));
@@ -80,12 +84,19 @@ export async function getLocalDb() {
 }
 
 export async function saveLocalDb(data) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error("Local JSON database is explicitly disabled in production. Configure Google Cloud SQL.");
+  }
   fs.mkdirSync(path.dirname(dataPath), { recursive: true });
   fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
 }
 
 export function isGcp() {
   return (process.env.CMS_DATABASE_PROVIDER || "local") === "gcp";
+}
+
+export function isPortalGcp() {
+  return (process.env.PORTAL_DATABASE_PROVIDER || process.env.USER_DATABASE_PROVIDER || "local") === "gcp";
 }
 
 export { id, slugify, now, hash };

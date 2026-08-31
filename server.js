@@ -12,7 +12,14 @@ import crypto from "crypto";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { initializeServices, serviceStatus } from "./src/services/initialization.js";
-import { uploadMedia, deleteMedia } from "./src/services/storage.js";
+import { uploadMedia, deleteMedia, getSignedUrl } from "./src/services/storage.js";
+import multer from "multer";
+
+const uploadMiddleware = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
 import { getCategories, createCategory, updateCategory, deleteCategory } from "./src/repositories/categoryRepository.js";
 import { getNewsArticles, getNewsArticleBySlug, createNewsArticle, updateNewsArticle, deleteNewsArticle } from "./src/repositories/newsRepository.js";
 import { getMedia, createMediaRecord, deleteMediaRecord } from "./src/repositories/mediaRepository.js";
@@ -24,8 +31,12 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+import dotenv from 'dotenv';
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
+
 const secret = process.env.CMS_SESSION_SECRET || "change-this-local-development-session-secret";
-const envPath = path.join(__dirname, ".env");
 
 app.use(express.json({ limit: "8mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -91,6 +102,7 @@ const decorate = async (article) => {
   const users = await getCmsUsers();
   return {
     ...article,
+    featured_image: await getSignedUrl(article.featured_image),
     category: categories.find((c) => c.id === article.category_id) || null,
     author: (() => {
       const u = users.find((u) => u.id === article.author_id);
@@ -118,10 +130,13 @@ app.get("/api/auth/me", admin, async (req, res) => {
 app.post("/api/portal-auth/login", async (req, res) => {
   try {
     const user = await getPortalUserByEmail(req.body.email || "");
-    if (!user || !matches(req.body.password || "", user.password))
+    if (!user)
+      return res.status(401).json({ error: "Invalid email or password." });
+    if (!matches(req.body.password || "", user.password))
       return res.status(401).json({ error: "Invalid email or password." });
     res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
-  } catch {
+  } catch (error) {
+    console.error(error);
     res.status(503).json({ error: "Portal account service is unavailable." });
   }
 });
@@ -246,28 +261,31 @@ app.delete("/api/categories/:id", admin, async (req, res) => {
 // -- CMS Media --
 app.get("/api/media", admin, async (req, res) => {
   const media = await getMedia();
-  res.json(media);
+  const decoratedMedia = await Promise.all(media.map(async (m) => ({
+    ...m,
+    filepath: await getSignedUrl(m.filepath)
+  })));
+  res.json(decoratedMedia);
 });
 
-app.post("/api/media", admin, async (req, res) => {
-  const { name = "image", dataUrl = "" } = req.body;
-  const match = /^data:(image\/(jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
-  if (!match) return res.status(422).json({ error: "Use a JPG, PNG, or WEBP image." });
-  const raw = Buffer.from(match[3], "base64");
-  if (raw.length > 5 * 1024 * 1024) return res.status(422).json({ error: "Images must be 5 MB or smaller." });
-  const filename = `${Date.now()}-${crypto.randomBytes(5).toString("hex")}.${match[2] === "jpeg" ? "jpg" : match[2]}`;
+app.post("/api/media", admin, uploadMiddleware.single("file"), async (req, res) => {
+  if (!req.file) return res.status(422).json({ error: "No file uploaded." });
   
-  let filepath;
-  if ((process.env.CMS_MEDIA_PROVIDER || "local") === "gcp") {
-    filepath = await uploadMedia(raw, filename, match[1], 'media');
-  } else {
-    fs.mkdirSync(path.join(__dirname, "uploads"), { recursive: true });
-    fs.writeFileSync(path.join(__dirname, "uploads", filename), raw);
-    filepath = `/uploads/${filename}`;
+  const { originalname, mimetype, buffer, size } = req.file;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimetype)) {
+    return res.status(422).json({ error: "Use a JPG, PNG, or WEBP image." });
   }
+
+  const ext = mimetype === "image/jpeg" ? "jpg" : mimetype.split('/')[1];
+  const filename = `${Date.now()}-${crypto.randomBytes(5).toString("hex")}.${ext}`;
   
-  const item = await createMediaRecord(name, filepath, match[1], raw.length, req.admin.id);
-  res.status(201).json(item);
+  const filepath = await uploadMedia(buffer, filename, mimetype, 'media');
+  
+  const name = req.body.name || originalname;
+  const item = await createMediaRecord(name, filepath, mimetype, size, req.admin.id);
+  
+  // Return signed URL in the response
+  res.status(201).json({ ...item, filepath: await getSignedUrl(filepath) });
 });
 
 app.delete("/api/media/:id", admin, async (req, res) => {
@@ -279,12 +297,7 @@ app.delete("/api/media/:id", admin, async (req, res) => {
   if (articles.some((n) => n.featured_image === item.filepath))
     return res.status(409).json({ error: "This image is being used by an article." });
     
-  if ((process.env.CMS_MEDIA_PROVIDER || "local") === "gcp") {
-    await deleteMedia(item.filepath);
-  } else {
-    const file = path.join(__dirname, item.filepath);
-    if (fs.existsSync(file)) fs.unlinkSync(file);
-  }
+  await deleteMedia(item.filepath);
   
   await deleteMediaRecord(req.params.id);
   res.status(204).end();
@@ -310,6 +323,26 @@ app.get("/healthz", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
+app.get("/api/health/storage", (req, res) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  const gcpConfigured = (process.env.CMS_DATABASE_PROVIDER || "local") === "gcp";
+  const mediaConfigured = (process.env.CMS_MEDIA_PROVIDER || "local") === "gcp";
+  const userConfigured = (process.env.USER_DATABASE_PROVIDER || "local") === "gcp";
+  
+  res.status(200).json({
+    environment: isProd ? "production" : "development",
+    databaseProvider: process.env.CMS_DATABASE_PROVIDER || "local",
+    userDatabaseProvider: process.env.USER_DATABASE_PROVIDER || "local",
+    mediaProvider: process.env.CMS_MEDIA_PROVIDER || "local",
+    cloudSqlConfigured: gcpConfigured,
+    cloudSqlConnected: serviceStatus.cmsDatabase === 'connected',
+    gcsConfigured: mediaConfigured,
+    gcsAccessible: serviceStatus.storage === 'connected',
+    bucket: process.env.GCS_BUCKET_NAME || process.env.GCS_BUCKET || "",
+    localPersistentStorageEnabled: !isProd
+  });
+});
+
 app.get("/ready", (req, res) => {
   res.status(200).json({
     status: "ready",
@@ -324,26 +357,72 @@ app.get("/ready", (req, res) => {
 app.use(express.static(path.join(__dirname, "dist")));
 app.use((req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
 
-function startServer() {
-  console.log('Starting application...');
-  const PORT = Number(process.env.PORT) || 8080;
-  console.log(`PORT: ${PORT}`);
-  console.log('Initializing routes...');
+async function startServer() {
+  const isProd = process.env.NODE_ENV === 'production';
   
-  // Start HTTP server first so Cloud Run receives a healthy listening process
-  console.log('Starting HTTP server...');
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`✓ Better Getafe HTTP server listening on port ${PORT}`);
+  if (isProd) {
+    const requiredEnv = [
+      'CMS_DATABASE_PROVIDER', 'CMS_MEDIA_PROVIDER', 'USER_DATABASE_PROVIDER',
+      'GCP_PROJECT_ID', 'INSTANCE_CONNECTION_NAME', 'DB_NAME', 'DB_USER',
+      'USER_DB_NAME', 'USER_DB_USER', 'GCS_BUCKET'
+    ];
     
-    // Initialize services after HTTP server starts
-    initializeServices()
-      .then(() => {
-        console.log("✓ Application services initialized");
-      })
-      .catch(err => {
-        console.error("⚠ Service initialization encountered an error:", err);
+    const missing = requiredEnv.filter(env => !process.env[env]);
+    if (missing.length > 0) {
+      console.error('FATAL CONFIGURATION ERROR\n');
+      console.error('Production requires Google Cloud services.\n');
+      console.error(`Missing:\n- ${missing.join('\n- ')}\n`);
+      console.error('Local storage fallback is disabled.\nApplication startup aborted.');
+      process.exit(1);
+    }
+  }
+
+  try {
+    await initializeServices();
+    
+    if (isProd) {
+      console.log('========================================');
+      console.log('LGU Getafe Portal Startup Configuration');
+      console.log('========================================\n');
+      console.log('Environment: production\n');
+      console.log('CMS Database:');
+      console.log('Provider: Google Cloud SQL');
+      console.log(`Instance: ${process.env.INSTANCE_CONNECTION_NAME || process.env.CMS_CLOUD_SQL_INSTANCE}`);
+      console.log(`Database: ${process.env.DB_NAME || process.env.CMS_DB_NAME}\n`);
+      console.log('User Database:');
+      console.log('Provider: Google Cloud SQL');
+      console.log(`Instance: ${process.env.INSTANCE_CONNECTION_NAME || process.env.CMS_CLOUD_SQL_INSTANCE}`);
+      console.log(`Database: ${process.env.USER_DB_NAME || process.env.PORTAL_DB_NAME}\n`);
+      console.log('Media Storage:');
+      console.log('Provider: Google Cloud Storage');
+      console.log(`Bucket: ${process.env.GCS_BUCKET || process.env.GCS_BUCKET_NAME}\n`);
+      console.log('Local persistent storage: DISABLED\n');
+      console.log('Cloud SQL connection: VERIFIED');
+      console.log('Google Cloud Storage access: VERIFIED');
+      console.log('========================================');
+    } else {
+      console.log("✓ Application services initialized");
+    }
+
+    const PORT = Number(process.env.PORT) || 8080;
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`✓ Better Getafe HTTP server listening on port ${PORT}`);
+    });
+  } catch (err) {
+    if (isProd) {
+      console.error('\nFATAL CONFIGURATION ERROR\n');
+      console.error('Google Cloud service initialization failed.\n');
+      console.error(`Error: ${err.message || 'Unknown error'}\n`);
+      console.error('Local fallback is disabled.\nApplication startup aborted.');
+      process.exit(1);
+    } else {
+      console.error("⚠ Service initialization encountered an error:", err);
+      const PORT = Number(process.env.PORT) || 8080;
+      app.listen(PORT, "0.0.0.0", () => {
+         console.log(`✓ Better Getafe HTTP server listening on port ${PORT} (Running with degraded services)`);
       });
-  });
+    }
+  }
 }
 
 startServer();

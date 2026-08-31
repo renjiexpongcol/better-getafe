@@ -1,27 +1,28 @@
 import { getPortalPool } from '../services/cloudSql.js';
-import crypto from "crypto";
-
-const now = () => new Date().toISOString().replace('T', ' ').substring(0, 23);
-const id = () => crypto.randomUUID();
-const hash = (password, salt = crypto.randomBytes(16).toString("hex")) => `${salt}:${crypto.scryptSync(password, salt, 64).toString("hex")}`;
+import { getLocalDb, saveLocalDb, isPortalGcp, id, now, hash } from './localDb.js';
 
 export async function getPortalUserByEmail(email) {
-  const pool = await getPortalPool();
-  if (!pool) {
-    console.warn("Portal account database is not configured. Returning null.");
-    return null;
+  if (isPortalGcp()) {
+    try {
+      const pool = await getPortalPool();
+      if (pool) {
+        const [rows] = await pool.execute(
+          "SELECT id, name, email, password, role FROM portal_users WHERE email = ?",
+          [String(email).toLowerCase()]
+        );
+        return rows[0] || null;
+      }
+    } catch (error) {
+      console.warn("GCP portal pool unavailable, falling back to local DB.", error.message);
+    }
   }
-  const [rows] = await pool.execute(
-    "SELECT id, name, email, password, role FROM portal_users WHERE email = ?",
-    [String(email).toLowerCase()]
-  );
-  return rows[0] || null;
+  
+  const db = await getLocalDb();
+  if (!db.portal_users) db.portal_users = [];
+  return db.portal_users.find(u => u.email === String(email).toLowerCase()) || null;
 }
 
 export async function createPortalUser(name, email, password) {
-  const pool = await getPortalPool();
-  if (!pool) throw new Error("Portal account database is not configured.");
-  
   const created = now();
   const user = { 
     id: id(), 
@@ -32,10 +33,31 @@ export async function createPortalUser(name, email, password) {
     created_at: created, 
     updated_at: created 
   };
+
+  if (isPortalGcp()) {
+    try {
+      const pool = await getPortalPool();
+      if (pool) {
+        await pool.execute(
+          "INSERT INTO portal_users (id, name, email, password, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [user.id, user.name, user.email, user.password, user.role, user.created_at, user.updated_at]
+        );
+        return user;
+      }
+    } catch (error) {
+      console.warn("GCP portal pool unavailable for insert, falling back to local DB.", error.message);
+    }
+  }
   
-  await pool.execute(
-    "INSERT INTO portal_users (id, name, email, password, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [user.id, user.name, user.email, user.password, user.role, user.created_at, user.updated_at]
-  );
+  const db = await getLocalDb();
+  if (!db.portal_users) db.portal_users = [];
+  if (db.portal_users.find(u => u.email === user.email)) {
+    const error = new Error("Duplicate entry");
+    error.code = "ER_DUP_ENTRY";
+    throw error;
+  }
+  db.portal_users.push(user);
+  await saveLocalDb(db);
   return user;
 }
+
