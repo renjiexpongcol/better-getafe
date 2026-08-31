@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "node --env-file-if-exists=.env scripts/verify-cms-configuration.mjs && node --env-file-if-exists=.env server.js",
+    "start": "node --env-file-if-exists=.env scripts/verify-cms-configuration.mjs && node --env-file-if-exists=.env scripts/server-runner.mjs",
     "cms:check": "node --env-file-if-exists=.env scripts/verify-cms-configuration.mjs",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
