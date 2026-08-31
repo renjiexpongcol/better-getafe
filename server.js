@@ -1,3 +1,11 @@
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (error) => {
+  console.error('Unhandled Rejection:', error);
+});
+
 import express from "express";
 import path from "path";
 import crypto from "crypto";
@@ -328,6 +336,10 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", service: "better-getafe" });
 });
 
+app.get("/healthz", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 app.get("/ready", (req, res) => {
   res.status(200).json({
     status: "ready",
@@ -343,9 +355,13 @@ app.use(express.static(path.join(__dirname, "dist")));
 app.use((req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
 
 function startServer() {
+  console.log('Starting application...');
   const PORT = Number(process.env.PORT) || 8080;
+  console.log(`PORT: ${PORT}`);
+  console.log('Initializing routes...');
   
   // Start HTTP server first so Cloud Run receives a healthy listening process
+  console.log('Starting HTTP server...');
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`✓ Better Getafe HTTP server listening on port ${PORT}`);
     

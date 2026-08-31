@@ -35,6 +35,7 @@ RUN npm ci --omit=dev
 
 # Copy Express server
 COPY server.js ./
+COPY src ./src
 
 # Copy the Vite production build
 COPY --from=builder /app/dist ./dist
