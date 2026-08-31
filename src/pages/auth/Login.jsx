@@ -23,9 +23,9 @@ export default function Login() {
     remember: true,
   })
 
-  // Already signed in? Send them home.
+  // Already signed in? Administrators return to CMS; residents return home.
   useEffect(() => {
-    if (user) navigate('/', { replace: true })
+    if (user) navigate(user.role === 'admin' ? '/admin' : '/', { replace: true })
   }, [user, navigate])
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
@@ -40,15 +40,11 @@ export default function Login() {
         return
       }
       setLoading(true)
-      setTimeout(() => {
-        const res = login(form.email, form.password)
+      login(form.email, form.password).then((res) => {
         setLoading(false)
-        if (!res.ok) {
-          setError(res.error)
-        } else {
-          navigate('/', { replace: true })
-        }
-      }, 650)
+        if (!res.ok) setError(res.error)
+        else navigate(res.admin ? '/admin' : '/', { replace: true })
+      })
     } else {
       if (!form.name.trim() || !form.email.trim() || !form.password) {
         setError('Please fill in all required fields.')

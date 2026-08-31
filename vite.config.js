@@ -10,6 +10,14 @@ export default defineConfig({
     allowedHosts: ['getafe.supra-intra.org'],
 
     proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/uploads': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
       // Proxy PSA OpenSTAT requests through the dev server so the browser
       // calls a same-origin path (no CORS). The app also falls back to the
       // direct API URL for static/production hosting.

@@ -184,10 +184,6 @@ export default function BarangayModal({ barangay, onClose }) {
                     : 'Location unavailable'}
                 </h3>
               </div>
-
-              {hasCoordinates && (
-                <MapPin size={19} aria-hidden="true" />
-              )}
             </div>
 
             {hasCoordinates ? (

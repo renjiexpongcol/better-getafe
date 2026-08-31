@@ -45,7 +45,7 @@ function PageLoader() {
 
 function App() {
   const location = useLocation()
-  const isAuthPage = location.pathname.startsWith('/auth')
+  const isAuthPage = location.pathname.startsWith('/auth') || location.pathname.startsWith('/admin')
 
   return (
     <AuthProvider>
@@ -55,6 +55,7 @@ function App() {
         {!isAuthPage && <Header />}
         <Suspense fallback={<PageLoader />}>
           <Routes>
+            <Route path="/news/:slug" element={<ArticleRoute />} />
             {pageRoutes.map(({ path, Component }) => (
               <Route key={path} path={path} element={<Component />} />
             ))}
@@ -69,6 +70,11 @@ function App() {
       </div>
     </AuthProvider>
   )
+}
+
+function ArticleRoute() {
+  const Article = pageRoutes.find((route) => route.path === '/news/article')?.Component
+  return Article ? <Article /> : null
 }
 
 export default App

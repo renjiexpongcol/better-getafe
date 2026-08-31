@@ -6,13 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "node server.js",
+    "start": "node --env-file-if-exists=.env scripts/verify-cms-configuration.mjs && node --env-file-if-exists=.env server.js",
+    "cms:check": "node --env-file-if-exists=.env scripts/verify-cms-configuration.mjs",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google-cloud/cloud-sql-connector": "^1.11.3",
+    "@google-cloud/storage": "^8.0.1",
     "express": "^5.2.1",
     "lucide-react": "^1.37.0",
+    "mysql2": "^3.24.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-icons": "^5.7.0",

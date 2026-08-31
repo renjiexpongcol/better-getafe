@@ -135,6 +135,7 @@ export default function Header() {
                 <span className="user-name">{user.name}</span>
                 <span className="user-role">{user.role}</span>
               </span>
+              {user.role === 'admin' && <Link to="/admin" className="login-button">CMS</Link>}
               <button
                 type="button"
                 className="logout-button"
