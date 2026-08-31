@@ -25,3 +25,8 @@ if (mediaProvider === 'gcp') {
 } else {
   console.log('CMS media: local uploads directory.')
 }
+
+if ((process.env.USER_DATABASE_PROVIDER || 'local') === 'gcp') {
+  ;['GCP_PROJECT_ID', 'INSTANCE_CONNECTION_NAME', 'USER_DB_NAME', 'USER_DB_USER', 'USER_DB_PASS'].forEach(required)
+  console.log('Portal accounts: Google Cloud SQL configuration present.')
+}

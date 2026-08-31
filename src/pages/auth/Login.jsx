@@ -60,9 +60,11 @@ export default function Login() {
       }
       setLoading(true)
       setTimeout(() => {
-        register(form.name, form.email, form.password)
-        setLoading(false)
-        navigate('/', { replace: true })
+        register(form.name, form.email, form.password).then((res) => {
+          setLoading(false)
+          if (!res.ok) setError(res.error)
+          else navigate('/', { replace: true })
+        })
       }, 650)
     }
   }

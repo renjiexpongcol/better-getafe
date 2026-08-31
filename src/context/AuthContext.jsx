@@ -46,6 +46,10 @@ export function AuthProvider({ children }) {
     } catch {
       return { ok: false, error: 'The sign-in service is unavailable. Start the local server and try again.' }
     }
+    try {
+      const response = await fetch('/api/portal-auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: key, password }) })
+      if (response.ok) { const { user } = await response.json(); setUser(user); return { ok: true, admin: false } }
+    } catch { /* Development demo fallback below. */ }
     const account = DEMO_USERS[key]
     if (account && account.password === password) {
       setUser({ email: key, name: account.name, role: account.role })
@@ -54,9 +58,12 @@ export function AuthProvider({ children }) {
     return { ok: false, error: 'Invalid email or password. Please try one of the demo accounts below.' }
   }
 
-  const register = (name, email, password) => {
-    setUser({ email: email.trim().toLowerCase(), name: name.trim(), role: 'Resident' })
-    return { ok: true }
+  const register = async (name, email, password) => {
+    try {
+      const response = await fetch('/api/portal-auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, password }) })
+      if (response.ok) { const { user } = await response.json(); setUser(user); return { ok: true } }
+      const body = await response.json(); return { ok: false, error: body.error }
+    } catch { return { ok: false, error: 'The account service is unavailable.' } }
   }
 
   const logout = () => {

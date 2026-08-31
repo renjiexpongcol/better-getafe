@@ -3,12 +3,15 @@ import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import mysql from 'mysql2/promise';
+import { Connector, IpAddressTypes } from '@google-cloud/cloud-sql-connector';
 
 const __filename = fileURLToPath(import.meta.url), __dirname = path.dirname(__filename);
 const app = express(), PORT = process.env.PORT || 8080;
 const dataPath = path.join(__dirname, 'data', 'cms.json');
 const secret = process.env.CMS_SESSION_SECRET || 'change-this-local-development-session-secret';
 const envPath = path.join(__dirname, '.env');
+let portalPool;
 app.use(express.json({ limit: '8mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const now = () => new Date().toISOString();
@@ -26,9 +29,19 @@ function db() { if (!fs.existsSync(dataPath)) { fs.mkdirSync(path.dirname(dataPa
 const save = data => { fs.mkdirSync(path.dirname(dataPath), { recursive: true }); fs.writeFileSync(dataPath, JSON.stringify(data, null, 2)); };
 const decorate = (article, data) => ({ ...article, category: data.categories.find(c => c.id === article.category_id) || null, author: (() => { const u = data.users.find(u => u.id === article.author_id); return u && { id: u.id, name: u.name }; })() });
 function uniqueSlug(items, raw, current) { const base = slugify(raw) || 'untitled'; let value = base, n = 2; while (items.some(x => x.slug === value && x.id !== current)) value = `${base}-${n++}`; return value; }
+async function getPortalPool() {
+  if (portalPool) return portalPool;
+  if ((process.env.USER_DATABASE_PROVIDER || 'local') !== 'gcp') return null;
+  const connector = new Connector();
+  const options = await connector.getOptions({ instanceConnectionName: process.env.INSTANCE_CONNECTION_NAME, ipType: process.env.PRIVATE_IP === 'true' ? IpAddressTypes.PRIVATE : IpAddressTypes.PUBLIC });
+  portalPool = mysql.createPool({ ...options, user: process.env.USER_DB_USER, password: process.env.USER_DB_PASS, database: process.env.USER_DB_NAME, waitForConnections: true, connectionLimit: 5 });
+  return portalPool;
+}
 function validateArticle(body, res) { if (!body.title?.trim() || !body.excerpt?.trim() || !body.content?.trim()) { res.status(422).json({ error: 'Title, excerpt, and content are required.' }); return false; } return true; }
 
 app.post('/api/auth/login', (req, res) => { const user = db().users.find(u => u.email === String(req.body.email || '').toLowerCase()); if (!user || !matches(req.body.password || '', user.password)) return res.status(401).json({ error: 'Invalid administrator credentials.' }); res.json({ token: makeToken(user), user: { id: user.id, name: user.name, email: user.email, role: user.role } }); });
+app.post('/api/portal-auth/login', async (req, res) => { try { const pool = await getPortalPool(); if (!pool) return res.status(503).json({ error: 'Portal account database is not configured.' }); const [rows] = await pool.execute('SELECT id, name, email, password, role FROM portal_users WHERE email = ?', [String(req.body.email || '').toLowerCase()]); const user = rows[0]; if (!user || !matches(req.body.password || '', user.password)) return res.status(401).json({ error: 'Invalid email or password.' }); res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } }); } catch { res.status(503).json({ error: 'Portal account service is unavailable.' }); } });
+app.post('/api/portal-auth/register', async (req, res) => { try { const name = String(req.body.name || '').trim(), email = String(req.body.email || '').trim().toLowerCase(), password = String(req.body.password || ''); if (!name || !email || password.length < 8) return res.status(422).json({ error: 'Name, email, and a password of at least 8 characters are required.' }); const pool = await getPortalPool(); if (!pool) return res.status(503).json({ error: 'Portal account database is not configured.' }); const created = now(), user = { id: id(), name, email, password: hash(password), role: 'resident', created_at: created, updated_at: created }; await pool.execute('INSERT INTO portal_users (id, name, email, password, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [user.id, user.name, user.email, user.password, user.role, user.created_at, user.updated_at]); res.status(201).json({ user: { id: user.id, name, email, role: user.role } }); } catch (error) { res.status(error?.code === 'ER_DUP_ENTRY' ? 409 : 503).json({ error: error?.code === 'ER_DUP_ENTRY' ? 'An account with that email already exists.' : 'Portal account service is unavailable.' }); } });
 app.get('/api/auth/me', admin, (req, res) => { const user = db().users.find(u => u.id === req.admin.id); res.json({ id: user.id, name: user.name, email: user.email, role: user.role }); });
 app.get('/api/admin/settings', admin, (req, res) => res.json(cmsSettings()));
 app.put('/api/admin/settings', admin, (req, res) => { const b = req.body || {}; if (b.databaseProvider === 'gcp' && (!b.projectId || !b.instanceConnectionName || !b.databaseName || !b.databaseUser)) return res.status(422).json({ error: 'Complete the Cloud SQL project, instance, database, and user fields.' }); updateEnv({ CMS_DATABASE_PROVIDER: b.databaseProvider, CMS_MEDIA_PROVIDER: b.mediaProvider, GCP_PROJECT_ID: b.projectId, INSTANCE_CONNECTION_NAME: b.instanceConnectionName, DB_NAME: b.databaseName, DB_USER: b.databaseUser, DB_PASS: b.databasePassword, PRIVATE_IP: String(Boolean(b.privateIp)), GCS_BUCKET: b.bucket, GCS_PUBLIC_BASE_URL: b.publicBaseUrl }); res.json({ ...cmsSettings(), restartRequired: true }); });

@@ -23,6 +23,10 @@ Copy `.env.example` to `.env`, set both providers to `gcp`, replace every placeh
 npm run cms:check
 ```
 
+## Portal user accounts
+
+The portal accounts database is `getafe-users` on the same Cloud SQL instance. Run [cloudsql-users-schema.sql](../database/cloudsql-users-schema.sql) in that database, then set `USER_DATABASE_PROVIDER=gcp`, `USER_DB_NAME=getafe-users`, `USER_DB_USER=getafe-portal`, and `USER_DB_PASS` in `.env`. Portal registration and login then use this database instead of browser-only demo storage.
+
 For GCP authentication, use Application Default Credentials locally or attach a service account to the deployed workload. Never commit service-account JSON keys, database passwords, or `.env` files.
 
 ## 4. Required runtime packages for the cloud adapter
