@@ -1,5 +1,8 @@
 # Better Getafe
 
+<img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/270f54cf-7398-4c68-95c9-1ac4c80cc071" />
+
+
 **Better Getafe** is a modern digital government portal for the **Municipality of Getafe, Bohol, Philippines**, designed to provide residents, visitors, businesses, and the wider community with centralized access to municipal information and digital services.
 
 The platform brings important local information into a single, accessible, responsive web experience — including municipal information, announcements, barangay information, tourism, public services, community resources, and other essential government content.
