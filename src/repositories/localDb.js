@@ -23,7 +23,7 @@ function seed() {
     created_at: created,
     updated_at: created,
   };
-  const categories = ["Announcements", "Events", "Community", "Updates", "Press Release"].map((name) => ({
+  const categories = ["Announcements", "Events", "Community", "Updates", "Press Release", "Tourism", "Services"].map((name) => ({
     id: id(),
     name,
     slug: slugify(name),
@@ -49,6 +49,19 @@ function seed() {
       "A reminder about regular municipal office hours and service channels.",
       "<p>Municipal offices are open Monday through Friday during regular business hours. Online enquiries may also be sent through the contact page.</p>",
     ],
+    ["Man-made Mangrove Forest", "Tourism", "Explore one of Getafe's distinctive coastal landscapes.", "<p>Explore one of Getafe's distinctive coastal landscapes and coordinate with local tourism partners before visiting.</p>"],
+    ["Pandanon Island", "Tourism", "Discover island horizons and quiet shorelines in coastal Getafe.", "<p>Discover island horizons and quiet shorelines in coastal Getafe. Follow local environmental guidance.</p>"],
+    ["Handumon Marine Sanctuary", "Tourism", "Experience a protected marine landscape shaped by community stewardship.", "<p>Experience a protected marine landscape shaped by community stewardship and respect sanctuary rules.</p>"],
+    ["Corte Paradise Resort", "Tourism", "Make time for a restful stay surrounded by coastal scenery.", "<p>Make time for a restful stay surrounded by the warmth and scenery of coastal Getafe.</p>"],
+    ["Verador Hill", "Tourism", "Take in open views and a greener side of the municipality.", "<p>Take in open views and a slower, greener side of the municipality from the hills above town.</p>"],
+    ["Executive", "Services", "The Office of the Mayor coordinates municipal programs and public service delivery.", "<p>Connect with the municipal executive offices for programs, policy coordination, and public service concerns.</p>"],
+    ["Engineering", "Services", "Municipal engineering, infrastructure coordination, and public works support.", "<p>Find municipal engineering information, infrastructure coordination, and public works support.</p>"],
+    ["Zoning/Planning", "Services", "Land use, development planning, zoning clearances, and planning requirements.", "<p>Get guidance on land use, development planning, zoning clearances, and local planning requirements.</p>"],
+    ["Treasury", "Services", "Local tax, payment, business, and revenue-related information.", "<p>Access local tax, payment, business, and revenue-related information from the Municipal Treasurer.</p>"],
+    ["Assessment", "Services", "Property assessment, tax declarations, and assessment office transactions.", "<p>Learn about property assessment, tax declarations, and assessment office transactions.</p>"],
+    ["Civil Registry", "Services", "Birth, marriage, death, and other civil registry document requests.", "<p>Find information about birth, marriage, death, and other civil registry document requests.</p>"],
+    ["Health", "Services", "Municipal health programs, public health services, and rural health support.", "<p>Connect with municipal health programs, public health services, and rural health support.</p>"],
+    ["Social Welfare", "Services", "Assistance programs and social welfare support for residents and families.", "<p>Find assistance programs and social welfare support for families and vulnerable residents.</p>"],
   ];
   return {
     users: [user],

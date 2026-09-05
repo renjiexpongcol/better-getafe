@@ -33,6 +33,7 @@ export const routeTitles = {
   '/legal/privacy': 'Privacy Policy',
   '/legal/terms': 'Terms of Use',
   '/services': 'Municipal Services',
+  '/services/directory': 'Services & Departments',
   '/services/barangays': 'Barangays of Getafe',
   '/services/hotlines': 'Emergency Hotlines',
   '/services/business-trade': 'Business & Trade',
@@ -40,6 +41,8 @@ export const routeTitles = {
   '/services/education': 'Education & Scholarships',
   '/services/health': 'Health Services',
   '/news': 'News & Updates',
+  '/tourism': 'Discover Getafe',
+  '/events': 'Gallery of Events',
   '/auth/login': 'Log In',
 }
 
@@ -70,12 +73,14 @@ export const pageRoutes = Object.entries(pageModules).map(([file, loader]) => {
 export const publicRoutes = pageRoutes.filter((r) => !HIDDEN_ROUTES.includes(r.path))
 
 // Display labels + order for the sitemap groups.
-const groupOrder = ['home', 'info', 'services', 'news', 'legal']
+const groupOrder = ['home', 'info', 'services', 'tourism', 'events', 'news', 'legal']
 const groupLabels = {
   home: 'Home',
   info: 'Information',
   services: 'Services',
   news: 'News & Updates',
+  tourism: 'Discover Getafe',
+  events: 'Gallery of Events',
   legal: 'Legal',
 }
 

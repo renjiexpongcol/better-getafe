@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Link } from 'react-router-dom'
-import { ChevronDown, LogOut } from 'lucide-react'
+import { Accessibility, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, Compass, FileCheck2, HeartHandshake, Info, Landmark, LogOut, Mail, Map, Newspaper, PhoneCall, Siren, Users, WalletCards } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 export default function Header() {
@@ -49,30 +49,37 @@ export default function Header() {
       label: 'Services',
       key: 'services',
       items: [
-        ['Business Permits', '/services', 'Apply for local business requirements.'],
-        ['Certificates', '/services', 'Request clearances and civil documents.'],
-        ['Assistance Programs', '/services', 'Find social and health support.'],
+        ['Executive', '/services/directory?department=executive', 'Mayor\'s office and municipal leadership.', Landmark],
+        ['Engineering', '/services/directory?department=engineering', 'Infrastructure and public works support.', Building2],
+        ['Zoning/Planning', '/services/directory?department=zoning-planning', 'Land use and development planning.', Map],
+        ['Treasury', '/services/directory?department=treasury', 'Local payments, taxes, and revenue services.', WalletCards],
+        ['Assessment', '/services/directory?department=assessment', 'Property assessment and tax declarations.', ClipboardCheck],
+        ['Civil Registry', '/services/directory?department=civil-registry', 'Birth, marriage, and death records.', FileCheck2],
+        ['Health', '/services/directory?department=health', 'Public health and rural health services.', HeartHandshake],
+        ['Social Welfare', '/services/directory?department=social-welfare', 'Assistance programs for residents and families.', Users],
       ],
     },
     {
       label: 'Residents',
       key: 'residents',
       items: [
-        ['Citizen Services', '/services', 'Common requests for Getafe residents.'],
-        ['Emergency Hotlines', '/services/hotlines', 'Fast access to urgent public numbers.'],
-        ['Accessibility', '/info/accessibility', 'Inclusive access information.'],
+        ['Citizen Services', '/services', 'Common requests for Getafe residents.', Users],
+        ['Emergency Hotlines', '/services/hotlines', 'Fast access to urgent public numbers.', Siren],
+        ['Accessibility', '/info/accessibility', 'Inclusive access information.', Accessibility],
       ],
     },
     {
       label: 'Information',
       key: 'information',
       items: [
-        ['About Us', '/info/about', 'Mission, vision, and who we serve.'],
-        ['Municipal Officials', '/info/officials', 'Elected leaders, barangay captains, and department heads.'],
-        ['History & Hymn', '/info/history', 'The story, seal, and song of Getafe.'],
-        ['Contact Us', '/contact', 'Reach the municipal offices.'],
-        ['News and Updates', '/news', 'Latest local announcements.'],
-        ['Emergency Hotlines', '/services/hotlines', 'Police, fire, medical, and public services.'],
+        ['About Us', '/info/about', 'Mission, vision, and who we serve.', Info],
+        ['Municipal Officials', '/info/officials', 'Elected leaders, barangay captains, and department heads.', Landmark],
+        ['History & Hymn', '/info/history', 'The story, seal, and song of Getafe.', BookOpen],
+        ['Tourism', '/tourism', 'Explore Getafe destinations, islands, and coastal places.', Compass],
+        ['Gallery of Events', '/events', 'See the celebrations and milestones of Getafe.', CalendarDays],
+        ['Contact Us', '/contact', 'Reach the municipal offices.', Mail],
+        ['News and Updates', '/news', 'Latest local announcements.', Newspaper],
+        ['Emergency Hotlines', '/services/hotlines', 'Police, fire, medical, and public services.', PhoneCall],
       ],
     },
   ]
@@ -114,10 +121,10 @@ export default function Header() {
                 {menu.label} <ChevronDown size={15} aria-hidden="true" />
               </button>
               <div className={openMenu === menu.key ? 'nav-dropdown-menu open' : 'nav-dropdown-menu'}>
-                {menu.items.map(([title, url, description]) => (
+                {menu.items.map(([title, url, description, Icon]) => (
                   <Link to={url} onClick={() => setOpenMenu(null)} key={title}>
-                    <strong>{title}</strong>
-                    <small>{description}</small>
+                    <span className="nav-dropdown-icon"><Icon size={18} aria-hidden="true" /></span>
+                    <span className="nav-dropdown-copy"><strong>{title}</strong><small>{description}</small></span>
                   </Link>
                 ))}
               </div>

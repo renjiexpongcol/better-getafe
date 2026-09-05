@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev-runner.mjs",
+    "dev:frontend": "vite",
     "build": "vite build",
     "start": "node server.js",
     "cms:check": "node --env-file-if-exists=.env scripts/verify-cms-configuration.mjs",

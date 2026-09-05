@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
       if (response.ok) {
         const { token, user: admin } = await response.json()
         localStorage.setItem('getafe_cms_token', token)
-        setUser({ ...admin, role: 'admin' })
+        setUser(admin)
         return { ok: true, admin: true }
       }
     } catch {

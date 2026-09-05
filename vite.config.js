@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const backendTarget = process.env.VITE_BACKEND_URL || 'http://localhost:8091'
+
 // https://vitejs.dev/config/
 
 export default defineConfig({
@@ -11,11 +13,15 @@ export default defineConfig({
 
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: backendTarget,
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:8080',
+        target: backendTarget,
+        changeOrigin: true,
+      },
+      '/rss.xml': {
+        target: backendTarget,
         changeOrigin: true,
       },
       // Proxy PSA OpenSTAT requests through the dev server so the browser

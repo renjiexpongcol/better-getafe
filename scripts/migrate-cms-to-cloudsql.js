@@ -10,6 +10,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
+const mysqlDateTime = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error(`Invalid date value: ${value}`);
+  return date.toISOString().slice(0, 23).replace('T', ' ');
+};
+
 async function migrate() {
   console.log("Starting CMS Migration to Cloud SQL and Cloud Storage...");
   const dataPath = path.join(__dirname, "..", "data", "cms.json");
@@ -60,7 +67,7 @@ async function migrate() {
     try {
       await pool.execute(
         "INSERT INTO users (id, name, email, password, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [user.id, user.name, user.email, user.password, user.role, user.created_at, user.updated_at]
+        [user.id, user.name, user.email, user.password, user.role, mysqlDateTime(user.created_at), mysqlDateTime(user.updated_at)]
       );
     } catch (e) {
       if (e.code === 'ER_DUP_ENTRY') console.log(`User ${user.email} already exists, skipping.`);
@@ -74,7 +81,7 @@ async function migrate() {
     try {
       await pool.execute(
         "INSERT INTO categories (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-        [cat.id, cat.name, cat.slug, cat.created_at, cat.updated_at]
+        [cat.id, cat.name, cat.slug, mysqlDateTime(cat.created_at), mysqlDateTime(cat.updated_at)]
       );
     } catch (e) {
       if (e.code === 'ER_DUP_ENTRY') console.log(`Category ${cat.slug} already exists, skipping.`);
@@ -101,7 +108,7 @@ async function migrate() {
     try {
       await pool.execute(
         "INSERT INTO media (id, filename, filepath, filetype, filesize, uploaded_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [media.id, media.filename, newFilepath, media.filetype, media.filesize, media.uploaded_by, media.created_at]
+        [media.id, media.filename, newFilepath, media.filetype, media.filesize, media.uploaded_by, mysqlDateTime(media.created_at)]
       );
     } catch (e) {
       if (e.code === 'ER_DUP_ENTRY') console.log(`Media ${media.filename} already exists, skipping.`);
@@ -124,7 +131,7 @@ async function migrate() {
     try {
       await pool.execute(
         "INSERT INTO news (id, title, slug, excerpt, content, featured_image, category_id, author_id, status, published_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [news.id, news.title, news.slug, news.excerpt, news.content, updatedFeaturedImage, news.category_id, news.author_id, news.status, news.published_at, news.created_at, news.updated_at]
+        [news.id, news.title, news.slug, news.excerpt, news.content, updatedFeaturedImage, news.category_id, news.author_id, news.status, mysqlDateTime(news.published_at), mysqlDateTime(news.created_at), mysqlDateTime(news.updated_at)]
       );
     } catch (e) {
       if (e.code === 'ER_DUP_ENTRY') console.log(`News ${news.slug} already exists, skipping.`);

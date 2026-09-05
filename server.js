@@ -75,7 +75,9 @@ function authenticated(req) {
 
 const admin = (req, res, next) => {
   req.admin = authenticated(req);
-  return req.admin ? next() : res.status(401).json({ error: "Authentication required." });
+  return req.admin?.role === 'admin'
+    ? next()
+    : res.status(401).json({ error: "Administrator authentication required." });
 };
 
 const cmsSettings = () => ({
@@ -99,12 +101,25 @@ function validateArticle(body, res) {
   return true;
 }
 
+const xmlEscape = (value = '') => String(value)
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&apos;');
+
+const siteUrl = (req) => {
+  const configured = process.env.PUBLIC_SITE_URL || `${req.protocol}://${req.get('host')}`;
+  return configured.replace(/\/$/, '');
+};
+
 const decorate = async (article) => {
   const categories = await getCategories();
   const users = await getCmsUsers();
   return {
     ...article,
     featured_image: await getSignedUrl(article.featured_image),
+    featured_image_path: article.featured_image,
     category: categories.find((c) => c.id === article.category_id) || null,
     author: (() => {
       const u = users.find((u) => u.id === article.author_id);
@@ -112,6 +127,43 @@ const decorate = async (article) => {
     })(),
   };
 };
+
+app.get('/rss.xml', async (req, res) => {
+  try {
+    const baseUrl = siteUrl(req);
+    const published = (await getNewsArticles())
+      .filter((article) => article.status === 'published' && article.published_at && new Date(article.published_at) <= new Date())
+      .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
+      .slice(0, 50);
+    const items = published.map((article) => {
+      const articleUrl = `${baseUrl}/news/${encodeURIComponent(article.slug)}`;
+      return `
+      <item>
+        <title>${xmlEscape(article.title)}</title>
+        <link>${xmlEscape(articleUrl)}</link>
+        <guid isPermaLink="true">${xmlEscape(articleUrl)}</guid>
+        <description>${xmlEscape(article.excerpt)}</description>
+        <pubDate>${new Date(article.published_at).toUTCString()}</pubDate>
+      </item>`;
+    }).join('');
+    const updated = published[0]?.published_at ? new Date(published[0].published_at).toUTCString() : new Date().toUTCString();
+    const feed = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Municipality of Getafe News &amp; Updates</title>
+    <link>${xmlEscape(baseUrl)}</link>
+    <description>Official announcements, community information, events, services, and tourism updates from the Municipality of Getafe, Bohol.</description>
+    <language>en-PH</language>
+    <lastBuildDate>${updated}</lastBuildDate>
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" href="${xmlEscape(`${baseUrl}/rss.xml`)}" rel="self" type="application/rss+xml" />${items}
+  </channel>
+</rss>`;
+    res.type('application/rss+xml').send(feed);
+  } catch (error) {
+    console.error('RSS feed generation failed:', error);
+    res.status(503).type('text/plain').send('RSS feed unavailable.');
+  }
+});
 
 // -- Auth Routes --
 app.post("/api/auth/login", async (req, res) => {
@@ -187,7 +239,9 @@ app.get("/api/news", async (req, res) => {
   }
   items.sort((a, b) => new Date(b.published_at || b.created_at) - new Date(a.published_at || a.created_at));
   
-  const page = Math.max(1, Number(req.query.page || 1)), limit = Math.min(24, Math.max(1, Number(req.query.limit || 9)));
+  const requestedLimit = Number(req.query.limit || 9);
+  const limit = Math.min(isAdmin ? 100 : 24, Math.max(1, Number.isFinite(requestedLimit) ? requestedLimit : 9));
+  const page = Math.max(1, Number(req.query.page || 1));
   const paginated = items.slice((page - 1) * limit, page * limit);
   const decorated = await Promise.all(paginated.map(n => decorate(n)));
   
@@ -209,12 +263,20 @@ app.get("/api/news/:slug", async (req, res) => {
 
 app.post("/api/news", admin, async (req, res) => {
   if (!validateArticle(req.body, res)) return;
+  const categories = await getCategories();
+  if (req.body.category_id && !categories.some((category) => category.id === req.body.category_id)) {
+    return res.status(422).json({ error: "The selected category does not exist." });
+  }
   const article = await createNewsArticle(req.body, req.admin.id);
   res.status(201).json(await decorate(article));
 });
 
 app.put("/api/news/:id", admin, async (req, res) => {
   if (!validateArticle(req.body, res)) return;
+  const categories = await getCategories();
+  if (req.body.category_id && !categories.some((category) => category.id === req.body.category_id)) {
+    return res.status(422).json({ error: "The selected category does not exist." });
+  }
   const article = await updateNewsArticle(req.params.id, req.body);
   if (!article) return res.status(404).json({ error: "Article not found." });
   res.json(await decorate(article));
@@ -265,7 +327,8 @@ app.get("/api/media", admin, async (req, res) => {
   const media = await getMedia();
   const decoratedMedia = await Promise.all(media.map(async (m) => ({
     ...m,
-    filepath: await getSignedUrl(m.filepath)
+    filepath: m.filepath,
+    preview_url: await getSignedUrl(m.filepath)
   })));
   res.json(decoratedMedia);
 });
@@ -287,7 +350,7 @@ app.post("/api/media", admin, uploadMiddleware.single("file"), async (req, res) 
   const item = await createMediaRecord(name, filepath, mimetype, size, req.admin.id);
   
   // Return signed URL in the response
-  res.status(201).json({ ...item, filepath: await getSignedUrl(filepath) });
+  res.status(201).json({ ...item, preview_url: await getSignedUrl(filepath) });
 });
 
 app.delete("/api/media/:id", admin, async (req, res) => {

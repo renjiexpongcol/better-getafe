@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import {
-  FaFacebookF, FaGithub, FaInstagram, FaYoutube, FaXTwitter, FaGlobe,
+  FaFacebookF, FaGithub, FaInstagram, FaYoutube, FaXTwitter, FaGlobe, FaRss,
 } from 'react-icons/fa6';
 
 const EXPLORE_LINKS = [
@@ -9,8 +9,11 @@ const EXPLORE_LINKS = [
   { name: 'History & Hymn', url: '/info/history' },
   { name: 'Barangays of Getafe', url: '/services/barangays' },
   { name: 'Municipal Services', url: '/services' },
+  { name: 'Services & Departments', url: '/services/directory' },
   { name: 'Emergency Hotlines', url: '/services/hotlines' },
   { name: 'News & Updates', url: '/news' },
+  { name: 'Discover Getafe', url: '/tourism' },
+  { name: 'Gallery of Events', url: '/events' },
   { name: 'Accessibility', url: '/info/accessibility' },
   { name: 'Sitemap', url: '/info/sitemap' },
 ];
@@ -169,6 +172,8 @@ export default function Footer() {
           <Link to="/legal/terms" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = '#fff'} onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}>Terms of Use</Link>
           <span style={{ opacity: 0.5 }}>·</span>
           <Link to="/info/accessibility" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = '#fff'} onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}>Accessibility</Link>
+          <span style={{ opacity: 0.5 }}>·</span>
+          <a href="/rss.xml" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s', display: 'inline-flex', alignItems: 'center', gap: '6px' }} onMouseEnter={(e) => e.currentTarget.style.color = '#fff'} onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}><FaRss size={13} aria-hidden="true" /> RSS Feed</a>
         </div>
       </div>
     </footer>
