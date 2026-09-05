@@ -19,8 +19,9 @@ async function migrate() {
   }
   const data = JSON.parse(fs.readFileSync(dataPath, "utf8"));
 
-  if (!process.env.CMS_CLOUD_SQL_INSTANCE) {
-    console.error("CMS_CLOUD_SQL_INSTANCE is not defined in .env");
+  const instanceConnectionName = process.env.CMS_CLOUD_SQL_INSTANCE || process.env.INSTANCE_CONNECTION_NAME;
+  if (!instanceConnectionName) {
+    console.error("CMS_CLOUD_SQL_INSTANCE or INSTANCE_CONNECTION_NAME is not defined in .env");
     process.exit(1);
   }
 
@@ -28,29 +29,29 @@ async function migrate() {
   console.log("Connecting to Cloud SQL...");
   const connector = new Connector();
   const options = await connector.getOptions({
-    instanceConnectionName: process.env.CMS_CLOUD_SQL_INSTANCE,
+    instanceConnectionName,
     ipType: process.env.PRIVATE_IP === "true" ? IpAddressTypes.PRIVATE : IpAddressTypes.PUBLIC,
     authType: process.env.CMS_IAM_AUTH === "true" ? AuthTypes.IAM : AuthTypes.PASSWORD,
   });
 
   const pool = mysql.createPool({
     ...options,
-    user: process.env.CMS_DB_USER,
-    password: process.env.CMS_DB_PASSWORD,
-    database: process.env.CMS_DB_NAME,
+    user: process.env.CMS_DB_USER || process.env.DB_USER,
+    password: process.env.CMS_DB_PASSWORD || process.env.DB_PASS,
+    database: process.env.CMS_DB_NAME || process.env.DB_NAME,
   });
 
   // Initialize Cloud Storage
   console.log("Initializing Cloud Storage...");
   let bucket;
-  const bucketName = process.env.GCS_BUCKET_NAME;
+  const bucketName = process.env.GCS_BUCKET_NAME || process.env.GCS_BUCKET;
   if (bucketName) {
     const storage = new Storage({ projectId: process.env.GCP_PROJECT_ID });
     bucket = storage.bucket(bucketName);
     const [exists] = await bucket.exists();
     if (!exists) throw new Error(`Bucket ${bucketName} does not exist.`);
   } else {
-    console.log("No GCS_BUCKET_NAME provided, skipping media upload migration.");
+    console.log("No GCS_BUCKET_NAME or GCS_BUCKET provided, skipping media upload migration.");
   }
 
   // 1. Migrate Users

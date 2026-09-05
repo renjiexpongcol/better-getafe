@@ -36,7 +36,9 @@ if (process.env.NODE_ENV !== 'production') {
   dotenv.config();
 }
 
-const secret = process.env.CMS_SESSION_SECRET || "change-this-local-development-session-secret";
+const secret = process.env.CMS_SESSION_SECRET || (
+  process.env.NODE_ENV === "production" ? null : "change-this-local-development-session-secret"
+);
 
 app.use(express.json({ limit: "8mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -327,12 +329,12 @@ app.get("/api/health/storage", (req, res) => {
   const isProd = process.env.NODE_ENV === 'production';
   const gcpConfigured = (process.env.CMS_DATABASE_PROVIDER || "local") === "gcp";
   const mediaConfigured = (process.env.CMS_MEDIA_PROVIDER || "local") === "gcp";
-  const userConfigured = (process.env.USER_DATABASE_PROVIDER || "local") === "gcp";
+  const portalProvider = process.env.PORTAL_DATABASE_PROVIDER || process.env.USER_DATABASE_PROVIDER || "local";
   
   res.status(200).json({
     environment: isProd ? "production" : "development",
     databaseProvider: process.env.CMS_DATABASE_PROVIDER || "local",
-    userDatabaseProvider: process.env.USER_DATABASE_PROVIDER || "local",
+    userDatabaseProvider: portalProvider,
     mediaProvider: process.env.CMS_MEDIA_PROVIDER || "local",
     cloudSqlConfigured: gcpConfigured,
     cloudSqlConnected: serviceStatus.cmsDatabase === 'connected',
@@ -344,8 +346,9 @@ app.get("/api/health/storage", (req, res) => {
 });
 
 app.get("/ready", (req, res) => {
-  res.status(200).json({
-    status: "ready",
+  const ready = Object.values(serviceStatus).every((status) => status === 'connected' || status === 'local');
+  res.status(ready ? 200 : 503).json({
+    status: ready ? "ready" : "not_ready",
     services: {
       cmsDatabase: serviceStatus.cmsDatabase,
       portalDatabase: serviceStatus.portalDatabase,
@@ -365,13 +368,45 @@ async function startServer() {
     
     console.log('[STARTUP 3/8] Validating Cloud Run configuration');
     if (isProd) {
-      const requiredEnv = [
-        'CMS_DATABASE_PROVIDER', 'CMS_MEDIA_PROVIDER', 'USER_DATABASE_PROVIDER',
-        'GCP_PROJECT_ID', 'INSTANCE_CONNECTION_NAME', 'DB_NAME', 'DB_USER',
-        'USER_DB_NAME', 'USER_DB_USER', 'GCS_BUCKET'
+      const portalProvider = process.env.PORTAL_DATABASE_PROVIDER || process.env.USER_DATABASE_PROVIDER;
+      const requiredEnvGroups = [
+        ['CMS_DATABASE_PROVIDER'],
+        ['CMS_MEDIA_PROVIDER'],
+        ['PORTAL_DATABASE_PROVIDER', 'USER_DATABASE_PROVIDER'],
+        ['CMS_SESSION_SECRET']
       ];
+
+      if (process.env.CMS_DATABASE_PROVIDER === 'gcp' || portalProvider === 'gcp' || process.env.CMS_MEDIA_PROVIDER === 'gcp') {
+        requiredEnvGroups.push(['GCP_PROJECT_ID']);
+      }
+      if (process.env.CMS_DATABASE_PROVIDER === 'gcp') {
+        requiredEnvGroups.push(
+          ['CMS_CLOUD_SQL_INSTANCE', 'INSTANCE_CONNECTION_NAME'],
+          ['CMS_DB_NAME', 'DB_NAME'],
+          ['CMS_DB_USER', 'DB_USER']
+        );
+        if (process.env.CMS_IAM_AUTH !== 'true') requiredEnvGroups.push(['CMS_DB_PASSWORD', 'DB_PASS']);
+      }
+      if (portalProvider === 'gcp') {
+        requiredEnvGroups.push(
+          ['PORTAL_CLOUD_SQL_INSTANCE', 'INSTANCE_CONNECTION_NAME'],
+          ['PORTAL_DB_NAME', 'USER_DB_NAME'],
+          ['PORTAL_DB_USER', 'USER_DB_USER']
+        );
+        if (process.env.PORTAL_IAM_AUTH !== 'true') requiredEnvGroups.push(['PORTAL_DB_PASSWORD', 'USER_DB_PASS']);
+      }
+      if (process.env.CMS_MEDIA_PROVIDER === 'gcp') {
+        requiredEnvGroups.push(['GCS_BUCKET_NAME', 'GCS_BUCKET']);
+      }
       
-      const missing = requiredEnv.filter(env => !process.env[env]);
+      const missing = requiredEnvGroups
+        .filter(group => !group.some(env => {
+          const value = process.env[env];
+          return value && !(env === 'CMS_SESSION_SECRET' && (
+            value.startsWith('change-this-') || value.startsWith('replace-with-') || value.startsWith('your-')
+          ));
+        }))
+        .map(group => group.join(' or '));
       if (missing.length > 0) {
         console.error('\n========================================');
         console.error('FATAL CONFIGURATION ERROR');
@@ -381,7 +416,7 @@ async function startServer() {
         missing.forEach(v => console.error(`- ${v}`));
         console.error('\nAvailable configuration groups:');
         console.error(`- CMS database: ${process.env.CMS_DATABASE_PROVIDER ? 'configured' : 'not configured'}`);
-        console.error(`- User database: ${process.env.USER_DATABASE_PROVIDER ? 'configured' : 'not configured'}`);
+        console.error(`- User database: ${process.env.PORTAL_DATABASE_PROVIDER || process.env.USER_DATABASE_PROVIDER ? 'configured' : 'not configured'}`);
         console.error(`- GCS storage: ${process.env.CMS_MEDIA_PROVIDER ? 'configured' : 'not configured'}\n`);
         console.error('Application startup aborted.');
         console.error('========================================\n');
