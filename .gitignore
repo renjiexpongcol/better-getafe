@@ -34,6 +34,8 @@ Thumbs.db
 
 # Local data / databases
 /data/
+uploads/
+better-getafe-uploads/
 *.db
 *.sqlite
 *.sqlite3

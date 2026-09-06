@@ -92,14 +92,24 @@ async function migrate() {
   // 3. Migrate Media
   console.log(`Migrating ${data.media?.length || 0} media files...`);
   for (const media of data.media || []) {
-    let newFilepath = media.filepath;
-    if (bucket && media.filepath.startsWith('/uploads/')) {
-      const localFile = path.join(__dirname, "..", media.filepath);
+    const oldPath = media.filepath || media.path || '';
+    const originalFilename = media.filename || media.original_filename || path.basename(oldPath);
+    const localFile = oldPath.startsWith('/uploads/')
+      ? path.join(__dirname, "..", oldPath)
+      : oldPath ? path.join(__dirname, "..", oldPath.replace(/^\/+/, '')) : '';
+    const extension = path.extname(originalFilename).toLowerCase().replace('.', '') || 'bin';
+    const destination = `media/migrated/${media.id}.${extension}`;
+    let newFilepath = destination;
+    if (bucket && localFile) {
       if (fs.existsSync(localFile)) {
-        const destFileName = `media/${media.filename}`;
-        await bucket.upload(localFile, { destination: destFileName });
-        newFilepath = destFileName;
-        console.log(`Uploaded ${media.filename} to Cloud Storage.`);
+        const [alreadyUploaded] = await bucket.file(destination).exists();
+        if (!alreadyUploaded) {
+          await bucket.upload(localFile, {
+            destination,
+            metadata: { contentType: media.filetype || 'application/octet-stream' },
+          });
+          console.log(`Uploaded ${originalFilename} to Cloud Storage.`);
+        }
       } else {
         console.warn(`Local file ${localFile} not found.`);
       }
@@ -107,11 +117,11 @@ async function migrate() {
 
     try {
       await pool.execute(
-        "INSERT INTO media (id, filename, filepath, filetype, filesize, uploaded_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [media.id, media.filename, newFilepath, media.filetype, media.filesize, media.uploaded_by, mysqlDateTime(media.created_at)]
+        "INSERT INTO media (id, original_filename, storage_bucket, storage_path, content_type, file_size, uploaded_by, related_record_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)",
+        [media.id, originalFilename, bucketName, newFilepath, media.filetype || 'application/octet-stream', media.filesize || 0, media.uploaded_by, media.related_record_id || null, mysqlDateTime(media.created_at)]
       );
     } catch (e) {
-      if (e.code === 'ER_DUP_ENTRY') console.log(`Media ${media.filename} already exists, skipping.`);
+      if (e.code === 'ER_DUP_ENTRY') console.log(`Media ${originalFilename} already exists, skipping.`);
       else throw e;
     }
   }
@@ -124,7 +134,9 @@ async function migrate() {
     if (bucket && updatedFeaturedImage && updatedFeaturedImage.startsWith('/uploads/')) {
       const oldMediaRecord = data.media?.find(m => m.filepath === updatedFeaturedImage);
       if (oldMediaRecord) {
-        updatedFeaturedImage = `media/${oldMediaRecord.filename}`;
+        const originalFilename = oldMediaRecord.filename || oldMediaRecord.original_filename || path.basename(updatedFeaturedImage);
+        const extension = path.extname(originalFilename).toLowerCase().replace('.', '') || 'bin';
+        updatedFeaturedImage = `media/migrated/${oldMediaRecord.id}.${extension}`;
       }
     }
 

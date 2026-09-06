@@ -15,6 +15,21 @@ The application remains local by default. The existing Cloud SQL target is `geta
 2. Give the runtime service account the minimum object permissions it needs (typically Storage Object Admin for upload/delete, or a narrower custom role).
 3. Set `GCS_BUCKET_NAME` and the intended served URL as `GCS_PUBLIC_BASE_URL`. `GCS_BUCKET` remains supported as a legacy alias. If media must remain private, use the server's signed URLs rather than making the bucket public.
 
+For browser uploads, apply this restricted bucket CORS policy (replace or remove origins that are not used):
+
+```json
+[
+	{
+		"origin": ["https://getafe.supra-intra.org", "http://localhost:5173"],
+		"method": ["PUT"],
+		"responseHeader": ["Content-Type"],
+		"maxAgeSeconds": 900
+	}
+]
+```
+
+The Cloud Run service account needs `storage.objects.create`, `storage.objects.get`, and `storage.objects.delete` on this bucket. Grant `roles/storage.objectAdmin` only when a custom role is not practical; signed URL generation itself uses the service account's signing capability and does not require public bucket access.
+
 ## 3. Environment and verification
 
 Copy `.env.example` to `.env`, set both database providers and the media provider to `gcp`, replace every placeholder, then run:

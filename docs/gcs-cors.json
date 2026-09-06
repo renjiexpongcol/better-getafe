@@ -1,0 +1,11 @@
+[
+  {
+    "origin": [
+      "https://getafe.supra-intra.org",
+      "http://localhost:5173"
+    ],
+    "method": ["PUT"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 900
+  }
+]

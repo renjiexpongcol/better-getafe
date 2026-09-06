@@ -9,20 +9,14 @@ process.on('unhandledRejection', (error) => {
 import express from "express";
 import path from "path";
 import crypto from "crypto";
-import fs from "fs";
+
 import { fileURLToPath } from "url";
 import { initializeServices, serviceStatus } from "./src/services/initialization.js";
-import { uploadMedia, deleteMedia, getSignedUrl } from "./src/services/storage.js";
-import multer from "multer";
-
-const uploadMiddleware = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
-});
+import { createUploadUrl, createDownloadUrl, deleteObject, getObjectMetadata } from "./src/services/storage.js";
 
 import { getCategories, createCategory, updateCategory, deleteCategory } from "./src/repositories/categoryRepository.js";
 import { getNewsArticles, getNewsArticleBySlug, createNewsArticle, updateNewsArticle, deleteNewsArticle } from "./src/repositories/newsRepository.js";
-import { getMedia, createMediaRecord, deleteMediaRecord } from "./src/repositories/mediaRepository.js";
+import { getMedia, finalizePendingUpload, createPendingUpload, deletePendingUpload, deleteMediaRecord, getMediaByStoragePath, getPendingUpload } from "./src/repositories/mediaRepository.js";
 import { getCmsUsers, getCmsUserById, getCmsUserByEmail } from "./src/repositories/cmsUserRepository.js";
 import { getPortalUserByEmail, createPortalUser } from "./src/repositories/portalUserRepository.js";
 
@@ -41,7 +35,7 @@ const secret = process.env.CMS_SESSION_SECRET || (
 );
 
 app.use(express.json({ limit: "8mb" }));
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 
 const hash = (password, salt) => {
   if (!salt) salt = crypto.randomBytes(16).toString("hex");
@@ -118,7 +112,7 @@ const decorate = async (article) => {
   const users = await getCmsUsers();
   return {
     ...article,
-    featured_image: await getSignedUrl(article.featured_image),
+    featured_image: await createDownloadUrl(article.featured_image),
     featured_image_path: article.featured_image,
     category: categories.find((c) => c.id === article.category_id) || null,
     author: (() => {
@@ -226,9 +220,9 @@ app.get("/api/news", async (req, res) => {
   const allNews = await getNewsArticles();
   const isAdmin = authenticated(req);
   let items = allNews.filter((n) => isAdmin || (n.status === "published" && n.published_at && new Date(n.published_at) <= new Date()));
-  
+
   if (req.query.status && isAdmin) items = items.filter((n) => n.status === req.query.status);
-  
+
   const categories = await getCategories();
   if (req.query.category)
     items = items.filter((n) => n.category_id === req.query.category || categories.find((c) => c.id === n.category_id)?.slug === req.query.category);
@@ -327,30 +321,127 @@ app.get("/api/media", admin, async (req, res) => {
   const media = await getMedia();
   const decoratedMedia = await Promise.all(media.map(async (m) => ({
     ...m,
-    filepath: m.filepath,
-    preview_url: await getSignedUrl(m.filepath)
+    preview_url: await createDownloadUrl(m.storage_path)
   })));
   res.json(decoratedMedia);
 });
 
-app.post("/api/media", admin, uploadMiddleware.single("file"), async (req, res) => {
-  if (!req.file) return res.status(422).json({ error: "No file uploaded." });
+app.post("/api/storage/upload-url", admin, async (req, res) => {
+  const filename = String(req.body.filename || '').trim();
+  const contentType = String(req.body.contentType || '').trim().toLowerCase();
+  const fileSize = Number(req.body.fileSize);
+  const context = String(req.body.context || '');
   
-  const { originalname, mimetype, buffer, size } = req.file;
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimetype)) {
-    return res.status(422).json({ error: "Use a JPG, PNG, or WEBP image." });
+  if (!filename || !Number.isSafeInteger(fileSize) || fileSize <= 0) {
+    return res.status(422).json({ error: "Filename, contentType, and fileSize are required." });
   }
 
-  const ext = mimetype === "image/jpeg" ? "jpg" : mimetype.split('/')[1];
-  const filename = `${Date.now()}-${crypto.randomBytes(5).toString("hex")}.${ext}`;
+  if (filename.length > 255 || /[\\/\0\r\n]/.test(filename)) {
+    return res.status(422).json({ error: "Invalid filename." });
+  }
+
+  // Validate context and file
+  if (context !== 'media' && context !== 'news') {
+    return res.status(422).json({ error: "Invalid upload context." });
+  }
+
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+  if (!allowedTypes.has(contentType)) {
+    return res.status(422).json({ error: "Use a JPG, PNG, or WEBP image." });
+  }
+  const extension = filename.toLowerCase().split('.').pop();
+  const allowedExtensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+  if (extension !== allowedExtensions[contentType] && !(contentType === 'image/jpeg' && extension === 'jpeg')) {
+    return res.status(422).json({ error: "The filename extension must match the content type." });
+  }
+
+  if (fileSize > 5 * 1024 * 1024) {
+    return res.status(422).json({ error: "File size exceeds 5MB limit." });
+  }
+
+  const ext = contentType === "image/jpeg" ? "jpg" : contentType.split('/')[1];
+  const uuid = crypto.randomUUID();
+  const date = new Date();
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
   
-  const filepath = await uploadMedia(buffer, filename, mimetype, 'media');
+  const storagePath = `media/${yyyy}/${mm}/${uuid}.${ext}`;
+  const createdAt = new Date();
+  const expiresAt = new Date(createdAt.getTime() + 15 * 60 * 1000);
+
+  try {
+    await createPendingUpload({
+      id: uuid,
+      storagePath,
+      originalFilename: filename,
+      contentType,
+      fileSize,
+      uploadedBy: req.admin.id,
+      context,
+      expiresAt,
+      createdAt,
+    });
+    const uploadUrl = await createUploadUrl(storagePath, contentType, fileSize);
+    res.json({
+      uploadUrl,
+      storagePath,
+      expiresIn: 900
+    });
+  } catch (error) {
+    await deletePendingUpload(storagePath).catch(() => {});
+    console.error('Error generating upload URL:', error);
+    res.status(500).json({ error: "Failed to generate upload URL." });
+  }
+});
+
+app.post("/api/media/complete", admin, async (req, res) => {
+  const storagePath = String(req.body.storagePath || '');
+  const relatedRecordId = req.body.relatedRecordId || null;
   
-  const name = req.body.name || originalname;
-  const item = await createMediaRecord(name, filepath, mimetype, size, req.admin.id);
+  if (!storagePath || !/^media\/\d{4}\/\d{2}\/[0-9a-f-]{36}\.(jpg|png|webp)$/.test(storagePath)) {
+    return res.status(422).json({ error: "Invalid storage path." });
+  }
+  if (relatedRecordId && !/^[0-9a-f-]{36}$/i.test(String(relatedRecordId))) {
+    return res.status(422).json({ error: "Invalid related record ID." });
+  }
+
+  const bucketName = process.env.GCS_BUCKET_NAME || process.env.GCS_BUCKET;
+
+  // Guard against duplicate completion
+  const existing = await getMediaByStoragePath(storagePath);
+  if (existing) {
+    if (existing.uploaded_by !== req.admin.id) return res.status(403).json({ error: "You do not own this upload." });
+    return res.status(200).json({ ...existing, preview_url: await createDownloadUrl(storagePath) });
+  }
+
+  const pending = await getPendingUpload(storagePath, req.admin.id);
+  if (!pending) return res.status(403).json({ error: "Upload was not issued to this administrator or has expired." });
+
+  // Verify object exists and retrieve authoritative metadata from GCS
+  const gcsMetadata = await getObjectMetadata(storagePath);
+  if (!gcsMetadata) {
+    return res.status(404).json({ error: "GCS object not found. Upload may have failed." });
+  }
+
+  const verifiedContentType = gcsMetadata.contentType || 'application/octet-stream';
+  const verifiedFileSize = parseInt(gcsMetadata.size, 10) || 0;
+  if (gcsMetadata.name !== storagePath || verifiedContentType !== pending.content_type || verifiedFileSize !== Number(pending.file_size)) {
+    return res.status(422).json({ error: "Uploaded object metadata does not match the issued upload." });
+  }
+
+  const item = await finalizePendingUpload(pending, {
+    id: crypto.randomUUID(),
+    originalFilename: pending.original_filename,
+    storageBucket: bucketName,
+    storagePath,
+    contentType: verifiedContentType,
+    fileSize: verifiedFileSize,
+    uploadedBy: req.admin.id,
+    relatedRecordId,
+    createdAt: new Date().toISOString().slice(0, 23).replace('T', ' '),
+  });
   
-  // Return signed URL in the response
-  res.status(201).json({ ...item, preview_url: await getSignedUrl(filepath) });
+  res.status(201).json({ ...item, preview_url: await createDownloadUrl(storagePath) });
 });
 
 app.delete("/api/media/:id", admin, async (req, res) => {
@@ -359,12 +450,11 @@ app.delete("/api/media/:id", admin, async (req, res) => {
   if (!item) return res.status(404).json({ error: "Media not found." });
   
   const articles = await getNewsArticles();
-  if (articles.some((n) => n.featured_image === item.filepath))
+  if (articles.some((n) => n.featured_image === item.storage_path))
     return res.status(409).json({ error: "This image is being used by an article." });
     
-  await deleteMedia(item.filepath);
-  
   await deleteMediaRecord(req.params.id);
+  await deleteObject(item.storage_path);
   res.status(204).end();
 });
 

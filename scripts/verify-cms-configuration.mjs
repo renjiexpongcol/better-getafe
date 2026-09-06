@@ -31,7 +31,7 @@ if (mediaProvider === 'gcp') {
   ;[['GCP_PROJECT_ID'], ['GCS_BUCKET_NAME', 'GCS_BUCKET'], ['GCS_PUBLIC_BASE_URL']].forEach(required)
   console.log('CMS media: Google Cloud Storage configuration present.')
 } else {
-  console.log('CMS media: local uploads directory.')
+  console.log('CMS media: local development storage.')
 }
 
 const portalProvider = process.env.PORTAL_DATABASE_PROVIDER || process.env.USER_DATABASE_PROVIDER || 'local'

@@ -19,13 +19,32 @@ CREATE TABLE categories (
 
 CREATE TABLE media (
   id CHAR(36) PRIMARY KEY,
-  filename VARCHAR(255) NOT NULL,
-  filepath VARCHAR(1024) NOT NULL UNIQUE,
-  filetype VARCHAR(100) NOT NULL,
-  filesize BIGINT UNSIGNED NOT NULL,
+  original_filename VARCHAR(255) NOT NULL,
+  storage_bucket VARCHAR(255) NOT NULL,
+  storage_path VARCHAR(1024) NOT NULL UNIQUE,
+  content_type VARCHAR(100) NOT NULL,
+  file_size BIGINT UNSIGNED NOT NULL,
   uploaded_by CHAR(36) NOT NULL,
+  related_record_id CHAR(36) NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'active',
   created_at DATETIME(3) NOT NULL,
   CONSTRAINT media_uploaded_by_fk FOREIGN KEY (uploaded_by) REFERENCES users(id)
+);
+
+CREATE TABLE media_uploads (
+  id CHAR(36) PRIMARY KEY,
+  storage_path VARCHAR(1024) NOT NULL UNIQUE,
+  original_filename VARCHAR(255) NOT NULL,
+  content_type VARCHAR(100) NOT NULL,
+  file_size BIGINT UNSIGNED NOT NULL,
+  uploaded_by CHAR(36) NOT NULL,
+  context VARCHAR(32) NOT NULL,
+  status ENUM('pending', 'completed') NOT NULL DEFAULT 'pending',
+  expires_at DATETIME(3) NOT NULL,
+  created_at DATETIME(3) NOT NULL,
+  completed_at DATETIME(3) NULL,
+  CONSTRAINT media_uploads_uploaded_by_fk FOREIGN KEY (uploaded_by) REFERENCES users(id),
+  INDEX media_uploads_owner_status_idx (uploaded_by, status, expires_at)
 );
 
 CREATE TABLE news (
