@@ -18,7 +18,7 @@ import { getCategories, createCategory, updateCategory, deleteCategory } from ".
 import { getNewsArticles, getNewsArticleBySlug, createNewsArticle, updateNewsArticle, deleteNewsArticle } from "./src/repositories/newsRepository.js";
 import { getMedia, finalizePendingUpload, createPendingUpload, deletePendingUpload, deleteMediaRecord, getMediaByStoragePath, getPendingUpload } from "./src/repositories/mediaRepository.js";
 import { getCmsUsers, getCmsUserById, getCmsUserByEmail } from "./src/repositories/cmsUserRepository.js";
-import { getPortalUserByEmail, createPortalUser } from "./src/repositories/portalUserRepository.js";
+import { getPortalUserByEmail, getPortalUserById, createPortalUser } from "./src/repositories/portalUserRepository.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,23 +43,39 @@ const hash = (password, salt) => {
 };
 
 const matches = (password, stored) => {
-  const [salt, saved] = stored.split(":");
-  return crypto.timingSafeEqual(
-    Buffer.from(saved, "hex"),
-    Buffer.from(hash(password, salt).split(":")[1], "hex"),
-  );
+  try {
+    const [salt, saved] = String(stored || '').split(":");
+    if (!salt || !saved || !/^[0-9a-f]+$/i.test(saved)) return false;
+    const expected = Buffer.from(saved, "hex");
+    const actual = Buffer.from(hash(password, salt).split(":")[1], "hex");
+    return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+  } catch {
+    return false;
+  }
 };
 
-const makeToken = (user) => {
-  const payload = Buffer.from(JSON.stringify({ id: user.id, exp: Date.now() + 43200000 })).toString("base64url");
+const SESSION_COOKIE = 'getafe_session';
+const SESSION_LENGTH = 12 * 60 * 60 * 1000;
+const REMEMBERED_SESSION_LENGTH = 30 * 24 * 60 * 60 * 1000;
+
+const makeToken = (user, kind, remember = false) => {
+  const payload = Buffer.from(JSON.stringify({ id: user.id, role: user.role, kind, exp: Date.now() + (remember ? REMEMBERED_SESSION_LENGTH : SESSION_LENGTH) })).toString("base64url");
   return `${payload}.${crypto.createHmac("sha256", secret).update(payload).digest("base64url")}`;
 };
 
+const readCookies = (header = '') => Object.fromEntries(header.split(';').map(part => {
+  const index = part.indexOf('=');
+  return index < 0 ? [] : [part.slice(0, index).trim(), decodeURIComponent(part.slice(index + 1).trim())];
+}).filter(pair => pair.length));
+
 function authenticated(req) {
   try {
-    const [payload, signature] = (req.headers.authorization || "").replace("Bearer ", "").split(".");
+    const authorization = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '';
+    const token = authorization || readCookies(req.headers.cookie)[SESSION_COOKIE] || '';
+    const [payload, signature] = token.split(".");
+    if (!payload || !signature || !secret) return null;
     const expected = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
-    if (!signature || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+    if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
     const data = JSON.parse(Buffer.from(payload, "base64url").toString());
     return data.exp > Date.now() ? data : null;
   } catch {
@@ -67,12 +83,34 @@ function authenticated(req) {
   }
 }
 
-const admin = (req, res, next) => {
+const admin = async (req, res, next) => {
   req.admin = authenticated(req);
-  return req.admin?.role === 'admin'
-    ? next()
-    : res.status(401).json({ error: "Administrator authentication required." });
+  if (req.admin?.kind !== 'cms' || req.admin.role !== 'admin') {
+    return res.status(401).json({ error: "Administrator authentication required." });
+  }
+  try {
+    const user = await getCmsUserById(req.admin.id);
+    if (!user || user.role !== 'admin') return res.status(401).json({ error: "Administrator authentication required." });
+    req.admin = safeUser(user);
+    next();
+  } catch (error) {
+    console.error('Administrator authorization lookup failed:', error.message);
+    res.status(503).json({ error: "Authentication service is temporarily unavailable." });
+  }
 };
+
+const setSessionCookie = (res, token, remember) => {
+  const attributes = ['HttpOnly', 'Path=/', 'SameSite=Lax'];
+  if (process.env.NODE_ENV === 'production') attributes.push('Secure');
+  if (remember) attributes.push(`Max-Age=${Math.floor(REMEMBERED_SESSION_LENGTH / 1000)}`);
+  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=${encodeURIComponent(token)}; ${attributes.join('; ')}`);
+};
+
+const clearSessionCookie = (res) => {
+  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+};
+
+const safeUser = (user) => ({ id: user.id, name: user.name, email: user.email, role: user.role });
 
 const cmsSettings = () => ({
   databaseProvider: process.env.CMS_DATABASE_PROVIDER || "local",
@@ -160,32 +198,55 @@ app.get('/rss.xml', async (req, res) => {
 });
 
 // -- Auth Routes --
-app.post("/api/auth/login", async (req, res) => {
-  const user = await getCmsUserByEmail(req.body.email || "");
-  if (!user || !matches(req.body.password || "", user.password))
-    return res.status(401).json({ error: "Invalid administrator credentials." });
-  res.json({
-    token: makeToken(user),
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
-  });
+const loginUser = async (req, res) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = String(req.body.password || '');
+    const remember = req.body.remember === true;
+    const cmsUser = await getCmsUserByEmail(email);
+    const portalUser = cmsUser ? null : await getPortalUserByEmail(email);
+    const user = cmsUser || portalUser;
+    if (!user || !matches(password, user.password))
+      return res.status(401).json({ error: "Invalid email or password." });
+    const kind = cmsUser ? 'cms' : 'portal';
+    setSessionCookie(res, makeToken(user, kind, remember), remember);
+    res.json({ user: safeUser(user), admin: kind === 'cms' });
+  } catch (error) {
+    console.error('Authentication lookup failed:', error.message);
+    res.status(503).json({ error: "The sign-in service is temporarily unavailable." });
+  }
+};
+
+app.post("/api/auth/login", loginUser);
+
+app.get("/api/auth/me", async (req, res) => {
+  const session = authenticated(req);
+  if (!session) return res.status(401).json({ error: "Authentication required." });
+  const user = session.kind === 'cms' ? await getCmsUserById(session.id) : await getPortalUserById(session.id);
+  if (!user) {
+    clearSessionCookie(res);
+    return res.status(401).json({ error: "Authentication required." });
+  }
+  res.json({ user: safeUser(user), admin: session.kind === 'cms' });
 });
 
-app.get("/api/auth/me", admin, async (req, res) => {
-  const user = await getCmsUserById(req.admin.id);
-  res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
+app.post("/api/auth/logout", (req, res) => {
+  clearSessionCookie(res);
+  res.status(204).end();
 });
 
 app.post("/api/portal-auth/login", async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
   try {
-    const user = await getPortalUserByEmail(req.body.email || "");
-    if (!user)
+    const user = await getPortalUserByEmail(email);
+    if (!user || !matches(String(req.body.password || ''), user.password)) {
       return res.status(401).json({ error: "Invalid email or password." });
-    if (!matches(req.body.password || "", user.password))
-      return res.status(401).json({ error: "Invalid email or password." });
-    res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    }
+    setSessionCookie(res, makeToken(user, 'portal', req.body.remember === true), req.body.remember === true);
+    res.json({ user: safeUser(user), admin: false });
   } catch (error) {
-    console.error(error);
-    res.status(503).json({ error: "Portal account service is unavailable." });
+    console.error('Portal authentication lookup failed:', error.message);
+    res.status(503).json({ error: "The sign-in service is temporarily unavailable." });
   }
 });
 
@@ -198,7 +259,8 @@ app.post("/api/portal-auth/register", async (req, res) => {
       return res.status(422).json({ error: "Name, email, and a password of at least 8 characters are required." });
     
     const user = await createPortalUser(name, email, password);
-    res.status(201).json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    setSessionCookie(res, makeToken(user, 'portal', true), true);
+    res.status(201).json({ user: safeUser(user), admin: false });
   } catch (error) {
     res.status(error?.code === "ER_DUP_ENTRY" ? 409 : 503).json({
       error: error?.code === "ER_DUP_ENTRY" ? "An account with that email already exists." : "Portal account service is unavailable.",
@@ -218,7 +280,8 @@ app.put("/api/admin/settings", admin, (req, res) => {
 // -- CMS News --
 app.get("/api/news", async (req, res) => {
   const allNews = await getNewsArticles();
-  const isAdmin = authenticated(req);
+  const session = authenticated(req);
+  const isAdmin = session?.kind === 'cms' && session.role === 'admin';
   let items = allNews.filter((n) => isAdmin || (n.status === "published" && n.published_at && new Date(n.published_at) <= new Date()));
 
   if (req.query.status && isAdmin) items = items.filter((n) => n.status === req.query.status);
@@ -249,7 +312,8 @@ app.get("/api/news", async (req, res) => {
 
 app.get("/api/news/:slug", async (req, res) => {
   const article = await getNewsArticleBySlug(req.params.slug);
-  const isAdmin = authenticated(req);
+  const session = authenticated(req);
+  const isAdmin = session?.kind === 'cms' && session.role === 'admin';
   if (!article || (!isAdmin && (article.status !== "published" || new Date(article.published_at) > new Date())))
     return res.status(404).json({ error: "Article not found." });
   res.json(await decorate(article));
@@ -495,6 +559,15 @@ app.get("/api/health/storage", (req, res) => {
     gcsAccessible: serviceStatus.storage === 'connected',
     bucket: process.env.GCS_BUCKET_NAME || process.env.GCS_BUCKET || "",
     localPersistentStorageEnabled: !isProd
+  });
+});
+
+app.get("/api/health", (req, res) => {
+  const healthy = serviceStatus.cmsDatabase === 'connected' || serviceStatus.cmsDatabase === 'local';
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'ok' : 'degraded',
+    cmsDatabase: serviceStatus.cmsDatabase,
+    portalDatabase: serviceStatus.portalDatabase,
   });
 });
 

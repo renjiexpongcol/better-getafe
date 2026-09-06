@@ -1,13 +1,13 @@
 # Google Cloud production setup
 
-The application remains local by default. The existing Cloud SQL target is `getafemodernizationportal:asia-southeast1:getafe-portal` in `asia-southeast1`, with public IP connectivity enabled. Its CMS database is `getafe_cms` and its application user is `getafe-portal`. Before setting either CMS provider to `gcp`, apply the schema and supply the database password through a secret. Production startup performs a fail-fast configuration check; `npm run cms:check` validates the environment without connecting.
+The Cloud SQL target is `getafemodernizationportal:asia-southeast1:getafe-portal` in `asia-southeast1`, with SSL-only connections enabled. The application uses the Cloud SQL Node.js Connector over the Cloud Run-to-Cloud SQL integration; it does not connect the browser to the public IP. Its CMS database is `getafe_cms` and its application user is `getafe-portal`. Before setting either CMS provider to `gcp`, apply the schema and supply any password through Secret Manager. Production startup performs a fail-fast configuration check; `npm run cms:check` validates the environment without connecting.
 
 ## 1. Cloud SQL (MySQL)
 
 1. In the intended Google Cloud project, enable **Cloud SQL Admin API**, create a **Cloud SQL for MySQL 8.0+** instance, and create database `getafe_cms` plus a least-privilege application user.
 2. Record the instance connection name in the format `PROJECT:REGION:INSTANCE` and set it as `CMS_CLOUD_SQL_INSTANCE` (or the legacy alias `INSTANCE_CONNECTION_NAME`).
 3. Apply [cloudsql-schema.sql](../database/cloudsql-schema.sql) to the new database.
-4. Set `PRIVATE_IP=false` for the current public-IP configuration. Deploy on Cloud Run with the Cloud SQL connection attached, or use the Cloud SQL Node.js Connector/Auth Proxy during development. The runtime service account needs **Cloud SQL Client**. Switch to private IP only after VPC/private-service networking is configured.
+4. Set `PRIVATE_IP=false` for the current public-IP address mode if required by the connector. Deploy on Cloud Run with the Cloud SQL connection attached. The Cloud SQL Node.js Connector preserves encrypted/TLS connectivity; do not set `ssl: false` or disable the instance's SSL-only setting. The runtime service account needs **Cloud SQL Client**.
 
 ## 2. Cloud Storage
 
@@ -41,6 +41,8 @@ npm run cms:check
 ## Portal user accounts
 
 The portal accounts database is `getafe-users` on the same Cloud SQL instance. Run [cloudsql-users-schema.sql](../database/cloudsql-users-schema.sql) in that database, then set `PORTAL_DATABASE_PROVIDER=gcp`, `PORTAL_DB_NAME=getafe-users`, `PORTAL_DB_USER=getafe-portal`, and either `PORTAL_DB_PASSWORD` or `PORTAL_IAM_AUTH=true` in `.env`. Portal registration and login then use this database instead of browser-only demo storage.
+
+Authentication uses the existing `users` table for CMS administrators and `portal_users` for residents. Both use parameterized MySQL queries and the existing `salt: scrypt-hash` password format. Successful login sets the `getafe_session` HttpOnly, SameSite=Lax cookie; `Secure` is added in production. An unchecked Remember Me login uses a 12-hour session cookie, while a checked login uses a 30-day cookie. `/api/auth/me` validates the current account against Cloud SQL, and `/api/auth/logout` clears the cookie. No authentication schema migration is required when the tables match the supplied schemas.
 
 For GCP authentication, use Application Default Credentials locally or attach a service account to the deployed workload. Never commit service-account JSON keys, database passwords, or `.env` files.
 

@@ -2,80 +2,58 @@ import { createContext, useContext, useEffect, useState } from 'react'
 
 const AuthContext = createContext(null)
 
-// Resident demo account kept for the public portal; administrator access uses
-// the server-backed CMS authentication endpoint.
-const DEMO_USERS = {
-  'admin@getafe.gov.ph': { password: 'admin123', name: 'Cary M. Camacho', role: 'Municipal Administrator' },
-  'resident@getafe.gov.ph': { password: 'getafe123', name: 'Juan Getafeño', role: 'Resident' },
-}
-
-function readStoredUser() {
-  try {
-    const stored = localStorage.getItem('getafe_user')
-    return stored ? JSON.parse(stored) : null
-  } catch {
-    return null
-  }
-}
-
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(readStoredUser)
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('getafe_user', JSON.stringify(user))
-    } else {
-      localStorage.removeItem('getafe_user')
-    }
-  }, [user])
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(response => response.ok ? response.json() : null)
+      .then(body => setUser(body?.user || null))
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false))
+  }, [])
 
-  const login = async (email, password) => {
-    const key = (email || '').trim().toLowerCase()
+  const login = async (email, password, remember = false) => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: key, password }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password, remember }),
       })
-      if (response.ok) {
-        const { token, user: admin } = await response.json()
-        localStorage.setItem('getafe_cms_token', token)
-        setUser(admin)
-        return { ok: true, admin: true }
-      }
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) return { ok: false, error: body.error || 'Invalid email or password.' }
+      setUser(body.user)
+      return { ok: true, admin: body.admin === true }
     } catch {
-      return { ok: false, error: 'The sign-in service is unavailable. Start the local server and try again.' }
+      return { ok: false, error: 'The sign-in service is temporarily unavailable.' }
     }
-    try {
-      const response = await fetch('/api/portal-auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: key, password }) })
-      if (response.ok) { const { user } = await response.json(); setUser(user); return { ok: true, admin: false } }
-    } catch { /* Development demo fallback below. */ }
-    const account = DEMO_USERS[key]
-    if (account && account.password === password) {
-      setUser({ email: key, name: account.name, role: account.role })
-      return { ok: true, admin: false }
-    }
-    return { ok: false, error: 'Invalid email or password. Please try one of the demo accounts below.' }
   }
 
   const register = async (name, email, password) => {
     try {
-      const response = await fetch('/api/portal-auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, password }) })
-      if (response.ok) { const { user } = await response.json(); setUser(user); return { ok: true } }
-      const body = await response.json(); return { ok: false, error: body.error }
-    } catch { return { ok: false, error: 'The account service is unavailable.' } }
+      const response = await fetch('/api/portal-auth/register', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) return { ok: false, error: body.error || 'The account could not be created.' }
+      setUser(body.user)
+      return { ok: true }
+    } catch {
+      return { ok: false, error: 'The account service is temporarily unavailable.' }
+    }
   }
 
-  const logout = () => {
-    localStorage.removeItem('getafe_cms_token')
+  const logout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {})
     setUser(null)
   }
 
-  return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={{ user, loading, login, register, logout }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

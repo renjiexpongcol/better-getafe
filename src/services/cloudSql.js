@@ -27,6 +27,8 @@ export async function getCmsPool() {
     database: process.env.CMS_DB_NAME || process.env.DB_NAME,
     waitForConnections: true,
     connectionLimit: 5,
+    connectTimeout: 10000,
+    enableKeepAlive: true,
   });
 
   return cmsPool;
@@ -55,6 +57,8 @@ export async function getPortalPool() {
     database: process.env.PORTAL_DB_NAME || process.env.USER_DB_NAME,
     waitForConnections: true,
     connectionLimit: 5,
+    connectTimeout: 10000,
+    enableKeepAlive: true,
   });
 
   return portalPool;

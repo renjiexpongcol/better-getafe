@@ -19,5 +19,5 @@ export async function getCmsUserById(userId) {
 
 export async function getCmsUserByEmail(email) {
   const users = await getCmsUsers();
-  return users.find(u => u.email === email.toLowerCase()) || null;
+  return users.find(u => u.email === String(email).trim().toLowerCase()) || null;
 }

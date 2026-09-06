@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 
 export default function Login() {
-  const { user, login, register } = useAuth()
+  const { user, loading: authLoading, login, register } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState('signin') // 'signin' | 'register'
   const [showPassword, setShowPassword] = useState(false)
@@ -25,8 +25,8 @@ export default function Login() {
 
   // Already signed in? Administrators return to CMS; residents return home.
   useEffect(() => {
-    if (user) navigate(user.role === 'admin' ? '/admin' : '/', { replace: true })
-  }, [user, navigate])
+    if (!authLoading && user) navigate(user.role === 'admin' ? '/admin' : '/', { replace: true })
+  }, [user, authLoading, navigate])
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
@@ -40,7 +40,7 @@ export default function Login() {
         return
       }
       setLoading(true)
-      login(form.email, form.password).then((res) => {
+      login(form.email, form.password, form.remember).then((res) => {
         setLoading(false)
         if (!res.ok) setError(res.error)
         else navigate(res.admin ? '/admin' : '/', { replace: true })
@@ -50,8 +50,8 @@ export default function Login() {
         setError('Please fill in all required fields.')
         return
       }
-      if (form.password.length < 6) {
-        setError('Password must be at least 6 characters long.')
+      if (form.password.length < 8) {
+        setError('Password must be at least 8 characters long.')
         return
       }
       if (form.password !== form.confirm) {

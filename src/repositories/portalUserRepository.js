@@ -3,23 +3,30 @@ import { getLocalDb, saveLocalDb, isPortalGcp, id, now, hash } from './localDb.j
 
 export async function getPortalUserByEmail(email) {
   if (isPortalGcp()) {
-    try {
-      const pool = await getPortalPool();
-      if (pool) {
-        const [rows] = await pool.execute(
-          "SELECT id, name, email, password, role FROM portal_users WHERE email = ?",
-          [String(email).toLowerCase()]
-        );
-        return rows[0] || null;
-      }
-    } catch (error) {
-      console.warn("GCP portal pool unavailable, falling back to local DB.", error.message);
-    }
+    const pool = await getPortalPool();
+    const [rows] = await pool.execute(
+      "SELECT id, name, email, password, role FROM portal_users WHERE email = ?",
+      [String(email).trim().toLowerCase()]
+    );
+    return rows[0] || null;
   }
   
   const db = await getLocalDb();
   if (!db.portal_users) db.portal_users = [];
   return db.portal_users.find(u => u.email === String(email).toLowerCase()) || null;
+}
+
+export async function getPortalUserById(userId) {
+  if (isPortalGcp()) {
+    const pool = await getPortalPool();
+    const [rows] = await pool.execute(
+      "SELECT id, name, email, password, role FROM portal_users WHERE id = ?",
+      [userId]
+    );
+    return rows[0] || null;
+  }
+  const db = await getLocalDb();
+  return (db.portal_users || []).find(user => user.id === userId) || null;
 }
 
 export async function createPortalUser(name, email, password) {
@@ -35,18 +42,12 @@ export async function createPortalUser(name, email, password) {
   };
 
   if (isPortalGcp()) {
-    try {
-      const pool = await getPortalPool();
-      if (pool) {
-        await pool.execute(
-          "INSERT INTO portal_users (id, name, email, password, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          [user.id, user.name, user.email, user.password, user.role, user.created_at, user.updated_at]
-        );
-        return user;
-      }
-    } catch (error) {
-      console.warn("GCP portal pool unavailable for insert, falling back to local DB.", error.message);
-    }
+    const pool = await getPortalPool();
+    await pool.execute(
+      "INSERT INTO portal_users (id, name, email, password, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [user.id, user.name, user.email, user.password, user.role, user.created_at, user.updated_at]
+    );
+    return user;
   }
   
   const db = await getLocalDb();

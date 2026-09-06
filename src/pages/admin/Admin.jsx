@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 const blank = { title: '', slug: '', excerpt: '', content: '', category_id: '', status: 'draft', published_at: '' }
-const api = (url, token, options = {}) => fetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers } }).then(async r => { const body = r.status === 204 ? null : await r.json(); if (!r.ok) throw new Error(body?.error || 'Request failed'); return body })
+const api = (url, _token, options = {}) => fetch(url, { ...options, credentials: 'include', headers: { 'Content-Type': 'application/json', ...options.headers } }).then(async r => { const body = r.status === 204 ? null : await r.json(); if (!r.ok) throw new Error(body?.error || 'Request failed'); return body })
 const putFile = (url, file, onProgress) => {
  const request = new XMLHttpRequest()
  const promise = new Promise((resolve, reject) => {
@@ -17,10 +17,10 @@ const putFile = (url, file, onProgress) => {
  return { promise, cancel: () => request.abort() }
 }
 export default function Admin() {
- const { user, logout } = useAuth()
- const [token, setToken] = useState(() => localStorage.getItem('getafe_cms_token') || ''), [articles, setArticles] = useState([]), [categories, setCategories] = useState([]), [form, setForm] = useState(blank), [editing, setEditing] = useState(null), [notice, setNotice] = useState(''), [tab, setTab] = useState('dashboard'), [media, setMedia] = useState([]), [settings, setSettings] = useState(null)
+ const { user, loading: authLoading, logout } = useAuth()
+ const [token, setToken] = useState(true), [articles, setArticles] = useState([]), [categories, setCategories] = useState([]), [form, setForm] = useState(blank), [editing, setEditing] = useState(null), [notice, setNotice] = useState(''), [tab, setTab] = useState('dashboard'), [media, setMedia] = useState([]), [settings, setSettings] = useState(null)
  const uploadRequest = useRef(null)
- const load = async () => { try { const [news, cats, files] = await Promise.all([api('/api/news?limit=100', token), api('/api/categories'), api('/api/media', token)]); setArticles(news.items); setCategories(cats); setMedia(files) } catch { setToken(''); localStorage.removeItem('getafe_cms_token') } }
+ const load = async () => { try { const [news, cats, files] = await Promise.all([api('/api/news?limit=100', token), api('/api/categories'), api('/api/media', token)]); setArticles(news.items); setCategories(cats); setMedia(files) } catch { setToken(false) } }
  useEffect(() => { if (token) load() }, [token])
  useEffect(() => { if (token && tab === 'settings') api('/api/admin/settings', token).then(setSettings).catch(e => setNotice(e.message)) }, [token, tab])
  const saveArticle = async e => { e.preventDefault(); try { await api(editing ? `/api/news/${editing}` : '/api/news', token, { method: editing ? 'PUT' : 'POST', body: JSON.stringify(form) }); setNotice(editing ? 'Article updated.' : 'Article created.'); setForm(blank); setEditing(null); setTab('news'); load() } catch (e) { setNotice(e.message) } }
@@ -33,7 +33,8 @@ export default function Admin() {
     setNotice('Requesting upload URL...');
     const urlRes = await fetch('/api/storage/upload-url', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename: file.name, contentType: file.type, fileSize: file.size, context: 'media' })
     });
     const urlData = await urlRes.json();
@@ -47,7 +48,8 @@ export default function Admin() {
     setNotice('Finalizing upload...');
     const completeRes = await fetch('/api/media/complete', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ storagePath: urlData.storagePath, originalFilename: file.name, contentType: file.type, fileSize: file.size, name: file.name })
     });
     const body = await completeRes.json();
@@ -62,6 +64,7 @@ export default function Admin() {
     uploadRequest.current = null;
   }
  };
+ if (authLoading) return null
  if (!user || !token) return <Navigate to="/auth/login" replace />
  if (user.role !== 'admin') return <Navigate to="/" replace />
  const published = articles.filter(a => a.status === 'published').length
