@@ -42,7 +42,7 @@ npm run cms:check
 
 The portal accounts database is `getafe-users` on the same Cloud SQL instance. Run [cloudsql-users-schema.sql](../database/cloudsql-users-schema.sql) in that database, then set `PORTAL_DATABASE_PROVIDER=gcp`, `PORTAL_DB_NAME=getafe-users`, `PORTAL_DB_USER=getafe-portal`, and either `PORTAL_DB_PASSWORD` or `PORTAL_IAM_AUTH=true` in `.env`. Portal registration and login then use this database instead of browser-only demo storage.
 
-Authentication uses the existing `users` table for CMS administrators and `portal_users` for residents. Both use parameterized MySQL queries and the existing `salt: scrypt-hash` password format. Successful login sets the `getafe_session` HttpOnly, SameSite=Lax cookie; `Secure` is added in production. An unchecked Remember Me login uses a 12-hour session cookie, while a checked login uses a 30-day cookie. `/api/auth/me` validates the current account against Cloud SQL, and `/api/auth/logout` clears the cookie. No authentication schema migration is required when the tables match the supplied schemas.
+Authentication uses the existing `users` table for CMS administrators and `portal_users` for residents. Both use parameterized MySQL queries and the existing `salt: scrypt-hash` password format. Successful login sets the `getafe_session` HttpOnly, SameSite=Lax cookie; `Secure` is added in production. An unchecked Remember Me login uses a 12-hour session cookie, while a checked login uses a 30-day cookie. `/api/auth/me` validates the current account against Cloud SQL, and `/api/auth/logout` clears the cookie and returns `200`. Auth responses are marked `no-store` to prevent a cached unauthenticated response from masking a newly established session. No authentication schema migration is required when the tables match the supplied schemas. Set one shared `AUTH_SESSION_SECRET` value in Secret Manager across all Cloud Run instances; `CMS_SESSION_SECRET` and `SESSION_SECRET` remain supported aliases.
 
 For GCP authentication, use Application Default Credentials locally or attach a service account to the deployed workload. Never commit service-account JSON keys, database passwords, or `.env` files.
 
@@ -70,7 +70,7 @@ gcloud run deploy getafe-portal `
 	--add-cloudsql-instances PROJECT_ID:REGION:INSTANCE_NAME `
 	--service-account getafe-portal@PROJECT_ID.iam.gserviceaccount.com `
 	--set-env-vars NODE_ENV=production,CMS_DATABASE_PROVIDER=gcp,CMS_MEDIA_PROVIDER=gcp,PORTAL_DATABASE_PROVIDER=gcp,CMS_IAM_AUTH=true,PORTAL_IAM_AUTH=true,GCP_PROJECT_ID=PROJECT_ID,CMS_CLOUD_SQL_INSTANCE=PROJECT_ID:REGION:INSTANCE_NAME,PORTAL_CLOUD_SQL_INSTANCE=PROJECT_ID:REGION:INSTANCE_NAME,CMS_DB_NAME=getafe_cms,PORTAL_DB_NAME=getafe-users,CMS_DB_USER=getafe-portal,PORTAL_DB_USER=getafe-portal,GCS_BUCKET_NAME=BUCKET_NAME,GCS_PUBLIC_BASE_URL=https://storage.googleapis.com/BUCKET_NAME `
-	--set-secrets CMS_SESSION_SECRET=cms-session-secret:latest
+	--set-secrets AUTH_SESSION_SECRET=auth-session-secret:latest
 ```
 
 Grant the service account **Cloud SQL Client**, **Storage Object Admin** (or a narrower custom object role), and **Secret Manager Secret Accessor** on the session-secret secret. Keep database passwords in Secret Manager when password authentication is used; do not put them in `--set-env-vars` or commit them to `.env`.

@@ -24,8 +24,11 @@ export function AuthProvider({ children }) {
       })
       const body = await response.json().catch(() => ({}))
       if (!response.ok) return { ok: false, error: body.error || 'Invalid email or password.' }
-      setUser(body.user)
-      return { ok: true, admin: body.admin === true }
+      const session = await fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' })
+      const current = await session.json().catch(() => ({}))
+      if (!session.ok || !current.user) return { ok: false, error: 'The sign-in session could not be established. Please try again.' }
+      setUser(current.user)
+      return { ok: true, admin: current.admin === true }
     } catch {
       return { ok: false, error: 'The sign-in service is temporarily unavailable.' }
     }

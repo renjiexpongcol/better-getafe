@@ -30,11 +30,16 @@ if (process.env.NODE_ENV !== 'production') {
   dotenv.config();
 }
 
-const secret = process.env.CMS_SESSION_SECRET || (
+const secret = process.env.AUTH_SESSION_SECRET || process.env.CMS_SESSION_SECRET || process.env.SESSION_SECRET || (
   process.env.NODE_ENV === "production" ? null : "change-this-local-development-session-secret"
 );
 
 app.use(express.json({ limit: "8mb" }));
+app.use(['/api/auth', '/api/portal-auth'], (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Vary', 'Cookie');
+  next();
+});
 
 
 const hash = (password, salt) => {
@@ -221,6 +226,9 @@ app.post("/api/auth/login", loginUser);
 
 app.get("/api/auth/me", async (req, res) => {
   const session = authenticated(req);
+  if (process.env.AUTH_DEBUG === 'true') {
+    console.info('Auth session check:', { cookiePresent: Boolean(readCookies(req.headers.cookie)[SESSION_COOKIE]), sessionValid: Boolean(session) });
+  }
   if (!session) return res.status(401).json({ error: "Authentication required." });
   const user = session.kind === 'cms' ? await getCmsUserById(session.id) : await getPortalUserById(session.id);
   if (!user) {
@@ -232,7 +240,7 @@ app.get("/api/auth/me", async (req, res) => {
 
 app.post("/api/auth/logout", (req, res) => {
   clearSessionCookie(res);
-  res.status(204).end();
+  res.status(200).json({ ok: true });
 });
 
 app.post("/api/portal-auth/login", async (req, res) => {
@@ -599,7 +607,7 @@ async function startServer() {
         ['CMS_DATABASE_PROVIDER'],
         ['CMS_MEDIA_PROVIDER'],
         ['PORTAL_DATABASE_PROVIDER', 'USER_DATABASE_PROVIDER'],
-        ['CMS_SESSION_SECRET']
+        ['AUTH_SESSION_SECRET', 'CMS_SESSION_SECRET', 'SESSION_SECRET']
       ];
 
       if (process.env.CMS_DATABASE_PROVIDER === 'gcp' || portalProvider === 'gcp' || process.env.CMS_MEDIA_PROVIDER === 'gcp') {
@@ -628,7 +636,7 @@ async function startServer() {
       const missing = requiredEnvGroups
         .filter(group => !group.some(env => {
           const value = process.env[env];
-          return value && !(env === 'CMS_SESSION_SECRET' && (
+          return value && !(['AUTH_SESSION_SECRET', 'CMS_SESSION_SECRET', 'SESSION_SECRET'].includes(env) && (
             value.startsWith('change-this-') || value.startsWith('replace-with-') || value.startsWith('your-')
           ));
         }))
