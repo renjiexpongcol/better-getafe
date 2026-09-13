@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { MapPin, Users, UserRound, ExternalLink, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import OpenStreetMap from './OpenStreetMap'
 
 export default function BarangayModal({ barangay, onClose }) {
   const modalRef = useRef(null)
@@ -68,6 +70,11 @@ export default function BarangayModal({ barangay, onClose }) {
   const population =
     typeof barangay.population === 'number'
       ? barangay.population.toLocaleString('en-PH')
+      : null
+
+  const formatTermDate = (date) =>
+    date
+      ? new Date(`${date}T00:00:00`).toLocaleDateString('en-PH', { month: 'short', year: 'numeric' })
       : null
 
   const hasCaptain =
@@ -161,14 +168,19 @@ export default function BarangayModal({ barangay, onClose }) {
                 </span>
 
                 {hasCaptain ? (
-                  <strong className="info-value">
+                  <Link className="info-value official-profile-link" to={`/services/barangays/${barangay.id}/official`} onClick={onClose}>
                     {barangay.captain}
-                  </strong>
+                  </Link>
                 ) : (
                   <span className="info-value unavailable">
                     Information unavailable
                   </span>
                 )}
+                <small className="info-meta">
+                  {barangay.termStart || barangay.termEnd
+                    ? `Term: ${formatTermDate(barangay.termStart) || '—'} – ${formatTermDate(barangay.termEnd) || 'Present'}`
+                    : 'Term dates not available'}
+                </small>
               </div>
             </div>
           </div>
@@ -189,12 +201,7 @@ export default function BarangayModal({ barangay, onClose }) {
             {hasCoordinates ? (
               <>
                 <div className="modal-map-frame">
-                  <iframe
-                    title={`Map showing the location of Barangay ${barangay.name}, Getafe, Bohol`}
-                    src={mapSrc}
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                  />
+                  <OpenStreetMap lat={lat} lng={lng} title={`Map showing the location of Barangay ${barangay.name}, Getafe, Bohol`} className="modal-openstreetmap" />
                 </div>
 
                 <a
@@ -243,12 +250,21 @@ export default function BarangayModal({ barangay, onClose }) {
           </section>
         </div>
 
+        <p className="barangay-data-disclaimer">
+          <strong>NOTE:</strong>{' '}
+          Data is provided for community information and may be updated as official records become available.
+        </p>
+
         <div className="modal-footer">
           <span>
             {barangay.lastUpdated
               ? `Data reference: ${barangay.lastUpdated}`
               : 'Data reference unavailable'}
           </span>
+
+          <Link className="modal-detail-link" to={`/services/barangays/${barangay.id}`} onClick={onClose}>
+            View full profile <ExternalLink size={14} />
+          </Link>
 
           <button
             type="button"

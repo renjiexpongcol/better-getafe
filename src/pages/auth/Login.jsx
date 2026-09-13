@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck,
-  Building2, UserPlus, Loader2, CheckCircle2, PhoneCall,
+  Building2, UserPlus, Loader2, CheckCircle2,
   KeyRound, User, MapPin, LogIn, ArrowLeft,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { usePublicConfig } from '../../context/PublicConfig'
 
 export default function Login() {
   const { user, loading: authLoading, login, register } = useAuth()
@@ -15,6 +16,30 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [forgot, setForgot] = useState(false)
+  const settings = usePublicConfig()
+  const [challenge, setChallenge] = useState(null)
+  const [code, setCode] = useState('')
+  const [renewal, setRenewal] = useState(null)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const handleResult = res => {
+    if (res.verificationRequired) { setChallenge(res.challengeId); setError(''); return }
+    if (res.passwordExpired) { setRenewal(res.resetToken); setError(''); return }
+    if (!res.ok) setError(res.error)
+    else navigate(res.admin ? '/admin' : '/', { replace: true })
+  }
+  const completeChallenge = async event => {
+    event.preventDefault(); setLoading(true); setError('')
+    try {
+      if (renewal && newPassword !== confirmNewPassword) throw new Error('Passwords do not match.')
+      const response = await fetch(renewal ? '/api/auth/renew-password' : '/api/auth/verify-code', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(renewal ? { resetToken: renewal, currentPassword, password: newPassword } : { challengeId: challenge, code }) })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error)
+      if (renewal) { setRenewal(null); setError('Password updated. Sign in with your new password.'); setForm(previous => ({ ...previous, password: '' })) }
+      else window.location.assign(body.admin ? '/admin' : '/')
+    } catch (error) { setError(error.message) } finally { setLoading(false) }
+  }
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -25,7 +50,7 @@ export default function Login() {
 
   // Already signed in? Administrators return to CMS; residents return home.
   useEffect(() => {
-    if (!authLoading && user) navigate(user.role === 'admin' ? '/admin' : '/', { replace: true })
+    if (!authLoading && user) navigate(['admin', 'super_admin'].includes(user.role) ? '/admin' : '/', { replace: true })
   }, [user, authLoading, navigate])
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
@@ -42,16 +67,15 @@ export default function Login() {
       setLoading(true)
       login(form.email, form.password, form.remember).then((res) => {
         setLoading(false)
-        if (!res.ok) setError(res.error)
-        else navigate(res.admin ? '/admin' : '/', { replace: true })
+        handleResult(res)
       })
     } else {
       if (!form.name.trim() || !form.email.trim() || !form.password) {
         setError('Please fill in all required fields.')
         return
       }
-      if (form.password.length < 8) {
-        setError('Password must be at least 8 characters long.')
+      if (form.password.length < (settings['authentication.passwordMinLength'] || 8)) {
+        setError(`Password must be at least ${settings['authentication.passwordMinLength'] || 8} characters long.`)
         return
       }
       if (form.password !== form.confirm) {
@@ -62,8 +86,7 @@ export default function Login() {
       setTimeout(() => {
         register(form.name, form.email, form.password).then((res) => {
           setLoading(false)
-          if (!res.ok) setError(res.error)
-          else navigate('/', { replace: true })
+          handleResult(res)
         })
       }, 650)
     }
@@ -76,6 +99,8 @@ export default function Login() {
   }
 
   const inputIcon = mode === 'signin' ? <Mail size={18} /> : <User size={18} />
+
+  if (challenge || renewal) return <main className="login-page login-challenge-page"><section className="login-main"><form className="login-card password-renewal-card" onSubmit={completeChallenge}>{renewal && <img className="renewal-logo" src="/assets/getafe-seal.png" alt="Municipality of Getafe" />}<h1>{renewal ? 'Update your password' : 'Check your email'}</h1><p>{renewal ? 'You need to update your password because it has expired or this is your first time signing in.' : 'Enter the six-digit sign-in code sent to your email address.'}</p>{renewal ? <><label>Current password<input required type="password" autoComplete="current-password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} placeholder="Current password" /></label><label>New password<input required minLength="8" type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="New password" /></label><label>Confirm password<input required minLength="8" type="password" autoComplete="new-password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} placeholder="Confirm password" /></label></> : <label>Verification code<input required type="text" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value)} /></label>}{error && <p role="alert">{error}</p>}<button className="login-submit" disabled={loading}>{loading ? 'Checking…' : renewal ? 'Sign in' : 'Continue'}</button><button className="renewal-cancel" type="button" onClick={() => { setChallenge(null); setRenewal(null); setCode('') }}>Return to sign in</button></form></section></main>
 
   return (
     <div className="login-page">
@@ -112,13 +137,6 @@ export default function Login() {
         </div>
 
         <div className="login-aside-foot">
-          <div className="login-help-card">
-            <span className="login-help-badge"><PhoneCall size={14} /></span>
-            <div>
-              <strong>Need help signing in?</strong>
-              <span>Call the LGU help desk at <a href="tel:09171234567">(038) 502-9088</a></span>
-            </div>
-          </div>
           <p className="login-aside-copyright">© 2026 LGU Getafe. All rights reserved.</p>
         </div>
       </aside>
@@ -224,9 +242,9 @@ export default function Login() {
               <div className="login-label-row">
                 <label htmlFor="password">Password</label>
                 {mode === 'signin' && (
-                  <button type="button" className="login-link-btn" onClick={() => setForgot((v) => !v)}>
+                  <Link className="login-link-btn" to="/auth/forgot-password">
                     Forgot password?
-                  </button>
+                  </Link>
                 )}
               </div>
               <div className="login-input-wrap">
@@ -235,7 +253,7 @@ export default function Login() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                  placeholder={mode === 'signin' ? '••••••••' : 'At least 6 characters'}
+                  placeholder={mode === 'signin' ? '••••••••' : `At least ${settings['authentication.passwordMinLength'] || 8} characters`}
                   value={form.password}
                   onChange={update('password')}
                 />
@@ -292,7 +310,7 @@ export default function Login() {
           <div className="login-divider"><span>or continue with</span></div>
 
           <div className="login-social-row">
-            <button type="button" className="login-social">
+            <button type="button" className="login-social" onClick={() => { window.location.href = '/api/auth/google' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z" />
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" />

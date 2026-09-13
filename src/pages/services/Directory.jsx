@@ -19,7 +19,6 @@ export default function Directory() {
   const [services, setServices] = useState([])
   const [query, setQuery] = useState(selected.replace(/-/g, ' '))
   const [loading, setLoading] = useState(true)
-  const [usingFallback, setUsingFallback] = useState(false)
 
   useEffect(() => {
     fetch('/api/news?category=services&limit=24')
@@ -27,11 +26,9 @@ export default function Directory() {
       .then((data) => {
         const items = data.items || []
         setServices(items.length ? items : fallbackServices)
-        setUsingFallback(!items.length)
       })
       .catch(() => {
         setServices(fallbackServices)
-        setUsingFallback(true)
       })
       .finally(() => setLoading(false))
   }, [])
@@ -77,7 +74,6 @@ export default function Directory() {
               })}
             </div>
           ) : <p className="service-directory-empty">No department matches your search.</p>}
-          {usingFallback && <p className="service-directory-note">Showing the municipal department guide while published Services entries are being prepared in the CMS.</p>}
         </div>
       </section>
     </main>

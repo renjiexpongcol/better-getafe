@@ -18,9 +18,10 @@ export default function ServicesSection() {
         </div>
 
         <div className="service-grid">
-          {services.map(({ icon: Icon, title, url, items }) => (
-            <article className="service-card" key={title}>
+          {services.map(({ icon: Icon, title, url, items }, index) => (
+            <article className={`service-card ${index === 0 ? 'service-card-featured' : ''}`} key={title}>
               <Link to={url} className="service-card-link" aria-label={`${title} services`}>
+                <div className="service-card-topline"><span>0{index + 1}</span><span>{index === 0 ? 'Most requested' : 'Public service'}</span></div>
                 <div className="icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Icon size={32} color="#3b82f6" />
                 </div>

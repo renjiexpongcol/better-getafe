@@ -1,0 +1,9 @@
+import { useEffect, useState } from 'react'
+
+export default function CommentsModeration({ onNotice }) {
+  const [items, setItems] = useState([]), [loading, setLoading] = useState(true)
+  const load = () => { setLoading(true); fetch('/api/admin/comments', { credentials: 'include' }).then(r => r.json()).then(data => setItems(data.items || [])).catch(e => onNotice(e.message || 'Comments unavailable.')).finally(() => setLoading(false)) }
+  useEffect(load, [])
+  const moderate = async (id, status) => { const r = await fetch(`/api/admin/comments/${id}`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }); const data = await r.json(); if (!r.ok) return onNotice(data.error); onNotice(`Comment ${status}.`); load() }
+  return <><div className="cms-title"><div><p className="news-category">MODERATION</p><h1>Comments</h1><p>Review and manage public comments from News & Updates.</p></div><button type="button" onClick={load}>Refresh</button></div>{loading ? <p>Loading comments…</p> : items.length ? <div className="cms-comments-list">{items.map(item => <article key={item.id}><div className="cms-comment-meta"><strong>{item.display_name}</strong><small>{item.article_slug} · {new Date(item.created_at).toLocaleString('en-PH')}</small><b className={`status ${item.status}`}>{item.status}</b></div><p>{item.comment_text}</p><div className="cms-comment-actions">{item.status !== 'visible' && <button type="button" onClick={() => moderate(item.id, 'visible')}>Show</button>}{item.status === 'visible' && <button type="button" onClick={() => moderate(item.id, 'hidden')}>Hide</button>}<button className="danger" type="button" onClick={() => moderate(item.id, 'deleted')}>Delete</button></div></article>)}</div> : <div className="media-empty"><strong>No comments</strong><span>Public article comments will appear here for moderation.</span></div>}</>
+}

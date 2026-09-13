@@ -109,3 +109,34 @@ export async function deleteNewsArticle(articleId) {
     }
   }
 }
+
+export async function bulkUpdateNewsArticles(articleIds, action) {
+  const ids = [...new Set((articleIds || []).filter(Boolean))];
+  if (!ids.length) return 0;
+
+  if (isGcp()) {
+    const pool = await getCmsPool();
+    const placeholders = ids.map(() => '?').join(',');
+    if (action === 'delete') {
+      const [result] = await pool.execute(`DELETE FROM news WHERE id IN (${placeholders})`, ids);
+      return result.affectedRows || 0;
+    }
+    if (!['published', 'draft'].includes(action)) throw new Error('Unsupported bulk action');
+    const publishedAt = action === 'published' ? now() : null;
+    const [result] = await pool.execute(`UPDATE news SET status=?, published_at=?, updated_at=? WHERE id IN (${placeholders})`, [action, publishedAt, now(), ...ids]);
+    return result.affectedRows || 0;
+  }
+
+  const db = await getLocalDb();
+  const selected = new Set(ids);
+  const before = db.news.length;
+  if (action === 'delete') db.news = db.news.filter((article) => !selected.has(article.id));
+  else if (['published', 'draft'].includes(action)) {
+    const updated = now();
+    db.news = db.news.map((article) => selected.has(article.id)
+      ? { ...article, status: action, published_at: action === 'published' ? (article.published_at || updated) : null, updated_at: updated }
+      : article);
+  } else throw new Error('Unsupported bulk action');
+  await saveLocalDb(db);
+  return action === 'delete' ? before - db.news.length : ids.filter((id) => before !== db.news.length && selected.has(id)).length;
+}

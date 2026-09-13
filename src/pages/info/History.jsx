@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import {
   History as HistoryIcon, Landmark, Music2, ScrollText, Wheat, Fish, Mountain,
   AudioLines, Star, Handshake, TreePine, Flower2, Bird, Leaf, Music,
@@ -236,9 +235,6 @@ export default function History() {
           </div>
         </section>
 
-        <p className="history-back">
-          <Link to="/info/about">Back to About Us</Link>
-        </p>
       </div>
     </main>
   )

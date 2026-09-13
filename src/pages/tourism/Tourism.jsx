@@ -14,6 +14,10 @@ function cardImage(place) {
   return place.featured_image || '/assets/Getafe_Bohol_1.jpg'
 }
 
+function placeUrl(place) {
+  return place.slug === 'man-made-mangrove-forest' ? '/tourism/banacon' : `/news/${place.slug}`
+}
+
 export default function Tourism() {
   const [places, setPlaces] = useState([])
   const [query, setQuery] = useState('')
@@ -25,7 +29,9 @@ export default function Tourism() {
       .then((response) => response.ok ? response.json() : Promise.reject(new Error('Tourism content unavailable')))
       .then((data) => {
         const items = data.items || []
-        setPlaces(items.length ? items : fallbackPlaces)
+        const banacon = fallbackPlaces.find((place) => place.slug === 'man-made-mangrove-forest')
+        const hasBanacon = items.some((place) => place.slug === banacon.slug)
+        setPlaces(items.length ? (hasBanacon ? items : [banacon, ...items]) : fallbackPlaces)
         setUsingFallback(!items.length)
       })
       .catch(() => {
@@ -53,7 +59,7 @@ export default function Tourism() {
             <a className="tourism-hero-link" href="#destinations">Explore destinations <ArrowUpRight size={17} /></a>
           </div>
           <div className="tourism-hero-image">
-            <img src="/assets/Getafe_Bohol_1.jpg" alt="A leafy public landscape in Getafe, Bohol" />
+            <img src="/assets/tourism/pandanon-1.jpg" alt="Pandanon Island in Getafe, Bohol" />
             <span><Waves size={16} /> Coastal Getafe</span>
           </div>
         </div>
@@ -78,14 +84,14 @@ export default function Tourism() {
             <div className="tourism-grid">
               {filteredPlaces.map((place, index) => (
                 <article className={`tourism-card ${index === 0 ? 'tourism-card-featured' : ''}`} key={place.id || place.slug}>
-                  <Link to={`/news/${place.slug}`} className="tourism-card-image">
+                  <Link to={placeUrl(place)} className="tourism-card-image">
                     <img src={cardImage(place)} alt="" loading={index > 1 ? 'lazy' : 'eager'} />
                     <span>{place.category?.name || 'Destination'}</span>
                   </Link>
                   <div className="tourism-card-body">
-                    <h3><Link to={`/news/${place.slug}`}>{place.title}</Link></h3>
+                    <h3><Link to={placeUrl(place)}>{place.title}</Link></h3>
                     <p>{place.excerpt}</p>
-                    <Link className="tourism-card-link" to={`/news/${place.slug}`}>View destination <ArrowUpRight size={15} /></Link>
+                    <Link className="tourism-card-link" to={placeUrl(place)}>View destination <ArrowUpRight size={15} /></Link>
                   </div>
                 </article>
               ))}

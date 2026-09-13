@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Landmark, Users, MapPin, Building2 } from 'lucide-react'
 import { barangays } from '../../data/barangays'
+const officialId = (name) => name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 
 // Placeholder avatar used until an official's photo is provided.
 // In the future the CMS will supply each official's photo URL, which will
@@ -37,12 +39,12 @@ const deptHeads = [
   { name: 'Jesfer N. Camacho, RN', role: 'Secretary to the Sangguniang Bayan' },
 ]
 
-function OfficialCard({ name, role, lead, photo }) {
+function OfficialCard({ name, role, lead, photo, biography }) {
   return (
     <div className={lead ? 'official-card lead' : 'official-card'}>
       <img src={photo || PLACEHOLDER} alt={`${name} profile`} className="official-img" />
       <div>
-        <strong>{name}</strong>
+        <Link to={`/info/officials/${officialId(name)}`}><strong>{name}</strong></Link>
         <span>{role}</span>
       </div>
     </div>
@@ -50,17 +52,20 @@ function OfficialCard({ name, role, lead, photo }) {
 }
 
 export default function Officials() {
+  const [cms, setCms] = useState(null)
+  useEffect(() => { fetch('/api/officials').then((r) => r.ok ? r.json() : Promise.reject()).then((value) => { if (value?.mayor) setCms(value) }).catch(() => {}) }, [])
+  const currentMayor = cms?.mayor || mayor
+  const currentViceMayor = cms?.viceMayor || viceMayor
+  const currentSbMembers = cms?.sbMembers?.length ? cms.sbMembers : sbMembers
+  const currentAbcPresident = cms?.abcPresident?.name ? cms.abcPresident : abcPresident
+  const currentDeptHeads = cms?.deptHeads?.length ? cms.deptHeads : deptHeads
+  const currentPunongBarangays = cms?.punongBarangays?.length ? cms.punongBarangays : barangays.map((b) => ({ name: b.captain, role: b.name }))
   return (
     <main id="officials">
-      <div className="page-header">
-        <div className="container page-header-inner">
-          <div>
-            <p className="history-kicker">Municipality of Getafe</p>
-            <h1 className="page-title">Municipal Officials</h1>
-            <p className="page-subtitle">The elected leaders, barangay captains, and department heads serving Getafe.</p>
-          </div>
-        </div>
-      </div>
+      <section className="about-hero officials-hero">
+        <div className="about-hero-bg"><img src="/assets/getafe-default/profiles/getafe-municipal%20hall.jpg" alt="Getafe Municipal Hall" /><div className="about-hero-overlay" /></div>
+        <div className="container about-hero-inner"><p className="about-hero-kicker">Municipality of Getafe • Bohol</p><h1>Municipal Officials</h1><p className="about-hero-sub">The elected leaders, barangay captains, and department heads serving Getafe.</p></div>
+      </section>
 
       <div className="content-page container">
         {/* Elected Officials */}
@@ -74,16 +79,16 @@ export default function Officials() {
           </div>
 
           <div className="officials-lead">
-            <OfficialCard name={mayor.name} role={mayor.role} lead />
-            <OfficialCard name={viceMayor.name} role={viceMayor.role} lead />
+            <OfficialCard name={currentMayor.name} role={currentMayor.role} biography={currentMayor.biography} photo={currentMayor.photo} lead />
+            <OfficialCard name={currentViceMayor.name} role={currentViceMayor.role} biography={currentViceMayor.biography} photo={currentViceMayor.photo} lead />
           </div>
 
           <h3 className="officials-subhead"><Users size={16} /> Sangguniang Bayan</h3>
           <div className="officials-grid">
-            {sbMembers.map((m) => (
-              <OfficialCard name={m.name} role={m.role} key={m.name} />
+            {currentSbMembers.map((m) => (
+              <OfficialCard name={m.name} role={m.role} biography={m.biography} photo={m.photo} key={m.name} />
             ))}
-            <OfficialCard name={abcPresident.name} role={abcPresident.role} />
+            <OfficialCard name={currentAbcPresident.name} role={currentAbcPresident.role} biography={currentAbcPresident.biography} photo={currentAbcPresident.photo} />
           </div>
         </section>
 
@@ -98,16 +103,16 @@ export default function Officials() {
           </div>
 
           <div className="brgy-officials-grid">
-            {barangays.map((b) => (
-              <div className="brgy-official" key={b.name}>
+            {currentPunongBarangays.map((b) => (
+              <div className="brgy-official" key={b.role}>
                 <img
-                  src="/assets/brgy-user-vector/profile-circle.svg"
-                  alt={`${b.captain} — Punong Barangay of ${b.name}`}
+                  src={b.photo || PLACEHOLDER}
+                  alt={`${b.name} — Punong Barangay of ${b.role}`}
                   className="brgy-official-img"
                 />
                 <div>
-                  <strong>{b.captain}</strong>
-                  <span>{b.name}</span>
+                    <Link to={`/info/officials/${officialId(b.name)}`}><strong>{b.name}</strong></Link>
+                    <span>{b.role}</span>
                 </div>
               </div>
             ))}
@@ -125,21 +130,18 @@ export default function Officials() {
           </div>
 
           <div className="dept-grid">
-            {deptHeads.map((d) => (
+            {currentDeptHeads.map((d) => (
               <div className="dept-card" key={d.role}>
                 <img src={d.photo || PLACEHOLDER} alt={`${d.name} profile`} className="dept-img" />
                 <div>
-                  <strong>{d.name}</strong>
-                  <span>{d.role}</span>
+                  <Link to={`/info/officials/${officialId(d.name)}`}><strong>{d.name}</strong></Link>
+                  <span>{d.role}</span>{d.biography && <p className="official-bio">{d.biography}</p>}
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        <p className="history-back">
-          <Link to="/info/about">Back to About Us</Link> · <Link to="/contact">Contact Us</Link>
-        </p>
       </div>
     </main>
   )

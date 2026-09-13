@@ -1,10 +1,15 @@
 import { getCmsPool } from '../services/cloudSql.js';
 import crypto from 'crypto';
+import { getLocalDb, saveLocalDb, isGcp } from './localDb.js';
 
 const id = () => crypto.randomUUID();
 const now = () => new Date().toISOString().slice(0, 23).replace('T', ' ');
 
 export async function getMedia() {
+  if (!isGcp()) {
+    const db = await getLocalDb();
+    return db.media || [];
+  }
   const pool = await getCmsPool();
   const [rows] = await pool.execute('SELECT * FROM media ORDER BY created_at DESC');
   return rows;
@@ -17,6 +22,10 @@ export async function getMediaById(mediaId) {
 }
 
 export async function getMediaByStoragePath(storagePath) {
+  if (!isGcp()) {
+    const db = await getLocalDb();
+    return (db.media || []).find((item) => item.storage_path === storagePath) || null;
+  }
   const pool = await getCmsPool();
   const [rows] = await pool.execute('SELECT * FROM media WHERE storage_path = ?', [storagePath]);
   return rows[0] || null;
@@ -48,6 +57,26 @@ export async function deletePendingUpload(storagePath) {
 }
 
 export async function finalizePendingUpload(upload, media) {
+  if (!isGcp()) {
+    const db = await getLocalDb();
+    const existing = (db.media || []).find((item) => item.storage_path === media.storagePath);
+    if (existing) return existing;
+    const item = {
+      id: media.id,
+      original_filename: media.originalFilename,
+      storage_bucket: null,
+      storage_path: media.storagePath,
+      content_type: media.contentType,
+      file_size: media.fileSize,
+      uploaded_by: media.uploadedBy,
+      related_record_id: media.relatedRecordId,
+      status: 'active',
+      created_at: media.createdAt,
+    };
+    db.media = [...(db.media || []), item];
+    await saveLocalDb(db);
+    return item;
+  }
   const pool = await getCmsPool();
   const connection = await pool.getConnection();
   try {
@@ -101,6 +130,12 @@ export async function createMediaRecord(originalFilename, storageBucket, storage
 }
 
 export async function deleteMediaRecord(mediaId) {
+  if (!isGcp()) {
+    const db = await getLocalDb();
+    db.media = (db.media || []).filter((item) => item.id !== mediaId);
+    await saveLocalDb(db);
+    return;
+  }
   const pool = await getCmsPool();
   await pool.execute("DELETE FROM media WHERE id = ?", [mediaId]);
 }

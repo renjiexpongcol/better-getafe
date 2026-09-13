@@ -58,3 +58,7 @@ vite.config.*.timestamp-*
 # TypeScript
 *.tsbuildinfo
 ```
+
+.npm-cache/
+
+data/.settings-encryption-key

@@ -65,3 +65,9 @@ CREATE TABLE news (
   INDEX news_public_listing_idx (status, published_at),
   INDEX news_category_idx (category_id)
 );
+
+CREATE TABLE site_pages (
+  slug VARCHAR(120) PRIMARY KEY,
+  content LONGTEXT NOT NULL,
+  updated_at DATETIME(3) NOT NULL
+);

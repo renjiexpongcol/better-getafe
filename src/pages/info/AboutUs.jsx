@@ -998,16 +998,6 @@ export default function AboutUs() {
         </div>
       </section>
 
-      <div className="content-page container">
-        <div className="about-cta-band">
-          <span className="getafe-stat-icon blue"><Landmark size={20} /></span>
-          <div>
-            <strong>Learn more about Getafe</strong>
-            <p>Explore the municipality's history, location, and leadership across the portal.</p>
-          </div>
-          <Link to="/info/officials" className="about-cta ghost">Municipal Officials <ArrowRight size={16} /></Link>
-        </div>
-      </div>
     </main>
   )
 }

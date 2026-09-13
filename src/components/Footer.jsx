@@ -1,3 +1,4 @@
+import { usePublicConfig } from '../context/PublicConfig';
 import { Link } from 'react-router-dom';
 import {
   FaFacebookF, FaGithub, FaInstagram, FaYoutube, FaXTwitter, FaGlobe, FaRss,
@@ -70,6 +71,7 @@ const SOCIAL_LINKS = [
 ].filter((link) => Boolean(link.url));
 
 export default function Footer() {
+  const settings = usePublicConfig();
   return (
     <footer className="site-footer" style={{ borderTop: '4px solid #3b82f6' }}>
       <div className="container footer-grid" style={{ paddingTop: '4rem', paddingBottom: '3rem' }}>
@@ -77,9 +79,9 @@ export default function Footer() {
         {/* Column 1: Municipality Branding */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
           <div className="brand-wrap footer-brand" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <img src="/assets/getafe-seal.png" alt="Municipality of Getafe Logo" style={{ height: '64px', width: 'auto', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' }} />
+            <img src={settings['general.logo'] || '/assets/getafe-seal.png'} alt="Municipality of Getafe Logo" style={{ height: '64px', width: 'auto', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' }} />
             <div>
-              <div className="brand-name" style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', whiteSpace: 'nowrap', color: '#fff' }}>Municipality of Getafe</div>
+              <div className="brand-name" style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', whiteSpace: 'nowrap', color: '#fff' }}>{settings['general.company'] || 'Municipality of Getafe'}</div>
             </div>
           </div>
 
@@ -179,3 +181,4 @@ export default function Footer() {
     </footer>
   );
 }
+

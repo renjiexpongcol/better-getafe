@@ -8,21 +8,28 @@
     "dev:frontend": "vite",
     "build": "vite build",
     "start": "node server.js",
+    "test:auth": "node scripts/test-auth-lifecycle.mjs",
     "cms:check": "node --env-file-if-exists=.env scripts/verify-cms-configuration.mjs",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "migrate": "node scripts/migrate-settings.mjs",
+    "test:settings": "node --test scripts/test-config-service.mjs scripts/test-settings-api.mjs"
   },
   "dependencies": {
     "@google-cloud/cloud-sql-connector": "^1.11.3",
+    "@google-cloud/secret-manager": "^7.1.0",
     "@google-cloud/storage": "^8.0.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.37.0",
     "mysql2": "^3.24.2",
+    "nodemailer": "^10.0.9",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-icons": "^5.7.0",
-    "react-router-dom": "^7.18.3"
+    "react-router-dom": "^7.18.3",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

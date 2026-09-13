@@ -14,11 +14,15 @@ const pageModules = import.meta.glob('./pages/**/*.jsx')
 // Cleaner URL overrides for pages whose route should not match
 // their kebab-cased filename.
 const routeOverrides = {
+  './pages/info/OfficialProfile.jsx': '/info/official-profile',
+  './pages/tourism/Banacon.jsx': '/tourism/banacon',
   './pages/info/AboutUs.jsx': '/info/about',
   './pages/info/Contact.jsx': '/contact',
   './pages/legal/PrivacyPolicy.jsx': '/legal/privacy',
   './pages/legal/TermsOfUse.jsx': '/legal/terms',
   './pages/services/EmergencyHotlines.jsx': '/services/hotlines',
+  './pages/services/BarangayDetail.jsx': '/services/barangay-detail',
+  './pages/services/BarangayOfficial.jsx': '/services/barangay-official',
 }
 
 // Human-readable titles used by the sitemap and the document title.
@@ -43,12 +47,13 @@ export const routeTitles = {
   '/news': 'News & Updates',
   '/tourism': 'Discover Getafe',
   '/events': 'Gallery of Events',
+  '/weather': 'Weather Updates',
   '/auth/login': 'Log In',
 }
 
 // Routes that must NOT appear in the public sitemap (e.g. auth,
 // private/draft pages). Add any future hidden route here.
-const HIDDEN_ROUTES = ['/auth/login']
+const HIDDEN_ROUTES = ['/auth/login', '/admin']
 
 const toKebab = (str) => str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
 
@@ -70,7 +75,7 @@ export const pageRoutes = Object.entries(pageModules).map(([file, loader]) => {
 })
 
 // Public pages only (excludes hidden/private routes).
-export const publicRoutes = pageRoutes.filter((r) => !HIDDEN_ROUTES.includes(r.path))
+export const publicRoutes = pageRoutes.filter((r) => !HIDDEN_ROUTES.includes(r.path) && !r.path.startsWith('/auth/') && !r.path.startsWith('/admin'))
 
 // Display labels + order for the sitemap groups.
 const groupOrder = ['home', 'info', 'services', 'tourism', 'events', 'news', 'legal']

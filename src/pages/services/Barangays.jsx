@@ -1,48 +1,40 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Layers, MapPin } from 'lucide-react'
+import { MapPin } from 'lucide-react'
 import { barangays } from '../../data/barangays'
 import BarangayCard from '../../components/BarangayCard'
 import BarangayModal from '../../components/BarangayModal'
 
 export default function Barangays() {
+  const [records, setRecords] = useState(barangays)
   const [selectedBarangay, setSelectedBarangay] = useState(null)
   const [searchParams] = useSearchParams()
+  useEffect(() => { fetch('/api/barangays').then((r) => r.ok ? r.json() : Promise.reject()).then((value) => { if (Array.isArray(value) && value.length) setRecords(value) }).catch(() => {}) }, [])
 
   // Auto-open a barangay's modal when arriving with ?brgy=<id> (e.g. from
   // the "Getafe at a Glance" table).
   useEffect(() => {
     const brgyId = searchParams.get('brgy')
     if (brgyId) {
-      const found = barangays.find((b) => b.id === brgyId)
+      const found = records.find((b) => b.id === brgyId)
       if (found) setSelectedBarangay(found)
     }
-  }, [searchParams])
+  }, [searchParams, records])
 
   return (
     <main id="barangays-page">
-      <div className="page-header">
+      <div className="page-header barangays-hero" style={{ '--barangays-hero-image': "url('/assets/getafe-default/about-getafe.jpg')" }}>
         <div className="container page-header-inner">
           <div>
-            <h1 className="page-title">Barangays of Getafe</h1>
-            <p className="page-subtitle">
-              Explore the {barangays.length} officially verified barangays of the Municipality of Getafe.
-            </p>
+            <p className="barangays-hero-eyebrow">MUNICIPALITY OF GETAFE · BOHOL</p><h1 className="page-title">Barangays of Getafe</h1>
+            <div className="barangays-hero-summary"><div><p>Explore the communities across Getafe’s islands and surrounding islets. Select a barangay to learn more.</p></div></div>
           </div>
         </div>
       </div>
 
       <div className="content-page container">
-        <div className="barangays-intro">
-          <span className="getafe-stat-icon blue"><Layers size={18} /></span>
-          <p>
-            Getafe is composed of <strong>{barangays.length} barangays</strong> scattered across the island and its
-            surrounding islets. Select a barangay below to view its population profile.
-          </p>
-        </div>
-
         <div className="barangays-grid">
-          {barangays.map((brgy) => (
+          {records.map((brgy) => (
             <BarangayCard key={brgy.id} barangay={brgy} onClick={setSelectedBarangay} />
           ))}
         </div>

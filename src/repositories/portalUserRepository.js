@@ -3,12 +3,12 @@ import { getLocalDb, saveLocalDb, isPortalGcp, id, now, hash } from './localDb.j
 
 export async function getPortalUserByEmail(email) {
   if (isPortalGcp()) {
-    const pool = await getPortalPool();
-    const [rows] = await pool.execute(
-      "SELECT id, name, email, password, role FROM portal_users WHERE email = ?",
+    try { const pool = await getPortalPool(); const [rows] = await pool.execute(
+      "SELECT id, name, email, password, role, created_at, updated_at FROM portal_users WHERE email = ?",
       [String(email).trim().toLowerCase()]
     );
     return rows[0] || null;
+    } catch (error) { if (process.env.NODE_ENV === 'production' || process.env.AUTH_LOCAL_FALLBACK !== 'true') throw error; }
   }
   
   const db = await getLocalDb();
@@ -20,7 +20,7 @@ export async function getPortalUserById(userId) {
   if (isPortalGcp()) {
     const pool = await getPortalPool();
     const [rows] = await pool.execute(
-      "SELECT id, name, email, password, role FROM portal_users WHERE id = ?",
+      "SELECT id, name, email, password, role, created_at, updated_at FROM portal_users WHERE id = ?",
       [userId]
     );
     return rows[0] || null;
@@ -61,4 +61,5 @@ export async function createPortalUser(name, email, password) {
   await saveLocalDb(db);
   return user;
 }
+
 

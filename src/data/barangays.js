@@ -13,6 +13,7 @@ const barangayData = [
     name: 'Banacon',
     population: 1524,
     captain: 'Jaime Jr D. Sanchez',
+    heroImage: '/assets/baranggays/banacon/n060216banacon.jpg',
     coords: { lat: 10.208, lng: 124.14 },
   },
   {
@@ -157,12 +158,13 @@ export const getBarangayId = (name) =>
     .replace(/^-+|-+$/g, '')
 
 export const barangays = barangayData.map(
-  ({ name, population, captain, coords }) => ({
+  ({ name, population, captain, coords, heroImage }) => ({
     id: getBarangayId(name),
     name,
     population,
     captain,
     coords,
+    heroImage,
     description: null,
     lastUpdated: '2020 Census',
   })

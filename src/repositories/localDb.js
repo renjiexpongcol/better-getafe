@@ -1,11 +1,15 @@
 import fs from "fs";
+import { config } from '../config/index.js';
 import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
+import { DatabaseSync } from 'node:sqlite';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dataPath = path.join(__dirname, "..", "..", "data", "cms.json");
+const dataPath = process.env.CMS_LOCAL_FILE || path.join(__dirname, "..", "..", "data", "cms.json");
+const sqlitePath = process.env.LOCAL_SQLITE_FILE || path.join(__dirname, "..", "..", "data", "getafe.sqlite");
+let sqlite;
 
 const now = () => new Date().toISOString().replace('T', ' ').substring(0, 23);
 const id = () => crypto.randomUUID();
@@ -17,7 +21,7 @@ function seed() {
   const user = {
     id: id(),
     name: "CMS Administrator",
-    email: "admin@getafe.gov.ph",
+    email: "renjiepongcol95@gmail.com",
     password: hash(process.env.CMS_ADMIN_PASSWORD || "ChangeMe123!"),
     role: "admin",
     created_at: created,
@@ -89,27 +93,34 @@ export async function getLocalDb() {
   if (process.env.NODE_ENV === 'production') {
     throw new Error("Local JSON database is explicitly disabled in production. Configure Google Cloud SQL.");
   }
-  if (!fs.existsSync(dataPath)) {
-    fs.mkdirSync(path.dirname(dataPath), { recursive: true });
-    fs.writeFileSync(dataPath, JSON.stringify(seed(), null, 2));
+  fs.mkdirSync(path.dirname(sqlitePath), { recursive: true });
+  sqlite ||= new DatabaseSync(sqlitePath);
+  sqlite.exec('CREATE TABLE IF NOT EXISTS application_state (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL)');
+  const row = sqlite.prepare('SELECT data FROM application_state WHERE id=1').get();
+  if (!row) {
+    const initial = fs.existsSync(dataPath) ? JSON.parse(fs.readFileSync(dataPath, 'utf8')) : seed();
+    sqlite.prepare('INSERT INTO application_state (id,data) VALUES (1,?)').run(JSON.stringify(initial));
+    return initial;
   }
-  return JSON.parse(fs.readFileSync(dataPath, "utf8"));
+  return JSON.parse(row.data);
 }
 
 export async function saveLocalDb(data) {
   if (process.env.NODE_ENV === 'production') {
     throw new Error("Local JSON database is explicitly disabled in production. Configure Google Cloud SQL.");
   }
-  fs.mkdirSync(path.dirname(dataPath), { recursive: true });
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
+  fs.mkdirSync(path.dirname(sqlitePath), { recursive: true });
+  sqlite ||= new DatabaseSync(sqlitePath);
+  sqlite.exec('CREATE TABLE IF NOT EXISTS application_state (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL)');
+  sqlite.prepare('INSERT INTO application_state (id,data) VALUES (1,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data').run(JSON.stringify(data));
 }
 
 export function isGcp() {
-  return (process.env.CMS_DATABASE_PROVIDER || "local") === "gcp";
+  return config.get('database.provider') !== 'local' || config.get('database.connectionMode') !== 'local';
 }
 
 export function isPortalGcp() {
-  return (process.env.PORTAL_DATABASE_PROVIDER || process.env.USER_DATABASE_PROVIDER || "local") === "gcp";
+  return config.get('portalDatabase.provider') !== 'local' || config.get('portalDatabase.connectionMode') !== 'local';
 }
 
 export { id, slugify, now, hash };

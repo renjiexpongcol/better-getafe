@@ -1,9 +1,11 @@
+import { usePublicConfig } from '../context/PublicConfig'
 import { useEffect, useState } from 'react'
 import { NavLink, Link } from 'react-router-dom'
-import { Accessibility, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, Compass, FileCheck2, HeartHandshake, Info, Landmark, LogOut, Mail, Map, Newspaper, PhoneCall, Siren, Users, WalletCards } from 'lucide-react'
+import { Accessibility, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, LogOut, Mail, Map, Newspaper, PhoneCall, Siren, Users, WalletCards } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 export default function Header() {
+  const settings = usePublicConfig()
   const [openMenu, setOpenMenu] = useState(null)
   const [time, setTime] = useState('')
   const [isHidden, setIsHidden] = useState(false)
@@ -16,8 +18,8 @@ export default function Header() {
 
   useEffect(() => {
     const updateTime = () => {
-      const formatter = new Intl.DateTimeFormat('en-PH', {
-        timeZone: 'Asia/Manila',
+      const formatter = new Intl.DateTimeFormat(settings['general.locale'] || 'en-PH', {
+        timeZone: settings['general.timezone'] || 'Asia/Manila',
         weekday: 'long',
         hour: '2-digit',
         minute: '2-digit',
@@ -31,7 +33,7 @@ export default function Header() {
     updateTime()
     const interval = setInterval(updateTime, 1000)
     return () => clearInterval(interval)
-  }, [])
+  }, [settings])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -42,7 +44,7 @@ export default function Header() {
     handleScroll()
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+  }, [settings])
 
   const menuItems = [
     {
@@ -79,6 +81,7 @@ export default function Header() {
         ['Gallery of Events', '/events', 'See the celebrations and milestones of Getafe.', CalendarDays],
         ['Contact Us', '/contact', 'Reach the municipal offices.', Mail],
         ['News and Updates', '/news', 'Latest local announcements.', Newspaper],
+        ['Weather Updates', '/weather', 'Live conditions and forecasts.', CloudSun],
         ['Emergency Hotlines', '/services/hotlines', 'Police, fire, medical, and public services.', PhoneCall],
       ],
     },
@@ -93,9 +96,9 @@ export default function Header() {
           aria-label="Municipality of Getafe — go to homepage"
           onClick={() => setOpenMenu(null)}
         >
-          <img src="/assets/getafe-seal.png" alt="Municipality of Getafe Logo" className="brand-logo" />
+          <img src={settings['general.logo'] || '/assets/getafe-seal.png'} alt="Municipality of Getafe Logo" className="brand-logo" />
           <div>
-            <div className="brand-name" style={{ whiteSpace: 'nowrap' }}>Municipality of Getafe</div>
+            <div className="brand-name" style={{ whiteSpace: 'nowrap' }}>{settings['general.company'] || 'Municipality of Getafe'}</div>
             <div className="brand-subtitle">Bohol • Philippines</div>
           </div>
         </Link>
@@ -161,3 +164,4 @@ export default function Header() {
     </header>
   )
 }
+

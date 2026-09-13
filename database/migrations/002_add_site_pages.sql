@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS site_pages (
+  slug VARCHAR(120) PRIMARY KEY,
+  content LONGTEXT NOT NULL,
+  updated_at DATETIME(3) NOT NULL
+);

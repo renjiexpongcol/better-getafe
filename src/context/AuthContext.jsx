@@ -24,6 +24,7 @@ export function AuthProvider({ children }) {
       })
       const body = await response.json().catch(() => ({}))
       if (!response.ok) return { ok: false, error: body.error || 'Invalid email or password.' }
+      if (body.verificationRequired || body.passwordExpired) return { ok: false, ...body }
       const session = await fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' })
       const current = await session.json().catch(() => ({}))
       if (!session.ok || !current.user) return { ok: false, error: 'The sign-in session could not be established. Please try again.' }
@@ -44,6 +45,7 @@ export function AuthProvider({ children }) {
       })
       const body = await response.json().catch(() => ({}))
       if (!response.ok) return { ok: false, error: body.error || 'The account could not be created.' }
+      if (body.verificationRequired) return { ok: false, ...body }
       setUser(body.user)
       return { ok: true }
     } catch {

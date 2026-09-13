@@ -3,9 +3,14 @@ import { getLocalDb, isGcp } from './localDb.js';
 
 export async function getCmsUsers() {
   if (isGcp()) {
-    const pool = await getCmsPool();
-    const [rows] = await pool.execute('SELECT * FROM users');
-    return rows;
+    try {
+      const pool = await getCmsPool();
+      const [rows] = await pool.execute('SELECT * FROM users');
+      return rows;
+    } catch (error) {
+      if (process.env.NODE_ENV === 'production' || process.env.AUTH_LOCAL_FALLBACK !== 'true') throw error;
+      console.warn('Cloud SQL unavailable; using local development accounts.');
+    }
   } else {
     const db = await getLocalDb();
     return db.users;

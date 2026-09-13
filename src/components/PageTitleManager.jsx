@@ -1,12 +1,14 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { routeTitles } from '../routes';
+import { usePublicConfig } from '../context/PublicConfig';
 
 export default function PageTitleManager() {
   const { pathname } = useLocation();
+  const settings = usePublicConfig();
 
   useEffect(() => {
-    document.title = `Getafe | ${routeTitles[pathname] || "Official Portal"}`;
+    document.title = `${settings['general.name'] || 'Getafe'} | ${routeTitles[pathname] || "Official Portal"}`;
     
     // We map '/' to 'home' and others directly to their path without slash
     const sectionId = pathname === '/' ? 'home' : pathname.substring(1);
@@ -20,7 +22,7 @@ export default function PageTitleManager() {
     } else if (pathname === '/') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [pathname]);
+  }, [pathname, settings]);
 
   return null;
 }

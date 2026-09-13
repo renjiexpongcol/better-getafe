@@ -5,6 +5,7 @@ const env = {
   ...process.env,
   NODE_ENV: 'development',
   PORT: process.env.PORT || '8091',
+  VITE_BACKEND_PORT: process.env.PORT || '8091',
   CMS_DATABASE_PROVIDER: process.env.CMS_DATABASE_PROVIDER || 'local',
   CMS_MEDIA_PROVIDER: process.env.CMS_MEDIA_PROVIDER || 'local',
   PORTAL_DATABASE_PROVIDER: process.env.PORTAL_DATABASE_PROVIDER || 'local',
@@ -16,7 +17,7 @@ const start = (command, args) => {
   return child
 }
 
-start(process.execPath, ['server.js'])
+start(process.execPath, ['--watch', 'server.js'])
 start(process.execPath, ['node_modules/vite/bin/vite.js'])
 
 const stop = () => {

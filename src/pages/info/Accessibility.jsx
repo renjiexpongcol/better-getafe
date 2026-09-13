@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom';
-
 export default function Accessibility() {
   return (
     <main id="accessibility">
@@ -55,9 +53,6 @@ export default function Accessibility() {
           <p>We try to respond to feedback within 2 business days.</p>
         </section>
 
-        <p className="history-back">
-          <Link to="/">Back to Home</Link>
-        </p>
       </div>
     </main>
   );
