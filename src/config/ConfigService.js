@@ -53,13 +53,21 @@ export class ConfigService {
       for (const [key, value] of Object.entries(patch)) {
         const d = definitions[key];
         if (d.secret && value === '') continue;
+        if (value === null) {
+          const fallback = environmentValue(key, this.env) ?? d.default;
+          candidate[key] = fallback;
+          if (!Object.hasOwn(settings, key)) continue;
+          delete settings[key];
+          changes.push(key);
+          continue;
+        }
         candidate[key] = value; if (!d.secret && settings[key] === value) continue; settings[key] = value;
         changes.push(key);
       }
       validate(candidate);
       const resources = await this.prepare(candidate, this.values, { actor, changed: changes });
       try {
-        for (const key of changes) if (definitions[key].secret) settings[key] = await this.secrets.seal(key, patch[key]);
+        for (const key of changes) if (definitions[key].secret && patch[key] !== null) settings[key] = await this.secrets.seal(key, patch[key]);
         const snapshot = await this.resolve(settings);
         const audit = changes.map(key => ({ id: crypto.randomUUID(), user_id: actor.id, action: 'settings.update', category: key.split('.')[0], setting_key: key, old_value: definitions[key].secret ? (original.values[key] ? '[SECRET CONFIGURED]' : null) : stored[key] ?? null, new_value: definitions[key].secret ? '[SECRET UPDATED]' : patch[key], ip_address: actor.ip || '', created_at: new Date().toISOString() }));
         return { settings, audit, discard: resources.discard, activate: () => { resources.activate(); this.values = snapshot.values; this.sources = snapshot.sources; this.stored = settings; this.loadedAt = Date.now(); this.available = true; } };

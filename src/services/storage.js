@@ -1,62 +1,49 @@
-import { Storage } from '@google-cloud/storage';
+import { S3Client, HeadBucketCommand, HeadObjectCommand, DeleteObjectCommand, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { config } from '../config/index.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-let gcsBucket;
-let localRoot;
+let client; let bucketName; let localRoot;
 export async function buildStorage(values) {
-  if (values['storage.provider'] !== 'gcp') {
-    localRoot = path.resolve(values['storage.localPath'] || process.env.LOCAL_STORAGE_PATH || 'data/uploads');
-    await fs.mkdir(localRoot, { recursive: true });
-    return { local: true, root: localRoot };
-  }
-  if (!values['storage.bucket']) throw new Error('Bucket name is required.');
-  try {
-    const bucket = new Storage({ projectId: values['google.projectId'] || undefined }).bucket(values['storage.bucket']);
-    const [metadata] = await bucket.getMetadata();
-    if (values['storage.region'] && metadata.location.toLowerCase() !== values['storage.region'].toLowerCase()) throw new Error('region');
-    // These are the operations the application actually performs. Avoid IAM
-    // testPermissions here because it requires an extra bucket IAM permission
-    // that Cloud Run service accounts often do not have.
-    await bucket.file('__connection_test__').getSignedUrl({ version: 'v4', action: 'write', expires: Date.now() + 60000, contentType: 'image/png' });
-    if (values['storage.visibility'] === 'public') {
-      const [policy] = await bucket.iam.getPolicy({ requestedPolicyVersion: 3 });
-      if (!policy.bindings?.some(binding => binding.role === 'roles/storage.objectViewer' && binding.members?.includes('allUsers') && !binding.condition)) throw new Error('public');
-    }
-    return bucket;
-  } catch { throw new Error('Storage test failed. Check ADC authentication, bucket region, object permissions, signing permission and public access policy.'); }
+  if (values['storage.provider'] === 'local') { localRoot = path.resolve(values['storage.localPath'] || process.env.LOCAL_STORAGE_PATH || 'data/uploads'); await fs.mkdir(localRoot, { recursive: true }); return { local: true, root: localRoot }; }
+  if (values['storage.provider'] !== 'backblaze') throw new Error('Only Backblaze B2 or local storage is supported.');
+  const endpoint = values['storage.endpoint'] || process.env.B2_ENDPOINT; const keyId = values['storage.keyId'] || process.env.B2_KEY_ID; const applicationKey = values['storage.applicationKey'] || process.env.B2_APPLICATION_KEY; bucketName = values['storage.bucket'];
+  if (!endpoint || !keyId || !applicationKey || !bucketName) throw new Error('Backblaze B2 endpoint, key ID, application key and bucket name are required.');
+  const resource = new S3Client({ endpoint, region: values['storage.region'] || process.env.B2_REGION || 'us-east-005', forcePathStyle: true, credentials: { accessKeyId: keyId, secretAccessKey: applicationKey } });
+  try { await resource.send(new HeadBucketCommand({ Bucket: bucketName })); } catch { throw new Error('Backblaze B2 storage test failed. Check the endpoint, bucket and application key.'); }
+  return { client: resource, bucket: bucketName };
 }
-export function activateStorage(bucket) { gcsBucket = bucket?.local ? null : bucket; if (bucket?.local) localRoot = bucket.root; }
+export function activateStorage(resource) { client = resource?.client || null; bucketName = resource?.bucket || bucketName; localRoot = resource?.local ? resource.root : null; }
 export async function initializeStorage() { const resource = await buildStorage(config.values); activateStorage(resource); return resource; }
-export async function createUploadUrl(path, contentType) {
-  if (localRoot) { await fs.mkdir(pathModule(path).dir, { recursive: true }); return `/uploads/${path.replaceAll('\\', '/')}`; }
-  if (!gcsBucket) throw new Error('Cloud storage is not initialized.');
-  const [url] = await gcsBucket.file(path).getSignedUrl({ version: 'v4', action: 'write', expires: Date.now() + config.get('storage.signedUrlMinutes') * 60000, contentType });
-  return url;
+export async function createUploadUrl(objectPath, contentType) { if (localRoot) { await fs.mkdir(path.dirname(path.join(localRoot, objectPath)), { recursive: true }); return `/uploads/${objectPath.replaceAll('\\', '/')}`; } if (!client) throw new Error('Backblaze storage is not initialized.'); return getSignedUrl(client, new PutObjectCommand({ Bucket: bucketName, Key: objectPath, ContentType: contentType }), { expiresIn: config.get('storage.signedUrlMinutes') * 60 }); }
+export async function createDownloadUrl(objectPath, targetBucket = bucketName) { if (!objectPath) return null; if (localRoot && !/^https?:\/\//.test(objectPath)) return `/uploads/${objectPath.replace(/^\/+/, '').replaceAll('\\', '/')}`; if (!client || /^https?:\/\//.test(objectPath)) return objectPath; if (config.get('storage.visibility') === 'public' && config.get('storage.publicBaseUrl')) return `${config.get('storage.publicBaseUrl').replace(/\/$/, '')}/${objectPath.split('/').map(encodeURIComponent).join('/')}`; return getSignedUrl(client, new GetObjectCommand({ Bucket: targetBucket || bucketName, Key: objectPath }), { expiresIn: config.get('storage.signedUrlMinutes') * 60 }); }
+export async function getObjectMetadata(objectPath, targetBucket = bucketName) { if (!client) throw new Error('Backblaze storage is not initialized.'); try { return await client.send(new HeadObjectCommand({ Bucket: targetBucket || bucketName, Key: objectPath })); } catch { return null; } }
+export async function objectExists(objectPath) { return Boolean(await getObjectMetadata(objectPath)); }
+export async function deleteObject(objectPath, targetBucket = bucketName) { if (localRoot) return fs.rm(path.resolve(localRoot, objectPath), { force: true }).catch(() => {}); if (!client) throw new Error('Backblaze storage is not initialized.'); await client.send(new DeleteObjectCommand({ Bucket: targetBucket || bucketName, Key: objectPath })); }
+
+function privateLocalPath(key) {
+  // Citizen uploads live outside the directory exposed by /uploads. Object
+  // prefixes become folders in B2 and remain private in local development.
+  const privateKey = key.startsWith('citizen-private/')
+  const root = `${path.resolve(localRoot)}-citizen-private`
+  const relativeKey = privateKey ? key.slice('citizen-private/'.length) : key
+  const target = path.resolve(root, relativeKey)
+  if (!target.startsWith(`${root}${path.sep}`)) throw new Error('Invalid document path.')
+  return target
 }
-const pathModule = value => ({ dir: path.dirname(path.join(localRoot || '', value)) });
-export async function createDownloadUrl(path, bucketName) {
-  if (!path) return null;
-  // Local uploads are stored as relative paths, but browsers need the
-  // public /uploads route to resolve them.
-  if (localRoot && !/^https?:\/\//.test(path)) return `/uploads/${path.replace(/^\/+/, '').replaceAll('\\', '/')}`;
-  if (!gcsBucket || /^https?:\/\//.test(path)) return path;
-  const bucket = bucketName && bucketName !== gcsBucket.name ? gcsBucket.storage.bucket(bucketName) : gcsBucket;
-  if (config.get('storage.visibility') === 'public' && bucket === gcsBucket) return `${config.get('storage.publicBaseUrl') || `https://storage.googleapis.com/${bucket.name}`}/${path.split('/').map(encodeURIComponent).join('/')}`;
-  try { return (await bucket.file(path).getSignedUrl({ version: 'v4', action: 'read', expires: Date.now() + config.get('storage.signedUrlMinutes') * 60000 }))[0]; }
-  catch { return null; }
+export async function writeCitizenFile(key, bytes, contentType) {
+  if (localRoot) { const target = privateLocalPath(key); await fs.mkdir(path.dirname(target), { recursive: true }); await fs.writeFile(target, bytes); return }
+  if (!client) throw new Error('Document storage is unavailable.')
+  if (config.get('storage.visibility') === 'public') throw new Error('Private document storage is required.')
+  await client.send(new PutObjectCommand({ Bucket: bucketName, Key: key, Body: bytes, ContentType: contentType }))
 }
-export async function getObjectMetadata(path) {
-  if (!gcsBucket) throw new Error('Cloud storage is not initialized.');
-  try { return (await gcsBucket.file(path).getMetadata())[0]; } catch { return null; }
+export async function deleteCitizenFile(key) {
+  if (localRoot) return fs.rm(privateLocalPath(key), { force: true })
+  return deleteObject(key)
 }
-export async function objectExists(path) { if (!gcsBucket) throw new Error('Cloud storage is not initialized.'); return (await gcsBucket.file(path).exists())[0]; }
-export async function deleteObject(storagePath, bucketName) {
-  if (localRoot) {
-    await fs.rm(path.resolve(localRoot, storagePath), { force: true }).catch(() => {});
-    return;
-  }
-  if (!gcsBucket) throw new Error('Cloud storage is not initialized.');
-  const bucket = bucketName ? gcsBucket.storage.bucket(bucketName) : gcsBucket;
-  await bucket.file(storagePath).delete({ ignoreNotFound: true });
+export async function readCitizenFile(key) {
+  if (localRoot) return fs.readFile(privateLocalPath(key))
+  if (!client) throw new Error('Document storage is unavailable.')
+  const result = await client.send(new GetObjectCommand({ Bucket: bucketName, Key: key }))
+  return Buffer.from(await result.Body.transformToByteArray())
 }

@@ -4,9 +4,9 @@ import { Link } from 'react-router-dom'
 
 const fallbackPlaces = [
   { title: 'Man-made Mangrove Forest', slug: 'man-made-mangrove-forest', excerpt: 'Walk beneath a living canopy and experience one of Getafe\'s most distinctive coastal landscapes.', featured_image: '/assets/Getafe_Bohol_1.jpg', category: { name: 'Nature' } },
-  { title: 'Pandanon Island', slug: 'pandanon-island', excerpt: 'Discover island horizons, quiet shorelines, and the easy pace of Getafe\'s coastal communities.', featured_image: '', category: { name: 'Island escape' } },
-  { title: 'Handumon Marine Sanctuary', slug: 'handumon-marine-sanctuary', excerpt: 'Explore a protected marine landscape shaped by community stewardship and clear Visayan waters.', featured_image: '', category: { name: 'Marine life' } },
-  { title: 'Corte Paradise Resort', slug: 'corte-paradise-resort', excerpt: 'Make time for a restful stay surrounded by the warmth and scenery of coastal Getafe.', featured_image: '', category: { name: 'Stay & unwind' } },
+  { title: 'Pandanon Island Resort', slug: 'pandanon-island', excerpt: 'Discover island horizons, quiet shorelines, clear blue water, and the easy pace of Getafe\'s coastal communities.', featured_image: '/assets/tourism/pandanon-1.jpg', category: { name: 'Island escape' } },
+  { title: 'Handumon Marine Sanctuary', slug: 'handumon-marine-sanctuary', excerpt: 'Explore a protected marine landscape shaped by community stewardship, mangroves, seahorses, and clear Visayan waters.', featured_image: '/assets/tourism/pandanon-1.jpg', category: { name: 'Marine life' } },
+  { title: 'Corte Paradise Resort', slug: 'corte-paradise-resort', excerpt: 'Make time for a restful stay surrounded by riverside views, spring water, and the scenery of coastal Getafe.', featured_image: '/assets/tourism/pandanon-1.jpg', category: { name: 'Stay & unwind' } },
   { title: 'Verador Hill', slug: 'verador-hill', excerpt: 'Take in open views and a slower, greener side of the municipality from the hills above town.', featured_image: '', category: { name: 'Scenic views' } },
 ]
 
@@ -15,7 +15,12 @@ function cardImage(place) {
 }
 
 function placeUrl(place) {
-  return place.slug === 'man-made-mangrove-forest' ? '/tourism/banacon' : `/news/${place.slug}`
+  if (place.slug === 'man-made-mangrove-forest') return '/tourism/banacon'
+  if (place.slug === 'pandanon-island') return '/tourism/pandanon'
+  if (place.slug === 'corte-paradise-resort') return '/tourism/corte-paradise'
+  if (place.slug === 'handumon-marine-sanctuary') return '/tourism/handumon'
+  if (place.slug === 'verador-hill') return '/tourism/verador'
+  return `/news/${place.slug}`
 }
 
 export default function Tourism() {
@@ -29,9 +34,9 @@ export default function Tourism() {
       .then((response) => response.ok ? response.json() : Promise.reject(new Error('Tourism content unavailable')))
       .then((data) => {
         const items = data.items || []
-        const banacon = fallbackPlaces.find((place) => place.slug === 'man-made-mangrove-forest')
-        const hasBanacon = items.some((place) => place.slug === banacon.slug)
-        setPlaces(items.length ? (hasBanacon ? items : [banacon, ...items]) : fallbackPlaces)
+        const featuredFallbacks = fallbackPlaces.filter((place) => ['man-made-mangrove-forest', 'verador-hill'].includes(place.slug))
+        const missingFeatured = featuredFallbacks.filter((place) => !items.some((item) => item.slug === place.slug))
+        setPlaces(items.length ? [...missingFeatured, ...items] : fallbackPlaces)
         setUsingFallback(!items.length)
       })
       .catch(() => {

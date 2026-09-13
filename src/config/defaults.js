@@ -19,16 +19,19 @@ export const definitions = {
   'google.clientId': text('Google OAuth client ID', 'GOOGLE_CLIENT_ID'),
   'google.clientSecret': secret('Google OAuth client secret', 'GOOGLE_CLIENT_SECRET'),
   'google.redirectUri': text('Google OAuth redirect URI', 'GOOGLE_REDIRECT_URI', ''),
-  'storage.provider': choice('Storage provider', 'CMS_MEDIA_PROVIDER|STORAGE_PROVIDER', 'local', ['local', 'gcp']),
+  'storage.provider': choice('Storage provider', 'CMS_MEDIA_PROVIDER|STORAGE_PROVIDER', 'backblaze', ['backblaze', 'local']),
   'storage.localPath': text('Local storage directory', 'LOCAL_STORAGE_PATH', 'data/uploads'),
-  'storage.bucket': text('Bucket name', 'GCS_BUCKET_NAME|GCS_BUCKET'),
+  'storage.bucket': text('Bucket name', 'B2_BUCKET_NAME'),
+  'storage.endpoint': text('Backblaze endpoint', 'B2_ENDPOINT'),
+  'storage.keyId': secret('Backblaze key ID', 'B2_KEY_ID'),
+  'storage.applicationKey': secret('Backblaze application key', 'B2_APPLICATION_KEY'),
   'storage.region': text('Bucket region (validated against existing bucket)', '', ''),
   'storage.signedUrlMinutes': number('Signed URL lifetime (minutes)', '', 15, 1, 10080),
   'storage.maxUploadMb': number('Maximum upload (MB)', '', 5, 1, 500),
   'storage.allowedTypes': text('Allowed image MIME types (comma separated)', '', 'image/jpeg,image/png,image/webp'),
   'storage.visibility': choice('Storage visibility', '', 'private', ['private', 'public']),
   'storage.prefix': text('Storage folder', '', 'media'),
-  'storage.publicBaseUrl': text('Public storage URL', 'GCS_PUBLIC_BASE_URL', '', { format: 'url' }),
+  'storage.publicBaseUrl': text('Public storage URL', 'B2_PUBLIC_BASE_URL|GCS_PUBLIC_BASE_URL', '', { format: 'url' }),
   'email.enabled': bool('Enable SMTP', 'SMTP_ENABLED'),
   'email.smtpHost': text('SMTP host', 'SMTP_HOST'),
   'email.smtpPort': number('SMTP port', 'SMTP_PORT', 587, 1, 65535),
@@ -60,6 +63,8 @@ export const definitions = {
   'integrations.clientSecret': secret('API client secret', 'API_CLIENT_SECRET'),
   'integrations.apiKey': secret('API key', 'API_KEY'),
   'integrations.oauthClientSecret': secret('OAuth client secret', 'OAUTH_CLIENT_SECRET'),
+  'weather.openWeatherApiKey': secret('OpenWeather API key', 'OPENWEATHER_API_KEY'),
+  'weather.accuWeatherApiKey': secret('AccuWeather API key', 'ACCUWEATHER_API_KEY'),
   'features.uploads': bool('File uploads', '', true),
   'features.reports': bool('Reports', '', true),
   'features.ai': bool('AI features', ''),
@@ -72,10 +77,10 @@ export const definitions = {
 };
 for (const [category, prefix, legacy] of [['database', 'CMS', 'DB'], ['portalDatabase', 'PORTAL', 'USER_DB']]) {
   Object.assign(definitions, {
-    [`${category}.provider`]: choice('Database provider', `${prefix}_DATABASE_PROVIDER${prefix === 'PORTAL' ? '|USER_DATABASE_PROVIDER' : ''}`, 'local', ['local', 'gcp', 'mysql', 'docker-mysql', 'docker-postgres', 'cloudsql-mysql', 'cloudsql-postgres', 'localgcpmysql']),
+    [`${category}.provider`]: choice('Database provider', `${prefix}_DATABASE_PROVIDER${prefix === 'PORTAL' ? '|USER_DATABASE_PROVIDER' : ''}`, 'local', ['local']),
     [`${category}.engine`]: choice('Database engine', '', 'mysql', ['mysql']),
-    [`${category}.connectionMode`]: choice('Connection method', '', 'local', ['local', 'direct', 'cloudsql-ip', 'cloudsql-connector']),
-    [`${category}.instance`]: text('Cloud SQL instance connection name', `${prefix}_CLOUD_SQL_INSTANCE|INSTANCE_CONNECTION_NAME`),
+    [`${category}.connectionMode`]: choice('Connection method', '', 'local', ['local']),
+    [`${category}.instance`]: text('Legacy database instance', ''),
     [`${category}.host`]: text('Host', `${prefix}_DB_HOST|${legacy}_HOST`, '127.0.0.1'),
     [`${category}.port`]: number('Port', `${prefix}_DB_PORT|${legacy}_PORT`, 3306, 1, 65535),
     [`${category}.name`]: text('Database name', `${prefix}_DB_NAME|${legacy}_NAME`),
@@ -90,13 +95,13 @@ for (const [category, prefix, legacy] of [['database', 'CMS', 'DB'], ['portalDat
     [`${category}.idleTimeout`]: number('Idle timeout (ms)', `${prefix}_DB_IDLE_TIMEOUT_MS`, 60000, 1000, 3600000),
   });
 }
-export const categories = ['general', 'database', 'portalDatabase', 'google', 'storage', 'authentication', 'email', 'security', 'notifications', 'integrations', 'features', 'maintenance', 'advanced'];
+export const categories = ['general', 'database', 'portalDatabase', 'google', 'storage', 'authentication', 'email', 'security', 'notifications', 'integrations', 'weather', 'features', 'maintenance', 'advanced'];
 export function validate(values) {
   if (!values || Array.isArray(values) || typeof values !== 'object' || !Object.keys(values).length) throw new Error('Supply settings to update.');
   for (const [key, value] of Object.entries(values)) {
     const d = definitions[key];
     if (!d) throw new Error(`Unknown setting: ${key}`);
-    if (value === null) throw new Error(`Resetting ${d.label} is not supported.`);
+    if (value === null) continue;
     if (typeof value !== d.type || (d.type === 'string' && (value.length > (d.secret ? 16384 : 2000) || /[\x00\r\n]/.test(value))) || (d.type === 'number' && (!Number.isInteger(value) || value < d.min || value > d.max))) throw new Error(`Invalid value for ${d.label}`);
     if (d.required && !value.trim()) throw new Error(`${d.label} is required`);
     if (d.options && !d.options.includes(value)) throw new Error(`Invalid ${d.label}`);

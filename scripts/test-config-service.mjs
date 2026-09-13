@@ -37,17 +37,25 @@ test('precedence, sources, persistence across restart, false/zero, and reset', a
 test('secrets are encrypted at rest, masked in snapshots/audit, blank preserved and reset supported', async t => {
  const { service, provider, file } = await fixture(t);
  const password = 'ultra-private-test-password';
- await service.update({ 'email.password': password }, actor);
+ const openWeatherKey = 'openweather-test-key-123';
+ await service.update({ 'email.password': password, 'weather.openWeatherApiKey': openWeatherKey }, actor);
  assert.equal(service.get('email.password'), password);
+ assert.equal(service.get('weather.openWeatherApiKey'), openWeatherKey);
  assert.equal(service.snapshot().values['email.password'], null);
  assert.equal(service.snapshot().metadata['email.password'].configured, true);
- assert.ok(!(await fs.readFile(file, 'utf8')).includes(password));
+ const saved = await fs.readFile(file, 'utf8');
+ assert.ok(!saved.includes(password));
+ assert.ok(!saved.includes(openWeatherKey));
  assert.ok(!JSON.stringify(service.snapshot()).includes(password));
+ assert.ok(!JSON.stringify(service.snapshot()).includes(openWeatherKey));
  assert.ok(!JSON.stringify(await provider.history()).includes(password));
+ assert.ok(!JSON.stringify(await provider.history()).includes(openWeatherKey));
  await service.update({ 'email.password': '' }, actor);
  assert.equal(service.get('email.password'), password);
  await service.update({ 'email.password': null }, actor);
  assert.equal(service.get('email.password'), '');
+ await service.update({ 'weather.openWeatherApiKey': null }, actor);
+ assert.equal(service.get('weather.openWeatherApiKey'), '');
 });
 test('failed connection test preserves persisted values and active configuration', async t => {
  let active = 'local';

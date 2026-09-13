@@ -1,8 +1,12 @@
 import { usePublicConfig } from '../context/PublicConfig'
 import { useEffect, useState } from 'react'
-import { NavLink, Link } from 'react-router-dom'
-import { Accessibility, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, LogOut, Mail, Map, Newspaper, PhoneCall, Siren, Users, WalletCards } from 'lucide-react'
+import { NavLink, Link, useLocation } from 'react-router-dom'
+import { Accessibility, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, LogOut, Mail, Map, MessageCircle, Newspaper, PhoneCall, Rocket, Siren, Users, WalletCards } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import HeaderWeather from './HeaderWeather'
+
+const DEFAULT_HEADER_HIDE_THRESHOLD = 90
+const LANDING_HEADER_HIDE_THRESHOLD = 220
 
 export default function Header() {
   const settings = usePublicConfig()
@@ -10,6 +14,10 @@ export default function Header() {
   const [time, setTime] = useState('')
   const [isHidden, setIsHidden] = useState(false)
   const { user, logout } = useAuth()
+  const location = useLocation()
+  const isLandingPage = location.pathname === '/'
+  const hideThreshold = isLandingPage ? LANDING_HEADER_HIDE_THRESHOLD : DEFAULT_HEADER_HIDE_THRESHOLD
+  const homePath = user ? (['admin', 'super_admin'].includes(user.role) ? '/admin' : '/app/dashboard') : '/'
 
   const initials = user
     ? user.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()
@@ -27,7 +35,7 @@ export default function Header() {
         hour12: true,
       })
 
-      setTime(`Philippine Standard Time (${formatter.format(new Date())})`)
+      setTime(formatter.format(new Date()))
     }
 
     updateTime()
@@ -37,14 +45,15 @@ export default function Header() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsHidden(window.scrollY > 90)
-      if (window.scrollY > 90) setOpenMenu(null)
+      const shouldHide = window.scrollY > hideThreshold
+      setIsHidden(shouldHide)
+      if (shouldHide) setOpenMenu(null)
     }
 
     handleScroll()
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [settings])
+  }, [hideThreshold, settings])
 
   const menuItems = [
     {
@@ -88,10 +97,11 @@ export default function Header() {
   ]
 
   return (
-    <header className={isHidden ? 'topbar topbar-hidden' : 'topbar'}>
+    <>
+      <header className={isHidden ? 'topbar topbar-hidden' : 'topbar'}>
       <div className="container topbar-inner">
         <Link
-          to="/"
+          to={homePath}
           className="brand-wrap"
           aria-label="Municipality of Getafe — go to homepage"
           onClick={() => setOpenMenu(null)}
@@ -104,7 +114,7 @@ export default function Header() {
         </Link>
 
         <nav className="main-nav" aria-label="Main navigation">
-          <NavLink to="/" className={({isActive}) => isActive ? "active" : ""}>Home</NavLink>
+          <NavLink to={homePath} className={({isActive}) => isActive ? "active" : ""}>Home</NavLink>
           {menuItems.map((menu) => (
             <div
               className="nav-dropdown"
@@ -137,7 +147,13 @@ export default function Header() {
         </nav>
 
         <div className="nav-actions">
-          <span className="philippine-time">{time}</span>
+          <div className="header-status">
+            <HeaderWeather />
+            <div className="header-clock" role="group" aria-label="Philippine Standard Time">
+              <span className="header-clock-label">Philippine Standard Time</span>
+              <span className="philippine-time">{time}</span>
+            </div>
+          </div>
           {user ? (
             <div className="user-chip">
               <span className="user-avatar" aria-hidden="true">{initials}</span>
@@ -161,7 +177,23 @@ export default function Header() {
           )}
         </div>
       </div>
-    </header>
+      </header>
+      {isLandingPage && (
+        <aside className="civic-community-banner" aria-label="Getafe civic technology community">
+          <div className="container civic-community-inner">
+            <div className="civic-community-copy">
+              <span className="civic-community-icon"><Users size={18} aria-hidden="true" /></span>
+              <strong><Rocket size={15} aria-hidden="true" /> Join the Getafe CivicTech Community</strong>
+              <span>Help improve local services through technology.</span>
+            </div>
+            <div className="civic-community-actions">
+              <a href="https://discord.gg/URZKjsFNq" target="_blank" rel="noreferrer">Join now <span aria-hidden="true">→</span></a>
+              <a className="civic-community-discord" href="https://discord.gg/URZKjsFNq" target="_blank" rel="noreferrer"><MessageCircle size={16} aria-hidden="true" /> Discord</a>
+            </div>
+          </div>
+        </aside>
+      )}
+    </>
   )
 }
 

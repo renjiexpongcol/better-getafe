@@ -1,3 +1,4 @@
+import { installCitizenRoutes } from './src/services/citizenRoutes.js';
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
 });
@@ -7,6 +8,8 @@ process.on('unhandledRejection', (error) => {
 });
 
 import express from "express";
+import { getGetafeWeather } from './src/services/getafeWeather.js';
+import { getAggregatedCurrent, getAggregatedForecast, providerKeys } from './src/services/weatherAggregator.js';
 import { closeCloudSql } from './src/services/cloudSql.js';
 import path from "path";
 import fs from "node:fs/promises";
@@ -38,6 +41,14 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 8080;
 
+async function configuredWeatherProviders() {
+  try { await config.load(); } catch { /* Environment defaults remain available when settings storage is unavailable. */ }
+  return providerKeys({
+    openWeatherApiKey: config.get('weather.openWeatherApiKey'),
+    accuWeatherApiKey: config.get('weather.accuWeatherApiKey'),
+  });
+}
+
 import dotenv from 'dotenv';
 if (process.env.NODE_ENV !== 'production') {
   dotenv.config();
@@ -48,11 +59,30 @@ const secret = process.env.AUTH_SESSION_SECRET || process.env.CMS_SESSION_SECRET
 );
 
 app.use(express.json({ limit: "8mb" }));
+app.get('/api/weather/getafe', async (req, res) => {
+  try {
+    const weather = await getGetafeWeather();
+    res.set('Cache-Control', 'public, max-age=900').json(weather);
+  } catch {
+    res.status(502).json({ error: 'Getafe weather is temporarily unavailable.' });
+  }
+});
+app.get('/api/weather/forecast', async (req, res) => {
+  const latitude = Number(req.query.lat), longitude = Number(req.query.lon);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return res.status(400).json({ error: 'A valid location is required.' });
+  try {
+    const keys = await configuredWeatherProviders();
+    const data = await getAggregatedForecast({ name: 'Selected location', lat: latitude, lon: longitude }, keys);
+    res.set('Cache-Control', 'public, max-age=900').json(data);
+  } catch (error) { res.status(502).json({ error: error.message || 'Weather forecast unavailable.' }); }
+});
 app.get('/api/weather', async (req, res) => {
-  const key = process.env.OPENWEATHER_API_KEY;
-  if (!key) return res.status(503).json({ error: 'OpenWeather is not configured. Add OPENWEATHER_API_KEY to the server environment.' });
   const locations = [{ name: 'Getafe', lat: 10.15, lon: 124.15 }, { name: 'Manila', lat: 14.5995, lon: 120.9842 }, { name: 'Cebu', lat: 10.3157, lon: 123.8854 }, { name: 'Davao', lat: 7.1907, lon: 125.4553 }, { name: 'Baguio', lat: 16.4023, lon: 120.596 }];
-  try { const results = await Promise.all(locations.map(async location => { const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&units=metric&appid=${encodeURIComponent(key)}`); if (!response.ok) throw new Error('OpenWeather request failed.'); return { ...(await response.json()), name: location.name }; })); res.set('Cache-Control', 'public, max-age=600'); res.json(results); } catch (error) { res.status(502).json({ error: error.message || 'Weather provider unavailable.' }); }
+  try {
+    const keys = await configuredWeatherProviders();
+    const results = await Promise.all(locations.map(location => getAggregatedCurrent(location, keys)));
+    res.set('Cache-Control', 'public, max-age=900').json(results);
+  } catch (error) { res.status(502).json({ error: error.message || 'Weather providers are temporarily unavailable.' }); }
 });
 // Credentials must only travel over TLS in deployed environments. Local
 // development remains available over localhost HTTP for convenience.
@@ -159,6 +189,14 @@ const admin = async (req, res, next) => {
     console.error('Administrator authorization lookup failed:', error.message);
     res.status(503).json({ error: "Authentication service is temporarily unavailable." });
   }
+};
+
+const resident = async (req, res, next) => {
+  const session = authenticated(req);
+  if (!session || session.kind !== 'portal' || session.role !== 'resident') return res.status(401).json({ error: 'Resident authentication required.' });
+  req.resident = await getPortalUserById(session.id);
+  if (!req.resident) return res.status(401).json({ error: 'Resident account unavailable.' });
+  next();
 };
 
 const setSessionCookie = (res, token, remember) => {
@@ -336,7 +374,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
     const profile = await profileResponse.json(); if (!profileResponse.ok || !profile.email_verified) throw new Error('Google account email is not verified.');
     let user = await getPortalUserByEmail(profile.email);
     if (!user) { user = await createPortalUser(profile.name || profile.email, profile.email, hash(crypto.randomBytes(32).toString('hex'))); }
-    setSessionCookie(res, makeToken(user, 'portal', true), true); res.clearCookie('google_oauth_state'); res.redirect('/');
+    setSessionCookie(res, makeToken(user, 'portal', true), true); res.clearCookie('google_oauth_state'); res.redirect('/app/dashboard');
   } catch (error) { console.error('Google OAuth callback failed:', error.message); res.status(503).send('Google sign-in is temporarily unavailable.'); }
 });
 
@@ -438,6 +476,7 @@ app.post("/api/portal-auth/register", async (req, res) => {
 });
 
 installSettingsRoutes(app, admin);
+installCitizenRoutes(app, resident, safeUser);
 
 app.get('/api/public/config', (req, res) => {
   // This endpoint is only an internal bootstrap request. Reject direct browser
@@ -445,7 +484,8 @@ app.get('/api/public/config', (req, res) => {
   const origin = req.get('origin');
   const referer = req.get('referer');
   const requestHost = `${req.protocol}://${req.get('host')}`;
-  const sameOrigin = req.get('sec-fetch-site') === 'same-origin'
+  const sameOrigin = (!origin && !referer)
+    || req.get('sec-fetch-site') === 'same-origin'
     || origin === requestHost
     || (referer && referer.startsWith(`${requestHost}/`));
   if (req.get('sec-fetch-dest') === 'document' || !sameOrigin) {
@@ -685,7 +725,7 @@ app.post("/api/storage/upload-url", admin, async (req, res) => {
   const expiresAt = new Date(createdAt.getTime() + config.get('storage.signedUrlMinutes') * 60000);
 
   try {
-    if (config.get('storage.provider') === 'gcp') await createPendingUpload({
+    if (config.get('storage.provider') === 'backblaze') await createPendingUpload({
       id: uuid, storagePath, originalFilename: filename, contentType, fileSize,
       uploadedBy: req.admin.id, context, expiresAt, createdAt,
     });
@@ -696,7 +736,7 @@ app.post("/api/storage/upload-url", admin, async (req, res) => {
       expiresIn: config.get('storage.signedUrlMinutes') * 60
     });
   } catch (error) {
-    if (config.get('storage.provider') === 'gcp') await deletePendingUpload(storagePath).catch(() => {});
+    if (config.get('storage.provider') === 'backblaze') await deletePendingUpload(storagePath).catch(() => {});
     console.error('Error generating upload URL:', error);
     res.status(500).json({ error: "Failed to generate upload URL." });
   }
@@ -714,7 +754,7 @@ app.post("/api/media/complete", admin, async (req, res) => {
   }
 
   const bucketName = config.get('storage.bucket');
-  const isLocalStorage = config.get('storage.provider') !== 'gcp';
+  const isLocalStorage = config.get('storage.provider') === 'local';
 
   // Guard against duplicate completion
   const existing = await getMediaByStoragePath(storagePath);
@@ -730,8 +770,8 @@ app.post("/api/media/complete", admin, async (req, res) => {
   } : await getPendingUpload(storagePath, req.admin.id);
   if (!pending) return res.status(403).json({ error: "Upload was not issued to this administrator or has expired." });
 
-  // Verify object exists and retrieve authoritative metadata from GCS
-  const gcsMetadata = isLocalStorage ? null : await getObjectMetadata(storagePath);
+  // Verify object exists and retrieve authoritative metadata from Backblaze B2.
+  const storageMetadata = isLocalStorage ? null : await getObjectMetadata(storagePath);
   if (isLocalStorage) {
     const localFile = path.resolve(config.get('storage.localPath') || 'data/uploads', storagePath);
     try {
@@ -739,13 +779,13 @@ app.post("/api/media/complete", admin, async (req, res) => {
       if (!stat.isFile()) throw new Error('not a file');
     } catch { return res.status(404).json({ error: "Uploaded file not found. Upload may have failed." }); }
   }
-  if (!isLocalStorage && !gcsMetadata) {
-    return res.status(404).json({ error: "GCS object not found. Upload may have failed." });
+  if (!isLocalStorage && !storageMetadata) {
+    return res.status(404).json({ error: "Backblaze object not found. Upload may have failed." });
   }
 
-  const verifiedContentType = isLocalStorage ? pending.content_type : (gcsMetadata.contentType || 'application/octet-stream');
-  const verifiedFileSize = isLocalStorage ? pending.file_size : (parseInt(gcsMetadata.size, 10) || 0);
-  if (!isLocalStorage && (gcsMetadata.name !== storagePath || verifiedContentType !== pending.content_type || verifiedFileSize !== Number(pending.file_size))) {
+  const verifiedContentType = isLocalStorage ? pending.content_type : (storageMetadata.ContentType || 'application/octet-stream');
+  const verifiedFileSize = isLocalStorage ? pending.file_size : (Number(storageMetadata.ContentLength) || 0);
+  if (!isLocalStorage && (verifiedContentType !== pending.content_type || verifiedFileSize !== Number(pending.file_size))) {
     return res.status(422).json({ error: "Uploaded object metadata does not match the issued upload." });
   }
 
@@ -800,8 +840,7 @@ app.get("/healthz", (req, res) => {
 
 app.get("/api/health/storage", (req, res) => {
   const isProd = process.env.NODE_ENV === 'production';
-  const gcpConfigured = config.get('database.provider') === "gcp";
-  const mediaConfigured = config.get('storage.provider') === "gcp";
+  const mediaConfigured = config.get('storage.provider') === "backblaze";
   const portalProvider = config.get('portalDatabase.provider');
   
   res.status(200).json({
@@ -809,10 +848,9 @@ app.get("/api/health/storage", (req, res) => {
     databaseProvider: config.get('database.provider'),
     userDatabaseProvider: portalProvider,
     mediaProvider: config.get('storage.provider'),
-    cloudSqlConfigured: gcpConfigured,
-    cloudSqlConnected: serviceStatus.cmsDatabase === 'connected',
-    gcsConfigured: mediaConfigured,
-    gcsAccessible: serviceStatus.storage === 'connected',
+    database: 'sqlite',
+    storageConfigured: mediaConfigured,
+    storageAccessible: serviceStatus.storage === 'connected',
     bucket: config.get('storage.bucket') || "",
     localPersistentStorageEnabled: !isProd
   });
@@ -859,6 +897,23 @@ app.put(/^\/uploads\/(.+)$/, admin, express.raw({ type: '*/*', limit: '50mb' }),
     res.status(200).json({ ok: true });
   } catch { res.status(503).json({ error: 'Local upload storage is unavailable.' }); }
 });
+app.use('/uploads', (req, res, next) => {
+  const referer = req.get('referer') || req.get('origin');
+  if (referer) {
+    try {
+      const source = new URL(referer);
+      const host = req.get('host');
+      if (host && source.host !== host) return res.status(403).json({ error: 'External media embedding is not allowed.' });
+    } catch { return res.status(400).json({ error: 'Invalid referrer.' }); }
+  }
+  res.set('Vary', 'Referer, Origin');
+  try {
+    const pathSegments = decodeURIComponent(req.path).replaceAll('\\', '/').split('/').filter(Boolean);
+    if (pathSegments[0] === 'citizen-private' || pathSegments[0] === 'profiles') return res.sendStatus(404);
+  }
+  catch { return res.sendStatus(400); }
+  next();
+});
 app.use('/uploads', express.static(path.resolve(config.get('storage.localPath') || 'data/uploads')));
 const crawlableRoutes = ['/', '/info/about', '/info/accessibility', '/info/history', '/info/officials', '/info/sitemap', '/contact', '/legal/privacy', '/legal/terms', '/services', '/services/directory', '/services/barangays', '/services/hotlines', '/services/business-trade', '/services/certificates', '/services/education', '/services/health', '/weather', '/news', '/tourism', '/events'];
 app.get('/sitemap.xml', async (req, res) => {
@@ -875,8 +930,30 @@ app.get('/robots.txt', (req, res) => {
   const origin = `${req.protocol}://${req.get('host')}`;
   res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /auth/\nDisallow: /admin/\nDisallow: /api/\nDisallow: /uploads/\nSitemap: ${origin}/sitemap.xml\n`);
 });
-app.use(express.static(path.join(__dirname, "dist")));
-app.use((req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
+const distDirectory = path.join(__dirname, 'dist');
+
+// Keep the SPA fallback from turning missing JavaScript, CSS, and image files
+// into HTML responses. Browsers report that as a misleading MIME-type error
+// and dynamic imports fail much later than the actual missing asset request.
+app.use('/assets', express.static(path.join(distDirectory, 'assets'), {
+  fallthrough: false,
+  maxAge: process.env.NODE_ENV === 'production' ? '1y' : 0,
+  immutable: process.env.NODE_ENV === 'production',
+}));
+app.use(express.static(distDirectory, {
+  maxAge: process.env.NODE_ENV === 'production' ? '1y' : 0,
+  immutable: process.env.NODE_ENV === 'production',
+  setHeaders: (res, filePath) => {
+    if (path.basename(filePath) === 'index.html') res.set('Cache-Control', 'no-store');
+  },
+}));
+app.use((req, res) => {
+  // A request with a file extension is an asset/API typo, not an SPA route.
+  // Return a real 404 instead of serving index.html with text/html.
+  if (path.extname(req.path)) return res.status(404).type('text/plain').send('Not found');
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(distDirectory, 'index.html'));
+});
 
 async function startServer() {
   try {
@@ -889,7 +966,7 @@ async function startServer() {
 
     console.log('[STARTUP 4/8] Initializing CMS database (and User database)');
     console.log('[STARTUP 5/8] Initializing user database');
-    console.log('[STARTUP 6/8] Initializing Google Cloud Storage');
+    console.log('[STARTUP 6/8] Initializing Backblaze B2 storage');
     
     // We already do timeouts internally in initializeServices
     await initializeServices();

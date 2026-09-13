@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import Header from './components/Header'
 import Footer from './components/Footer'
@@ -36,7 +36,13 @@ function ScrollToTop() {
 // Legacy aliases -> new grouped routes.
 const redirects = [
   ['/login', '/auth/login'],
+  ['/dashboard', '/app/dashboard'],
+  ['/dashboard/profile', '/app/profile'],
+  ['/dashboard/request-document', '/app/requests/new'],
   ['/hotlines', '/services/hotlines'],
+  ['/news/pandanon-island', '/tourism/pandanon'],
+  ['/news/corte-paradise-resort', '/tourism/corte-paradise'],
+  ['/news/handumon-marine-sanctuary', '/tourism/handumon'],
   ['/accessibility', '/info/accessibility'],
 ]
 
@@ -54,9 +60,16 @@ function App() {
 
 function AppContent() {
   const location = useLocation()
+  const navigate = useNavigate()
   const isAuthPage = location.pathname.startsWith('/auth') || location.pathname.startsWith('/admin')
+  const isCitizenDashboard = location.pathname === '/app' || location.pathname.startsWith('/app/')
   const settings = usePublicConfig()
   const { user, loading } = useAuth()
+  useEffect(() => {
+    if (!loading && user && location.pathname === '/' && !new URLSearchParams(location.search).has('municipal')) {
+      navigate(['admin', 'super_admin'].includes(user.role) ? '/admin' : '/app/dashboard', { replace: true })
+    }
+  }, [user, loading, location.pathname, location.search, navigate])
   if (!settings.ready) return <div className="configuration-loader" aria-busy="true" />
   const maintenance = !isAuthPage && !loading && settings['maintenance.enabled'] === true && !(user && ['admin', 'super_admin'].includes(user.role))
 
@@ -66,7 +79,7 @@ function AppContent() {
         {!maintenance && <>
         <ScrollToTop />
         <PageTitleManager />
-        {!isAuthPage && <Header />}
+        {!isAuthPage && !isCitizenDashboard && <Header />}
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/services/barangays/:id" element={<BarangayDetailRoute />} />
@@ -79,11 +92,12 @@ function AppContent() {
             {redirects.map(([from, to]) => (
               <Route key={from} path={from} element={<Navigate to={to} replace />} />
             ))}
+            <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
-        {!isAuthPage && <RelatedPages />}
-        {!isAuthPage && <Footer />}
+        {!isAuthPage && !isCitizenDashboard && <RelatedPages />}
+        {!isAuthPage && !isCitizenDashboard && <Footer />}
         <BackToTop />
         </>}
       </div>

@@ -13,7 +13,7 @@ export function authorizeChanges(user, values) {
     if (['database', 'portalDatabase'].includes(key.split('.')[0])) requirePermission(user, 'settings.database.edit');
     if (['storage', 'google'].includes(key.split('.')[0])) requirePermission(user, 'settings.storage.edit');
     if (['security', 'authentication'].includes(key.split('.')[0])) requirePermission(user, 'settings.security.edit');
-    if (/password$|clientSecret$|apiKey$|oauthClientSecret$/.test(key) && value !== '') requirePermission(user, 'settings.secrets.edit');
+    if (/(password|clientsecret|apikey|oauthclientsecret)$/i.test(key) && value !== '') requirePermission(user, 'settings.secrets.edit');
     if (key === 'security.permissionGrants' && user.role !== 'super_admin') {
       const old = JSON.parse(config.get(key)), next = value === null ? {} : JSON.parse(value);
       const own = next[user.id] || allPermissions;

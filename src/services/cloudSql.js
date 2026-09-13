@@ -14,7 +14,6 @@ export async function buildDatabase(values, category, actor) {
   // keeping an actual localhost configuration local in development.
   if (mode === 'local' && legacyProvider === 'mysql') mode = 'direct';
   if (mode === 'local') {
-    if (process.env.NODE_ENV === 'production') throw new Error('Local databases are disabled in production.');
     return null;
   }
   if (!['direct', 'cloudsql-ip', 'cloudsql-connector'].includes(mode)) throw new Error(`Unsupported database connection mode: ${mode}`);

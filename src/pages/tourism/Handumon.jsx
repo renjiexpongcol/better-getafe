@@ -1,0 +1,19 @@
+import { useEffect, useState } from 'react'
+import { ArrowLeft, Compass, Fish, Leaf, Waves } from 'lucide-react'
+import { Link } from 'react-router-dom'
+
+const fallback = {
+  title: 'Handumon Marine Sanctuary',
+  excerpt: 'A community-protected marine sanctuary and seahorse village on the northwestern side of Jandayan Island in Getafe.',
+  content: `<p>This sanctuary, also called Libaong Marine Sanctuary, is on the northwestern part of Jandayan Island in Getafe. Residents in Handumon are mostly seaweed farmers and fishers. Spear fishing with a lantern, or “subiran,” at the prow of paddle boats is commonly practiced.</p><h2>Marine Protected Area</h2><p>A recovered reef protected for more than 10 years forms the 50-hectare community-based Marine Protected Area, proudly managed by the village MPA Management Council. It is a no-take zone, but snorkeling and diving are allowed in certain areas within the marine sanctuary. It won as the best MPA in the Philippines in 2007.</p><h2>Guesthouse and training center</h2><p>Overlooking the marine protected area and the canopy of mangroves, the guesthouse is a peaceful place to enjoy a night. The training center caters to meetings and trainings, with food services available by arrangement.</p><p>Arrange a night-fishing visit with a lantern fisher and experience how these small-scale fishers make a living for the day.</p><h2>Mangroves</h2><p>There are 35 true mangrove species documented in the Philippines, and 27 of these are found in the Danajon Bank region. Mangrove swamps play an important role in our coastal ecosystem. Enrichment planting of this important resource is an ongoing practice in the village. When you visit Handumon, you can plant young mangroves or propagules.</p><h2>Benefits of protection</h2><ul><li>Greater fish biomass than in unprotected sites after seven years.</li><li>Increased size and sustained abundance of seahorses.</li><li>Other barangays were inspired to establish MPAs in 2002, leading to an island-wide coastal resource management plan.</li></ul><h2>Seahorse watching</h2><p>Handumon is known as the seahorse village in Bohol. Seahorses used to be an important fishery in this community, but they are now protected and cannot be harvested. Visitors can book a night of seahorse watching to learn about these gentle sea creatures.</p><h2>Crafts and community management</h2><p>Hand-crafted souvenirs made from renewable raw materials support villagers’ supplemental income. Community protection includes sanctuary rules, environmental education, deputized fish wardens, regular biophysical surveys, community cross-visits, and a three-year management plan coordinated with adjacent barangays.</p>`,
+}
+
+export default function Handumon() {
+  const [page, setPage] = useState(fallback)
+  useEffect(() => { fetch('/api/news/handumon-marine-sanctuary').then(response => response.ok ? response.json() : Promise.reject()).then(setPage).catch(() => {}) }, [])
+
+  return <main className="tourism-detail handumon-detail">
+    <section className="tourism-detail-hero handumon-hero"><div className="container"><Link to="/tourism" className="tourism-detail-back"><ArrowLeft size={16} /> Discover Getafe</Link><p className="tourism-kicker"><Compass size={15} /> Marine life · Getafe, Bohol</p><h1>{page.title}</h1><p>{page.excerpt}</p></div></section>
+    <article className="container tourism-detail-content"><img className="handumon-detail-image" src="/assets/tourism/pandanon-1.jpg" alt="Coastal waters of Getafe, Bohol" /><div className="tourism-detail-label"><Waves size={16} /> Protected waters & community stewardship</div><div className="tourism-detail-body" dangerouslySetInnerHTML={{ __html: page.content }} /><div className="handumon-note"><Fish size={18} /><span>Respect the no-take zone, follow local sanctuary guidance, and leave the marine habitat undisturbed.</span></div></article>
+  </main>
+}

@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, Search, ShieldCheck } from 'lucide-react'
+import { ArrowRight, Search } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 
 export default function Hero() {
@@ -9,7 +9,6 @@ export default function Hero() {
       <section className="hero">
         <div className="container hero-grid">
           <div className="hero-copy">
-            <p className="eyebrow">Welcome to the local government portal</p>
             <h1>Access government services for Getafe, Bohol.</h1>
             <p className="hero-text">
               Find information, apply for local permits, connect with barangays,
@@ -29,16 +28,6 @@ export default function Hero() {
               <Link to="/services/directory?search=clearance">Barangay Clearance</Link>
             </div>
           </div>
-          <aside className="hero-panel" aria-label="Get started with Getafe services">
-            <div className="hero-start-card">
-              <div className="hero-start-icon"><ShieldCheck size={22} /></div>
-              <p className="hero-start-label">Start here</p>
-              <h2>Need help finding the right office?</h2>
-              <p>Browse departments, requirements, and public service information in one place.</p>
-              <Link to="/services/directory" className="hero-start-link">Browse all services <ArrowRight size={16} /></Link>
-              <div className="hero-start-meta"><CalendarDays size={15} /> Public information, updated through the CMS</div>
-            </div>
-          </aside>
         </div>
       </section>
 

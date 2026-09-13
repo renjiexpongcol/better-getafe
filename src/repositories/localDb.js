@@ -8,7 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const dataPath = process.env.CMS_LOCAL_FILE || path.join(__dirname, "..", "..", "data", "cms.json");
-const sqlitePath = process.env.LOCAL_SQLITE_FILE || path.join(__dirname, "..", "..", "data", "getafe.sqlite");
+const sqlitePath = process.env.LOCAL_SQLITE_FILE || (process.env.CMS_LOCAL_FILE ? path.join(path.dirname(process.env.CMS_LOCAL_FILE), "getafe.sqlite") : path.join(__dirname, "..", "..", "data", "getafe.sqlite"));
 let sqlite;
 
 const now = () => new Date().toISOString().replace('T', ' ').substring(0, 23);
@@ -21,7 +21,7 @@ function seed() {
   const user = {
     id: id(),
     name: "CMS Administrator",
-    email: "renjiepongcol95@gmail.com",
+    email: process.env.CMS_ADMIN_EMAIL || "admin@getafe.gov.ph",
     password: hash(process.env.CMS_ADMIN_PASSWORD || "ChangeMe123!"),
     role: "admin",
     created_at: created,
@@ -90,12 +90,32 @@ function seed() {
 }
 
 export async function getLocalDb() {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error("Local JSON database is explicitly disabled in production. Configure Google Cloud SQL.");
-  }
   fs.mkdirSync(path.dirname(sqlitePath), { recursive: true });
   sqlite ||= new DatabaseSync(sqlitePath);
   sqlite.exec('CREATE TABLE IF NOT EXISTS application_state (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL)');
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS resident_profiles (
+      user_id TEXT PRIMARY KEY, full_name TEXT NOT NULL, birth_date TEXT, sex TEXT,
+      civil_status TEXT, nationality TEXT, mobile TEXT, house_lot TEXT, street TEXT,
+      purok_sitio TEXT, barangay TEXT, municipality TEXT DEFAULT 'Getafe', province TEXT DEFAULT 'Bohol',
+      zip_code TEXT, avatar_storage_path TEXT, verification_status TEXT NOT NULL DEFAULT 'unverified', updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS applications (
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL, reference_number TEXT NOT NULL UNIQUE,
+      service_name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft', payment_status TEXT NOT NULL DEFAULT 'not_required',
+      submitted_at TEXT, last_updated TEXT NOT NULL, details TEXT NOT NULL DEFAULT '{}'
+    );
+    CREATE INDEX IF NOT EXISTS idx_applications_user_id ON applications(user_id);
+    CREATE TABLE IF NOT EXISTS application_status_history (id TEXT PRIMARY KEY, application_id TEXT NOT NULL, status TEXT NOT NULL, note TEXT, created_at TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS application_documents (id TEXT PRIMARY KEY, application_id TEXT NOT NULL, user_id TEXT NOT NULL, name TEXT NOT NULL, storage_path TEXT, verification_status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS idx_application_documents_user_id ON application_documents(user_id);
+    CREATE TABLE IF NOT EXISTS payments (id TEXT PRIMARY KEY, application_id TEXT NOT NULL, user_id TEXT NOT NULL, amount REAL NOT NULL, method TEXT, status TEXT NOT NULL DEFAULT 'pending', official_receipt TEXT, created_at TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
+    CREATE TABLE IF NOT EXISTS appointments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, application_id TEXT, department TEXT NOT NULL, service TEXT NOT NULL, appointment_at TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'scheduled', created_at TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS idx_appointments_user_id ON appointments(user_id);
+    CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, read_at TEXT, archived_at TEXT, created_at TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+  `);
   const row = sqlite.prepare('SELECT data FROM application_state WHERE id=1').get();
   if (!row) {
     const initial = fs.existsSync(dataPath) ? JSON.parse(fs.readFileSync(dataPath, 'utf8')) : seed();
@@ -106,21 +126,24 @@ export async function getLocalDb() {
 }
 
 export async function saveLocalDb(data) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error("Local JSON database is explicitly disabled in production. Configure Google Cloud SQL.");
-  }
   fs.mkdirSync(path.dirname(sqlitePath), { recursive: true });
   sqlite ||= new DatabaseSync(sqlitePath);
   sqlite.exec('CREATE TABLE IF NOT EXISTS application_state (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL)');
   sqlite.prepare('INSERT INTO application_state (id,data) VALUES (1,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data').run(JSON.stringify(data));
 }
 
+// SQLite-backed portal storage. The legacy CMS JSON state remains separate.
+export async function getLocalSqlite() {
+  await getLocalDb();
+  return sqlite;
+}
+
 export function isGcp() {
-  return config.get('database.provider') !== 'local' || config.get('database.connectionMode') !== 'local';
+  return false;
 }
 
 export function isPortalGcp() {
-  return config.get('portalDatabase.provider') !== 'local' || config.get('portalDatabase.connectionMode') !== 'local';
+  return false;
 }
 
 export { id, slugify, now, hash };

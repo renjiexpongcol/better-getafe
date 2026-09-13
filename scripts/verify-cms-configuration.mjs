@@ -8,7 +8,7 @@ const required = (names) => {
 
 const databaseProvider = process.env.CMS_DATABASE_PROVIDER || 'local'
 const mediaProvider = process.env.CMS_MEDIA_PROVIDER || 'local'
-const valid = new Set(['local', 'gcp'])
+const valid = new Set(['local', 'backblaze', 'gcp'])
 
 if (!valid.has(databaseProvider) || !valid.has(mediaProvider)) {
   throw new Error('CMS_DATABASE_PROVIDER and CMS_MEDIA_PROVIDER must be "local" or "gcp".')
@@ -27,7 +27,10 @@ if (databaseProvider === 'gcp') {
   console.log('CMS database: local development storage.')
 }
 
-if (mediaProvider === 'gcp') {
+if (mediaProvider === 'backblaze') {
+  required(['B2_ENDPOINT'])
+  console.log('CMS media: Backblaze B2 configuration selected. Bucket and credentials may be supplied through Admin Settings.')
+} else if (mediaProvider === 'gcp') {
   ;[['GCP_PROJECT_ID'], ['GCS_BUCKET_NAME', 'GCS_BUCKET'], ['GCS_PUBLIC_BASE_URL']].forEach(required)
   console.log('CMS media: Google Cloud Storage configuration present.')
 } else {

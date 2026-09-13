@@ -1,9 +1,9 @@
 import SettingsPermissions from './SettingsPermissions'
 import { useEffect, useMemo, useState } from 'react'
 import './AdminSettings.css'
-const labels={general:'General',database:'Database',portalDatabase:'Portal Database',google:'Google Cloud',storage:'Storage',authentication:'Authentication',email:'Email',security:'Security',notifications:'Notifications',integrations:'Integrations',features:'Feature Flags',maintenance:'Maintenance',advanced:'Advanced',status:'System Status',history:'Audit History'}
-const groups=[['General',['general']],['Data & Cloud',['database','portalDatabase','google','storage']],['Access & Security',['authentication','security']],['Communications',['email','notifications']],['System',['integrations','features','maintenance','advanced','status','history']]]
-const icons={general:'⚙',database:'◉',portalDatabase:'◉',google:'☁',storage:'▣',authentication:'🔑',security:'🛡',email:'✉',notifications:'♢',integrations:'⛓',features:'⚑',maintenance:'🔧',advanced:'◆',status:'●',history:'◷'}
+const labels={general:'General',database:'Database',portalDatabase:'Portal Database',google:'Google Cloud',storage:'Storage',authentication:'Authentication',email:'Email',security:'Security',notifications:'Notifications',integrations:'Integrations',weather:'Weather',features:'Feature Flags',maintenance:'Maintenance',advanced:'Advanced',status:'System Status',history:'Audit History'}
+const groups=[['General',['general']],['Data & Cloud',['database','portalDatabase','google','storage']],['Access & Security',['authentication','security']],['Communications',['email','notifications']],['Integrations',['integrations','weather']],['System',['features','maintenance','advanced','status','history']]]
+const icons={general:'⚙',database:'◉',portalDatabase:'◉',google:'☁',storage:'▣',authentication:'🔑',security:'🛡',email:'✉',notifications:'♢',integrations:'⛓',weather:'☁',features:'⚑',maintenance:'🔧',advanced:'◆',status:'●',history:'◷'}
 const sources={database:'Saved','secret-manager':'Secure storage',environment:'Environment',default:'Default'}
 async function request(path,options={}){const r=await fetch(`/api/admin/settings${path}`,{credentials:'include',headers:{'Content-Type':'application/json'},...options});const raw=await r.text();let b=null;if(raw.trim()){try{b=JSON.parse(raw)}catch{}}if(!r.ok)throw new Error(b?.error||`Request failed (${r.status}).`);if(!b)throw new Error('The server returned an empty response.');return b}
 export default function AdminSettings({settings,setSettings,onSaved}){

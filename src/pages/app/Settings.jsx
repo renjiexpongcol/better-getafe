@@ -1,0 +1,4 @@
+import { Link } from 'react-router-dom'
+import AppPage from './AppPage'
+import { useAuth } from '../../context/AuthContext'
+export default function Settings() { const { user } = useAuth(); return <AppPage title="Account settings"><section className="citizen-panel portal-help"><h2>Your citizen account</h2><p>Signed in as {user?.email}.</p><details open><summary>Personal information</summary><p>Update your name, contact number and address from your profile.</p><Link to="/app/profile">Edit my profile →</Link></details><details open><summary>Account notifications</summary><p>Application and document updates appear in your notification inbox. You can mark each update as read.</p><Link to="/app/notifications">Manage notifications →</Link></details><details><summary>Account access and support</summary><p>For help recovering access or changing account information, contact municipal support.</p><Link to="/app/help">Help &amp; Support →</Link></details></section></AppPage> }

@@ -17,6 +17,10 @@ const routeOverrides = {
   './pages/info/OfficialProfile.jsx': '/info/official-profile',
   './pages/tourism/Banacon.jsx': '/tourism/banacon',
   './pages/info/AboutUs.jsx': '/info/about',
+  './pages/dashboard/Dashboard.jsx': '/app/dashboard',
+  './pages/app/Application.jsx': '/app/requests/:id',
+  './pages/dashboard/Profile.jsx': '/app/profile',
+  './pages/dashboard/RequestDocument.jsx': '/app/requests/new',
   './pages/info/Contact.jsx': '/contact',
   './pages/legal/PrivacyPolicy.jsx': '/legal/privacy',
   './pages/legal/TermsOfUse.jsx': '/legal/terms',
@@ -48,6 +52,18 @@ export const routeTitles = {
   '/tourism': 'Discover Getafe',
   '/events': 'Gallery of Events',
   '/weather': 'Weather Updates',
+  '/dashboard': 'Citizen Dashboard',
+  '/app/dashboard': 'Citizen Dashboard',
+  '/app/profile': 'My Profile',
+  '/app/services': 'Municipal Services',
+  '/app/requests': 'My Applications',
+  '/app/documents': 'My Documents',
+  '/app/appointments': 'Appointments',
+  '/app/payments': 'Payments',
+  '/app/notifications': 'Notifications',
+  '/app/settings': 'Account Settings',
+  '/app/help': 'Help & Support',
+  '/app/requests/new': 'New Request',
   '/auth/login': 'Log In',
 }
 
@@ -58,7 +74,7 @@ const HIDDEN_ROUTES = ['/auth/login', '/admin']
 const toKebab = (str) => str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
 
 // Build { path, Component, folder, name, title } for every page file.
-export const pageRoutes = Object.entries(pageModules).map(([file, loader]) => {
+export const pageRoutes = Object.entries(pageModules).filter(([file]) => !file.endsWith('/AppPage.jsx')).map(([file, loader]) => {
   const Component = lazy(loader)
   const [folder, name] = file.replace('./pages/', '').replace(/\.jsx$/, '').split('/')
   const kebab = toKebab(name)
@@ -75,26 +91,32 @@ export const pageRoutes = Object.entries(pageModules).map(([file, loader]) => {
 })
 
 // Public pages only (excludes hidden/private routes).
-export const publicRoutes = pageRoutes.filter((r) => !HIDDEN_ROUTES.includes(r.path) && !r.path.startsWith('/auth/') && !r.path.startsWith('/admin'))
+export const publicRoutes = pageRoutes.filter((r) => !HIDDEN_ROUTES.includes(r.path) && !r.path.startsWith('/app/') && !r.path.startsWith('/auth/') && !r.path.startsWith('/admin'))
 
 // Display labels + order for the sitemap groups.
-const groupOrder = ['home', 'info', 'services', 'tourism', 'events', 'news', 'legal']
+const groupOrder = ['home', 'info', 'services', 'weather', 'dashboard', 'app', 'tourism', 'events', 'news', 'legal']
 const groupLabels = {
   home: 'Home',
   info: 'Information',
   services: 'Services',
+  weather: 'Weather',
+  dashboard: 'Citizen Dashboard',
+  app: 'Citizen Portal',
   news: 'News & Updates',
   tourism: 'Discover Getafe',
   events: 'Gallery of Events',
   legal: 'Legal',
 }
 
-// Sitemap: public pages grouped by category (folder), ready to render.
+// Sitemap: public pages plus resident portal entry points grouped by category.
+const sitemapRoutes = pageRoutes.filter((r) => !r.path.includes(':') && (
+  publicRoutes.some((publicRoute) => publicRoute.path === r.path) || ['dashboard', 'app'].includes(r.folder)
+))
 export const sitemapGroups = groupOrder
   .map((folder) => ({
     folder,
     label: groupLabels[folder] || folder,
-    links: publicRoutes
+    links: sitemapRoutes
       .filter((r) => r.folder === folder)
       .map((r) => ({ path: r.path, title: r.title })),
   }))

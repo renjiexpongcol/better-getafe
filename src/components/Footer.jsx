@@ -13,6 +13,7 @@ const EXPLORE_LINKS = [
   { name: 'Services & Departments', url: '/services/directory' },
   { name: 'Emergency Hotlines', url: '/services/hotlines' },
   { name: 'News & Updates', url: '/news' },
+  { name: 'Weather Updates', url: '/weather' },
   { name: 'Discover Getafe', url: '/tourism' },
   { name: 'Gallery of Events', url: '/events' },
   { name: 'Accessibility', url: '/info/accessibility' },

@@ -16,6 +16,10 @@ export async function getMedia() {
 }
 
 export async function getMediaById(mediaId) {
+  if (!isGcp()) {
+    const db = await getLocalDb();
+    return (db.media || []).find((item) => item.id === mediaId) || null;
+  }
   const pool = await getCmsPool();
   const [rows] = await pool.execute('SELECT * FROM media WHERE id = ?', [mediaId]);
   return rows[0] || null;
@@ -32,6 +36,25 @@ export async function getMediaByStoragePath(storagePath) {
 }
 
 export async function createPendingUpload(upload) {
+  if (!isGcp()) {
+    const db = await getLocalDb();
+    const pending = {
+      id: upload.id,
+      storage_path: upload.storagePath,
+      original_filename: upload.originalFilename,
+      content_type: upload.contentType,
+      file_size: upload.fileSize,
+      uploaded_by: upload.uploadedBy,
+      context: upload.context,
+      status: 'pending',
+      expires_at: new Date(upload.expiresAt).toISOString(),
+      created_at: new Date(upload.createdAt).toISOString(),
+    };
+    db.media_uploads = (db.media_uploads || []).filter((item) => item.storage_path !== upload.storagePath);
+    db.media_uploads.push(pending);
+    await saveLocalDb(db);
+    return upload;
+  }
   const pool = await getCmsPool();
   await pool.execute(
     `INSERT INTO media_uploads
@@ -43,6 +66,11 @@ export async function createPendingUpload(upload) {
 }
 
 export async function getPendingUpload(storagePath, uploadedBy) {
+  if (!isGcp()) {
+    const db = await getLocalDb();
+    const pending = (db.media_uploads || []).find((item) => item.storage_path === storagePath && item.uploaded_by === uploadedBy && item.status === 'pending' && new Date(item.expires_at).getTime() > Date.now());
+    return pending || null;
+  }
   const pool = await getCmsPool();
   const [rows] = await pool.execute(
     "SELECT * FROM media_uploads WHERE storage_path = ? AND uploaded_by = ? AND status = 'pending' AND expires_at > UTC_TIMESTAMP(3)",
@@ -52,6 +80,12 @@ export async function getPendingUpload(storagePath, uploadedBy) {
 }
 
 export async function deletePendingUpload(storagePath) {
+  if (!isGcp()) {
+    const db = await getLocalDb();
+    db.media_uploads = (db.media_uploads || []).filter((item) => item.storage_path !== storagePath);
+    await saveLocalDb(db);
+    return;
+  }
   const pool = await getCmsPool();
   await pool.execute("DELETE FROM media_uploads WHERE storage_path = ? AND status = 'pending'", [storagePath]);
 }
@@ -60,11 +94,15 @@ export async function finalizePendingUpload(upload, media) {
   if (!isGcp()) {
     const db = await getLocalDb();
     const existing = (db.media || []).find((item) => item.storage_path === media.storagePath);
-    if (existing) return existing;
+    if (existing) {
+      db.media_uploads = (db.media_uploads || []).filter((pending) => pending.storage_path !== media.storagePath);
+      await saveLocalDb(db);
+      return existing;
+    }
     const item = {
       id: media.id,
       original_filename: media.originalFilename,
-      storage_bucket: null,
+      storage_bucket: media.storageBucket || null,
       storage_path: media.storagePath,
       content_type: media.contentType,
       file_size: media.fileSize,
@@ -74,6 +112,7 @@ export async function finalizePendingUpload(upload, media) {
       created_at: media.createdAt,
     };
     db.media = [...(db.media || []), item];
+    db.media_uploads = (db.media_uploads || []).filter((pending) => pending.storage_path !== media.storagePath);
     await saveLocalDb(db);
     return item;
   }

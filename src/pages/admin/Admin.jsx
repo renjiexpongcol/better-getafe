@@ -39,8 +39,8 @@ const putFile = (url, file, onProgress) => {
     request.onload = () =>
       request.status >= 200 && request.status < 300
         ? resolve()
-        : reject(new Error("Direct upload to GCS failed"));
-    request.onerror = () => reject(new Error("Direct upload to GCS failed"));
+        : reject(new Error("Direct media upload failed"));
+    request.onerror = () => reject(new Error("Direct media upload failed"));
     request.onabort = () =>
       reject(new DOMException("Upload cancelled", "AbortError"));
     request.send(file);
@@ -200,8 +200,8 @@ export default function Admin() {
         throw new Error(urlData?.error || "Failed to get upload URL");
 
       const storageLabel =
-        settings?.values?.["storage.provider"] === "gcp"
-          ? "Google Cloud Storage"
+        settings?.values?.["storage.provider"] === "backblaze"
+          ? "Backblaze B2"
           : "local storage";
       setNotice(`Uploading to ${storageLabel}...`);
       uploadRequest.current = putFile(urlData.uploadUrl, file, (progress) =>

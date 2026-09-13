@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck,
-  Building2, UserPlus, Loader2, CheckCircle2,
+  UserPlus, Loader2,
   KeyRound, User, MapPin, LogIn, ArrowLeft,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -27,7 +27,7 @@ export default function Login() {
     if (res.verificationRequired) { setChallenge(res.challengeId); setError(''); return }
     if (res.passwordExpired) { setRenewal(res.resetToken); setError(''); return }
     if (!res.ok) setError(res.error)
-    else navigate(res.admin ? '/admin' : '/', { replace: true })
+    else navigate(res.admin ? '/admin' : '/app/dashboard', { replace: true })
   }
   const completeChallenge = async event => {
     event.preventDefault(); setLoading(true); setError('')
@@ -37,7 +37,7 @@ export default function Login() {
       const body = await response.json()
       if (!response.ok) throw new Error(body.error)
       if (renewal) { setRenewal(null); setError('Password updated. Sign in with your new password.'); setForm(previous => ({ ...previous, password: '' })) }
-      else window.location.assign(body.admin ? '/admin' : '/')
+      else navigate(body.admin ? '/admin' : '/app/dashboard', { replace: true })
     } catch (error) { setError(error.message) } finally { setLoading(false) }
   }
   const [form, setForm] = useState({
@@ -50,7 +50,7 @@ export default function Login() {
 
   // Already signed in? Administrators return to CMS; residents return home.
   useEffect(() => {
-    if (!authLoading && user) navigate(['admin', 'super_admin'].includes(user.role) ? '/admin' : '/', { replace: true })
+    if (!authLoading && user) navigate(['admin', 'super_admin'].includes(user.role) ? '/admin' : '/app/dashboard', { replace: true })
   }, [user, authLoading, navigate])
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
@@ -129,11 +129,6 @@ export default function Login() {
             business permits, and public programs — securely, from anywhere.
           </p>
 
-          <ul className="login-features">
-            <li><span className="login-feature-icon"><CheckCircle2 size={16} /></span> Secure government-grade sign in</li>
-            <li><span className="login-feature-icon"><ShieldCheck size={16} /></span> Your data stays private and protected</li>
-            <li><span className="login-feature-icon"><Building2 size={16} /></span> Access services across all barangays</li>
-          </ul>
         </div>
 
         <div className="login-aside-foot">
@@ -143,7 +138,7 @@ export default function Login() {
 
       {/* ===== Form panel ===== */}
       <main className="login-main">
-        <div className="login-card">
+        <div className={`login-card login-card-${mode}`}>
           <div className="login-mobile-brand">
             <img src="/assets/getafe-seal.png" alt="Getafe seal" className="login-seal" />
             <div>
