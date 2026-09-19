@@ -30,6 +30,8 @@ const sections = [
 ]
 
 export default function TermsOfUse() {
+  const config = usePublicConfig()
+  const custom = config['legal.terms']
   return (
     <main id="terms-of-use">
       <div className="page-header">
@@ -49,7 +51,9 @@ export default function TermsOfUse() {
             Getafe, Bohol.
           </p>
 
-          {sections.map((s) => (
+          {custom ? custom.split(/\n\s*\n/).filter(Boolean).map((body, index) => (
+            <section className="legal-section" key={index}><p>{body}</p></section>
+          )) : sections.map((s) => (
             <section className="legal-section" key={s.title}>
               <h2>{s.title}</h2>
               <p>{s.body}</p>
@@ -69,3 +73,4 @@ export default function TermsOfUse() {
     </main>
   )
 }
+import { usePublicConfig } from '../../context/PublicConfig'

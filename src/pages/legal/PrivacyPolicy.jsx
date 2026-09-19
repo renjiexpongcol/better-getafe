@@ -26,6 +26,8 @@ const sections = [
 ]
 
 export default function PrivacyPolicy() {
+  const config = usePublicConfig()
+  const custom = config['legal.privacy']
   return (
     <main id="privacy-policy">
       <div className="page-header">
@@ -45,7 +47,9 @@ export default function PrivacyPolicy() {
             and protects the personal information of its users, in line with the <strong>Data Privacy Act of 2012</strong>.
           </p>
 
-          {sections.map((s) => (
+          {custom ? custom.split(/\n\s*\n/).filter(Boolean).map((body, index) => (
+            <section className="legal-section" key={index}><p>{body}</p></section>
+          )) : sections.map((s) => (
             <section className="legal-section" key={s.title}>
               <h2>{s.title}</h2>
               <p>{s.body}</p>
@@ -65,3 +69,4 @@ export default function PrivacyPolicy() {
     </main>
   )
 }
+import { usePublicConfig } from '../../context/PublicConfig'

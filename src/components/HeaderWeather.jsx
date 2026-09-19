@@ -22,6 +22,15 @@ export default function HeaderWeather() {
   useEffect(() => {
     let active = true
     let controller
+    let retryTimer
+
+    const scheduleRetry = () => {
+      if (!retryTimer) retryTimer = setTimeout(() => {
+        retryTimer = undefined
+        load()
+      }, 60 * 1000)
+    }
+
     const load = async () => {
       controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 12000)
@@ -30,9 +39,16 @@ export default function HeaderWeather() {
         if (!response.ok) throw new Error('Weather unavailable')
         const data = await response.json()
         if (!Number.isFinite(data.temperature) || Date.now() / 1000 - data.updatedAt > 7200) throw new Error('Weather unavailable')
-        if (active) setWeather(data)
+        if (active) {
+          clearTimeout(retryTimer)
+          retryTimer = undefined
+          setWeather(data)
+        }
       } catch {
-        if (active) setWeather(null)
+        if (active) {
+          setWeather(null)
+          scheduleRetry()
+        }
       } finally {
         clearTimeout(timeout)
         if (active) setLoading(false)
@@ -40,17 +56,17 @@ export default function HeaderWeather() {
     }
     load()
     const refresh = setInterval(load, 15 * 60 * 1000)
-    return () => { active = false; controller?.abort(); clearInterval(refresh) }
+    return () => { active = false; controller?.abort(); clearInterval(refresh); clearTimeout(retryTimer) }
   }, [])
 
   const [description, WeatherIcon] = condition(weather?.code, weather?.isDay)
   const slides = weather ? [
     { icon: WeatherIcon, text: `${Math.round(weather.temperature)}°C ${description}` },
-    Number.isFinite(weather.rainChance) && { icon: CloudRain, text: `${Math.round(weather.rainChance)}% rain chance until ${new Date(weather.rainUntil * 1000).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}` },
+    Number.isFinite(weather.rainChance) && { icon: CloudRain, text: `${Math.round(weather.rainChance)}% rain chance` },
     Number.isFinite(weather.feelsLike) && { icon: Thermometer, text: `Feels like ${Math.round(weather.feelsLike)}°C` },
     Number.isFinite(weather.humidity) && { icon: Droplets, text: `Humidity ${Math.round(weather.humidity)}%` },
     Number.isFinite(weather.wind) && { icon: Wind, text: `Wind ${Math.round(weather.wind)} km/h` },
-  ].filter(Boolean) : [{ icon: CloudSun, text: loading ? 'Loading weather…' : 'Weather temporarily unavailable' }]
+  ].filter(Boolean) : [{ icon: CloudSun, text: loading ? 'Loading…' : 'Unavailable' }]
 
   useEffect(() => {
     if (hovered || slides.length < 2) return undefined
@@ -65,7 +81,7 @@ export default function HeaderWeather() {
       <div className="header-weather-label">
         <span>Getafe, Bohol</span>
       </div>
-      <div className="header-weather-reading" key={slide.text} title={weather ? `Updated ${new Date(weather.updatedAt * 1000).toLocaleString('en-PH', { timeZone: 'Asia/Manila' })}` : undefined}>
+      <div className="header-weather-reading" key={slide.text} title={weather ? `Updated ${new Date(weather.updatedAt * 1000).toLocaleString('en-PH', { timeZone: 'Asia/Manila' })}` : loading ? 'Loading current weather' : 'Weather temporarily unavailable. Retrying shortly.'}>
         <Icon size={17} aria-hidden="true" /><span>{slide.text}</span>
       </div>
     </div>

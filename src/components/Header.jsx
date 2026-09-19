@@ -1,7 +1,7 @@
 import { usePublicConfig } from '../context/PublicConfig'
 import { useEffect, useState } from 'react'
-import { NavLink, Link, useLocation } from 'react-router-dom'
-import { Accessibility, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, LogOut, Mail, Map, MessageCircle, Newspaper, PhoneCall, Rocket, Siren, Users, WalletCards } from 'lucide-react'
+import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
+import { Accessibility, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, LogOut, Mail, Map, Newspaper, PhoneCall, Rocket, Siren, Users, WalletCards } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import HeaderWeather from './HeaderWeather'
 
@@ -15,6 +15,7 @@ export default function Header() {
   const [isHidden, setIsHidden] = useState(false)
   const { user, logout } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
   const isLandingPage = location.pathname === '/'
   const hideThreshold = isLandingPage ? LANDING_HEADER_HIDE_THRESHOLD : DEFAULT_HEADER_HIDE_THRESHOLD
   const homePath = user ? (['admin', 'super_admin'].includes(user.role) ? '/admin' : '/app/dashboard') : '/'
@@ -65,9 +66,22 @@ export default function Header() {
         ['Zoning/Planning', '/services/directory?department=zoning-planning', 'Land use and development planning.', Map],
         ['Treasury', '/services/directory?department=treasury', 'Local payments, taxes, and revenue services.', WalletCards],
         ['Assessment', '/services/directory?department=assessment', 'Property assessment and tax declarations.', ClipboardCheck],
-        ['Civil Registry', '/services/directory?department=civil-registry', 'Birth, marriage, and death records.', FileCheck2],
+        ['Civil Registry', '/services/certificates', 'Birth, marriage, death, and other civil registry records.', FileCheck2],
         ['Health', '/services/directory?department=health', 'Public health and rural health services.', HeartHandshake],
         ['Social Welfare', '/services/directory?department=social-welfare', 'Assistance programs for residents and families.', Users],
+      ],
+    },
+    {
+      label: 'Business',
+      key: 'business',
+      items: [
+        ['Business Services', '/services/business-trade', 'Permits, clearances, and local business requirements.', Building2],
+        ['Business Online Billing and Payment', '/services/business-trade#online-billing', 'Business billing and payment information.', WalletCards],
+        ['New Business Application', '/services/business-trade#new-application', 'Start a new business application.', ClipboardCheck],
+        ['Renew Business Application', '/services/business-trade#renew-application', 'Renew an existing business application.', FileCheck2],
+        ['Realty Tax Online Billing and Payment', '/services/directory?department=assessment#online-billing', 'Real property tax billing and payment information.', Landmark],
+        ['Online Payment Order', '/services/business-trade#payment-order', 'View online payment order guidance.', WalletCards],
+        ['Water Online Billing and Payment', '/services/directory?department=utilities#online-billing', 'Water billing and payment information.', CloudSun],
       ],
     },
     {
@@ -165,7 +179,7 @@ export default function Header() {
               <button
                 type="button"
                 className="logout-button"
-                onClick={logout}
+                onClick={async () => { const result = await logout(); if (result.ok) navigate('/auth/login', { replace: true }); else window.alert(result.error) }}
                 aria-label="Sign out of your account"
                 title="Sign out"
               >
@@ -178,17 +192,16 @@ export default function Header() {
         </div>
       </div>
       </header>
-      {isLandingPage && (
+      {isLandingPage && settings['general.communityBannerEnabled'] !== false && (
         <aside className="civic-community-banner" aria-label="Getafe civic technology community">
           <div className="container civic-community-inner">
             <div className="civic-community-copy">
               <span className="civic-community-icon"><Users size={18} aria-hidden="true" /></span>
-              <strong><Rocket size={15} aria-hidden="true" /> Join the Getafe CivicTech Community</strong>
-              <span>Help improve local services through technology.</span>
+              <strong><Rocket size={15} aria-hidden="true" /> {settings['general.communityBannerTitle'] || 'Join the Getafe CivicTech Community'}</strong>
+              <span>{settings['general.communityBannerMessage'] || 'Help improve local services through technology.'}</span>
             </div>
             <div className="civic-community-actions">
-              <a href="https://discord.gg/URZKjsFNq" target="_blank" rel="noreferrer">Join now <span aria-hidden="true">→</span></a>
-              <a className="civic-community-discord" href="https://discord.gg/URZKjsFNq" target="_blank" rel="noreferrer"><MessageCircle size={16} aria-hidden="true" /> Discord</a>
+              <Link to="/community/civictech">Learn more</Link>
             </div>
           </div>
         </aside>

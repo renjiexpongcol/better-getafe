@@ -51,7 +51,8 @@ try {
   assert.equal(uploaded.status, 201); const documentId = (await uploaded.json()).id
   assert.equal((await fetch(`${base}/api/citizen/documents/${documentId}/download`, { headers: { Cookie: cookie } })).status, 200)
   const invalid = await fetch(`${base}/api/citizen/documents?application_id=${applicationId}&name=bad.pdf`, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/pdf' }, body: 'not a PDF' }); assert.equal(invalid.status, 422)
-  const appointment = await api('/citizen/appointments', 'POST', { service_id: 'birth-certificate', appointment_at: new Date(Date.now() + 86400000).toISOString() })
+  const tomorrowInManila = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+  const appointment = await api('/citizen/appointments', 'POST', { service_id: 'birth-certificate', barangay_id: 'poblacion', contact_number: '09123456789', reason: 'Isolated functional verification.', appointment_at: new Date(`${tomorrowInManila}T09:00:00+08:00`).toISOString() })
   assert.equal(appointment.status, 201); assert.equal(appointment.body.status, 'requested')
   assert.equal((await api('/citizen/appointments', 'POST', { service_id: 'birth-certificate', appointment_at: '2020-01-01' })).status, 422)
   const dashboard = await api('/citizen/dashboard'), notification = dashboard.body.notifications[0]

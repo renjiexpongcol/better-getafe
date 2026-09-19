@@ -1,7 +1,7 @@
 import { usePublicConfig } from '../context/PublicConfig';
 import { Link } from 'react-router-dom';
 import {
-  FaFacebookF, FaGithub, FaInstagram, FaYoutube, FaXTwitter, FaGlobe, FaRss,
+  FaFacebookF, FaGithub, FaInstagram, FaYoutube, FaXTwitter, FaRss,
 } from 'react-icons/fa6';
 
 const EXPLORE_LINKS = [
@@ -65,9 +65,14 @@ const SOCIAL_LINKS = [
     icon: FaGithub,
   },
   {
-    name: 'Website',
-    url: import.meta.env.VITE_GETAFE_WEBSITE_URL || '',
-    icon: FaGlobe,
+    name: 'Discord',
+    url: 'https://discord.gg/URZKjsFNq',
+    iconPath: '/assets/icons/icon%20pack/discord.png',
+  },
+  {
+    name: 'RSS Feed',
+    url: '/rss.xml',
+    icon: FaRss,
   },
 ].filter((link) => Boolean(link.url));
 
@@ -105,9 +110,9 @@ export default function Footer() {
             <div className="footer-socials" aria-label="Official social media links">
               <span>Follow Getafe</span>
               <div>
-                {SOCIAL_LINKS.map(({ name, url, icon: Icon }) => (
+                {SOCIAL_LINKS.map(({ name, url, icon: Icon, iconPath }) => (
                   <a href={url} target="_blank" rel="noreferrer" aria-label={name} title={name} key={name}>
-                    <Icon size={18} aria-hidden="true" />
+                    {iconPath ? <img src={iconPath} alt="" aria-hidden="true" /> : <Icon size={18} aria-hidden="true" />}
                   </a>
                 ))}
               </div>
@@ -169,14 +174,15 @@ export default function Footer() {
           <span>© {new Date().getFullYear()} Municipality of Getafe, Bohol. All Rights Reserved.</span>
           <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>Official Government Website</span>
         </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', alignItems: 'flex-end' }}>
+          <div className="footer-credit">This page was created by Renjie Pongcol, inspired by BetterGov.</div>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <Link to="/legal/privacy" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = '#fff'} onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}>Privacy Policy</Link>
           <span style={{ opacity: 0.5 }}>·</span>
           <Link to="/legal/terms" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = '#fff'} onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}>Terms of Use</Link>
           <span style={{ opacity: 0.5 }}>·</span>
           <Link to="/info/accessibility" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = '#fff'} onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}>Accessibility</Link>
-          <span style={{ opacity: 0.5 }}>·</span>
-          <a href="/rss.xml" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s', display: 'inline-flex', alignItems: 'center', gap: '6px' }} onMouseEnter={(e) => e.currentTarget.style.color = '#fff'} onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}><FaRss size={13} aria-hidden="true" /> RSS Feed</a>
+          </div>
         </div>
       </div>
     </footer>

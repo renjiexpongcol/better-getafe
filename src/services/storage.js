@@ -15,7 +15,16 @@ export async function buildStorage(values) {
 }
 export function activateStorage(resource) { client = resource?.client || null; bucketName = resource?.bucket || bucketName; localRoot = resource?.local ? resource.root : null; }
 export async function initializeStorage() { const resource = await buildStorage(config.values); activateStorage(resource); return resource; }
-export async function createUploadUrl(objectPath, contentType) { if (localRoot) { await fs.mkdir(path.dirname(path.join(localRoot, objectPath)), { recursive: true }); return `/uploads/${objectPath.replaceAll('\\', '/')}`; } if (!client) throw new Error('Backblaze storage is not initialized.'); return getSignedUrl(client, new PutObjectCommand({ Bucket: bucketName, Key: objectPath, ContentType: contentType }), { expiresIn: config.get('storage.signedUrlMinutes') * 60 }); }
+export async function createUploadUrl(objectPath, contentType, fileSize) { if (localRoot) { await fs.mkdir(path.dirname(path.join(localRoot, objectPath)), { recursive: true }); return `/uploads/${objectPath.replaceAll('\\', '/')}`; } if (!client) throw new Error('Backblaze storage is not initialized.'); return getSignedUrl(client, new PutObjectCommand({ Bucket: bucketName, Key: objectPath, ContentType: contentType }), { expiresIn: config.get('storage.signedUrlMinutes') * 60 }); }
+export async function uploadObject(objectPath, body, contentType) { if (!client) throw new Error('Backblaze storage is not initialized.'); await client.send(new PutObjectCommand({ Bucket: bucketName, Key: objectPath, Body: body, ContentType: contentType })); }
+
+export function imageSignatureMatches(bytes, contentType) {
+  if (!Buffer.isBuffer(bytes)) return false
+  if (contentType === 'image/jpeg') return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+  if (contentType === 'image/png') return bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+  if (contentType === 'image/webp') return bytes.length >= 12 && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP'
+  return false
+}
 export async function createDownloadUrl(objectPath, targetBucket = bucketName) { if (!objectPath) return null; if (localRoot && !/^https?:\/\//.test(objectPath)) return `/uploads/${objectPath.replace(/^\/+/, '').replaceAll('\\', '/')}`; if (!client || /^https?:\/\//.test(objectPath)) return objectPath; if (config.get('storage.visibility') === 'public' && config.get('storage.publicBaseUrl')) return `${config.get('storage.publicBaseUrl').replace(/\/$/, '')}/${objectPath.split('/').map(encodeURIComponent).join('/')}`; return getSignedUrl(client, new GetObjectCommand({ Bucket: targetBucket || bucketName, Key: objectPath }), { expiresIn: config.get('storage.signedUrlMinutes') * 60 }); }
 export async function getObjectMetadata(objectPath, targetBucket = bucketName) { if (!client) throw new Error('Backblaze storage is not initialized.'); try { return await client.send(new HeadObjectCommand({ Bucket: targetBucket || bucketName, Key: objectPath })); } catch { return null; } }
 export async function objectExists(objectPath) { return Boolean(await getObjectMetadata(objectPath)); }

@@ -15,6 +15,10 @@ export const definitions = {
   'general.supportEmail': text('Support email', '', '', { format: 'email' }),
   'general.logo': text('Logo URL', '', '', { format: 'url' }),
   'general.favicon': text('Favicon URL', '', '', { format: 'url' }),
+  'general.communityBannerEnabled': bool('Community banner', '', true),
+  'general.communityBannerTitle': text('Community banner title', '', 'Join the Getafe CivicTech Community'),
+  'general.communityBannerMessage': text('Community banner message', '', 'Help improve local services through technology.'),
+  'general.communityBannerUrl': text('Community banner link', '', 'https://discord.gg/URZKjsFNq', { format: 'url' }),
   'google.projectId': text('Google Cloud project ID', 'GCP_PROJECT_ID'),
   'google.clientId': text('Google OAuth client ID', 'GOOGLE_CLIENT_ID'),
   'google.clientSecret': secret('Google OAuth client secret', 'GOOGLE_CLIENT_SECRET'),
@@ -50,6 +54,11 @@ export const definitions = {
   'authentication.registrationEnabled': bool('Allow registration', '', true),
   'authentication.requireEmailVerification': bool('Require email verification', ''),
   'authentication.mfaEnabled': bool('Require email sign-in code', ''),
+  'security.registrationCaptcha': bool('Enable reCAPTCHA protection', '', false),
+  'security.recaptchaProvider': choice('reCAPTCHA provider', '', 'google', ['google']),
+  'security.recaptchaSiteKey': text('reCAPTCHA site key', '', '', { description: 'Public site key from the reCAPTCHA admin console.' }),
+  'security.recaptchaSecretKey': secret('reCAPTCHA secret key', ''),
+  'security.registrationRateLimit': number('Registration attempts per hour', '', 10, 1, 100),
   'security.frameProtection': bool('Prevent framing', '', true),
   'security.permissionGrants': text('Administrator permissions', '', '{}'),
   'security.contentTypeProtection': bool('Prevent content type sniffing', '', true),
@@ -73,6 +82,9 @@ export const definitions = {
   'maintenance.message': text('Maintenance message', '', 'The portal is undergoing maintenance. Please try again later.'),
   'maintenance.expectedCompletion': text('Expected completion (ISO date/time)', ''),
   'maintenance.allowedAdminIps': text('Allowed administrator IPs (comma separated; empty allows all)', ''),
+  'legal.privacy': text('Privacy Policy content', '', '', { multiline: true, description: 'Editable content for the public Privacy Policy page. Separate paragraphs with a blank line.' }),
+  'legal.terms': text('Terms of Use content', '', '', { multiline: true, description: 'Editable content for the public Terms of Use page. Separate paragraphs with a blank line.' }),
+  'legal.cookies': text('Cookies and cache notice', '', '', { multiline: true, description: 'Editable content for the public Cookies and Cache page. Separate paragraphs with a blank line.' }),
   'advanced.authDebug': bool('Authentication diagnostics (no credentials)', 'AUTH_DEBUG'),
 };
 for (const [category, prefix, legacy] of [['database', 'CMS', 'DB'], ['portalDatabase', 'PORTAL', 'USER_DB']]) {
@@ -95,14 +107,14 @@ for (const [category, prefix, legacy] of [['database', 'CMS', 'DB'], ['portalDat
     [`${category}.idleTimeout`]: number('Idle timeout (ms)', `${prefix}_DB_IDLE_TIMEOUT_MS`, 60000, 1000, 3600000),
   });
 }
-export const categories = ['general', 'database', 'portalDatabase', 'google', 'storage', 'authentication', 'email', 'security', 'notifications', 'integrations', 'weather', 'features', 'maintenance', 'advanced'];
+export const categories = ['general', 'database', 'portalDatabase', 'google', 'storage', 'authentication', 'email', 'security', 'notifications', 'integrations', 'weather', 'features', 'maintenance', 'legal', 'advanced'];
 export function validate(values) {
   if (!values || Array.isArray(values) || typeof values !== 'object' || !Object.keys(values).length) throw new Error('Supply settings to update.');
   for (const [key, value] of Object.entries(values)) {
     const d = definitions[key];
     if (!d) throw new Error(`Unknown setting: ${key}`);
     if (value === null) continue;
-    if (typeof value !== d.type || (d.type === 'string' && (value.length > (d.secret ? 16384 : 2000) || /[\x00\r\n]/.test(value))) || (d.type === 'number' && (!Number.isInteger(value) || value < d.min || value > d.max))) throw new Error(`Invalid value for ${d.label}`);
+    if (typeof value !== d.type || (d.type === 'string' && (value.length > (d.secret ? 16384 : d.multiline ? 50000 : 2000) || /[\x00\r\n]/.test(value) && !d.multiline)) || (d.type === 'number' && (!Number.isInteger(value) || value < d.min || value > d.max))) throw new Error(`Invalid value for ${d.label}`);
     if (d.required && !value.trim()) throw new Error(`${d.label} is required`);
     if (d.options && !d.options.includes(value)) throw new Error(`Invalid ${d.label}`);
     if (d.format === 'url' && value) { const url = new URL(value); if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error(`${d.label} must be an HTTP(S) URL without credentials`); }

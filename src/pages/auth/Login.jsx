@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import {
-  Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck,
+  Mail, Lock, Eye, EyeOff, ArrowRight,
   UserPlus, Loader2,
-  KeyRound, User, MapPin, LogIn, ArrowLeft,
+  KeyRound, User, LogIn, ArrowLeft,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { usePublicConfig } from '../../context/PublicConfig'
 
 export default function Login() {
-  const { user, loading: authLoading, login, register } = useAuth()
+  const { user, loading: authLoading, login, completeMfa, register } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [mode, setMode] = useState('signin') // 'signin' | 'register'
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -18,16 +19,33 @@ export default function Login() {
   const [forgot, setForgot] = useState(false)
   const settings = usePublicConfig()
   const [challenge, setChallenge] = useState(null)
+  const [mfaChallenge, setMfaChallenge] = useState(null)
   const [code, setCode] = useState('')
   const [renewal, setRenewal] = useState(null)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [captchaToken, setCaptchaToken] = useState('')
+  const [info, setInfo] = useState('')
+  const returnUrl = (() => {
+    const value = searchParams.get('returnUrl')
+    return value && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/auth') ? value : null
+  })()
+  const destination = role => returnUrl || (['admin', 'super_admin'].includes(role) ? '/admin' : '/app/dashboard')
+  useEffect(() => { if (searchParams.get('google') === 'existing') setInfo('This Google email already has a Getafe e-services account. Please sign in with your existing account.'); if (searchParams.get('mfa')) setMfaChallenge(searchParams.get('mfa')) }, [searchParams])
   const handleResult = res => {
     if (res.verificationRequired) { setChallenge(res.challengeId); setError(''); return }
+    if (res.mfaRequired) { setMfaChallenge(res.mfaChallengeId); setError(''); return }
     if (res.passwordExpired) { setRenewal(res.resetToken); setError(''); return }
     if (!res.ok) setError(res.error)
-    else navigate(res.admin ? '/admin' : '/app/dashboard', { replace: true })
+    else navigate(res.setup ? '/app/setup' : destination(res.admin ? 'admin' : 'resident'), { replace: true })
+  }
+  const completeMfaChallenge = async event => {
+    event.preventDefault(); setLoading(true); setError('')
+    const result = await completeMfa(mfaChallenge, code)
+    setLoading(false)
+    if (!result.ok) setError(result.error)
+    else navigate(destination('resident'), { replace: true })
   }
   const completeChallenge = async event => {
     event.preventDefault(); setLoading(true); setError('')
@@ -37,7 +55,7 @@ export default function Login() {
       const body = await response.json()
       if (!response.ok) throw new Error(body.error)
       if (renewal) { setRenewal(null); setError('Password updated. Sign in with your new password.'); setForm(previous => ({ ...previous, password: '' })) }
-      else navigate(body.admin ? '/admin' : '/app/dashboard', { replace: true })
+      else navigate(destination(body.admin ? 'admin' : 'resident'), { replace: true })
     } catch (error) { setError(error.message) } finally { setLoading(false) }
   }
   const [form, setForm] = useState({
@@ -48,10 +66,21 @@ export default function Login() {
     remember: true,
   })
 
-  // Already signed in? Administrators return to CMS; residents return home.
+  // Keep the login page from being used as an authenticated landing page.
   useEffect(() => {
-    if (!authLoading && user) navigate(['admin', 'super_admin'].includes(user.role) ? '/admin' : '/app/dashboard', { replace: true })
-  }, [user, authLoading, navigate])
+    if (!authLoading && user) navigate(destination(user.role), { replace: true })
+  }, [user, authLoading, navigate, returnUrl])
+
+  useEffect(() => {
+    if (mode !== 'register' || settings['security.registrationCaptcha'] !== true || !settings['security.recaptchaSiteKey']) return
+    setCaptchaToken('')
+    let script = document.querySelector('script[data-recaptcha]')
+    if (!script) { script = document.createElement('script'); script.src = 'https://www.google.com/recaptcha/api.js?render=explicit'; script.async = true; script.defer = true; script.dataset.recaptcha = 'true' }
+    if (!script.parentNode) document.head.appendChild(script)
+    const render = () => { if (window.grecaptcha && document.getElementById('recaptcha-widget') && !document.getElementById('recaptcha-widget').dataset.rendered) { window.grecaptcha.render('recaptcha-widget', { sitekey: settings['security.recaptchaSiteKey'], callback: setCaptchaToken, 'expired-callback': () => setCaptchaToken(''), 'error-callback': () => setCaptchaToken('') }); document.getElementById('recaptcha-widget').dataset.rendered = 'true' } }
+    script.addEventListener('load', render); const timer = setInterval(render, 250)
+    return () => { clearInterval(timer); script.removeEventListener('load', render) }
+  }, [mode, settings['security.registrationCaptcha'], settings['security.recaptchaSiteKey']])
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
@@ -84,7 +113,7 @@ export default function Login() {
       }
       setLoading(true)
       setTimeout(() => {
-        register(form.name, form.email, form.password).then((res) => {
+        register(form.name, form.email, form.password, captchaToken).then((res) => {
           setLoading(false)
           handleResult(res)
         })
@@ -100,7 +129,9 @@ export default function Login() {
 
   const inputIcon = mode === 'signin' ? <Mail size={18} /> : <User size={18} />
 
-  if (challenge || renewal) return <main className="login-page login-challenge-page"><section className="login-main"><form className="login-card password-renewal-card" onSubmit={completeChallenge}>{renewal && <img className="renewal-logo" src="/assets/getafe-seal.png" alt="Municipality of Getafe" />}<h1>{renewal ? 'Update your password' : 'Check your email'}</h1><p>{renewal ? 'You need to update your password because it has expired or this is your first time signing in.' : 'Enter the six-digit sign-in code sent to your email address.'}</p>{renewal ? <><label>Current password<input required type="password" autoComplete="current-password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} placeholder="Current password" /></label><label>New password<input required minLength="8" type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="New password" /></label><label>Confirm password<input required minLength="8" type="password" autoComplete="new-password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} placeholder="Confirm password" /></label></> : <label>Verification code<input required type="text" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value)} /></label>}{error && <p role="alert">{error}</p>}<button className="login-submit" disabled={loading}>{loading ? 'Checking…' : renewal ? 'Sign in' : 'Continue'}</button><button className="renewal-cancel" type="button" onClick={() => { setChallenge(null); setRenewal(null); setCode('') }}>Return to sign in</button></form></section></main>
+  if (mfaChallenge) return <main className="login-page login-challenge-page"><section className="login-main"><form className="login-card password-renewal-card" onSubmit={completeMfaChallenge}><img className="mfa-authentication-icon" src="/assets/icons/auth-pack/authentication.png" alt="" aria-hidden="true"/><h1>Two-factor authentication</h1><p>Enter the six-digit code from your authenticator app, or one of your recovery codes.</p><label>Authenticator or recovery code<input required type="text" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value)} /></label>{error && <p role="alert">{error}</p>}<button className="login-submit" disabled={loading}>{loading ? 'Verifying…' : 'Verify and sign in'}</button><button className="renewal-cancel" type="button" onClick={() => { setMfaChallenge(null); setCode(''); setError('') }}>Return to sign in</button></form></section></main>
+
+  if (challenge || renewal) return <main className="login-page login-challenge-page"><section className="login-main"><form className={`login-card ${renewal ? 'password-renewal-card' : 'email-code-card'}`} onSubmit={completeChallenge}>{renewal && <img className="renewal-logo" src="/assets/getafe-seal.png" alt="Municipality of Getafe" />}<h1>{renewal ? 'Update your password' : 'Check your email'}</h1><p>{renewal ? 'You need to update your password because it has expired or this is your first time signing in.' : 'Enter the six-digit sign-in code sent to your email address.'}</p>{renewal ? <><label>Current password<input required type="password" autoComplete="current-password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} placeholder="Current password" /></label><label>New password<input required minLength="8" type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="New password" /></label><label>Confirm password<input required minLength="8" type="password" autoComplete="new-password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} placeholder="Confirm password" /></label></> : <label>Verification code<input required type="text" inputMode="numeric" pattern="[0-9]*" maxLength="6" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /></label>}{error && <p role="alert">{error}</p>}<button className="login-submit" disabled={loading}>{loading ? 'Checking…' : renewal ? 'Sign in' : 'Continue'}</button><button className="renewal-cancel" type="button" onClick={() => { setChallenge(null); setRenewal(null); setCode('') }}>Return to sign in</button></form></section></main>
 
   return (
     <div className="login-page">
@@ -122,11 +153,10 @@ export default function Login() {
             </div>
           </div>
           <h1 className="login-aside-title">
-            One portal for every <em>Getafeño</em>.
+            One secure portal for every <em>Getafeño</em>.
           </h1>
           <p className="login-aside-text">
-            Sign in to access municipal services, digital certificates,
-            business permits, and public programs — securely, from anywhere.
+            Sign in to access municipal services, digital certificates, business permits, and public programs securely from anywhere.
           </p>
 
         </div>
@@ -178,10 +208,10 @@ export default function Login() {
           </p>
 
           {error && (
-            <div className="login-error" role="alert">
-              <ShieldCheck size={17} /> {error}
-            </div>
+            <div className="login-error" role="alert">{error}</div>
           )}
+
+          {info && <div className="login-info" role="status">{info}</div>}
 
           {forgot && mode === 'signin' && (
             <div className="login-forgot-panel">
@@ -200,7 +230,7 @@ export default function Login() {
             </div>
           )}
 
-          <form className="login-form" onSubmit={handleSubmit} noValidate>
+          <form className="login-form" onSubmit={handleSubmit} noValidate autoComplete={mode === 'register' ? 'off' : 'on'}>
             {mode === 'register' && (
               <div className="login-field">
                 <label htmlFor="name">Full name</label>
@@ -209,7 +239,7 @@ export default function Login() {
                   <input
                     id="name"
                     type="text"
-                    autoComplete="name"
+                    autoComplete="off"
                     placeholder="e.g. Juan Dela Cruz"
                     value={form.name}
                     onChange={update('name')}
@@ -218,6 +248,8 @@ export default function Login() {
               </div>
             )}
 
+            {mode === 'register' && settings['security.registrationCaptcha'] === true && settings['security.recaptchaSiteKey'] && <div className="login-field"><div id="recaptcha-widget" aria-label="reCAPTCHA verification" /></div>}
+
             <div className="login-field">
               <label htmlFor="email">Email address</label>
               <div className="login-input-wrap">
@@ -225,7 +257,7 @@ export default function Login() {
                 <input
                   id="email"
                   type="email"
-                  autoComplete="email"
+                  autoComplete={mode === 'register' ? 'off' : 'email'}
                   placeholder="you@example.com"
                   value={form.email}
                   onChange={update('email')}
@@ -247,7 +279,7 @@ export default function Login() {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                  autoComplete={mode === 'signin' ? 'current-password' : 'off'}
                   placeholder={mode === 'signin' ? '••••••••' : `At least ${settings['authentication.passwordMinLength'] || 8} characters`}
                   value={form.password}
                   onChange={update('password')}
@@ -271,7 +303,7 @@ export default function Login() {
                   <input
                     id="confirm"
                     type={showPassword ? 'text' : 'password'}
-                    autoComplete="new-password"
+                    autoComplete="off"
                     placeholder="Repeat your password"
                     value={form.confirm}
                     onChange={update('confirm')}
@@ -305,7 +337,7 @@ export default function Login() {
           <div className="login-divider"><span>or continue with</span></div>
 
           <div className="login-social-row">
-            <button type="button" className="login-social" onClick={() => { window.location.href = '/api/auth/google' }}>
+            <button type="button" className="login-social" onClick={() => { window.location.href = `/api/auth/google?intent=${mode === 'register' ? 'signup' : 'signin'}` }}>
               <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z" />
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" />
@@ -315,7 +347,7 @@ export default function Login() {
               Google
             </button>
             <button type="button" className="login-social">
-              <MapPin size={18} /> eGovPH
+              <img src="/assets/icons/gov/e-gov.png" alt="" className="login-egov-icon" /> eGovPH
             </button>
           </div>
 

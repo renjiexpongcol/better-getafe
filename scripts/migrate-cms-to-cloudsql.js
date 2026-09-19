@@ -142,8 +142,8 @@ async function migrate() {
 
     try {
       await pool.execute(
-        "INSERT INTO news (id, title, slug, excerpt, content, featured_image, category_id, author_id, status, published_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [news.id, news.title, news.slug, news.excerpt, news.content, updatedFeaturedImage, news.category_id, news.author_id, news.status, mysqlDateTime(news.published_at), mysqlDateTime(news.created_at), mysqlDateTime(news.updated_at)]
+        "INSERT INTO news (id, title, slug, excerpt, content, featured_image, category_id, author_id, status, published_at, created_at, updated_at, is_important, content_type, event_start_at, event_end_at, show_in_news, show_in_upcoming, show_in_events, show_on_homepage) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [news.id, news.title, news.slug, news.excerpt, news.content, updatedFeaturedImage, news.category_id, news.author_id, news.status, mysqlDateTime(news.published_at), mysqlDateTime(news.created_at), mysqlDateTime(news.updated_at), Boolean(news.is_important), news.content_type || 'news', mysqlDateTime(news.event_start_at), mysqlDateTime(news.event_end_at), news.show_in_news !== false, Boolean(news.show_in_upcoming), Boolean(news.show_in_events), news.show_on_homepage !== false]
       );
     } catch (e) {
       if (e.code === 'ER_DUP_ENTRY') console.log(`News ${news.slug} already exists, skipping.`);

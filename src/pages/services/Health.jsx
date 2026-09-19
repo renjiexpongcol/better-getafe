@@ -5,7 +5,9 @@ export default function Health() {
     <ServicePageLayout
       kicker="Popular services · Health"
       title="Health Services"
+      backLabel="Back to all services"
       subtitle="Health programs and assistance from the Municipal Health Office of Getafe."
+      variant="health-services"
       intro="The Municipal Health Office provides accessible primary health care and social health programs to protect and improve the well-being of every resident."
       services={[
         {

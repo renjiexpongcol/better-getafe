@@ -1,0 +1,38 @@
+/* Reuse the citizen portal design while retaining the existing admin tools. */
+.cms.admin-portal { display:flex; min-height:100vh; }
+.admin-portal .cms-main.citizen-content { overflow-x:visible; }
+.admin-portal .citizen-sidebar { flex-shrink:0; }
+.admin-portal .citizen-sidebar-brand button { padding:0; background:transparent; }
+.admin-portal .citizen-menu-toggle { padding:0; background:transparent; color:#395773; }
+.admin-portal .citizen-topbar { padding-inline:24px; }
+.admin-portal .citizen-top-actions { gap:12px; }
+.admin-portal .citizen-profile-button { display:flex; align-items:center; }
+.admin-portal .portal-icon-button { background:transparent; color:#63758b; cursor:pointer; }
+.admin-portal .admin-notification-button { display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; flex:0 0 38px; padding:0; border:0; border-radius:8px; line-height:1; }
+.admin-portal .admin-notification-button > svg { display:block; width:19px; height:19px; flex:none; }
+.admin-portal .admin-notification-button:hover { background:#f1f6fb; color:#1769ad; }
+.admin-portal .admin-notification-button:focus-visible { background:#f1f6fb; color:#1769ad; outline:2px solid #6eafe7; outline-offset:2px; }
+.admin-portal .admin-toolbar-search { width:300px; flex:0 1 300px; }
+.admin-portal .portal-popover button { background:transparent; color:#3d526c; border-radius:0; font-weight:500; }
+.admin-portal .portal-popover button:hover { background:#f4f7fb; }
+.admin-toolbar-search { position:relative; }
+.admin-portal .admin-toolbar-search .portal-search-input { width:100%; height:40px; padding:0 12px; gap:10px; border:1px solid #d8e0e8; border-radius:9px; background:#f8fafc; transition:border-color .15s,box-shadow .15s; }
+.admin-portal .admin-toolbar-search .portal-search-input:focus-within { border-color:#1677d2; box-shadow:0 0 0 3px #1677d214; background:#fff; }
+.admin-portal .admin-toolbar-search .portal-search-input input { min-width:0; width:100%; padding:0; margin:0; border:0; border-radius:0; background:transparent; box-shadow:none; font-size:13px; line-height:20px; }
+.admin-toolbar-search .portal-search-input > svg { flex:0 0 18px; color:#71879c; }
+.admin-toolbar-search .portal-popover { right:0; }
+.admin-portal .admin-recent { margin-top:24px; }
+.admin-portal .admin-recent .citizen-panel-head { margin-bottom:16px; }
+.admin-portal .admin-recent .cms-table { border-radius:8px; }
+.admin-portal .cms-title h1 { color:#183b62; font-size:30px; letter-spacing:-.045em; }
+@media(max-width:900px) { .cms.admin-portal { display:flex; } }
+.admin-portal .portal-quick button { background:#fff; border:1px solid var(--portal-border); border-radius:8px; padding:14px 5px; color:#27669f; font-weight:400; }
+.admin-portal .portal-quick button:hover { border-color:#8bb1d7; background:#fafdff; }
+.admin-portal .portal-scrim { background:#0c223a66; border:0; border-radius:0; padding:0; }
+.admin-account-panel { max-width:720px; }
+.admin-account-panel h1 { margin:0; font-size:28px; color:#183b62; }
+.admin-account-panel > p { color:var(--portal-muted); }
+.admin-account-panel dl { margin:24px 0; }
+.admin-account-panel dl > div { padding:14px 0; border-top:1px solid var(--portal-border); }
+.admin-account-panel dt { font-size:12px; color:var(--portal-muted); }
+.admin-account-panel dd { margin:5px 0 0; font-weight:600; overflow-wrap:anywhere; }

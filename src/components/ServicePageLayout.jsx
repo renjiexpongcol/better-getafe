@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Phone, MapPin, Clock, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { Phone, MapPin, Clock, ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react'
 
 // Shared layout for LGU service category pages (Business, Certificates,
 // Education, Health). Each page passes in its own content.
@@ -13,15 +13,21 @@ export default function ServicePageLayout({
   office,
   contact,
   related,
+  backLabel,
+  showBackLink = true,
+  requirementsTitle = 'Services we offer',
+  stepsTitle = 'How to apply',
+  variant = '',
 }) {
   return (
-    <main className="service-detail">
+    <main className={`service-detail ${variant}`}>
       <div className="page-header">
         <div className="container page-header-inner">
           <div>
+            {backLabel && <button type="button" className="service-hero-back" onClick={() => window.history.back()}><ArrowLeft size={18} strokeWidth={2.4} aria-hidden="true" /> {backLabel}</button>}
             <p className="service-detail-kicker">{kicker}</p>
             <h1 className="page-title">{title}</h1>
-            <p className="page-subtitle">{subtitle}</p>
+            {subtitle && <p className="page-subtitle">{subtitle}</p>}
           </div>
         </div>
       </div>
@@ -32,7 +38,7 @@ export default function ServicePageLayout({
         <div className="service-detail-grid">
           <div className="service-detail-main">
             <section className="service-block">
-              <h2>Services we offer</h2>
+              <h2>{requirementsTitle}</h2>
               <div className="service-items">
                 {services.map((s) => (
                   <article className="service-item" key={s.name}>
@@ -52,10 +58,10 @@ export default function ServicePageLayout({
             </section>
 
             <section className="service-block">
-              <h2>How to apply</h2>
+              <h2>{stepsTitle}</h2>
               <ol className="service-steps">
-                {steps.map((step) => (
-                  <li key={step}>
+                {steps.map((step, index) => (
+                  <li key={`${step.n ?? index}-${step.text ?? ''}`}>
                     <span className="service-step-num">{step.n}</span>
                     <span>{step.text}</span>
                   </li>
@@ -90,9 +96,6 @@ export default function ServicePageLayout({
               </section>
             )}
 
-            <Link className="service-back" to="/services">
-              <ArrowRight size={16} /> Back to all services
-            </Link>
           </div>
 
           <aside className="service-sidebar">

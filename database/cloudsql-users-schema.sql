@@ -5,6 +5,10 @@ CREATE TABLE portal_users (
   email VARCHAR(255) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
   role VARCHAR(32) NOT NULL DEFAULT 'resident',
+  mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  mfa_secret_encrypted TEXT NULL,
+  mfa_recovery_codes JSON NULL,
+  mfa_verified_at DATETIME(3) NULL,
   created_at DATETIME(3) NOT NULL,
   updated_at DATETIME(3) NOT NULL
 );

@@ -12,7 +12,6 @@ import {
   ageData, ageGroupSummary, historicalPopulation, nearestTowns, nearestCities,
   manilaDistance, proportionalShares, notes,
 } from '../../data/getafe'
-import useOpenStats from '../../hooks/useOpenStats'
 
 const facts = [
   { label: 'Founded / Incorporated', value: 'Coastal municipality' },
@@ -135,7 +134,6 @@ function BarangayTable({ title, rows }) {
 
 const formatPeso = (n) => '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const formatNumber = (n) => n.toLocaleString('en-PH');
-const formatMt = (n) => n.toLocaleString('en-PH', { maximumFractionDigits: 2 });
 
 function SectionHead({ kicker, title, sub }) {
   return (
@@ -167,13 +165,6 @@ export default function AboutUs() {
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState('pop2020');
   const [sortDir, setSortDir] = useState('desc');
-  const { data: psaData, loading: psaLoading, error: psaError } = useOpenStats();
-
-  const psaLatest = psaData?.rows
-    ? Object.fromEntries(psaData.rows.map((r) => [r.crop, r]))
-    : {};
-  const psaYears = psaData?.rows ? [...new Set(psaData.rows.map((r) => r.year))] : [];
-
   const rows = useMemo(() => {
     let list = barangayStats.filter((b) =>
       b.name.toLowerCase().includes(query.trim().toLowerCase())
@@ -196,7 +187,7 @@ export default function AboutUs() {
     <main id="about-us">
       <section className="about-hero">
         <div className="about-hero-bg">
-          <img src="/assets/getafe-default/about-getafe.jpg" alt="Aerial view of the coastal town of Getafe, Bohol" />
+          <img src="/assets/pages/bg/about-municipality.png" alt="Aerial view of the coastal town of Getafe, Bohol" />
           <div className="about-hero-overlay" />
         </div>
         <div className="container about-hero-inner">
@@ -457,83 +448,6 @@ export default function AboutUs() {
             Real Property Tax (General Fund) + Tax on Business + Other Taxes + Regulatory Fees + Service/User
             Charges + Receipts from Economic Enterprises.
           </p>
-        </div>
-      </section>
-
-      {/* PSA */}
-      <section className="getafe-section getafe-section-alt">
-        <div className="container">
-          <SectionHead
-            kicker="Live data · Philippine Statistics Authority"
-            title="Agricultural production"
-            sub="Palay and corn production in Bohol (metric tons), fetched live from the PSA OpenSTAT API."
-          />
-
-          {psaLoading && (
-            <div className="psa-state">
-              <Loader2 size={26} className="spin" />
-              <span>Fetching the latest PSA statistics…</span>
-            </div>
-          )}
-
-          {!psaLoading && psaError && (
-            <div className="psa-state psa-error">
-              <Info size={24} />
-              <p>We could not reach the PSA OpenSTAT service right now.</p>
-              <small>{psaError}</small>
-            </div>
-          )}
-
-          {!psaLoading && !psaError && psaData && (
-            <div className="psa-panel">
-              <div className="psa-tiles">
-                {['Palay', 'Corn'].map((crop) => {
-                  const rec = psaLatest[crop]
-                  return (
-                    <div className="psa-tile" key={crop}>
-                      <span className={`psa-tile-icon ${crop === 'Palay' ? 'wheat' : 'corn'}`}>
-                        {crop === 'Palay' ? <Wheat size={20} /> : <Sprout size={20} />}
-                      </span>
-                      <span className="psa-tile-label">{crop} · {rec?.year || ''}</span>
-                      <strong>{rec ? `${formatMt(rec.value)} MT` : '—'}</strong>
-                      <small>Bohol, annual</small>
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div className="getafe-table-wrap">
-                <table className="getafe-table psa-table">
-                  <thead>
-                    <tr>
-                      <th>Crop</th>
-                      {psaYears.map((y) => (
-                        <th key={y} className="num">{y}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {['Palay', 'Corn'].map((crop) => (
-                      <tr key={crop}>
-                        <td className="getafe-brgy-name">{crop}</td>
-                        {psaYears.map((y) => {
-                          const rec = psaData.rows.find((r) => r.crop === crop && r.year === y)
-                          return (
-                            <td key={y} className="num">{rec ? formatMt(rec.value) : '—'}</td>
-                          )
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <p className="psa-source">
-                <Database size={14} /> Source: {psaData.source} · PSA OpenSTAT · Updated{' '}
-                {new Date(psaData.updated).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </p>
-            </div>
-          )}
         </div>
       </section>
 

@@ -1,0 +1,16 @@
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+  app:
+    build: .
+    ports: ["8080:8080"]
+    environment:
+      NODE_ENV: production
+      RATE_LIMIT_REDIS_URL: redis://redis:6379
+    depends_on: [redis]
+volumes:
+  redis-data:

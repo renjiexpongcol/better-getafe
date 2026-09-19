@@ -1,8 +1,11 @@
 import { config } from './index.js';
 export const allPermissions = ['settings.view', 'settings.edit', 'settings.secrets.edit', 'settings.database.edit', 'settings.storage.edit', 'settings.security.edit', 'settings.audit.view'];
+export const cmsRoles = ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'];
+export const rolePermissions = { staff: ['settings.view'], it_support: ['settings.view', 'settings.edit', 'settings.database.edit', 'settings.storage.edit'], content_manager: ['settings.view'] };
 export function permissionsFor(user) {
-  if (!['admin', 'super_admin'].includes(user?.role)) return [];
+  if (!cmsRoles.includes(user?.role)) return [];
   if (user.role === 'super_admin') return allPermissions;
+  if (rolePermissions[user.role]) return rolePermissions[user.role];
   const grants = JSON.parse(config.get('security.permissionGrants'));
   return grants[user.id] || allPermissions;
 }

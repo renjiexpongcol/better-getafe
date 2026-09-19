@@ -39,3 +39,15 @@ export function stateTransaction(key, work) {
 }
 export async function putState(key, value, milliseconds) { return stateTransaction(key, async () => ({ value, expires: Date.now() + milliseconds })); }
 export async function consumeState(key) { return stateTransaction(key, async value => ({ value: null, result: value })); }
+export async function readState(key) {
+  const pool = await getConfigPool();
+  if (!pool) {
+    try {
+      const entries = JSON.parse(await fs.readFile(localFile, 'utf8'));
+      const entry = entries[key];
+      return entry?.expires > Date.now() ? entry.value : null;
+    } catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+  }
+  const [[row]] = await pool.execute('SELECT value,expires_at FROM auth_state WHERE state_key=?', [key]);
+  return row && Number(row.expires_at) > Date.now() ? JSON.parse(row.value) : null;
+}

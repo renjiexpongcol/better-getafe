@@ -17,12 +17,15 @@ const slugify = (v = "") => v.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").r
 const hash = (password, salt = crypto.randomBytes(16).toString("hex")) => `${salt}:${crypto.scryptSync(password, salt, 64).toString("hex")}`;
 
 function seed() {
+  if (process.env.NODE_ENV === 'production' && !process.env.CMS_ADMIN_PASSWORD) {
+    throw new Error('CMS_ADMIN_PASSWORD must be configured before using local CMS storage in production.')
+  }
   const created = now();
   const user = {
     id: id(),
     name: "CMS Administrator",
     email: process.env.CMS_ADMIN_EMAIL || "admin@getafe.gov.ph",
-    password: hash(process.env.CMS_ADMIN_PASSWORD || "ChangeMe123!"),
+    password: hash(process.env.CMS_ADMIN_PASSWORD),
     role: "admin",
     created_at: created,
     updated_at: created,
@@ -81,6 +84,13 @@ function seed() {
       category_id: categories.find((c) => c.name === category).id,
       author_id: user.id,
       status: "published",
+      content_type: category === 'Events' ? 'event' : 'news',
+      event_start_at: category === 'Events' ? new Date(Date.now() - index * 86400000).toISOString().replace('T', ' ').substring(0, 23) : null,
+      event_end_at: null,
+      show_in_news: category !== 'Events',
+      show_in_upcoming: category === 'Events',
+      show_in_events: category === 'Events',
+      show_on_homepage: true,
       published_at: new Date(Date.now() - index * 86400000).toISOString().replace('T', ' ').substring(0, 23),
       created_at: created,
       updated_at: created,
@@ -111,11 +121,23 @@ export async function getLocalDb() {
     CREATE INDEX IF NOT EXISTS idx_application_documents_user_id ON application_documents(user_id);
     CREATE TABLE IF NOT EXISTS payments (id TEXT PRIMARY KEY, application_id TEXT NOT NULL, user_id TEXT NOT NULL, amount REAL NOT NULL, method TEXT, status TEXT NOT NULL DEFAULT 'pending', official_receipt TEXT, created_at TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
+    CREATE TABLE IF NOT EXISTS settlement_requests (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, category TEXT NOT NULL, reference_number TEXT NOT NULL, amount REAL NOT NULL, payment_method TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'for_verification', notes TEXT, created_at TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS idx_settlement_requests_user_id ON settlement_requests(user_id);
+    CREATE TABLE IF NOT EXISTS privacy_requests (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, request_type TEXT NOT NULL, scope TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'submitted', created_at TEXT NOT NULL, updated_at TEXT NOT NULL, review_note TEXT);
+    CREATE INDEX IF NOT EXISTS idx_privacy_requests_user_id ON privacy_requests(user_id);
+    CREATE TABLE IF NOT EXISTS privacy_request_events (id TEXT PRIMARY KEY, request_id TEXT NOT NULL, actor_id TEXT NOT NULL, actor_type TEXT NOT NULL, event TEXT NOT NULL, note TEXT, created_at TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS idx_privacy_request_events_request_id ON privacy_request_events(request_id);
     CREATE TABLE IF NOT EXISTS appointments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, application_id TEXT, department TEXT NOT NULL, service TEXT NOT NULL, appointment_at TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'scheduled', created_at TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS idx_appointments_user_id ON appointments(user_id);
+    CREATE INDEX IF NOT EXISTS idx_appointments_time ON appointments(appointment_at);
+    CREATE TABLE IF NOT EXISTS appointment_schedule_config (id INTEGER PRIMARY KEY CHECK (id = 1), min_advance_minutes INTEGER NOT NULL DEFAULT 60, booking_horizon_days INTEGER NOT NULL DEFAULT 30, weekdays TEXT NOT NULL DEFAULT '[1,2,3,4,5]', opening_time TEXT NOT NULL DEFAULT '08:00', closing_time TEXT NOT NULL DEFAULT '17:00', break_start TEXT NOT NULL DEFAULT '12:00', break_end TEXT NOT NULL DEFAULT '13:00', slot_minutes INTEGER NOT NULL DEFAULT 30, slot_capacity INTEGER NOT NULL DEFAULT 5, location TEXT NOT NULL DEFAULT 'Municipal Hall');
+    CREATE TABLE IF NOT EXISTS appointment_closures (id TEXT PRIMARY KEY, closure_date TEXT NOT NULL, reason TEXT, created_at TEXT NOT NULL);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_appointment_closures_date ON appointment_closures(closure_date);
+    CREATE TABLE IF NOT EXISTS barangay_appointment_integrations (barangay_id TEXT PRIMARY KEY, notification_email TEXT, portal_url TEXT, updated_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, read_at TEXT, archived_at TEXT, created_at TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
   `);
+  sqlite.prepare("INSERT OR IGNORE INTO appointment_schedule_config (id) VALUES (1)").run();
   const row = sqlite.prepare('SELECT data FROM application_state WHERE id=1').get();
   if (!row) {
     const initial = fs.existsSync(dataPath) ? JSON.parse(fs.readFileSync(dataPath, 'utf8')) : seed();

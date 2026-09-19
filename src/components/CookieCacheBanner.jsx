@@ -1,0 +1,20 @@
+import { useState } from 'react'
+import { Cookie, Settings2, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+
+const PREFERENCES_KEY = 'getafe-cookie-cache-preferences-v2'
+const defaultPreferences = { functional: false, publicCache: true }
+
+function readPreferences() {
+  try { return JSON.parse(window.localStorage.getItem(PREFERENCES_KEY) || 'null') } catch { return null }
+}
+
+export default function CookieCacheBanner() {
+  const [preferences, setPreferences] = useState(() => ({ ...defaultPreferences, ...(readPreferences() || {}) }))
+  const [open, setOpen] = useState(() => { const saved = readPreferences(); return !saved || saved.functional !== true }), [customize, setCustomize] = useState(false)
+  if (!open) return null
+  const save = next => { try { window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify({ essential: true, ...next })); document.cookie = `getafe_cache=${next.publicCache ? 'on' : 'off'}; Max-Age=31536000; Path=/; SameSite=Lax` } catch { /* Preferences remain active for this visit if storage is unavailable. */ } setPreferences(next); setOpen(false) }
+  return <div className="cookie-cache-backdrop"><section className={`cookie-cache-dialog ${customize ? 'cookie-cache-customize' : 'cookie-cache-default'}`} role="dialog" aria-modal="true" aria-labelledby="cookie-cache-title"><button type="button" className="cookie-cache-dialog-close" aria-label="Close cookie and cache settings" onClick={() => save(defaultPreferences)}><X size={18}/></button>{!customize ? <><span className="cookie-cache-banner-icon" aria-hidden="true"><Cookie size={20}/></span><h2 id="cookie-cache-title">Cookies and cache notice</h2><p>We use essential cookies to keep you signed in and protect your account, and may cache public website files to help pages load faster. Read our <Link to="/legal/cookies" target="_blank">Cookies & Cache Notice</Link> and <Link to="/legal/privacy" target="_blank">Privacy Policy</Link> to learn more. You can configure optional preferences below.</p><div className="cookie-cache-dialog-actions"><button type="button" className="cookie-cache-secondary" onClick={() => setCustomize(true)}><Settings2 size={15}/> Customize choices</button><button type="button" className="cookie-cache-primary" onClick={() => save(defaultPreferences)}>Accept selected</button></div></> : <><h2 id="cookie-cache-title">Choose your preferences</h2><p>Essential cookies are always enabled because they are required for secure account access. Optional choices can be changed on this device. Read our <Link to="/legal/cookies" target="_blank">Cookies & Cache Notice</Link> and <Link to="/legal/privacy" target="_blank">Privacy Policy</Link> for details.</p><div className="cookie-cache-options"><PreferenceToggle title="Essential session cookies" description="Required for sign-in, security, and protected services." checked disabled/><PreferenceToggle title="Functional preferences" description="Remembers convenience settings such as your banner acknowledgement." checked={preferences.functional} onChange={value => setPreferences(current => ({ ...current, functional: value }))}/><PreferenceToggle title="Public content caching" description="Allows public, non-personal website files to load faster from your browser cache." checked={preferences.publicCache} onChange={value => setPreferences(current => ({ ...current, publicCache: value }))}/></div><div className="cookie-cache-dialog-actions"><button type="button" className="cookie-cache-secondary" onClick={() => setCustomize(false)}>Back</button><button type="button" className="cookie-cache-primary" onClick={() => save(preferences)}>Save choices</button></div></>}</section></div>
+}
+
+function PreferenceToggle({ title, description, checked, disabled, onChange }) { return <label className={`cookie-cache-option${disabled ? ' required' : ''}`}><span><strong>{title}</strong><small>{description}</small></span><input type="checkbox" checked={checked} disabled={disabled} onChange={event => onChange?.(event.target.checked)}/></label> }

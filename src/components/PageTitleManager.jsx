@@ -9,20 +9,23 @@ export default function PageTitleManager() {
 
   useEffect(() => {
     document.title = `${settings['general.name'] || 'Getafe'} | ${routeTitles[pathname] || "Official Portal"}`;
-    
+  }, [pathname, settings['general.name']]);
+
+  useEffect(() => {
     // We map '/' to 'home' and others directly to their path without slash
     const sectionId = pathname === '/' ? 'home' : pathname.substring(1);
     const element = document.getElementById(sectionId);
-    
+
     if (element) {
       // Delay slightly to ensure component has fully mounted
-      setTimeout(() => {
+      const scrollTimer = setTimeout(() => {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 50);
+      return () => clearTimeout(scrollTimer);
     } else if (pathname === '/') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [pathname, settings]);
+  }, [pathname]);
 
   return null;
 }

@@ -63,7 +63,7 @@ export default function Officials() {
   return (
     <main id="officials">
       <section className="about-hero officials-hero">
-        <div className="about-hero-bg"><img src="/assets/getafe-default/profiles/getafe-municipal%20hall.jpg" alt="Getafe Municipal Hall" /><div className="about-hero-overlay" /></div>
+        <div className="about-hero-bg"><img src="/assets/pages/bg/Municipal-Officials.png" alt="Getafe Municipal Hall" /><div className="about-hero-overlay" /></div>
         <div className="container about-hero-inner"><p className="about-hero-kicker">Municipality of Getafe • Bohol</p><h1>Municipal Officials</h1><p className="about-hero-sub">The elected leaders, barangay captains, and department heads serving Getafe.</p></div>
       </section>
 

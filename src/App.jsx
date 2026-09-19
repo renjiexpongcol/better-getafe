@@ -1,15 +1,16 @@
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import RelatedPages from './components/RelatedPages'
 import PageTitleManager from './components/PageTitleManager'
-import BackToTop from './components/BackToTop'
 import { PublicConfigProvider } from './context/PublicConfig'
 import { usePublicConfig } from './context/PublicConfig'
 import { useAuth } from './context/AuthContext'
 import MaintenancePage from './components/MaintenancePage'
+import CookieCacheBanner from './components/CookieCacheBanner'
+import BackToTop from './components/BackToTop'
 import { pageRoutes } from './routes'
 
 // ============================================================
@@ -39,7 +40,13 @@ const redirects = [
   ['/dashboard', '/app/dashboard'],
   ['/dashboard/profile', '/app/profile'],
   ['/dashboard/request-document', '/app/requests/new'],
+  ['/account', '/app/profile'],
+  ['/settings', '/app/settings'],
+  ['/app/settings', '/app/dashboard'],
+  ['/app/profile', '/app/dashboard?profile=1'],
   ['/hotlines', '/services/hotlines'],
+  ['/news/article', '/news'],
+  ['/news/civil-registry', '/services/certificates'],
   ['/news/pandanon-island', '/tourism/pandanon'],
   ['/news/corte-paradise-resort', '/tourism/corte-paradise'],
   ['/news/handumon-marine-sanctuary', '/tourism/handumon'],
@@ -58,6 +65,30 @@ function App() {
   return <PublicConfigProvider><AuthProvider><AppContent /></AuthProvider></PublicConfigProvider>
 }
 
+function RouteLayout({ children }) {
+  const { pathname } = useLocation()
+  const { user } = useAuth()
+  if (pathname.startsWith('/app/') && pathname !== '/app/setup' && user?.setupRequired) return <Navigate to="/app/setup" replace />
+  return <Suspense fallback={<PageLoader />}>{children}</Suspense>
+}
+
+function ProtectedRoute({ children, admin = false }) {
+  const { user, loading, validateSession } = useAuth()
+  const location = useLocation()
+  const [checkedKey, setCheckedKey] = useState(null)
+  useEffect(() => {
+    let active = true
+    validateSession().then(() => { if (active) setCheckedKey(location.key) })
+    return () => { active = false }
+  }, [location.key, validateSession])
+  // Only block the initial protected-page render. Revalidating the session on
+  // navigation should not replace the whole page with a flash of loader UI.
+  if (checkedKey === null) return <PageLoader />
+  if (!user) return <Navigate to={`/auth/login?returnUrl=${encodeURIComponent(location.pathname + location.search)}`} replace />
+  if (admin && !['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role)) return <Navigate to="/" replace />
+  return children
+}
+
 function AppContent() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -66,47 +97,58 @@ function AppContent() {
   const settings = usePublicConfig()
   const { user, loading } = useAuth()
   useEffect(() => {
-    if (!loading && user && location.pathname === '/' && !new URLSearchParams(location.search).has('municipal')) {
-      navigate(['admin', 'super_admin'].includes(user.role) ? '/admin' : '/app/dashboard', { replace: true })
+    if (!loading && isCitizenDashboard && !user) navigate('/auth/login', { replace: true })
+  }, [loading, isCitizenDashboard, user, navigate])
+  useEffect(() => {
+    const root = document.getElementById('root')
+    const hideProtectedPage = () => {
+      if (isCitizenDashboard || location.pathname.startsWith('/admin')) root.style.visibility = 'hidden'
     }
-  }, [user, loading, location.pathname, location.search, navigate])
+    const restoreGuard = event => {
+      if (event.persisted) window.location.reload()
+      else root.style.visibility = ''
+    }
+    window.addEventListener('pagehide', hideProtectedPage)
+    window.addEventListener('pageshow', restoreGuard)
+    return () => {
+      window.removeEventListener('pagehide', hideProtectedPage)
+      window.removeEventListener('pageshow', restoreGuard)
+    }
+  }, [isCitizenDashboard, location.pathname])
   if (!settings.ready) return <div className="configuration-loader" aria-busy="true" />
   const maintenance = !isAuthPage && !loading && settings['maintenance.enabled'] === true && !(user && ['admin', 'super_admin'].includes(user.role))
 
   return (
-      <div className="page-shell">
+      <div className="page-shell" onContextMenu={event => { if (event.target instanceof HTMLImageElement) event.preventDefault(); }}>
         {maintenance && <MaintenancePage />}
         {!maintenance && <>
         <ScrollToTop />
         <PageTitleManager />
         {!isAuthPage && !isCitizenDashboard && <Header />}
-        <Suspense fallback={<PageLoader />}>
+        <RouteLayout>
           <Routes>
             <Route path="/services/barangays/:id" element={<BarangayDetailRoute />} />
             <Route path="/services/barangays/:id/official" element={<BarangayOfficialRoute />} />
-            <Route path="/news/:slug" element={<ArticleRoute />} />
             <Route path="/info/officials/:id" element={<OfficialProfileRoute />} />
             {pageRoutes.map(({ path, Component }) => (
-              <Route key={path} path={path} element={<Component />} />
+              <Route key={path} path={path} element={path.startsWith('/app/') || path.startsWith('/admin') ? <ProtectedRoute admin={path.startsWith('/admin')}><Component /></ProtectedRoute> : <Component />} />
             ))}
             {redirects.map(([from, to]) => (
               <Route key={from} path={from} element={<Navigate to={to} replace />} />
             ))}
             <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
+            <Route path="/app/*" element={<ProtectedRoute><Navigate to="/app/dashboard" replace /></ProtectedRoute>} />
+            <Route path="/admin/*" element={<ProtectedRoute admin><Navigate to="/admin" replace /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </Suspense>
+        </RouteLayout>
         {!isAuthPage && !isCitizenDashboard && <RelatedPages />}
+        {!isAuthPage && <BackToTop />}
         {!isAuthPage && !isCitizenDashboard && <Footer />}
-        <BackToTop />
         </>}
+        {!loading && !user && location.pathname === '/' && <CookieCacheBanner />}
       </div>
   )
-}
-
-function ArticleRoute() {
-  const Article = pageRoutes.find((route) => route.path === '/news/article')?.Component
-  return Article ? <Article /> : null
 }
 
 function OfficialProfileRoute() {
@@ -115,12 +157,12 @@ function OfficialProfileRoute() {
 }
 
 function BarangayDetailRoute() {
-  const BarangayDetail = pageRoutes.find((route) => route.path === '/services/barangay-detail')?.Component
+  const BarangayDetail = pageRoutes.find((route) => route.name === 'BarangayDetail')?.Component
   return BarangayDetail ? <BarangayDetail /> : null
 }
 
 function BarangayOfficialRoute() {
-  const BarangayOfficial = pageRoutes.find((route) => route.path === '/services/barangay-official')?.Component
+  const BarangayOfficial = pageRoutes.find((route) => route.name === 'BarangayOfficial')?.Component
   return BarangayOfficial ? <BarangayOfficial /> : null
 }
 

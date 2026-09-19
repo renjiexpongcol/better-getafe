@@ -1,14 +1,14 @@
 import { useState } from 'react'
-import { ArrowRight, BriefcaseBusiness, CalendarDays, Check, Download, FileText, FolderOpen, GraduationCap, HeartPulse, Search, X } from 'lucide-react'
+import { ArrowRight, BriefcaseBusiness, CalendarDays, Check, Download, FileText, FolderOpen, GraduationCap, HeartPulse, Search, WalletCards, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { serviceCategories, citizenServices, searchServices, serviceLink } from '../data/citizenServices'
 import { useCitizen } from '../context/CitizenContext'
 import { dateLabel, needsAction, isActive, statusKey } from '../services/citizenData'
 
 export function DataState({ children }) {
-  const { loading, error, data } = useCitizen()
-  if (loading) return <div className="portal-loading" role="status"><span className="page-loader-spinner"/>Loading your records…</div>
-  if (error || !data) return <p className="portal-muted">Records are unavailable. Use “Try again” above to reload.</p>
+  const { loading, data } = useCitizen()
+  if (loading && !data) return <div className="portal-loading" role="status"><span className="page-loader-spinner"/>Loading your records…</div>
+  if (!data) return <p className="portal-muted">Records are unavailable. Use “Try again” above to reload.</p>
   return children
 }
 export function Panel({ title, href, action = 'View all', children, className = '' }) {
@@ -35,14 +35,16 @@ export function DocumentRows({ items }) {
   return items.length ? <div className="portal-records">{items.map(item => <article className="portal-document" key={item.id} id={`document-${item.id}`}><span className="portal-document-icon"><FileText size={20}/></span><div><span className="portal-document-kind">{item.document_kind === 'issued' ? 'ISSUED' : item.document_kind === 'receipt' ? 'RECEIPT' : 'UPLOADED'}</span><h3>{item.name}</h3><p>{item.document_kind === 'uploaded' ? 'Uploaded' : 'Issued'} {dateLabel(item.created_at)}</p><small>{item.downloadable ? 'Available for download' : 'File not yet available'}</small></div>{item.downloadable ? <a className="portal-icon-button" href={`/api/citizen/documents/${encodeURIComponent(item.id)}/download`} aria-label={`Download ${item.name}`}><Download size={18}/></a> : <Link to={`/app/requests/${encodeURIComponent(item.application_id)}`} aria-label={`View application for ${item.name}`}><ArrowRight size={18}/></Link>}</article>)}</div> : <Empty icon={FolderOpen} title="No documents yet" description="Documents issued through your applications and uploaded requirements will appear here." href="/app/services" action="Browse services"/>
 }
 export function AppointmentRows({ items }) {
-  return items.length ? <div className="portal-records">{items.map(item => <article className="portal-appointment" key={item.id}><span className="portal-document-icon"><CalendarDays size={21}/></span><div><h3>{item.department}</h3><p>{item.service}</p><strong>{dateLabel(item.appointment_at, { hour: 'numeric', minute: '2-digit' })}</strong><p><Status value={item.status}/></p><small>Reference: {item.id}</small><Link to={`/app/appointments?appointment=${encodeURIComponent(item.id)}`}>View appointment <ArrowRight size={14}/></Link></div></article>)}</div> : <Empty icon={CalendarDays} title="No upcoming appointments" description="Choose a service and request a convenient time to visit." href="/app/appointments?book=1" action="Schedule an appointment"/>
+  return items.length ? <div className="portal-records">{items.map(item => <article className="portal-appointment" key={item.id}><span className="portal-document-icon"><CalendarDays size={21}/></span><div><h3>{item.department}</h3><p>{item.service}</p><strong>{dateLabel(item.appointment_at, { hour: 'numeric', minute: '2-digit' })}</strong><p><Status value={item.status}/></p><small>Reference: {item.id}</small><Link to={`/app/appointments?appointment=${encodeURIComponent(item.id)}`}>View appointment <ArrowRight size={14}/></Link></div></article>)}</div> : <Empty icon={CalendarDays} title="No upcoming appointments" description="Choose a service and request a convenient time to visit."/>
 }
-export function ServiceSearch({ autoFocus = false }) {
+export function ServiceSearch({ autoFocus = false, compact = false }) {
   const [query, setQuery] = useState(''), [open, setOpen] = useState(true)
   const results = searchServices(query)
-  return <section className="portal-service-search"><label htmlFor="service-search">What municipal service do you need?</label><div className="portal-search-input"><Search size={19}/><input id="service-search" autoFocus={autoFocus} placeholder="Search municipal services, permits, certificates…" value={query} onChange={event => { setQuery(event.target.value); setOpen(true) }} onFocus={() => setOpen(true)} onKeyDown={event => { if (event.key === 'Escape') setOpen(false) }}/>{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={17}/></button>}</div>{query.trim() && open && <div className="portal-search-results"><p role="status">{results.length} matching {results.length === 1 ? 'service' : 'services'}</p>{results.map(service => <Link key={service.id} to={serviceLink(service)}><FileText size={17}/><span>{service.name}<small>{serviceCategories.find(item => item.id === service.category)?.name}</small></span><ArrowRight size={16}/></Link>)}{!results.length && <p>Try another keyword, or <Link to="/app/help">get help finding a service</Link>.</p>}</div>}</section>
+  const id = compact ? 'header-service-search' : 'service-search'
+  const placeholder = compact ? 'Search services, news, and information...' : 'Search municipal services, permits, certificates…'
+  return <section className={`portal-service-search${compact ? ' portal-service-search-compact' : ''}`}><label htmlFor={id}>{compact ? 'Search services, news, and information' : 'What municipal service do you need?'}</label><div className="portal-search-input"><Search size={19} aria-hidden="true"/><input id={id} autoFocus={autoFocus} type="search" placeholder={placeholder} value={query} onChange={event => { setQuery(event.target.value); setOpen(true) }} onFocus={() => setOpen(true)} onKeyDown={event => { if (event.key === 'Escape') setOpen(false) }}/>{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={17}/></button>}</div>{query.trim() && open && <div className="portal-search-results"><p role="status">{results.length} matching {results.length === 1 ? 'service' : 'services'}</p>{results.map(service => <Link key={service.id} to={serviceLink(service)}><FileText size={17}/><span>{service.name}<small>{serviceCategories.find(item => item.id === service.category)?.name}</small></span><ArrowRight size={16}/></Link>)}{!results.length && <p>Try another keyword, or <Link to="/app/help">get help finding a service</Link>.</p>}</div>}</section>
 }
 export function ServiceCategories() {
-  const icons = { FileText, BriefcaseBusiness, HeartPulse, GraduationCap }
+  const icons = { FileText, BriefcaseBusiness, HeartPulse, GraduationCap, WalletCards }
   return <section className="citizen-section"><div className="citizen-section-head"><h2>Municipal services</h2><Link to="/app/services">View all services<ArrowRight size={15}/></Link></div><div className="citizen-service-grid">{serviceCategories.map(category => { const Icon = icons[category.icon]; return <Link className="citizen-service" to={`/app/services?category=${category.id}`} key={category.id}><span><Icon size={21}/></span><strong>{category.name}</strong><p>{category.description}</p><small>{citizenServices.filter(item => item.category === category.id).length} services<ArrowRight size={17}/></small></Link> })}</div></section>
 }

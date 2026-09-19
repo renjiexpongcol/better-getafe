@@ -57,12 +57,21 @@ CREATE TABLE news (
   category_id CHAR(36) NULL,
   author_id CHAR(36) NOT NULL,
   status ENUM('draft', 'published') NOT NULL DEFAULT 'draft',
+  is_important BOOLEAN NOT NULL DEFAULT FALSE,
+  content_type ENUM('news', 'event', 'meeting') NOT NULL DEFAULT 'news',
+  event_start_at DATETIME(3) NULL,
+  event_end_at DATETIME(3) NULL,
+  show_in_news BOOLEAN NOT NULL DEFAULT TRUE,
+  show_in_upcoming BOOLEAN NOT NULL DEFAULT FALSE,
+  show_in_events BOOLEAN NOT NULL DEFAULT FALSE,
+  show_on_homepage BOOLEAN NOT NULL DEFAULT TRUE,
   published_at DATETIME(3) NULL,
   created_at DATETIME(3) NOT NULL,
   updated_at DATETIME(3) NOT NULL,
   CONSTRAINT news_category_fk FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
   CONSTRAINT news_author_fk FOREIGN KEY (author_id) REFERENCES users(id),
   INDEX news_public_listing_idx (status, published_at),
+  INDEX news_display_idx (show_in_news, show_in_upcoming, show_in_events, event_start_at),
   INDEX news_category_idx (category_id)
 );
 

@@ -17,7 +17,6 @@ export default function Sitemap() {
         <div className="container page-header-inner">
           <div>
             <h1 className="page-title">Sitemap</h1>
-            <p className="page-subtitle">An overview of all pages on the official Getafe web portal.</p>
           </div>
         </div>
       </div>

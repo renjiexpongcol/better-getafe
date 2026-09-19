@@ -1,7 +1,10 @@
+import { clearPrivateCache } from './requestCache.js'
+
 export async function citizenApi(path, options = {}) {
-  const response = await fetch(`/api/citizen${path}`, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...options.headers } })
+  const response = await fetch(`/api/citizen${path}`, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'GetafeCitizenPortal', ...options.headers } })
   const body = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(body.error || 'Your information could not be loaded. Please try again.')
+  if (!['GET', 'HEAD'].includes((options.method || 'GET').toUpperCase())) clearPrivateCache()
   return body
 }
 export const statusKey = value => String(value || 'draft').toLowerCase().replace(/[\s-]+/g, '_')

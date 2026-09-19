@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import AppPage from '../app/AppPage'
 import { useAuth } from '../../context/AuthContext'
 import { useCitizen } from '../../context/CitizenContext'
@@ -10,6 +10,7 @@ export default function RequestDocument() { return <AppPage title="New service r
 function RequestForm() {
   const [params] = useSearchParams(), navigate = useNavigate(), { user } = useAuth(), { data } = useCitizen()
   const [service, setService] = useState(params.get('service') || citizenServices[0].id), [purpose, setPurpose] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('')
+  if (service === 'concern') return <Navigate to="/app/help?report=1" replace />
   const submit = async event => {
     event.preventDefault(); setBusy(true); setError('')
     try { const result = await citizenApi('/applications', { method: 'POST', body: JSON.stringify({ service_name: service === 'concern' ? 'Report a Concern' : citizenServices.find(item => item.id === service)?.name, details: { purpose } }) }); navigate(`/app/requests/${result.id}?submitted=1`) }

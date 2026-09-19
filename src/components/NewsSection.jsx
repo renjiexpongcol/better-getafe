@@ -7,7 +7,7 @@ export default function NewsSection() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/news?limit=3')
+    fetch('/api/news?display=news&homepage=true&limit=3&public=true')
       .then((response) => response.ok ? response.json() : Promise.reject(new Error('News unavailable')))
       .then((data) => setArticles(data.items || []))
       .catch(() => setArticles([]))

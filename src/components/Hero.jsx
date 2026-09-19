@@ -25,7 +25,7 @@ export default function Hero() {
             <div className="quick-links" aria-label="Basic services links">
               <Link to="/services/certificates">National ID</Link>
               <Link to="/services/business-trade">Business Permit</Link>
-              <Link to="/services/directory?search=clearance">Barangay Clearance</Link>
+              <Link to="/services/barangay-clearance">Barangay Clearance</Link>
             </div>
           </div>
         </div>
