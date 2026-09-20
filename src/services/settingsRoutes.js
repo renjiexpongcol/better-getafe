@@ -1,7 +1,7 @@
 import { config } from '../config/index.js';
 import { categories, validate } from '../config/defaults.js';
 import { authorizeChanges, permissionsFor, requirePermission } from '../config/permissions.js';
-import { buildDatabase, discardDatabase } from './cloudSql.js';
+import { buildDatabase, discardDatabase, databaseHealth } from './cloudSql.js';
 import { buildStorage } from './storage.js';
 import { buildEmail, sendEmail } from './email.js';
 import { systemStatus } from './runtimeConfiguration.js';
@@ -27,7 +27,11 @@ export function installSettingsRoutes(app, admin) {
   app.get('/api/admin/settings/history', permission('settings.audit.view'), async (req, res) => {
     try { res.json(await config.provider.history()); } catch { res.status(503).json({ error: 'Settings history is unavailable.' }); }
   });
-  app.get('/api/admin/settings/status', permission('settings.view'), (req, res) => res.json({ application: { status: config.available ? 'healthy' : 'degraded', checkedAt: new Date().toISOString() }, ...Object.fromEntries(Object.entries(systemStatus).map(([key, value]) => [key, { ...value, source: config.sources[`${key}.provider`] || config.sources['email.enabled'] }])) }));
+  app.get('/api/admin/settings/status', permission('settings.view'), async (req, res) => {
+    const status = Object.fromEntries(Object.entries(systemStatus).map(([key, value]) => [key, { ...value, source: config.sources[`${key}.provider`] || config.sources['email.enabled'] }]));
+    for (const category of ['database', 'portalDatabase']) { if (status[category]) status[category] = { ...status[category], ...(await databaseHealth(category)) }; }
+    res.json({ application: { status: config.available ? 'healthy' : 'degraded', checkedAt: new Date().toISOString() }, ...status });
+  });
   app.post('/api/admin/settings/test/:service', permission('settings.view'), async (req, res) => {
     let resource;
     const start = Date.now();

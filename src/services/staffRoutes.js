@@ -1,5 +1,6 @@
 import express from 'express'
-import { getLocalSqlite, id, now } from '../repositories/localDb.js'
+import { id, now } from './identifiers.js'
+import { getLocalSqlite } from '../repositories/postgresCompatibility.js'
 import { getPortalUserById } from '../repositories/portalUserRepository.js'
 import { writeCitizenFile, deleteCitizenFile } from './storage.js'
 import { hasAccess, requireAccess } from './authorizationService.js'
@@ -32,8 +33,8 @@ const readApplication = async (db, application) => {
   const resident = await getPortalUserById(application.user_id)
   let details = {}
   try { details = JSON.parse(application.details || '{}') } catch { /* Keep malformed legacy details empty. */ }
-  const history = db.prepare('SELECT id,status,note,created_at,previous_status,new_status,fulfillment_note,changed_by,changed_at,completion_date,closed_at FROM application_status_history WHERE application_id = ? ORDER BY created_at DESC').all(application.id)
-  const documents = db.prepare('SELECT id,name,document_kind,verification_status,created_at,CASE WHEN storage_path IS NOT NULL AND storage_path != \'\' THEN 1 ELSE 0 END AS downloadable FROM application_documents WHERE application_id = ? ORDER BY created_at DESC').all(application.id)
+  const history = await db.prepare('SELECT id,status,note,created_at,previous_status,new_status,fulfillment_note,changed_by,changed_at,completion_date,closed_at FROM application_status_history WHERE application_id = ? ORDER BY created_at DESC').all(application.id)
+  const documents = await db.prepare('SELECT id,name,document_kind,verification_status,created_at,CASE WHEN storage_path IS NOT NULL AND storage_path != \'\' THEN 1 ELSE 0 END AS downloadable FROM application_documents WHERE application_id = ? ORDER BY created_at DESC').all(application.id)
   return { ...application, resident_name: resident?.name || 'Resident', resident_email: resident?.email || '', details, history, documents }
 }
 
@@ -42,7 +43,7 @@ export function installStaffRoutes(app, admin) {
     try { await ensureStaffPermission(req.admin) } catch (error) { return res.status(403).json({ error: error.message }) }
     try {
       const db = await getLocalSqlite()
-      const candidateRows = db.prepare(`SELECT a.*, (SELECT note FROM application_status_history WHERE application_id = a.id ORDER BY created_at DESC LIMIT 1) AS latest_note FROM applications a ORDER BY last_updated DESC`).all()
+      const candidateRows = await db.prepare(`SELECT a.*, (SELECT note FROM application_status_history WHERE application_id = a.id ORDER BY created_at DESC LIMIT 1) AS latest_note FROM applications a ORDER BY last_updated DESC`).all()
       const authorizedRows = []
       for (const application of candidateRows) if (await hasAccess(req.admin, 'requests.view', authorizationResource(application))) authorizedRows.push(application)
       const rows = authorizedRows.filter(application => !application.closed_at)
@@ -68,7 +69,7 @@ export function installStaffRoutes(app, admin) {
     try { await ensureStaffPermission(req.admin) } catch (error) { return res.status(403).json({ error: error.message }) }
     try {
       const db = await getLocalSqlite()
-      const application = db.prepare('SELECT * FROM applications WHERE id = ?').get(req.params.id)
+      const application = await db.prepare('SELECT * FROM applications WHERE id = ?').get(req.params.id)
       if (!application) return res.status(404).json({ error: 'Service request not found.' })
       try { await requireAccess(req.admin, 'requests.view', authorizationResource(application)) } catch (error) { return res.status(403).json({ error: error.message }) }
       res.json(await readApplication(db, application))
@@ -87,7 +88,7 @@ export function installStaffRoutes(app, admin) {
     if (!name || !Buffer.isBuffer(bytes) || !bytes.length || bytes.length > 5 * 1024 * 1024 || !validSignature) return res.status(422).json({ error: 'Upload a valid PDF, JPEG, or PNG smaller than 5 MB.' })
     try {
       const db = await getLocalSqlite()
-      const application = db.prepare('SELECT * FROM applications WHERE id = ?').get(req.params.id)
+      const application = await db.prepare('SELECT * FROM applications WHERE id = ?').get(req.params.id)
       if (!application) return res.status(404).json({ error: 'Service request not found.' })
       try { await requireAccess(req.admin, 'documents.process', authorizationResource(application)) } catch (error) { return res.status(403).json({ error: error.message }) }
       const documentId = id()
@@ -96,8 +97,8 @@ export function installStaffRoutes(app, admin) {
       await writeCitizenFile(storagePath, bytes, type)
       try {
         const timestamp = now()
-        db.prepare('INSERT INTO application_documents (id,application_id,user_id,name,storage_path,verification_status,document_kind,created_at) VALUES (?,?,?,?,?,?,?,?)').run(documentId, application.id, application.user_id, name, storagePath, 'approved', 'issued', timestamp)
-        db.prepare('INSERT INTO notifications (id,user_id,title,message,application_id,document_id,created_at) VALUES (?,?,?,?,?,?,?)').run(id(), application.user_id, 'Document ready for download', `${name} is now available for download from your ${application.service_name} request.`, application.id, documentId, timestamp)
+        await db.prepare('INSERT INTO application_documents (id,application_id,user_id,name,storage_path,verification_status,document_kind,created_at) VALUES (?,?,?,?,?,?,?,?)').run(documentId, application.id, application.user_id, name, storagePath, 'approved', 'issued', timestamp)
+        await db.prepare('INSERT INTO notifications (id,user_id,title,message,application_id,document_id,created_at) VALUES (?,?,?,?,?,?,?)').run(id(), application.user_id, 'Document ready for download', `${name} is now available for download from your ${application.service_name} request.`, application.id, documentId, timestamp)
       } catch (error) { await deleteCitizenFile(storagePath).catch(() => {}); throw error }
       res.status(201).json({ id: documentId, name, status: 'approved', downloadable: true })
     } catch (error) {
@@ -122,7 +123,7 @@ export function installStaffRoutes(app, admin) {
     const supportingReference = String(fulfillment.supporting_reference || '').trim().slice(0, 500)
     try {
       const db = await getLocalSqlite()
-      const application = db.prepare('SELECT * FROM applications WHERE id = ?').get(req.params.id)
+      const application = await db.prepare('SELECT * FROM applications WHERE id = ?').get(req.params.id)
       if (!application) return res.status(404).json({ error: 'Service request not found.' })
       const protectedResource = authorizationResource(application)
       try { await requireAccess(req.admin, 'requests.update', protectedResource) } catch (error) { return res.status(403).json({ error: error.message }) }
@@ -147,16 +148,16 @@ export function installStaffRoutes(app, admin) {
       const timestamp = now()
       const historyNote = [note, reason && `Reason: ${reason}`, waitingFor && `Waiting for: ${waitingFor}`, requestedInformation && `Information needed: ${requestedInformation}`, followUpDate && `Follow-up date: ${followUpDate}`, completionSummary && `Completion summary: ${completionSummary}`, actionTaken && `Action taken: ${actionTaken}`, supportingReference && `Supporting reference: ${supportingReference}`].filter(Boolean).join('\n')
       const closedAt = status === 'completed' ? timestamp : null
-      db.exec('BEGIN IMMEDIATE')
+      await db.exec('BEGIN')
       try {
-        db.prepare('UPDATE applications SET status = ?, last_updated = ?, completed_at = CASE WHEN ? = \'completed\' THEN ? ELSE completed_at END, closed_at = ?, closed_by = CASE WHEN ? IS NOT NULL THEN ? ELSE closed_by END WHERE id = ?').run(status, timestamp, status, timestamp, closedAt, closedAt, req.admin.id, application.id)
+        await db.prepare('UPDATE applications SET status = ?, last_updated = ?, completed_at = CASE WHEN ? = \'completed\' THEN ? ELSE completed_at END, closed_at = ?, closed_by = CASE WHEN ? IS NOT NULL THEN ? ELSE closed_by END WHERE id = ?').run(status, timestamp, status, timestamp, closedAt, closedAt, req.admin.id, application.id)
         if (status !== previousStatus || historyNote) {
-          db.prepare('INSERT INTO application_status_history (id,application_id,status,note,created_at,previous_status,new_status,fulfillment_note,changed_by,changed_at,completion_date,closed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(id(), application.id, status, historyNote || null, timestamp, previousStatus, status, historyNote || null, req.admin.id, timestamp, status === 'completed' ? completionDate : null, closedAt)
-          db.prepare('INSERT INTO notifications (id,user_id,title,message,application_id,created_at) VALUES (?,?,?,?,?,?)').run(id(), application.user_id, `Request update · ${application.service_name}`, historyNote || `Your request status is now ${status.replace(/_/g, ' ')}.`, application.id, timestamp)
+          await db.prepare('INSERT INTO application_status_history (id,application_id,status,note,created_at,previous_status,new_status,fulfillment_note,changed_by,changed_at,completion_date,closed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(id(), application.id, status, historyNote || null, timestamp, previousStatus, status, historyNote || null, req.admin.id, timestamp, status === 'completed' ? completionDate : null, closedAt)
+          await db.prepare('INSERT INTO notifications (id,user_id,title,message,application_id,created_at) VALUES (?,?,?,?,?,?)').run(id(), application.user_id, `Request update · ${application.service_name}`, historyNote || `Your request status is now ${status.replace(/_/g, ' ')}.`, application.id, timestamp)
         }
-        db.exec('COMMIT')
-      } catch (error) { db.exec('ROLLBACK'); throw error }
-      const updated = db.prepare('SELECT * FROM applications WHERE id = ?').get(application.id)
+        await db.exec('COMMIT')
+      } catch (error) { await db.exec('ROLLBACK'); throw error }
+      const updated = await db.prepare('SELECT * FROM applications WHERE id = ?').get(application.id)
       res.json({ saved: true, closed: Boolean(closedAt), application: await readApplication(db, updated) })
     } catch (error) {
       console.error('Staff request update failed:', error.message)
@@ -164,3 +165,5 @@ export function installStaffRoutes(app, admin) {
     }
   })
 }
+
+

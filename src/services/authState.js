@@ -24,7 +24,7 @@ export function stateTransaction(key, work) {
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
-      await connection.execute('INSERT IGNORE INTO auth_state (state_key,value,expires_at) VALUES (?, ?, 0)', [key, 'null']);
+      await connection.execute(pool.driver === 'postgresql' ? 'INSERT INTO auth_state (state_key,value,expires_at) VALUES (?, ?, 0) ON CONFLICT (state_key) DO NOTHING' : 'INSERT IGNORE INTO auth_state (state_key,value,expires_at) VALUES (?, ?, 0)', [key, 'null']);
       const [[row]] = await connection.execute('SELECT value,expires_at FROM auth_state WHERE state_key=? FOR UPDATE', [key]);
       const result = await work(Number(row.expires_at) > Date.now() ? JSON.parse(row.value) : null);
       if (result.value === null) await connection.execute('DELETE FROM auth_state WHERE state_key=?', [key]);

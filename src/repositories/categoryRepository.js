@@ -1,5 +1,5 @@
 import { getCmsPool } from '../services/cloudSql.js';
-import { getLocalDb, saveLocalDb, isGcp, id, slugify, now } from './localDb.js';
+import { getLocalDb, saveLocalDb, isGcp, id, slugify, now } from './postgresCompatibility.js';
 
 export async function getCategories() {
   if (isGcp()) {
@@ -101,3 +101,5 @@ export async function deleteCategory(categoryId) {
     }
   }
 }
+
+

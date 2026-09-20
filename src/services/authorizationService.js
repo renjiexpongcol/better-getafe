@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
-import { getLocalSqlite, id, now } from '../repositories/localDb.js'
+import { getPostgresRuntime } from '../repositories/postgresRuntime.js'
+import { id, now } from './identifiers.js'
 
 export const permissionCatalog = [
   ['requests.view', 'Requests', 'View service requests', 'View request records and requester details.'],
@@ -30,6 +31,9 @@ export const permissionCatalog = [
   ['policies.manage', 'Access Management', 'Manage policies', 'Create and assign conditional policies.', true],
   ['audit.view', 'Governance', 'View audit log', 'Review immutable authorization history.', true],
   ['system.settings.manage', 'System', 'Manage system settings', 'Change system configuration.', true],
+  ['system.database.view', 'System', 'View database settings', 'View sanitized database configuration and status.', true],
+  ['system.database.configure', 'System', 'Configure database', 'Change database connection configuration.', true],
+  ['system.database.test', 'System', 'Test database connection', 'Test a proposed database connection.', true],
   ['settings.view', 'System', 'View system settings', 'Open and review system configuration.', true],
   ['staff.dashboard.view', 'Staff Workspace', 'View staff dashboard', 'Open the municipal staff workspace.'],
   ['notifications.view', 'Staff Workspace', 'View staff notifications', 'View staff notifications.'],
@@ -46,49 +50,49 @@ const defaultGroups = [
   ['System_Administrator', 'Protected system administration group.', permissionCatalog.map(item => item[0]), true],
 ]
 
-function audit(db, actorId, action, targetType, targetId, previousValue, newValue, correlationId = crypto.randomUUID()) {
-  db.prepare('INSERT INTO auth_audit_logs (id,actor_id,action,target_type,target_id,previous_value,new_value,correlation_id,created_at) VALUES (?,?,?,?,?,?,?,?,?)').run(id(), actorId, action, targetType, targetId, previousValue == null ? null : JSON.stringify(previousValue), newValue == null ? null : JSON.stringify(newValue), correlationId, now())
+async function audit(db, actorId, action, targetType, targetId, previousValue, newValue, correlationId = crypto.randomUUID()) {
+  await db.prepare('INSERT INTO auth_audit_logs (id,actor_id,action,target_type,target_id,previous_value,new_value,correlation_id,created_at) VALUES (?,?,?,?,?,?,?,?,?)').run(id(), actorId, action, targetType, targetId, previousValue == null ? null : JSON.stringify(previousValue), newValue == null ? null : JSON.stringify(newValue), correlationId, now())
 }
 
 export async function ensureAuthorizationData() {
-  const db = await getLocalSqlite(), timestamp = now()
-  db.exec('BEGIN IMMEDIATE')
+  const db = await getPostgresRuntime('database'), timestamp = now()
+  await db.exec('BEGIN')
   try {
-    const permissionInsert = db.prepare('INSERT INTO auth_permissions (id,category,label,description,sensitive) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET category=excluded.category,label=excluded.label,description=excluded.description,sensitive=excluded.sensitive')
-    for (const [permissionId, category, label, description, sensitive = false] of permissionCatalog) permissionInsert.run(permissionId, category, label, description, sensitive ? 1 : 0)
+    const permissionInsert = db.prepare('INSERT INTO auth_permissions (id,category,label,description,sensitive) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET category=EXCLUDED.category,label=EXCLUDED.label,description=EXCLUDED.description,sensitive=EXCLUDED.sensitive')
+    for (const [permissionId, category, label, description, sensitive = false] of permissionCatalog) await permissionInsert.run(permissionId, category, label, description, sensitive)
     for (const [name, description, permissions, systemGroup = false] of defaultGroups) {
-      let group = db.prepare('SELECT * FROM auth_groups WHERE name = ?').get(name)
+      let group = await db.prepare('SELECT * FROM auth_groups WHERE name = ?').get(name)
       let created = false
-      if (!group) { const groupId = id(); db.prepare('INSERT INTO auth_groups (id,name,description,enabled,system_group,created_at,updated_at) VALUES (?,?,?,?,?,?,?)').run(groupId, name, description, 1, systemGroup ? 1 : 0, timestamp, timestamp); group = { id: groupId }; created = true }
+      if (!group) { const groupId = id(); await db.prepare('INSERT INTO auth_groups (id,name,description,enabled,system_group,created_at,updated_at) VALUES (?,?,?,?,?,?,?)').run(groupId, name, description, true, systemGroup, timestamp, timestamp); group = { id: groupId }; created = true }
       // Seed editable default groups once. The protected system group tracks
       // newly introduced permissions so upgrades cannot lock administrators
       // out of new management modules.
       if (created || systemGroup) {
-        const link = db.prepare('INSERT OR IGNORE INTO auth_group_permissions (group_id,permission_id,created_at,created_by) VALUES (?,?,?,?)')
-        for (const permissionId of permissions) link.run(group.id, permissionId, timestamp, 'system')
+        const link = db.prepare('INSERT INTO auth_group_permissions (group_id,permission_id,created_at,created_by) VALUES (?,?,?,?) ON CONFLICT DO NOTHING')
+        for (const permissionId of permissions) await link.run(group.id, permissionId, timestamp, 'system')
       }
     }
-    db.exec('COMMIT')
-  } catch (error) { db.exec('ROLLBACK'); throw error }
+    await db.exec('COMMIT')
+  } catch (error) { await db.exec('ROLLBACK'); throw error }
   return db
 }
 
 export async function ensureBootstrapMembership(user) {
   const db = await ensureAuthorizationData()
   if (!user?.id || user.role === 'disabled') return db
-  const bootstrapped = db.prepare('SELECT 1 FROM auth_user_bootstrap WHERE user_id = ?').get(user.id)
+  const bootstrapped = await db.prepare('SELECT 1 FROM auth_user_bootstrap WHERE user_id = ?').get(user.id)
   if (bootstrapped) return db
   const groupName = ['super_admin', 'admin', 'it_support'].includes(user.role) ? 'System_Administrator' : user.role === 'content_manager' ? 'Content_Manager' : user.role === 'staff' ? 'Staff_Support' : null
-  db.exec('BEGIN IMMEDIATE')
+  await db.exec('BEGIN')
   try {
     if (groupName) {
-      const group = db.prepare('SELECT id FROM auth_groups WHERE name = ?').get(groupName)
+      const group = await db.prepare('SELECT id FROM auth_groups WHERE name = ?').get(groupName)
       if (!group) throw new Error(`Default authorization group unavailable: ${groupName}`)
-      db.prepare('INSERT OR IGNORE INTO auth_user_groups (user_id,group_id,created_at,created_by) VALUES (?,?,?,?)').run(user.id, group.id, now(), 'system-migration')
+      await db.prepare('INSERT INTO auth_user_groups (user_id,group_id,created_at,created_by) VALUES (?,?,?,?) ON CONFLICT DO NOTHING').run(user.id, group.id, now(), 'system-migration')
     }
-    db.prepare('INSERT OR IGNORE INTO auth_user_bootstrap (user_id,created_at) VALUES (?,?)').run(user.id, now())
-    db.exec('COMMIT')
-  } catch (error) { db.exec('ROLLBACK'); throw error }
+    await db.prepare('INSERT INTO auth_user_bootstrap (user_id,created_at) VALUES (?,?) ON CONFLICT DO NOTHING').run(user.id, now())
+    await db.exec('COMMIT')
+  } catch (error) { await db.exec('ROLLBACK'); throw error }
   return db
 }
 
@@ -109,17 +113,17 @@ function policyMatches(condition, user, resource) {
 
 export async function effectiveAccessFor(user, resource = null) {
   const db = await ensureBootstrapMembership(user)
-  const groups = db.prepare('SELECT g.* FROM auth_groups g JOIN auth_user_groups ug ON ug.group_id=g.id WHERE ug.user_id=? AND g.enabled=1 AND g.archived_at IS NULL ORDER BY g.name').all(user.id)
+  const groups = await db.prepare('SELECT g.* FROM auth_groups g JOIN auth_user_groups ug ON ug.group_id=g.id WHERE ug.user_id=? AND g.enabled=TRUE AND g.archived_at IS NULL ORDER BY g.name').all(user.id)
   const entries = new Map()
   for (const group of groups) {
-    const permissions = db.prepare('SELECT p.* FROM auth_permissions p JOIN auth_group_permissions gp ON gp.permission_id=p.id WHERE gp.group_id=?').all(group.id)
-    const policies = db.prepare('SELECT p.* FROM auth_policies p JOIN auth_group_policies gp ON gp.policy_id=p.id WHERE gp.group_id=? AND p.enabled=1').all(group.id)
+    const permissions = await db.prepare('SELECT p.* FROM auth_permissions p JOIN auth_group_permissions gp ON gp.permission_id=p.id WHERE gp.group_id=?').all(group.id)
+    const policies = await db.prepare('SELECT p.* FROM auth_policies p JOIN auth_group_policies gp ON gp.policy_id=p.id WHERE gp.group_id=? AND p.enabled=TRUE').all(group.id)
     for (const permission of permissions) {
       const applicable = policies.filter(policy => !policy.permission_id || policy.permission_id === permission.id)
       let allowed = true
       const policyTrace = []
       for (const policy of applicable) {
-        let condition = {}; try { condition = JSON.parse(policy.condition_json || '{}') } catch { condition = { invalid: true } }
+        let condition = {}; try { condition = typeof policy.condition_json === 'string' ? JSON.parse(policy.condition_json || '{}') : (policy.condition_json || {}) } catch { condition = { invalid: true } }
         const matches = resource === null ? null : policyMatches(condition, user, resource)
         policyTrace.push({ id: policy.id, name: policy.name, effect: policy.effect, matched: matches })
         if (resource !== null && ((policy.effect === 'deny' && matches) || (policy.effect === 'allow' && !matches))) allowed = false

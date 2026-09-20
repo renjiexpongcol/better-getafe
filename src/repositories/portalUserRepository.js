@@ -1,5 +1,5 @@
 import { getPortalPool } from '../services/cloudSql.js';
-import { getLocalDb, saveLocalDb, isPortalGcp, id, now, hash } from './localDb.js';
+import { getLocalDb, saveLocalDb, isPortalGcp, id, now, hash } from './postgresCompatibility.js';
 
 export async function getPortalUserByEmail(email) {
   if (isPortalGcp()) {
@@ -106,5 +106,7 @@ export async function createPortalUser(name, email, password) {
   await saveLocalDb(db);
   return user;
 }
+
+
 
 

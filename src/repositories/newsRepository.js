@@ -1,5 +1,5 @@
 import { getCmsPool } from '../services/cloudSql.js';
-import { getLocalDb, saveLocalDb, isGcp, id, slugify, now } from './localDb.js';
+import { getLocalDb, saveLocalDb, isGcp, id, slugify, now } from './postgresCompatibility.js';
 import { getCategories } from './categoryRepository.js';
 
 const truthy = (value) => value === true || value === 1;
@@ -170,3 +170,5 @@ export async function bulkUpdateNewsArticles(articleIds, action) {
   await saveLocalDb(db);
   return action === 'delete' ? before - db.news.length : ids.filter((id) => before !== db.news.length && selected.has(id)).length;
 }
+
+

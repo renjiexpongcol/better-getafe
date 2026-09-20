@@ -351,7 +351,7 @@ function MfaSetupModal({ onClose }) {
       role="presentation"
     >
       <section
-        className="profile-modal-card mfa-setup-modal"
+        className={`profile-modal-card mfa-setup-modal ${setup ? "mfa-setup-flow" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="mfa-title"
@@ -365,13 +365,17 @@ function MfaSetupModal({ onClose }) {
           <X size={19} />
         </button>
         <div className="mfa-modal-content">
-          <img
-            className="mfa-authentication-icon"
-            src="/assets/icons/auth-pack/authentication.png"
-            alt=""
-            aria-hidden="true"
-          />
-          <h2 id="mfa-title">Two-factor authentication</h2>
+          {!setup && (
+            <>
+              <img
+                className="mfa-authentication-icon"
+                src="/assets/icons/auth-pack/authentication.png"
+                alt=""
+                aria-hidden="true"
+              />
+              <h2 id="mfa-title">Two-factor authentication</h2>
+            </>
+          )}
           {user?.mfaEnabled && !recoveryCodes ? (
             <>
               <p>
@@ -456,43 +460,55 @@ function MfaSetupModal({ onClose }) {
             </>
           ) : (
             <form onSubmit={activate}>
-              <p>
-                Scan this QR code with your authenticator app, then enter the
-                six-digit code it generates.
-              </p>
-              <img
-                className="mfa-qr"
-                src={setup.qrCode}
-                alt="Authenticator setup QR code"
-              />
-              <details>
-                <summary>Can’t scan the code?</summary>
-                <p>
-                  In your app, choose to enter a setup key manually, then use
-                  this key:
-                </p>
-                <code className="mfa-secret">{setup.secret}</code>
-              </details>
-              <label>
-                Verification code
-                <input
-                  required
-                  inputMode="numeric"
-                  pattern="[0-9]{6}"
-                  maxLength="6"
-                  autoComplete="one-time-code"
-                  value={code}
-                  onChange={(event) =>
-                    setCode(event.target.value.replace(/\D/g, ""))
-                  }
-                />
-              </label>
-              <button
-                className="citizen-primary"
-                disabled={busy || code.length !== 6}
-              >
-                {busy ? "Verifying…" : "Verify and activate"}
-              </button>
+              <header className="mfa-flow-heading">
+                <h2 id="mfa-title">Enable Authenticator App</h2>
+                <p>Make your account safer in 3 easy steps:</p>
+              </header>
+              <div className="mfa-flow-step">
+                <span className="mfa-flow-step-icon"><Smartphone size={47} strokeWidth={1.5} /></span>
+                <div>
+                  <strong>Download an authenticator app</strong>
+                  <p>
+                    Download and install <a href="https://www.authy.com/download" target="_blank" rel="noopener noreferrer">Authy</a> or <a href="https://www.google.com/mobile/authenticator/" target="_blank" rel="noopener noreferrer">Google Authenticator</a> for your phone or tablet.
+                  </p>
+                </div>
+              </div>
+              <div className="mfa-flow-step mfa-flow-qr-step">
+                <span className="mfa-flow-step-icon">
+                  <img className="mfa-qr" src={setup.qrCode} alt="Authenticator setup QR code" />
+                </span>
+                <div>
+                  <strong>Scan the QR code</strong>
+                  <p>Open the authentication app and scan the image to the left using your phone's camera.</p>
+                  <div className="mfa-flow-manual">
+                    <strong>2FA Key (Manual entry)</strong>
+                    <code className="mfa-secret">{setup.secret}</code>
+                  </div>
+                </div>
+              </div>
+              <div className="mfa-flow-step mfa-flow-code-step">
+                <span className="mfa-flow-step-icon"><ShieldCheck size={47} strokeWidth={1.5} /></span>
+                <div className="mfa-flow-code-content">
+                  <strong>Log in with your code</strong>
+                  <p>Enter the 6-digit verification code generated.</p>
+                  <div className="mfa-flow-code-actions">
+                    <input
+                      required
+                      inputMode="numeric"
+                      pattern="[0-9]{6}"
+                      maxLength="6"
+                      autoComplete="one-time-code"
+                      aria-label="6-digit verification code"
+                      placeholder="000 000"
+                      value={code}
+                      onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
+                    />
+                    <button className="citizen-primary" disabled={busy || code.length !== 6}>
+                      {busy ? "Activating…" : "Activate"}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </form>
           )}
           {error && (

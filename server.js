@@ -11,7 +11,7 @@ process.on('unhandledRejection', (error) => {
 import express from "express";
 import { getGetafeWeather } from './src/services/getafeWeather.js';
 import { getAggregatedCurrent, getAggregatedForecast, providerKeys } from './src/services/weatherAggregator.js';
-import { closeCloudSql } from './src/services/cloudSql.js';
+import { closeCloudSql, databaseHealth, getPortalPool } from './src/services/cloudSql.js';
 import path from "path";
 import fs from "node:fs/promises";
 import crypto from "crypto";
@@ -44,7 +44,7 @@ import { generateTotpSecret, verifyTotp, encryptMfaSecret, decryptMfaSecret, gen
 import { getOfficials, saveOfficials } from "./src/repositories/officialsRepository.js";
 import { getBarangays, saveBarangays } from "./src/repositories/barangaysRepository.js";
 import { sanitizeRichText, sanitizeOfficials, sanitizeBarangays } from './src/services/sanitizeHtml.js';
-import { getLocalSqlite, id as createId, now as dbNow } from './src/repositories/localDb.js';
+import { id as createId, now as dbNow } from './src/services/identifiers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -97,8 +97,12 @@ app.use('/api', (req, res, next) => {
   // browser cannot provide the portal's X-Requested-With header. Keep these
   // two public entry points available while the routes below validate state.
   const isGoogleOAuthRequest = req.method === 'GET' && (req.path === '/auth/google' || req.path === '/auth/google/callback');
-  if (req.get('X-Requested-With') === 'GetafeCitizenPortal' || isAvatarImage || isLogout || isGoogleOAuthRequest) return next();
-  if (req.accepts('html')) {
+  const isAdminApi = req.path.startsWith('/admin/');
+  const isAuthApi = req.path.startsWith('/auth/') || req.path.startsWith('/portal-auth/');
+  const isPublicConfig = req.method === 'GET' && req.path === '/public/config';
+  const isPublicRead = req.method === 'GET' && !isAdminApi && !isAuthApi;
+  if (req.get('X-Requested-With') === 'GetafeCitizenPortal' || isAvatarImage || isLogout || isGoogleOAuthRequest || isAdminApi || isAuthApi || isPublicConfig || isPublicRead) return next();
+  if (req.get('Accept')?.includes('text/html') && req.accepts('html')) {
     return res.status(403).type('html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Access Restricted · Getafe Citizen Portal</title><style>:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:#f8fafc;color:#172033}.card{width:min(100%,520px);padding:42px 38px;border:1px solid #e2e8f0;border-radius:20px;background:#fff;box-shadow:0 20px 55px #0f172a1a;text-align:center}.icon{width:64px;height:64px;display:grid;place-items:center;margin:0 auto 24px;border-radius:18px;background:#eff6ff;color:#2563eb}.icon svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.8}h1{margin:0 0 24px;font-size:clamp(1.7rem,4vw,2.15rem);letter-spacing:-.04em}.badge{display:inline-flex;padding:8px 13px;border-radius:999px;background:#fef2f2;color:#b91c1c;font-size:.78rem;font-weight:800;letter-spacing:.04em}</style></head><body><main class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2"/></svg></div><h1>Access Restricted</h1><span class="badge">HTTP 403 Forbidden</span></main></body></html>`);
   }
   return res.status(403).json({ error: 'Forbidden', message: 'Direct API access restricted. Please use the Getafe Citizen Portal application.' });
@@ -849,19 +853,20 @@ app.get('/api/admin/reports', admin, permission('reports.view'), async (req, res
 // they can never use.
 const privacyAdmin = permission('privacy.manage');
 app.get('/api/admin/privacy-requests', admin, privacyAdmin, async (req, res) => {
-  const db = await getLocalSqlite(), requests = db.prepare('SELECT * FROM privacy_requests ORDER BY created_at DESC').all();
-  res.json(requests.map(request => ({ ...request, events: db.prepare('SELECT * FROM privacy_request_events WHERE request_id = ? ORDER BY created_at DESC').all(request.id) })));
+  const pool = await getPortalPool(), [requests] = await pool.execute('SELECT * FROM privacy_requests ORDER BY created_at DESC');
+  const result = await Promise.all(requests.map(async request => { const [events] = await pool.execute('SELECT * FROM privacy_request_events WHERE request_id = ? ORDER BY created_at DESC', [request.id]); return { ...request, events }; }));
+  res.json(result);
 });
 app.patch('/api/admin/privacy-requests/:id', admin, privacyAdmin, async (req, res) => {
   const allowed = new Set(['submitted', 'identity_verified', 'under_review', 'processing', 'completed', 'additional_information_required', 'partially_completed', 'rejected_unable_to_delete', 'cancelled']);
   const status = String(req.body?.status || ''), note = String(req.body?.note || '').trim().slice(0, 2000);
   if (!allowed.has(status)) return res.status(422).json({ error: 'Choose a valid privacy request status.' });
   if (!note) return res.status(422).json({ error: 'Add an internal or citizen-facing explanation for this update.' });
-  const db = await getLocalSqlite(), request = db.prepare('SELECT id FROM privacy_requests WHERE id = ?').get(req.params.id);
+  const pool = await getPortalPool(), [requests] = await pool.execute('SELECT id FROM privacy_requests WHERE id = ?', [req.params.id]), request = requests[0];
   if (!request) return res.status(404).json({ error: 'Privacy request not found.' });
   const updated = dbNow();
-  db.prepare('UPDATE privacy_requests SET status = ?, updated_at = ?, review_note = ? WHERE id = ?').run(status, updated, note, request.id);
-  db.prepare('INSERT INTO privacy_request_events (id,request_id,actor_id,actor_type,event,note,created_at) VALUES (?,?,?,?,?,?,?)').run(createId(), request.id, req.admin.id, 'admin', `status:${status}`, note, updated);
+  await pool.execute('UPDATE privacy_requests SET status = ?, updated_at = ?, review_note = ? WHERE id = ?', [status, updated, note, request.id]);
+  await pool.execute('INSERT INTO privacy_request_events (id,request_id,actor_id,actor_type,event,note,created_at) VALUES (?,?,?,?,?,?,?)', [createId(), request.id, req.admin.id, 'admin', `status:${status}`, note, updated]);
   res.json({ ok: true, status, updated_at: updated });
 });
 app.post('/api/admin/integrations/test', admin, permission('system.settings.manage'), async (req, res) => {
@@ -1251,6 +1256,11 @@ app.get("/api/health", (req, res) => {
     cmsDatabase: serviceStatus.cmsDatabase,
     portalDatabase: serviceStatus.portalDatabase,
   });
+});
+
+app.get('/api/health/database', async (req, res) => {
+  const health = await databaseHealth('database');
+  res.status(health.status === 'healthy' || health.status === 'local' ? 200 : 503).json({ status: health.status === 'healthy' ? 'healthy' : health.status });
 });
 
 app.get("/ready", (req, res) => {

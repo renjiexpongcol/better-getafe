@@ -1,0 +1,35 @@
+-- Runtime tables previously created by the SQLite bootstrap. These are now
+-- versioned PostgreSQL objects; application startup never creates schema.
+CREATE TABLE IF NOT EXISTS application_documents (id TEXT PRIMARY KEY, application_id TEXT NOT NULL REFERENCES applications(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES portal_users(id) ON DELETE CASCADE, name VARCHAR(255) NOT NULL, storage_path TEXT, verification_status VARCHAR(32) NOT NULL DEFAULT 'pending', document_kind VARCHAR(64) NOT NULL DEFAULT 'uploaded', created_at TIMESTAMPTZ NOT NULL);
+ALTER TABLE resident_profiles ADD COLUMN IF NOT EXISTS gender VARCHAR(32);
+ALTER TABLE resident_profiles ADD COLUMN IF NOT EXISTS email_notifications BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE resident_profiles ADD COLUMN IF NOT EXISTS sms_notifications BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS closed_by TEXT;
+ALTER TABLE application_documents ADD COLUMN IF NOT EXISTS document_kind VARCHAR(64) NOT NULL DEFAULT 'uploaded';
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS application_id TEXT;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS document_id TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS service_id TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reason TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS contact_number VARCHAR(64);
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS barangay VARCHAR(160);
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS barangay_portal_url TEXT;
+CREATE TABLE IF NOT EXISTS application_status_history (id TEXT PRIMARY KEY, application_id TEXT NOT NULL REFERENCES applications(id) ON DELETE CASCADE, status VARCHAR(48) NOT NULL, note TEXT, created_at TIMESTAMPTZ NOT NULL, previous_status VARCHAR(48), new_status VARCHAR(48), fulfillment_note TEXT, changed_by TEXT, changed_at TIMESTAMPTZ, completion_date TIMESTAMPTZ, closed_at TIMESTAMPTZ);
+CREATE TABLE IF NOT EXISTS application_documents (id TEXT PRIMARY KEY, application_id TEXT NOT NULL REFERENCES applications(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES portal_users(id) ON DELETE CASCADE, name VARCHAR(255) NOT NULL, storage_path TEXT, verification_status VARCHAR(32) NOT NULL DEFAULT 'pending', document_kind VARCHAR(64) NOT NULL DEFAULT 'uploaded', created_at TIMESTAMPTZ NOT NULL);
+CREATE TABLE IF NOT EXISTS settlement_requests (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES portal_users(id) ON DELETE CASCADE, category VARCHAR(120) NOT NULL, reference_number VARCHAR(64) NOT NULL, amount NUMERIC(12,2) NOT NULL CHECK (amount >= 0), payment_method VARCHAR(64) NOT NULL, status VARCHAR(32) NOT NULL DEFAULT 'for_verification', notes TEXT, created_at TIMESTAMPTZ NOT NULL);
+CREATE TABLE IF NOT EXISTS privacy_requests (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES portal_users(id) ON DELETE CASCADE, request_type VARCHAR(64) NOT NULL, scope TEXT NOT NULL, status VARCHAR(32) NOT NULL DEFAULT 'submitted', created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL, review_note TEXT);
+CREATE TABLE IF NOT EXISTS privacy_request_events (id TEXT PRIMARY KEY, request_id TEXT NOT NULL REFERENCES privacy_requests(id) ON DELETE CASCADE, actor_id TEXT NOT NULL, actor_type VARCHAR(32) NOT NULL, event VARCHAR(64) NOT NULL, note TEXT, created_at TIMESTAMPTZ NOT NULL);
+CREATE TABLE IF NOT EXISTS appointment_schedule_config (id INTEGER PRIMARY KEY CHECK (id = 1), min_advance_minutes INTEGER NOT NULL DEFAULT 60, booking_horizon_days INTEGER NOT NULL DEFAULT 30, weekdays JSONB NOT NULL DEFAULT '[1,2,3,4,5]'::jsonb, opening_time TIME NOT NULL DEFAULT '08:00', closing_time TIME NOT NULL DEFAULT '17:00', break_start TIME NOT NULL DEFAULT '12:00', break_end TIME NOT NULL DEFAULT '13:00', slot_minutes INTEGER NOT NULL DEFAULT 30, slot_capacity INTEGER NOT NULL DEFAULT 5, location TEXT NOT NULL DEFAULT 'Municipal Hall');
+INSERT INTO appointment_schedule_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+CREATE TABLE IF NOT EXISTS appointment_closures (id TEXT PRIMARY KEY, closure_date DATE NOT NULL UNIQUE, reason TEXT, created_at TIMESTAMPTZ NOT NULL);
+CREATE TABLE IF NOT EXISTS barangay_appointment_integrations (barangay_id TEXT PRIMARY KEY, notification_email TEXT, portal_url TEXT, updated_at TIMESTAMPTZ NOT NULL);
+CREATE TABLE IF NOT EXISTS google_profiles (user_id TEXT PRIMARY KEY REFERENCES portal_users(id) ON DELETE CASCADE, picture TEXT, completed BOOLEAN NOT NULL DEFAULT FALSE, password_set BOOLEAN NOT NULL DEFAULT FALSE, identity_verified BOOLEAN NOT NULL DEFAULT FALSE, verification_method TEXT);
+CREATE TABLE IF NOT EXISTS auth_groups (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL DEFAULT '', enabled BOOLEAN NOT NULL DEFAULT TRUE, system_group BOOLEAN NOT NULL DEFAULT FALSE, archived_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL);
+CREATE TABLE IF NOT EXISTS auth_permissions (id TEXT PRIMARY KEY, category TEXT NOT NULL, label TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', sensitive BOOLEAN NOT NULL DEFAULT FALSE);
+CREATE TABLE IF NOT EXISTS auth_user_groups (user_id TEXT NOT NULL, group_id TEXT NOT NULL REFERENCES auth_groups(id) ON DELETE CASCADE, created_at TIMESTAMPTZ NOT NULL, created_by TEXT, PRIMARY KEY (user_id, group_id));
+CREATE TABLE IF NOT EXISTS auth_user_bootstrap (user_id TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL);
+CREATE TABLE IF NOT EXISTS auth_group_permissions (group_id TEXT NOT NULL REFERENCES auth_groups(id) ON DELETE CASCADE, permission_id TEXT NOT NULL REFERENCES auth_permissions(id) ON DELETE CASCADE, created_at TIMESTAMPTZ NOT NULL, created_by TEXT, PRIMARY KEY (group_id, permission_id));
+CREATE TABLE IF NOT EXISTS auth_policies (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL DEFAULT '', effect TEXT NOT NULL DEFAULT 'allow', permission_id TEXT, condition_json JSONB NOT NULL DEFAULT '{}'::jsonb, enabled BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL);
+CREATE TABLE IF NOT EXISTS auth_group_policies (group_id TEXT NOT NULL REFERENCES auth_groups(id) ON DELETE CASCADE, policy_id TEXT NOT NULL REFERENCES auth_policies(id) ON DELETE CASCADE, created_at TIMESTAMPTZ NOT NULL, created_by TEXT, PRIMARY KEY (group_id, policy_id));
+CREATE TABLE IF NOT EXISTS auth_audit_logs (id TEXT PRIMARY KEY, actor_id TEXT NOT NULL, action TEXT NOT NULL, target_type TEXT NOT NULL, target_id TEXT NOT NULL, previous_value JSONB, new_value JSONB, correlation_id TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL);

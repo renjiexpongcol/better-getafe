@@ -1,6 +1,7 @@
 import { googleOnboarding, completeGoogleOnboarding, validMobile, markGooglePasswordSet, markGoogleIdentityVerified } from './googleOnboarding.js'
 import express from 'express'
-import { getLocalSqlite, id, now } from '../repositories/localDb.js'
+import { getPostgresRuntime } from '../repositories/postgresRuntime.js'
+import { id, now } from './identifiers.js'
 import { citizenServices } from '../data/citizenServices.js'
 import { config } from '../config/index.js'
 import { writeCitizenFile, readCitizenFile, deleteCitizenFile } from './storage.js'
@@ -14,24 +15,9 @@ import crypto from 'node:crypto'
 
 export function installCitizenRoutes(app, resident, safeUser) {
   app.use('/api/citizen', (req, res, next) => { res.set('Cache-Control', 'no-store'); next() })
-  const database = async () => {
-    const db = await getLocalSqlite()
-    for (const [table, column, definition] of [
-      ['resident_profiles', 'avatar_storage_path', 'TEXT'],
-      ['resident_profiles', 'gender', 'TEXT'],
-      ['resident_profiles', 'email_notifications', 'INTEGER NOT NULL DEFAULT 0'],
-      ['resident_profiles', 'sms_notifications', 'INTEGER NOT NULL DEFAULT 0'],
-      ['application_documents', 'document_kind', "TEXT NOT NULL DEFAULT 'uploaded'"],
-      ['notifications', 'application_id', 'TEXT'], ['notifications', 'document_id', 'TEXT'],
-      ['appointments', 'service_id', 'TEXT'], ['appointments', 'reason', 'TEXT'], ['appointments', 'contact_number', 'TEXT'],
-      ['appointments', 'barangay', 'TEXT'], ['appointments', 'barangay_portal_url', 'TEXT'],
-    ]) {
-      if (!db.prepare(`PRAGMA table_info(${table})`).all().some(item => item.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
-    }
-    return db
-  }
-  const ownedApplication = (db, req, applicationId) => db.prepare('SELECT * FROM applications WHERE id = ? AND user_id = ?').get(applicationId, req.resident.id)
-  const notify = (db, userId, title, message, applicationId = null, documentId = null) => db.prepare('INSERT INTO notifications (id,user_id,title,message,application_id,document_id,created_at) VALUES (?,?,?,?,?,?,?)').run(id(), userId, title, message, applicationId, documentId, now())
+  const database = () => getPostgresRuntime('portal')
+  const ownedApplication = async (db, req, applicationId) => await db.prepare('SELECT * FROM applications WHERE id = ? AND user_id = ?').get(applicationId, req.resident.id)
+  const notify = async (db, userId, title, message, applicationId = null, documentId = null) => await db.prepare('INSERT INTO notifications (id,user_id,title,message,application_id,document_id,created_at) VALUES (?,?,?,?,?,?,?)').run(id(), userId, title, message, applicationId, documentId, now())
   const passwordMatches = (password, stored) => { try { const [salt, digest] = String(stored || '').split(':'); if (!salt || !digest) return false; const actual = crypto.scryptSync(password, salt, 64).toString('hex'); return crypto.timingSafeEqual(Buffer.from(actual, 'hex'), Buffer.from(digest, 'hex')) } catch { return false } }
   const profileView = profile => {
     if (!profile) return null
@@ -39,13 +25,13 @@ export function installCitizenRoutes(app, resident, safeUser) {
     delete view.avatar_storage_path
     return view
   }
-  const appointmentConfiguration = db => db.prepare('SELECT * FROM appointment_schedule_config WHERE id = 1').get()
+  const appointmentConfiguration = async db => await db.prepare('SELECT * FROM appointment_schedule_config WHERE id = 1').get()
   const dayKey = date => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
   const slotDate = (date, time) => new Date(`${date}T${time}:00+08:00`)
-  const appointmentAvailability = (db, serviceId) => {
-    const config = appointmentConfiguration(db), today = new Date(), start = new Date(today.getTime() + config.min_advance_minutes * 60000), end = new Date(today.getTime() + config.booking_horizon_days * 86400000)
-    const weekdays = JSON.parse(config.weekdays), closures = new Set(db.prepare('SELECT closure_date FROM appointment_closures').all().map(item => item.closure_date))
-    const appointments = db.prepare("SELECT appointment_at FROM appointments WHERE appointment_at >= ? AND appointment_at <= ? AND status IN ('requested','scheduled','confirmed')").all(start.toISOString(), end.toISOString())
+  const appointmentAvailability = async (db, serviceId) => {
+    const config = await appointmentConfiguration(db), today = new Date(), start = new Date(today.getTime() + config.min_advance_minutes * 60000), end = new Date(today.getTime() + config.booking_horizon_days * 86400000)
+    const weekdays = Array.isArray(config.weekdays) ? config.weekdays : JSON.parse(config.weekdays), closures = new Set((await db.prepare('SELECT closure_date FROM appointment_closures').all()).map(item => item.closure_date))
+    const appointments = await db.prepare("SELECT appointment_at FROM appointments WHERE appointment_at >= ? AND appointment_at <= ? AND status IN ('requested','scheduled','confirmed')").all(start.toISOString(), end.toISOString())
     const occupied = new Map(); appointments.forEach(item => occupied.set(item.appointment_at, (occupied.get(item.appointment_at) || 0) + 1))
     const dates = [], cursor = new Date(start); cursor.setUTCHours(0, 0, 0, 0)
     for (; cursor <= end; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
@@ -64,18 +50,18 @@ export function installCitizenRoutes(app, resident, safeUser) {
 
   app.get('/api/citizen/dashboard', resident, async (req, res) => {
     const db = await database(), userId = req.resident.id
-    const applications = db.prepare(`SELECT a.*, (SELECT note FROM application_status_history WHERE application_id = a.id ORDER BY created_at DESC LIMIT 1) AS latest_note FROM applications a WHERE user_id = ? ORDER BY last_updated DESC`).all(userId)
-    const documents = db.prepare('SELECT id,application_id,name,verification_status,document_kind,created_at,CASE WHEN storage_path IS NOT NULL AND storage_path != \'\' THEN 1 ELSE 0 END AS downloadable FROM application_documents WHERE user_id = ? ORDER BY created_at DESC').all(userId)
-    const payments = db.prepare('SELECT p.*, a.service_name FROM payments p LEFT JOIN applications a ON a.id = p.application_id AND a.user_id = p.user_id WHERE p.user_id = ? ORDER BY p.created_at DESC').all(userId)
-    const settlements = db.prepare('SELECT * FROM settlement_requests WHERE user_id = ? ORDER BY created_at DESC').all(userId)
-    const privacyRequests = db.prepare('SELECT id,request_type,scope,status,created_at,updated_at,review_note FROM privacy_requests WHERE user_id = ? ORDER BY created_at DESC').all(userId)
-    const appointments = db.prepare('SELECT * FROM appointments WHERE user_id = ? ORDER BY appointment_at').all(userId)
-    const notifications = db.prepare('SELECT * FROM notifications WHERE user_id = ? AND archived_at IS NULL ORDER BY created_at DESC').all(userId)
-    const profile = db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(userId) || { full_name: req.resident.name }
+    const applications = await db.prepare(`SELECT a.*, (SELECT note FROM application_status_history WHERE application_id = a.id ORDER BY created_at DESC LIMIT 1) AS latest_note FROM applications a WHERE user_id = ? ORDER BY last_updated DESC`).all(userId)
+    const documents = await db.prepare('SELECT id,application_id,name,verification_status,document_kind,created_at,CASE WHEN storage_path IS NOT NULL AND storage_path != \'\' THEN 1 ELSE 0 END AS downloadable FROM application_documents WHERE user_id = ? ORDER BY created_at DESC').all(userId)
+    const payments = await db.prepare('SELECT p.*, a.service_name FROM payments p LEFT JOIN applications a ON a.id = p.application_id AND a.user_id = p.user_id WHERE p.user_id = ? ORDER BY p.created_at DESC').all(userId)
+    const settlements = await db.prepare('SELECT * FROM settlement_requests WHERE user_id = ? ORDER BY created_at DESC').all(userId)
+    const privacyRequests = await db.prepare('SELECT id,request_type,scope,status,created_at,updated_at,review_note FROM privacy_requests WHERE user_id = ? ORDER BY created_at DESC').all(userId)
+    const appointments = await db.prepare('SELECT * FROM appointments WHERE user_id = ? ORDER BY appointment_at').all(userId)
+    const notifications = await db.prepare('SELECT * FROM notifications WHERE user_id = ? AND archived_at IS NULL ORDER BY created_at DESC').all(userId)
+    const profile = await db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(userId) || { full_name: req.resident.name }
     res.json({ user: safeUser(req.resident), profile: { ...profileView(profile), avatar_url: profileView(profile)?.avatar_url || (await googleOnboarding(req.resident)).avatar_url || null }, applications, documents, payments, settlements, privacyRequests, appointments, notifications })
   })
   app.get('/api/citizen/profile', resident, async (req, res) => {
-    const db = await database(), profile = db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
+    const db = await database(), profile = await db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
     const onboarding = await googleOnboarding(req.resident)
     res.json({ ...profileView(profile || { user_id: req.resident.id, full_name: req.resident.name, verification_status: 'unverified' }), email: req.resident.email, ...onboarding })
   })
@@ -83,16 +69,16 @@ export function installCitizenRoutes(app, resident, safeUser) {
     const db = await database(), timestamp = now(), body = req.body || {}
     if ((await googleOnboarding(req.resident)).googleAccount && (!String(body.full_name || '').trim() || !validMobile(body.mobile))) return res.status(422).json({ error: 'Provide your full name and a valid mobile number (10–15 digits).' })
     if (body.barangay && !barangays.some(item => item.name === String(body.barangay).trim())) return res.status(422).json({ error: 'Choose one of Getafe’s 24 barangays.' })
-    db.prepare(`INSERT INTO resident_profiles (user_id, full_name, mobile, gender, barangay, house_lot, street, purok_sitio, municipality, province, zip_code, verification_status, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'unverified', ?) ON CONFLICT(user_id) DO UPDATE SET full_name=excluded.full_name, mobile=excluded.mobile, gender=excluded.gender, barangay=excluded.barangay, house_lot=excluded.house_lot, street=excluded.street, purok_sitio=excluded.purok_sitio, municipality=excluded.municipality, province=excluded.province, zip_code=excluded.zip_code, updated_at=excluded.updated_at`).run(req.resident.id, String(body.full_name || req.resident.name).slice(0, 160), String(body.mobile || '').slice(0, 32), String(body.gender || '').slice(0, 16), String(body.barangay || '').slice(0, 160), String(body.house_lot || '').slice(0, 160), String(body.street || '').slice(0, 160), String(body.purok_sitio || '').slice(0, 160), String(body.municipality || 'Getafe').slice(0, 100), String(body.province || 'Bohol').slice(0, 100), String(body.zip_code || '').slice(0, 16), timestamp)
-    res.json({ ok: true, profile: profileView(db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(req.resident.id)) })
+    await db.prepare(`INSERT INTO resident_profiles (user_id, full_name, mobile, gender, barangay, house_lot, street, purok_sitio, municipality, province, zip_code, verification_status, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'unverified', ?) ON CONFLICT(user_id) DO UPDATE SET full_name=excluded.full_name, mobile=excluded.mobile, gender=excluded.gender, barangay=excluded.barangay, house_lot=excluded.house_lot, street=excluded.street, purok_sitio=excluded.purok_sitio, municipality=excluded.municipality, province=excluded.province, zip_code=excluded.zip_code, updated_at=excluded.updated_at`).run(req.resident.id, String(body.full_name || req.resident.name).slice(0, 160), String(body.mobile || '').slice(0, 32), String(body.gender || '').slice(0, 16), String(body.barangay || '').slice(0, 160), String(body.house_lot || '').slice(0, 160), String(body.street || '').slice(0, 160), String(body.purok_sitio || '').slice(0, 160), String(body.municipality || 'Getafe').slice(0, 100), String(body.province || 'Bohol').slice(0, 100), String(body.zip_code || '').slice(0, 16), timestamp)
+    res.json({ ok: true, profile: profileView(await db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(req.resident.id)) })
   })
   app.put('/api/citizen/notification-preferences', resident, async (req, res) => {
-    const db = await database(), profile = db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
+    const db = await database(), profile = await db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
     const emailNotifications = req.body?.emailNotifications === true
     const smsNotifications = req.body?.smsNotifications === true
     if (smsNotifications && (!smsConfigured() || !validMobile(profile?.mobile))) return res.status(422).json({ error: smsConfigured() ? 'Save a valid mobile number before enabling SMS notifications.' : 'SMS notifications are not configured yet.' })
     const timestamp = now()
-    db.prepare(`INSERT INTO resident_profiles (user_id, full_name, mobile, email_notifications, sms_notifications, municipality, province, verification_status, updated_at) VALUES (?, ?, ?, ?, ?, 'Getafe', 'Bohol', 'unverified', ?) ON CONFLICT(user_id) DO UPDATE SET email_notifications=excluded.email_notifications, sms_notifications=excluded.sms_notifications, updated_at=excluded.updated_at`).run(req.resident.id, profile?.full_name || req.resident.name, profile?.mobile || '', emailNotifications ? 1 : 0, smsNotifications ? 1 : 0, timestamp)
+    await db.prepare(`INSERT INTO resident_profiles (user_id, full_name, mobile, email_notifications, sms_notifications, municipality, province, verification_status, updated_at) VALUES (?, ?, ?, ?, ?, 'Getafe', 'Bohol', 'unverified', ?) ON CONFLICT(user_id) DO UPDATE SET email_notifications=excluded.email_notifications, sms_notifications=excluded.sms_notifications, updated_at=excluded.updated_at`).run(req.resident.id, profile?.full_name || req.resident.name, profile?.mobile || '', emailNotifications ? 1 : 0, smsNotifications ? 1 : 0, timestamp)
     res.json({ ok: true, emailNotifications, smsNotifications })
   })
   app.post('/api/citizen/onboarding/complete', resident, async (req, res) => {
@@ -113,7 +99,7 @@ export function installCitizenRoutes(app, resident, safeUser) {
   app.post('/api/citizen/onboarding/verification/request', resident, async (req, res) => {
     if (!(await googleOnboarding(req.resident)).googleAccount) return res.status(403).json({ error: 'This setup is only available to Google accounts.' })
     const method = req.body?.method === 'sms' ? 'sms' : 'email'
-    const db = await database(), profile = db.prepare('SELECT mobile FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
+    const db = await database(), profile = await db.prepare('SELECT mobile FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
     if (method === 'sms' && (!smsConfigured() || !validMobile(profile?.mobile))) return res.status(422).json({ error: smsConfigured() ? 'Save a valid mobile number before requesting an SMS code.' : 'SMS verification is not configured. Choose email verification.' })
     if (!await actionThrottle('onboarding-code', req.resident.id, 5, 15 * 60 * 1000)) return res.status(429).json({ error: 'Too many verification requests. Try again later.' })
     const payload = { userId: req.resident.id, method }
@@ -131,18 +117,18 @@ export function installCitizenRoutes(app, resident, safeUser) {
     const bytes = req.body, type = req.get('content-type')?.split(';')[0].trim().toLowerCase()
     const signatures = { 'image/jpeg': value => value.toString('hex', 0, 3) === 'ffd8ff', 'image/png': value => value.toString('hex', 0, 8) === '89504e470d0a1a0a', 'image/webp': value => value.toString('ascii', 0, 4) === 'RIFF' && value.toString('ascii', 8, 12) === 'WEBP' }
     if (!Buffer.isBuffer(bytes) || !bytes.length || !signatures[type]?.(bytes)) return res.status(422).json({ error: 'Upload a valid JPEG, PNG or WebP profile photo, up to 5 MB.' })
-    const db = await database(), previous = db.prepare('SELECT avatar_storage_path FROM resident_profiles WHERE user_id = ?').get(req.resident.id)?.avatar_storage_path || null
+    const db = await database(), previous = (await db.prepare('SELECT avatar_storage_path FROM resident_profiles WHERE user_id = ?').get(req.resident.id))?.avatar_storage_path || null
     const extension = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[type], key = `profiles/${req.resident.id}/avatar.${extension}`
     await writeCitizenFile(key, bytes, type)
     try {
       const timestamp = now()
-      db.prepare(`INSERT INTO resident_profiles (user_id, full_name, avatar_storage_path, verification_status, updated_at) VALUES (?, ?, ?, 'unverified', ?) ON CONFLICT(user_id) DO UPDATE SET avatar_storage_path=excluded.avatar_storage_path, updated_at=excluded.updated_at`).run(req.resident.id, req.resident.name, key, timestamp)
+      await db.prepare(`INSERT INTO resident_profiles (user_id, full_name, avatar_storage_path, verification_status, updated_at) VALUES (?, ?, ?, 'unverified', ?) ON CONFLICT(user_id) DO UPDATE SET avatar_storage_path=excluded.avatar_storage_path, updated_at=excluded.updated_at`).run(req.resident.id, req.resident.name, key, timestamp)
       if (previous && previous !== key) await deleteCitizenFile(previous)
     } catch (error) { await deleteCitizenFile(key); throw error }
     res.status(201).json({ ok: true, avatar_url: `/api/citizen/profile/avatar?v=${encodeURIComponent(now())}` })
   })
   app.get('/api/citizen/profile/avatar', resident, async (req, res) => {
-    const db = await database(), profile = db.prepare('SELECT avatar_storage_path FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
+    const db = await database(), profile = await db.prepare('SELECT avatar_storage_path FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
     if (!profile?.avatar_storage_path) return res.sendStatus(404)
     try { const bytes = await readCitizenFile(profile.avatar_storage_path); const type = profile.avatar_storage_path.endsWith('.png') ? 'image/png' : profile.avatar_storage_path.endsWith('.webp') ? 'image/webp' : 'image/jpeg'; res.set('Content-Type', type).send(bytes) }
     catch { res.sendStatus(404) }
@@ -192,16 +178,16 @@ export function installCitizenRoutes(app, resident, safeUser) {
   }
 
   app.get('/api/citizen/weather', citizenFetchOnly, resident, async (req, res) => {
-    const db = await database(), profile = db.prepare('SELECT barangay FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
+    const db = await database(), profile = await db.prepare('SELECT barangay FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
     const selected = barangays.find(item => item.name.toLowerCase() === String(profile?.barangay || '').trim().toLowerCase()) || barangays.find(item => item.name === 'Poblacion')
     if (!selected?.coords) return res.status(404).json({ error: 'Add your barangay to your profile to see local weather.' })
     try { res.json({ barangay: selected.name, ...await getWeatherAt(selected.coords.lat, selected.coords.lng) }) }
     catch { res.status(502).json({ error: 'Weather is temporarily unavailable.' }) }
   })
   app.get('/api/citizen/applications/:id', resident, async (req, res) => {
-    const db = await database(), application = ownedApplication(db, req, req.params.id)
+    const db = await database(), application = await ownedApplication(db, req, req.params.id)
     if (!application) return res.status(404).json({ error: 'Application not found.' })
-    res.json({ ...application, history: db.prepare('SELECT * FROM application_status_history WHERE application_id = ? ORDER BY created_at DESC').all(application.id) })
+    res.json({ ...application, history: await db.prepare('SELECT * FROM application_status_history WHERE application_id = ? ORDER BY created_at DESC').all(application.id) })
   })
   app.post('/api/citizen/applications', resident, async (req, res) => {
     const service = citizenServices.find(item => item.name === req.body?.service_name)
@@ -226,13 +212,13 @@ export function installCitizenRoutes(app, resident, safeUser) {
                 : type === 'application/msword' ? attachmentBytes.subarray(0, 8).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])) : false
       if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'].includes(type) || !signatures || attachmentBytes.length > 5 * 1024 * 1024) return res.status(422).json({ error: 'Attach a valid JPG, PNG, PDF, DOC, or DOCX file smaller than 5 MB.' })
     }
-    db.exec('BEGIN')
+    await db.exec('BEGIN')
     try {
-      db.prepare('INSERT INTO applications (id,user_id,reference_number,service_name,status,payment_status,submitted_at,last_updated,details) VALUES (?,?,?,?,?,?,?,?,?)').run(applicationId, req.resident.id, reference, service?.name || 'Report a Concern', 'submitted', 'not_required', created, created, JSON.stringify({ purpose: details.purpose.trim() }))
-      db.prepare('INSERT INTO application_status_history (id,application_id,status,note,created_at) VALUES (?,?,?,?,?)').run(id(), applicationId, 'submitted', 'Application submitted by resident.', created)
-      notify(db, req.resident.id, 'Application submitted', `${service?.name || 'Your concern'} has been submitted. Reference: ${reference}.`, applicationId)
-      db.exec('COMMIT')
-    } catch (error) { db.exec('ROLLBACK'); throw error }
+      await db.prepare('INSERT INTO applications (id,user_id,reference_number,service_name,status,payment_status,submitted_at,last_updated,details) VALUES (?,?,?,?,?,?,?,?,?)').run(applicationId, req.resident.id, reference, service?.name || 'Report a Concern', 'submitted', 'not_required', created, created, JSON.stringify({ purpose: details.purpose.trim() }))
+      await db.prepare('INSERT INTO application_status_history (id,application_id,status,note,created_at) VALUES (?,?,?,?,?)').run(id(), applicationId, 'submitted', 'Application submitted by resident.', created)
+      await notify(db, req.resident.id, 'Application submitted', `${service?.name || 'Your concern'} has been submitted. Reference: ${reference}.`, applicationId)
+      await db.exec('COMMIT')
+    } catch (error) { await db.exec('ROLLBACK'); throw error }
     if (concern && config.get('general.supportEmail')) {
       const subject = `Report a Concern · ${reference}`
       const text = `A resident submitted a report concern.\n\nReference: ${reference}\nResident: ${req.resident.name}\nEmail: ${req.resident.email}\n\nDetails:\n${details.purpose.trim()}`
@@ -254,8 +240,8 @@ export function installCitizenRoutes(app, resident, safeUser) {
     if (!Number.isFinite(amount) || amount <= 0 || amount > 10000000) return res.status(422).json({ error: 'Enter a valid amount between ₱0.01 and ₱10,000,000.' })
     if (!['Treasurer’s Office', 'GCash / e-wallet', 'Bank transfer'].includes(paymentMethod)) return res.status(422).json({ error: 'Choose a payment channel.' })
     const db = await database(), settlementId = id(), created = now(), tracking = `SET-${new Date().getFullYear()}-${settlementId.slice(0, 8).toUpperCase()}`
-    db.prepare('INSERT INTO settlement_requests (id,user_id,category,reference_number,amount,payment_method,status,notes,created_at) VALUES (?,?,?,?,?,?,?,?,?)').run(settlementId, req.resident.id, category, referenceNumber, amount, paymentMethod, 'for_verification', notes, created)
-    notify(db, req.resident.id, 'Settlement request received', `${category} settlement ${tracking} was submitted for Treasurer verification.`, null)
+    await db.prepare('INSERT INTO settlement_requests (id,user_id,category,reference_number,amount,payment_method,status,notes,created_at) VALUES (?,?,?,?,?,?,?,?,?)').run(settlementId, req.resident.id, category, referenceNumber, amount, paymentMethod, 'for_verification', notes, created)
+    await notify(db, req.resident.id, 'Settlement request received', `${category} settlement ${tracking} was submitted for Treasurer verification.`, null)
     res.status(201).json({ id: settlementId, tracking_number: tracking })
   })
   app.post('/api/citizen/privacy-requests/verify-password', resident, async (req, res) => {
@@ -270,44 +256,44 @@ export function installCitizenRoutes(app, resident, safeUser) {
     if (!allowed.has(scope)) return res.status(422).json({ error: 'Choose a valid privacy request scope.' })
     if (!password || !passwordMatches(password, req.resident.password)) return res.status(401).json({ error: 'Password confirmation failed. Please try again.' })
     const db = await database(), requestId = id(), created = now(), reference = `PRIV-${new Date().getFullYear()}-${requestId.slice(0, 8).toUpperCase()}`
-    db.exec('BEGIN')
+    await db.exec('BEGIN')
     try {
-      db.prepare('INSERT INTO privacy_requests (id,user_id,request_type,scope,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?)').run(requestId, req.resident.id, 'Data deletion', scope, 'submitted', created, created)
-      db.prepare('INSERT INTO privacy_request_events (id,request_id,actor_id,actor_type,event,note,created_at) VALUES (?,?,?,?,?,?,?)').run(id(), requestId, req.resident.id, 'resident', 'submitted', 'Request received. Official records remain protected by applicable retention requirements.', created)
-      notify(db, req.resident.id, 'Privacy request submitted', `Your data privacy request ${reference} was received and is now Submitted.`, null)
-      db.exec('COMMIT')
-    } catch (error) { db.exec('ROLLBACK'); throw error }
+      await db.prepare('INSERT INTO privacy_requests (id,user_id,request_type,scope,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?)').run(requestId, req.resident.id, 'Data deletion', scope, 'submitted', created, created)
+      await db.prepare('INSERT INTO privacy_request_events (id,request_id,actor_id,actor_type,event,note,created_at) VALUES (?,?,?,?,?,?,?)').run(id(), requestId, req.resident.id, 'resident', 'submitted', 'Request received. Official records remain protected by applicable retention requirements.', created)
+      await notify(db, req.resident.id, 'Privacy request submitted', `Your data privacy request ${reference} was received and is now Submitted.`, null)
+      await db.exec('COMMIT')
+    } catch (error) { await db.exec('ROLLBACK'); throw error }
     if (req.resident.email) try { await sendEmail(req.resident.email, `Privacy request received · ${reference}`, `Your data privacy request ${reference} was received and is now Submitted. The municipality will review eligible account data separately from records that must be retained by law or public-records policy.`) } catch (error) { console.error('Unable to send privacy request acknowledgement:', error.message) }
     res.status(201).json({ id: requestId, reference_number: reference, status: 'submitted' })
   })
   app.patch('/api/citizen/notifications/:id/read', resident, async (req, res) => {
     const db = await database()
-    const result = db.prepare('UPDATE notifications SET read_at = COALESCE(read_at, ?) WHERE id = ? AND user_id = ?').run(now(), req.params.id, req.resident.id)
+    const result = await db.prepare('UPDATE notifications SET read_at = COALESCE(read_at, ?) WHERE id = ? AND user_id = ?').run(now(), req.params.id, req.resident.id)
     if (!result.changes) return res.status(404).json({ error: 'Notification not found.' })
     res.json({ ok: true })
   })
   app.patch('/api/citizen/notifications/read-all', resident, async (req, res) => {
     const db = await database()
-    const result = db.prepare('UPDATE notifications SET read_at = COALESCE(read_at, ?) WHERE user_id = ? AND read_at IS NULL').run(now(), req.resident.id)
+    const result = await db.prepare('UPDATE notifications SET read_at = COALESCE(read_at, ?) WHERE user_id = ? AND read_at IS NULL').run(now(), req.resident.id)
     res.json({ ok: true, updated: result.changes })
   })
   app.get('/api/citizen/appointments/availability', resident, async (req, res) => {
     const service = citizenServices.find(item => item.id === req.query.service_id)
     if (!service) return res.status(422).json({ error: 'Choose an available service.' })
-    res.json(appointmentAvailability(await database(), service.id))
+    res.json(await appointmentAvailability(await database(), service.id))
   })
   app.post('/api/citizen/documents', resident, express.raw({ type: ['application/pdf', 'image/jpeg', 'image/png'], limit: '5mb' }), async (req, res) => {
     const applicationId = String(req.query.application_id || ''), name = String(req.query.name || 'uploaded-document').replace(/[\\/\0\r\n]/g, '_').trim().slice(0, 255)
     const type = req.get('content-type')?.split(';')[0].trim().toLowerCase(), bytes = req.body
     const validSignature = Buffer.isBuffer(bytes) && (type === 'application/pdf' ? bytes.subarray(0, 5).toString('ascii') === '%PDF-' : type === 'image/jpeg' ? bytes.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])) : type === 'image/png' ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) : false)
     if (!applicationId || !name || !Buffer.isBuffer(bytes) || !bytes.length || bytes.length > 5 * 1024 * 1024 || !validSignature) return res.status(422).json({ error: 'Upload a valid PDF, JPEG, or PNG smaller than 5 MB.' })
-    const db = await database(), application = ownedApplication(db, req, applicationId)
+    const db = await database(), application = await ownedApplication(db, req, applicationId)
     if (!application) return res.status(404).json({ error: 'Application not found.' })
     const documentId = id(), extension = type === 'application/pdf' ? 'pdf' : type === 'image/png' ? 'png' : 'jpg', storagePath = `citizen-private/documents/${req.resident.id}/${documentId}.${extension}`
     await writeCitizenFile(storagePath, bytes, type)
     try {
-      db.prepare('INSERT INTO application_documents (id,application_id,user_id,name,storage_path,verification_status,document_kind,created_at) VALUES (?,?,?,?,?,?,?,?)').run(documentId, applicationId, req.resident.id, name, storagePath, 'pending', 'uploaded', now())
-      notify(db, req.resident.id, 'Document uploaded', `${name} was uploaded to application ${application.reference_number}.`, applicationId, documentId)
+      await db.prepare('INSERT INTO application_documents (id,application_id,user_id,name,storage_path,verification_status,document_kind,created_at) VALUES (?,?,?,?,?,?,?,?)').run(documentId, applicationId, req.resident.id, name, storagePath, 'pending', 'uploaded', now())
+      await notify(db, req.resident.id, 'Document uploaded', `${name} was uploaded to application ${application.reference_number}.`, applicationId, documentId)
     } catch (error) { await deleteCitizenFile(storagePath).catch(() => {}); throw error }
     res.status(201).json({ id: documentId, name, status: 'pending' })
   })
@@ -318,22 +304,22 @@ export function installCitizenRoutes(app, resident, safeUser) {
     if (contact && !/^09\d{9}$/.test(contact)) return res.status(422).json({ error: 'Enter a valid Philippine mobile number.' })
     const departments = { certificates: 'Municipal Civil Registrar', business: 'Business Permit and Licensing Office', health: 'Municipal Health Office', education: 'Municipal Social Welfare and Development' }
     const db = await database(), appointmentId = id()
-    db.exec('BEGIN IMMEDIATE')
+    await db.exec('BEGIN IMMEDIATE')
     let integration, reference
     try {
-      const availability = appointmentAvailability(db, service.id), day = availability.dates.find(item => item.date === dayKey(date)), time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
-      if (!day?.slots.some(slot => slot.time === time)) { db.exec('ROLLBACK'); return res.status(409).json({ error: 'That slot is no longer available. Please select another time.' }) }
-      integration = db.prepare('SELECT notification_email,portal_url FROM barangay_appointment_integrations WHERE barangay_id = ?').get(barangay.id) || {}
+      const availability = await appointmentAvailability(db, service.id), day = availability.dates.find(item => item.date === dayKey(date)), time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
+      if (!day?.slots.some(slot => slot.time === time)) { await db.exec('ROLLBACK'); return res.status(409).json({ error: 'That slot is no longer available. Please select another time.' }) }
+      integration = await db.prepare('SELECT notification_email,portal_url FROM barangay_appointment_integrations WHERE barangay_id = ?').get(barangay.id) || {}
       reference = `GTF-APT-${appointmentId.slice(0, 8).toUpperCase()}`
-      db.prepare('INSERT INTO appointments (id,user_id,department,service,service_id,appointment_at,reason,contact_number,barangay,barangay_portal_url,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(appointmentId, req.resident.id, departments[service.category], service.name, service.id, date.toISOString(), String(req.body?.reason || '').slice(0, 1000), contact, barangay.name, integration.portal_url || null, 'requested', now())
-      db.exec('COMMIT')
-    } catch (error) { db.exec('ROLLBACK'); throw error }
+      await db.prepare('INSERT INTO appointments (id,user_id,department,service,service_id,appointment_at,reason,contact_number,barangay,barangay_portal_url,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(appointmentId, req.resident.id, departments[service.category], service.name, service.id, date.toISOString(), String(req.body?.reason || '').slice(0, 1000), contact, barangay.name, integration.portal_url || null, 'requested', now())
+      await db.exec('COMMIT')
+    } catch (error) { await db.exec('ROLLBACK'); throw error }
     const recipient = integration.notification_email || config.get('general.supportEmail')
     if (recipient) try { await sendEmail(recipient, `Appointment request · ${reference}`, `A new appointment request was submitted.\n\nReference: ${reference}\nBarangay: ${barangay.name}\nService: ${service.name}\nTime: ${date.toLocaleString('en-PH', { timeZone: 'Asia/Manila' })}\nResident: ${req.resident.name}\nContact: ${contact}\nReason: ${String(req.body?.reason || '').slice(0, 1000)}`) } catch (error) { console.error('Unable to send barangay appointment email:', error.message) }
     res.status(201).json({ id: appointmentId, reference_number: reference, status: 'requested', barangay_portal_url: integration.portal_url || null })
   })
   app.get('/api/citizen/documents/:id/download', resident, async (req, res) => {
-    const db = await database(), document = db.prepare('SELECT * FROM application_documents WHERE id = ? AND user_id = ?').get(req.params.id, req.resident.id)
+    const db = await database(), document = await db.prepare('SELECT * FROM application_documents WHERE id = ? AND user_id = ?').get(req.params.id, req.resident.id)
     if (!document?.storage_path) return res.status(404).json({ error: 'This document is not available for download.' })
     const bytes = await readCitizenFile(document.storage_path)
     res.set('Content-Type', 'application/octet-stream').set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(document.name)}`).send(bytes)

@@ -166,7 +166,7 @@ function SettingsTabs({ tabs, activeTab, onSelect, disabled, search, setSearch }
       updateOverflow()
     }
   }, [activeTab])
-  const categoryKeywords = { email: 'smtp sender mail password', database: 'mysql connection database', portalDatabase: 'portal database sqlite connection', google: 'gcp oauth google cloud project', storage: 'bucket upload storage', security: 'captcha security', weather: 'weather api' }
+  const categoryKeywords = { email: 'smtp sender mail password', database: 'postgresql connection database', portalDatabase: 'postgresql portal database connection', google: 'oauth google cloud project', storage: 'bucket upload storage', security: 'captcha security', weather: 'weather api' }
   const visibleTabs = tabs.filter(key => !search || `${categoryLabels[key] || key} ${categoryKeywords[key] || ''}`.toLowerCase().includes(search.toLowerCase()))
   return <aside className="settings-tabs-wrap">
     <label className="settings-search settings-global-search"><Search size={14} aria-hidden="true" /><input type="search" aria-label="Search settings" placeholder="Search settings…" value={search} onChange={event => setSearch(event.target.value)} /></label>
@@ -196,7 +196,7 @@ function SettingsField({ settingKey: key, definition, value, secretValue, reset,
   const inputProps = { id: key, disabled: disabled || reset, 'aria-describedby': description ? `${key}-help` : undefined }
   const control = definition.type === 'boolean' ? <label className="settings-toggle">
     <input {...inputProps} type="checkbox" role="switch" checked={Boolean(value)} onChange={event => onChange(event.target.checked)} /><span aria-hidden="true" />
-  </label> : definition.options ? <select {...inputProps} value={value ?? ''} onChange={event => onChange(event.target.value)}>{definition.options.map(option => <option key={option} value={option}>{option === 'google' ? 'Google reCAPTCHA' : option === 'mysql' ? 'MySQL' : option === 'local' ? 'Local' : option === 'starttls' ? 'STARTTLS' : option === 'tls' ? 'TLS' : option === 'backblaze' ? 'Backblaze B2' : option}</option>)}</select>
+  </label> : definition.options ? <select {...inputProps} value={value ?? ''} onChange={event => onChange(event.target.value)}>{definition.options.map(option => <option key={option} value={option}>{option === 'google' ? 'Google reCAPTCHA' : option === 'starttls' ? 'STARTTLS' : option === 'tls' ? 'TLS' : option === 'backblaze' ? 'Backblaze B2' : option}</option>)}</select>
     : key === 'security.permissionGrants' ? <div className="settings-permissions" role="group" aria-labelledby={`${key}-label`}><SettingsPermissions disabled={disabled || reset} value={value} onChange={onChange} /></div>
       : definition.secret ? <SecretInput inputProps={inputProps} value={secretValue} configured={definition.configured} onChange={onChange} />
         : definition.multiline ? <textarea {...inputProps} rows={8} required={definition.required} value={value ?? ''} onChange={event => onChange(event.target.value)} />

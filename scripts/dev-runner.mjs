@@ -22,9 +22,9 @@ const env = {
   NODE_ENV: 'development',
   PORT: backendPort,
   VITE_BACKEND_PORT: backendPort,
-  CMS_DATABASE_PROVIDER: process.env.CMS_DATABASE_PROVIDER || 'local',
+  CMS_DATABASE_PROVIDER: 'postgresql',
   CMS_MEDIA_PROVIDER: process.env.CMS_MEDIA_PROVIDER || 'local',
-  PORTAL_DATABASE_PROVIDER: process.env.PORTAL_DATABASE_PROVIDER || 'local',
+  PORTAL_DATABASE_PROVIDER: 'postgresql',
 }
 
 const start = (command, args) => {

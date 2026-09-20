@@ -1,23 +1,27 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import mysql from 'mysql2/promise';
-import { createPoolManager } from '../services/poolManager.js';
-import { Connector, IpAddressTypes, AuthTypes } from '@google-cloud/cloud-sql-connector';
+import pg from 'pg';
 let pool;
-let bootstrapManager;
+function postgresPool() {
+  const pool = new pg.Pool({
+    ...(process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL } : { host: process.env.DB_HOST || '127.0.0.1', port: Number(process.env.DB_PORT || 5432), database: process.env.DB_NAME || 'getafe_portal', user: process.env.DB_USER || 'getafe_app', password: process.env.DB_PASSWORD }),
+    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    max: Number(process.env.DB_CONNECTION_LIMIT || 5), connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS || 10000), idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS || 60000),
+  });
+  const adapt = sql => { let i = 0; return String(sql).replace(/\?/g, () => `$${++i}`); };
+  pool.driver = 'postgresql';
+  pool.execute = async (sql, params = []) => { const result = await pool.query(adapt(sql), params); return [result.rows, result]; };
+  const getConnection = pool.connect.bind(pool);
+  pool.getConnection = async () => { const client = await getConnection(); client.execute = async (sql, params = []) => { const result = await client.query(adapt(sql), params); return [result.rows, result]; }; client.beginTransaction = () => client.query('BEGIN'); client.commit = () => client.query('COMMIT'); client.rollback = () => client.query('ROLLBACK'); return client; };
+  return pool;
+}
 export async function getConfigPool() {
   if (!pool) {
-    if (process.env.CONFIG_DATABASE_URL) pool = mysql.createPool(process.env.CONFIG_DATABASE_URL);
-    else if (process.env.CONFIG_DB_HOST) pool = mysql.createPool({ host: process.env.CONFIG_DB_HOST, port: Number(process.env.CONFIG_DB_PORT || 3306), database: process.env.CONFIG_DB_NAME, user: process.env.CONFIG_DB_USER, password: process.env.CONFIG_DB_PASSWORD, ssl: process.env.CONFIG_DB_SSL === 'false' ? undefined : { rejectUnauthorized: true }, connectionLimit: 3 });
-    else if (process.env.CMS_DATABASE_PROVIDER === 'gcp') {
-      // Legacy bootstrap connection is intentionally independent of runtime database settings.
-      bootstrapManager ||= createPoolManager({ createConnector: () => new Connector(), createPool: options => mysql.createPool(options), ipTypes: IpAddressTypes, authTypes: AuthTypes });
-      pool = await bootstrapManager.get('CMS');
-    } else if (process.env.NODE_ENV === 'production') throw new Error('A persistent configuration database is required in production.');
+    pool = postgresPool();
   }
   return pool;
 }
-export async function closeConfigStore() { if (bootstrapManager) await bootstrapManager.close(); else if (pool) await pool.end(); }
+export async function closeConfigStore() { if (pool) await pool.end(); }
 export class DatabaseSettingsProvider {
   constructor({ file = process.env.CONFIG_LOCAL_FILE || path.resolve('data/settings.json'), poolProvider = getConfigPool } = {}) { this.file = file; this.poolProvider = poolProvider; this.pending = Promise.resolve(); }
   async read() {
@@ -43,7 +47,7 @@ export class DatabaseSettingsProvider {
   transaction(work) {
     const run = this.pending.then(async () => {
       const db = await this.poolProvider();
-      if (!db) {
+    if (!db) {
         let document;
         try { document = JSON.parse(await fs.readFile(this.file, 'utf8')); }
         catch (error) { if (error.code !== 'ENOENT') throw error; document = { settings: await this.read(), history: [] }; }
@@ -69,6 +73,7 @@ export class DatabaseSettingsProvider {
         result = await work(Object.fromEntries(rows.map(row => [row.setting_key, JSON.parse(row.value)])));
         for (const entry of result.audit) {
           if (result.settings[entry.setting_key] === undefined) await connection.execute('DELETE FROM system_settings WHERE setting_key = ?', [entry.setting_key]);
+          else if (db.driver === 'postgresql') await connection.execute('INSERT INTO system_settings (setting_key, value, updated_by) VALUES (?, ?, ?) ON CONFLICT (setting_key) DO UPDATE SET value=EXCLUDED.value, updated_by=EXCLUDED.updated_by, updated_at=CURRENT_TIMESTAMP', [entry.setting_key, JSON.stringify(result.settings[entry.setting_key]), entry.user_id]);
           else await connection.execute('INSERT INTO system_settings (setting_key, value, updated_by) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value), updated_by=VALUES(updated_by)', [entry.setting_key, JSON.stringify(result.settings[entry.setting_key]), entry.user_id]);
           await connection.execute('INSERT INTO audit_logs (id,user_id,action,category,setting_key,old_value,new_value,ip_address) VALUES (?,?,?,?,?,?,?,?)', [entry.id, entry.user_id, entry.action, entry.category, entry.setting_key, JSON.stringify(entry.old_value), JSON.stringify(entry.new_value), entry.ip_address]);
         }

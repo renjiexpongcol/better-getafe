@@ -1,0 +1,52 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$COMMIT_SHA
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$COMMIT_SHA
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$COMMIT_SHA
+      - --region
+      - ${_REGION}
+      - --platform
+      - managed
+      - --allow-unauthenticated
+      - --set-env-vars
+      - NODE_ENV=production,CMS_DATABASE_PROVIDER=postgresql,PORTAL_DATABASE_PROVIDER=postgresql,CMS_MEDIA_PROVIDER=backblaze,CMS_IAM_AUTH=true,PORTAL_IAM_AUTH=true,GCP_PROJECT_ID=$PROJECT_ID,DB_HOST=${_DB_HOST},DB_PORT=${_DB_PORT},DB_NAME=${_DB_NAME},DB_USER=${_DB_USER},B2_ENDPOINT=${_B2_ENDPOINT},B2_REGION=${_B2_REGION},B2_BUCKET_NAME=${_B2_BUCKET_NAME}
+      - --set-secrets
+      - AUTH_SESSION_SECRET=${_AUTH_SESSION_SECRET_SECRET}:latest,DB_PASSWORD=${_DB_PASSWORD_SECRET}:latest,B2_KEY_ID=${_B2_KEY_ID_SECRET}:latest,B2_APPLICATION_KEY=${_B2_APPLICATION_KEY_SECRET}:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$COMMIT_SHA
+
+substitutions:
+  _REGION: asia-southeast1
+  _REPOSITORY: cloud-run-source-deploy
+  _SERVICE: better-getafe
+  _DB_HOST: your-postgres-host
+  _DB_PORT: '5432'
+  _DB_NAME: getafe_portal
+  _DB_USER: getafe-portal
+  _B2_ENDPOINT: https://s3.us-east-005.backblazeb2.com
+  _B2_REGION: us-east-005
+  _B2_BUCKET_NAME: Getafe-storage
+  _AUTH_SESSION_SECRET_SECRET: auth-session-secret
+  _DB_PASSWORD_SECRET: getafe-postgres-password
+  _B2_KEY_ID_SECRET: better-getafe-b2-key-id
+  _B2_APPLICATION_KEY_SECRET: better-getafe-b2-application-key
+
+options:
+  logging: CLOUD_LOGGING_ONLY

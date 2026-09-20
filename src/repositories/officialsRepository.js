@@ -1,4 +1,4 @@
-import { getLocalDb, saveLocalDb, isGcp } from './localDb.js';
+import { getLocalDb, saveLocalDb, isGcp } from './postgresCompatibility.js';
 import { getCmsPool } from '../services/cloudSql.js';
 import { barangays } from '../data/barangays.js';
 
@@ -40,3 +40,5 @@ export async function saveOfficials(content) {
   await saveLocalDb(db);
   return content;
 }
+
+

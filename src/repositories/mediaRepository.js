@@ -1,6 +1,6 @@
 import { getCmsPool } from '../services/cloudSql.js';
 import crypto from 'crypto';
-import { getLocalDb, saveLocalDb, isGcp } from './localDb.js';
+import { getLocalDb, saveLocalDb, isGcp } from './postgresCompatibility.js';
 
 const id = () => crypto.randomUUID();
 const now = () => new Date().toISOString().slice(0, 23).replace('T', ' ');
@@ -178,3 +178,5 @@ export async function deleteMediaRecord(mediaId) {
   const pool = await getCmsPool();
   await pool.execute("DELETE FROM media WHERE id = ?", [mediaId]);
 }
+
+

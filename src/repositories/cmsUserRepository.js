@@ -1,5 +1,5 @@
 import { getCmsPool } from '../services/cloudSql.js';
-import { getLocalDb, saveLocalDb, isGcp, now, id, hash } from './localDb.js';
+import { getLocalDb, saveLocalDb, isGcp, now, id, hash } from './postgresCompatibility.js';
 
 export async function getCmsUsers() {
   if (isGcp()) {
@@ -51,3 +51,5 @@ export async function getCmsUserByEmail(email) {
   const users = await getCmsUsers();
   return users.find(u => u.email === String(email).trim().toLowerCase()) || null;
 }
+
+
