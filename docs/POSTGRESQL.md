@@ -1,6 +1,6 @@
 # PostgreSQL 17 integration
 
-The application connects through the backend pool in `src/services/cloudSql.js`; browser code never receives a PostgreSQL credential or connection URL. The existing repository API remains the application boundary, so switching providers does not change business logic.
+The application connects through the backend pool in `server/src/services/cloudSql.js`; browser code never receives a PostgreSQL credential or connection URL. The existing repository API remains the application boundary, so switching providers does not change business logic.
 
 For the local Docker database, configure the server process (PowerShell example; do not commit the password):
 

@@ -1,6 +1,6 @@
-import '../src/config/bootstrap.js';
+import '../server/src/config/bootstrap.js';
 import fs from 'node:fs/promises';
-import { getConfigPool, closeConfigStore } from '../src/config/DatabaseSettingsProvider.js';
+import { getConfigPool, closeConfigStore } from '../server/src/config/DatabaseSettingsProvider.js';
 try {
   const pool = await getConfigPool();
   if (!pool) console.log('Local configuration uses a versioned JSON document; no SQL migration required.');

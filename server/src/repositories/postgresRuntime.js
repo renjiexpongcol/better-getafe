@@ -4,8 +4,8 @@ function postgresSql(sql) {
   return String(sql)
     .replace(/BEGIN\s+IMMEDIATE/gi, 'BEGIN')
     .replace(/INSERT\s+OR\s+IGNORE/gi, 'INSERT')
-    .replace(/UTC_TIMESTAMP\(3\)/gi, 'CURRENT_TIMESTAMP')
-    .replace(/datetime\s*\(/gi, 'CURRENT_TIMESTAMP(');
+    .replace(/UTC_TIMESTAMP\(\d+\)/gi, 'CURRENT_TIMESTAMP')
+    .replace(/datetime\s*\(\s*'now'\s*\)/gi, 'CURRENT_TIMESTAMP');
 }
 
 function statement(runtime, sql) {

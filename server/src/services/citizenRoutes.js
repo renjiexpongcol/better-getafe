@@ -2,11 +2,11 @@ import { googleOnboarding, completeGoogleOnboarding, validMobile, markGooglePass
 import express from 'express'
 import { getPostgresRuntime } from '../repositories/postgresRuntime.js'
 import { id, now } from './identifiers.js'
-import { citizenServices } from '../data/citizenServices.js'
+import { citizenServices } from '../../../src/data/citizenServices.js'
 import { config } from '../config/index.js'
 import { writeCitizenFile, readCitizenFile, deleteCitizenFile } from './storage.js'
 import { getWeatherAt } from './getafeWeather.js'
-import { barangays } from '../data/barangays.js'
+import { barangays } from '../../../src/data/barangays.js'
 import { sendEmail } from './email.js'
 import { actionThrottle, issueCode, issueSmsCode, verifyCode } from './authSecurity.js'
 import { replacePassword } from './passwords.js'
@@ -19,6 +19,16 @@ export function installCitizenRoutes(app, resident, safeUser) {
   const ownedApplication = async (db, req, applicationId) => await db.prepare('SELECT * FROM applications WHERE id = ? AND user_id = ?').get(applicationId, req.resident.id)
   const notify = async (db, userId, title, message, applicationId = null, documentId = null) => await db.prepare('INSERT INTO notifications (id,user_id,title,message,application_id,document_id,created_at) VALUES (?,?,?,?,?,?,?)').run(id(), userId, title, message, applicationId, documentId, now())
   const passwordMatches = (password, stored) => { try { const [salt, digest] = String(stored || '').split(':'); if (!salt || !digest) return false; const actual = crypto.scryptSync(password, salt, 64).toString('hex'); return crypto.timingSafeEqual(Buffer.from(actual, 'hex'), Buffer.from(digest, 'hex')) } catch { return false } }
+  const usableProfile = async (db, profile) => {
+    if (!profile?.avatar_storage_path) return profile
+    try {
+      await readCitizenFile(profile.avatar_storage_path)
+      return profile
+    } catch {
+      await db.prepare('UPDATE resident_profiles SET avatar_storage_path = NULL WHERE user_id = ? AND avatar_storage_path = ?').run(profile.user_id, profile.avatar_storage_path).catch(() => {})
+      return { ...profile, avatar_storage_path: null }
+    }
+  }
   const profileView = profile => {
     if (!profile) return null
     const view = { ...profile, avatar_url: profile.avatar_storage_path ? `/api/citizen/profile/avatar?v=${encodeURIComponent(profile.updated_at || '')}` : null }
@@ -57,11 +67,11 @@ export function installCitizenRoutes(app, resident, safeUser) {
     const privacyRequests = await db.prepare('SELECT id,request_type,scope,status,created_at,updated_at,review_note FROM privacy_requests WHERE user_id = ? ORDER BY created_at DESC').all(userId)
     const appointments = await db.prepare('SELECT * FROM appointments WHERE user_id = ? ORDER BY appointment_at').all(userId)
     const notifications = await db.prepare('SELECT * FROM notifications WHERE user_id = ? AND archived_at IS NULL ORDER BY created_at DESC').all(userId)
-    const profile = await db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(userId) || { full_name: req.resident.name }
+    const profile = await usableProfile(db, await db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(userId)) || { full_name: req.resident.name }
     res.json({ user: safeUser(req.resident), profile: { ...profileView(profile), avatar_url: profileView(profile)?.avatar_url || (await googleOnboarding(req.resident)).avatar_url || null }, applications, documents, payments, settlements, privacyRequests, appointments, notifications })
   })
   app.get('/api/citizen/profile', resident, async (req, res) => {
-    const db = await database(), profile = await db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
+    const db = await database(), profile = await usableProfile(db, await db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(req.resident.id))
     const onboarding = await googleOnboarding(req.resident)
     res.json({ ...profileView(profile || { user_id: req.resident.id, full_name: req.resident.name, verification_status: 'unverified' }), email: req.resident.email, ...onboarding })
   })
@@ -130,8 +140,17 @@ export function installCitizenRoutes(app, resident, safeUser) {
   app.get('/api/citizen/profile/avatar', resident, async (req, res) => {
     const db = await database(), profile = await db.prepare('SELECT avatar_storage_path FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
     if (!profile?.avatar_storage_path) return res.sendStatus(404)
-    try { const bytes = await readCitizenFile(profile.avatar_storage_path); const type = profile.avatar_storage_path.endsWith('.png') ? 'image/png' : profile.avatar_storage_path.endsWith('.webp') ? 'image/webp' : 'image/jpeg'; res.set('Content-Type', type).send(bytes) }
-    catch { res.sendStatus(404) }
+    try {
+      const bytes = await readCitizenFile(profile.avatar_storage_path)
+      const type = profile.avatar_storage_path.endsWith('.png') ? 'image/png' : profile.avatar_storage_path.endsWith('.webp') ? 'image/webp' : 'image/jpeg'
+      res.set('Content-Type', type).send(bytes)
+    } catch {
+      // A database row can outlive a local upload after a storage reset or
+      // manual cleanup. Clear the stale pointer so subsequent profile loads
+      // render initials instead of requesting the missing image repeatedly.
+      await db.prepare('UPDATE resident_profiles SET avatar_storage_path = NULL WHERE user_id = ? AND avatar_storage_path = ?').run(req.resident.id, profile.avatar_storage_path).catch(() => {})
+      res.sendStatus(404)
+    }
   })
   // A browser address-bar navigation cannot send this header. This is an
   // additional browser/API boundary; resident still performs the real auth.
@@ -321,8 +340,16 @@ export function installCitizenRoutes(app, resident, safeUser) {
   app.get('/api/citizen/documents/:id/download', resident, async (req, res) => {
     const db = await database(), document = await db.prepare('SELECT * FROM application_documents WHERE id = ? AND user_id = ?').get(req.params.id, req.resident.id)
     if (!document?.storage_path) return res.status(404).json({ error: 'This document is not available for download.' })
-    const bytes = await readCitizenFile(document.storage_path)
-    res.set('Content-Type', 'application/octet-stream').set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(document.name)}`).send(bytes)
+    try {
+      const bytes = await readCitizenFile(document.storage_path)
+      res.set('Content-Type', 'application/octet-stream').set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(document.name)}`).send(bytes)
+    } catch (error) {
+      // Do not report a missing object as a server outage. This can happen
+      // when a development storage directory is recreated independently of
+      // the database, or when an administrator removes an old upload.
+      if (error?.code === 'ENOENT' || error?.name === 'NoSuchKey' || error?.$metadata?.httpStatusCode === 404) return res.status(404).json({ error: 'This document is no longer available for download.' })
+      throw error
+    }
   })
   app.use('/api/citizen', (error, req, res, next) => {
     if (res.headersSent) return next(error)

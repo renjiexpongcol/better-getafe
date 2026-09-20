@@ -98,11 +98,14 @@ for (const [category, prefix, legacy] of [['database', 'CMS', 'DB'], ['portalDat
     [`${category}.engine`]: choice('Database engine', '', 'postgresql', ['postgresql']),
     [`${category}.connectionMode`]: choice('Connection method', '', 'direct', ['direct']),
     [`${category}.instance`]: text('Legacy database instance', ''),
-    [`${category}.host`]: text('Host', `${prefix}_DB_HOST|${legacy}_HOST|${prefix === 'CMS' ? 'DB_HOST' : 'USER_DB_HOST'}`, '127.0.0.1'),
-    [`${category}.port`]: number('Port', `${prefix}_DB_PORT|${legacy}_PORT|${prefix === 'CMS' ? 'DB_PORT' : 'USER_DB_PORT'}`, 5432, 1, 65535),
-    [`${category}.name`]: text('Database name', `${prefix}_DB_NAME|${legacy}_NAME|${prefix === 'CMS' ? 'DB_NAME' : 'USER_DB_NAME'}`),
-    [`${category}.username`]: text('Username', `${prefix}_DB_USER|${legacy}_USER|${prefix === 'CMS' ? 'DB_USER' : 'USER_DB_USER'}`),
-    [`${category}.password`]: secret('Database password', `${prefix}_DB_PASSWORD|${prefix === 'CMS' ? 'DB_PASSWORD' : 'USER_DB_PASSWORD'}`),
+    // Both application domains use the same PostgreSQL server by default.
+    // Category-specific variables still take precedence for deployments that
+    // intentionally separate the CMS and resident databases.
+    [`${category}.host`]: text('Host', `${prefix}_DB_HOST|DB_HOST|${legacy}_HOST|USER_DB_HOST`, '127.0.0.1'),
+    [`${category}.port`]: number('Port', `${prefix}_DB_PORT|DB_PORT|${legacy}_PORT|USER_DB_PORT`, 5432, 1, 65535),
+    [`${category}.name`]: text('Database name', `${prefix}_DB_NAME|DB_NAME|${legacy}_NAME|USER_DB_NAME`),
+    [`${category}.username`]: text('Username', `${prefix}_DB_USER|DB_USER|${legacy}_USER|USER_DB_USER`),
+    [`${category}.password`]: secret('Database password', `${prefix}_DB_PASSWORD|DB_PASSWORD|USER_DB_PASSWORD|USER_DB_PASS`),
     [`${category}.ssl`]: bool('Verify TLS certificate (direct MySQL)', `${prefix}_DB_SSL`, true),
     [`${category}.sslMode`]: choice('SSL mode', `${prefix}_DB_SSL_MODE`, 'disable', ['disable', 'require', 'verify-ca']),
     [`${category}.iam`]: bool('Cloud SQL IAM authentication', `${prefix}_IAM_AUTH`),

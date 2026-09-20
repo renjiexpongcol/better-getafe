@@ -2,9 +2,17 @@ import pg from 'pg';
 
 const { Pool } = pg;
 
+function toPostgresSql(sql) {
+  return String(sql)
+    .replace(/BEGIN\s+IMMEDIATE/gi, 'BEGIN')
+    .replace(/INSERT\s+OR\s+IGNORE/gi, 'INSERT')
+    .replace(/UTC_TIMESTAMP\(\d+\)/gi, 'CURRENT_TIMESTAMP')
+    .replace(/datetime\s*\(\s*'now'\s*\)/gi, 'CURRENT_TIMESTAMP');
+}
+
 function toPostgresQuery(sql, params = []) {
   let index = 0;
-  const text = String(sql).replace(/\?/g, () => `$${++index}`);
+  const text = toPostgresSql(sql).replace(/\?/g, () => `$${++index}`);
   if (index !== params.length) throw new Error('Database parameter count mismatch.');
   return { text, values: params };
 }

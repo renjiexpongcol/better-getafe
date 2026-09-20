@@ -33,7 +33,7 @@ import { AdaptiveTrafficProtector } from './src/services/trafficProtection.js';
 
 import { fileURLToPath } from "url";
 import { initializeServices, serviceStatus } from "./src/services/initialization.js";
-import { createUploadUrl, uploadObject, createDownloadUrl, deleteObject, getObjectMetadata, imageSignatureMatches } from "./src/services/storage.js";
+import { createUploadUrl, uploadObject, createDownloadUrl, deleteObject, getObjectMetadata, imageSignatureMatches, storageIsLocal, initializeStorage } from "./src/services/storage.js";
 
 import { getCategories, createCategory, updateCategory, deleteCategory } from "./src/repositories/categoryRepository.js";
 import { getNewsArticles, getNewsArticleBySlug, createNewsArticle, updateNewsArticle, deleteNewsArticle, bulkUpdateNewsArticles } from "./src/repositories/newsRepository.js";
@@ -216,10 +216,18 @@ const passwordIsStrong = password => password.length >= 8 && password.length <= 
 
 const SESSION_COOKIE = 'getafe_session';
 const revokedTokens = new Map();
+// PostgreSQL returns TIMESTAMPTZ columns as Date instances, while a signed
+// session payload is JSON and therefore stores an ISO string. Normalize both
+// sides before comparison so a valid new sign-in is not mistaken for a stale
+// account session.
+const sessionUpdatedAt = user => {
+  const value = user?.updated_at ?? user?.updatedAt ?? null;
+  return value instanceof Date ? value.toISOString() : value;
+};
 
 const makeToken = (user, kind, remember = false) => {
   const issuedAt = Date.now();
-  const payload = Buffer.from(JSON.stringify({ id: user.id, role: user.role, kind, updatedAt: user.updated_at || user.updatedAt || null, iat: issuedAt, remember, exp: issuedAt + (remember ? config.get('authentication.rememberDays') * 86400000 : config.get('authentication.sessionMinutes') * 60000) })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ id: user.id, role: user.role, kind, updatedAt: sessionUpdatedAt(user), iat: issuedAt, remember, exp: issuedAt + (remember ? config.get('authentication.rememberDays') * 86400000 : config.get('authentication.sessionMinutes') * 60000) })).toString("base64url");
   return `${payload}.${crypto.createHmac("sha256", secret).update(payload).digest("base64url")}`;
 };
 
@@ -257,7 +265,7 @@ const admin = async (req, res, next) => {
   }
   try {
     const user = await getCmsUserById(req.admin.id);
-    if (!user || !['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role) || (req.admin.updatedAt && req.admin.updatedAt !== (user.updated_at || user.updatedAt || null))) return res.status(401).json({ error: "Administrator authentication required." });
+    if (!user || !['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role) || (req.admin.updatedAt && req.admin.updatedAt !== sessionUpdatedAt(user))) return res.status(401).json({ error: "Administrator authentication required." });
     req.admin = safeUser(user);
     next();
   } catch (error) {
@@ -276,7 +284,7 @@ const resident = async (req, res, next) => {
   const session = authenticated(req);
   if (!session || await tokenIsRevoked(session) || session.kind !== 'portal' || session.role !== 'resident') return res.status(401).json({ error: 'Resident authentication required.' });
   req.resident = await getPortalUserById(session.id);
-  if (!req.resident || (session.updatedAt && session.updatedAt !== (req.resident.updated_at || req.resident.updatedAt || null))) return res.status(401).json({ error: 'Resident account unavailable.' });
+  if (!req.resident || (session.updatedAt && session.updatedAt !== sessionUpdatedAt(req.resident))) return res.status(401).json({ error: 'Resident account unavailable.' });
   const onboarding = await googleOnboarding(req.resident);
   if (onboarding.setupRequired && !req.path.startsWith('/api/citizen/onboarding/') && !['/api/citizen/profile', '/api/citizen/profile/avatar'].includes(req.path)) return res.status(403).json({ error: 'Complete your account information before using the app.', setupRequired: true });
   next();
@@ -361,9 +369,11 @@ const siteUrl = (req) => {
   return configured.replace(/\/$/, '');
 };
 
-const decorate = async (article) => {
-  const categories = await getCategories();
-  const users = await getCmsUsers();
+const decorate = async (article, lookups = null) => {
+  const { categories, users } = lookups || await (async () => ({
+    categories: await getCategories(),
+    users: await getCmsUsers(),
+  }))();
   return {
     ...article,
     is_important: article.is_important === true || article.is_important === 1,
@@ -586,7 +596,7 @@ app.get("/api/auth/me", async (req, res) => {
       return res.json({ user: null });
     }
     const user = session.kind === 'cms' ? await getCmsUserById(session.id) : await getPortalUserById(session.id);
-    if (!user || (session.updatedAt && session.updatedAt !== (user.updated_at || user.updatedAt || null))
+    if (!user || (session.updatedAt && session.updatedAt !== sessionUpdatedAt(user))
       || (session.kind === 'cms' && !['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role))
       || (session.kind === 'portal' && user.role !== 'resident')) {
       clearSessionCookie(res);
@@ -891,64 +901,75 @@ app.get('/api/notifications', async (req, res) => {
 
 // -- CMS News --
 app.get("/api/news", async (req, res) => {
-  const allNews = await getNewsArticles();
-  const session = authenticated(req);
-  const cmsUser = req.query.public !== 'true' && session?.kind === 'cms' && !(await tokenIsRevoked(session)) ? await getCmsUserById(session.id) : null;
-  const isAdmin = Boolean(cmsUser && await hasAccess(cmsUser, 'content.news.manage'));
-  let items = allNews.filter((n) => isAdmin || (n.status === "published" && n.published_at && new Date(n.published_at) <= new Date()));
-
-  // The landing-page feed must only expose live announcements, even to CMS admins.
-  if (req.query.important === 'true') {
-    items = items.filter((n) => (n.is_important === true || n.is_important === 1) && (n.show_on_homepage === true || n.show_on_homepage === 1) && n.status === 'published' && n.published_at && new Date(n.published_at) <= new Date());
-  }
-
-  if (req.query.status && isAdmin) items = items.filter((n) => n.status === req.query.status);
-  if (req.query.type) items = items.filter((n) => n.content_type === req.query.type);
-
-  const displayField = { news: 'show_in_news', upcoming: 'show_in_upcoming', events: 'show_in_events', homepage: 'show_on_homepage' }[req.query.display];
-  if (displayField) items = items.filter((n) => n[displayField] === true || n[displayField] === 1);
-  if (req.query.homepage === 'true') items = items.filter((n) => n.show_on_homepage === true || n.show_on_homepage === 1);
-  if (req.query.temporal === 'upcoming') {
+  try {
+    const allNews = await getNewsArticles();
+    const session = authenticated(req);
+    const cmsUser = req.query.public !== 'true' && session?.kind === 'cms' && !(await tokenIsRevoked(session)) ? await getCmsUserById(session.id) : null;
+    const isAdmin = Boolean(cmsUser && await hasAccess(cmsUser, 'content.news.manage'));
     const now = new Date();
-    items = items.filter((n) => ['event', 'meeting'].includes(n.content_type) && n.event_start_at && new Date(n.event_end_at || n.event_start_at) >= now);
-  } else if (req.query.temporal === 'past') {
-    const now = new Date();
-    items = items.filter((n) => ['event', 'meeting'].includes(n.content_type) && n.event_start_at && new Date(n.event_end_at || n.event_start_at) < now);
-  }
+    const isPublishedPublicEvent = (n) => n.status === 'published' && ['event', 'meeting'].includes(n.content_type) && n.event_start_at && (n.show_in_upcoming === true || n.show_in_upcoming === 1 || n.show_in_events === true || n.show_in_events === 1);
+    let items = allNews.filter((n) => isAdmin || (n.status === "published" && ((n.published_at && new Date(n.published_at) <= now) || isPublishedPublicEvent(n))));
 
-  const categories = await getCategories();
-  if (req.query.category)
-    items = items.filter((n) => n.category_id === req.query.category || categories.find((c) => c.id === n.category_id)?.slug === req.query.category);
+    // The landing-page feed must only expose live announcements, even to CMS admins.
+    if (req.query.important === 'true') {
+      items = items.filter((n) => (n.is_important === true || n.is_important === 1) && (n.show_on_homepage === true || n.show_on_homepage === 1) && n.status === 'published' && n.published_at && new Date(n.published_at) <= now);
+    }
+
+    if (req.query.status && isAdmin) items = items.filter((n) => n.status === req.query.status);
+    if (req.query.type) items = items.filter((n) => n.content_type === req.query.type);
+
+    const displayField = { news: 'show_in_news', upcoming: 'show_in_upcoming', events: 'show_in_events', homepage: 'show_on_homepage' }[req.query.display];
+    if (displayField) items = items.filter((n) => n[displayField] === true || n[displayField] === 1);
+    if (req.query.homepage === 'true') items = items.filter((n) => n.show_on_homepage === true || n.show_on_homepage === 1);
+    if (req.query.temporal === 'upcoming') {
+      items = items.filter((n) => ['event', 'meeting'].includes(n.content_type) && n.event_start_at && new Date(n.event_end_at || n.event_start_at) >= now);
+    } else if (req.query.temporal === 'past') {
+      items = items.filter((n) => ['event', 'meeting'].includes(n.content_type) && n.event_start_at && new Date(n.event_end_at || n.event_start_at) < now);
+    }
+
+    const [categories, users] = await Promise.all([getCategories(), getCmsUsers()]);
+    if (req.query.category)
+      items = items.filter((n) => n.category_id === req.query.category || categories.find((c) => c.id === n.category_id)?.slug === req.query.category);
   
-  if (req.query.search) {
-    const q = req.query.search.toLowerCase();
-    items = items.filter((n) => `${n.title} ${n.excerpt} ${n.content}`.toLowerCase().includes(q));
+    if (req.query.search) {
+      const q = req.query.search.toLowerCase();
+      items = items.filter((n) => `${n.title} ${n.excerpt} ${n.content}`.toLowerCase().includes(q));
+    }
+    items.sort((a, b) => req.query.temporal === 'upcoming'
+      ? new Date(a.event_start_at) - new Date(b.event_start_at)
+      : new Date(b.event_start_at || b.published_at || b.created_at) - new Date(a.event_start_at || a.published_at || a.created_at));
+  
+    const requestedLimit = Number(req.query.limit || 9);
+    const limit = Math.min(isAdmin ? 100 : 24, Number.isSafeInteger(requestedLimit) && requestedLimit > 0 ? requestedLimit : 9);
+    const requestedPage = Number(req.query.page || 1);
+    const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+    const paginated = items.slice((page - 1) * limit, page * limit);
+    const decorated = await Promise.all(paginated.map(n => decorate(n, { categories, users })));
+  
+    res.json({
+      items: decorated,
+      total: items.length,
+      page,
+      pages: Math.ceil(items.length / limit) || 1,
+    });
+  } catch (error) {
+    console.error('News lookup failed:', error.message);
+    res.status(503).json({ error: 'News is temporarily unavailable.' });
   }
-  items.sort((a, b) => req.query.temporal === 'upcoming'
-    ? new Date(a.event_start_at) - new Date(b.event_start_at)
-    : new Date(b.event_start_at || b.published_at || b.created_at) - new Date(a.event_start_at || a.published_at || a.created_at));
-  
-  const requestedLimit = Number(req.query.limit || 9);
-  const limit = Math.min(isAdmin ? 100 : 24, Number.isSafeInteger(requestedLimit) && requestedLimit > 0 ? requestedLimit : 9);
-  const requestedPage = Number(req.query.page || 1);
-  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-  const paginated = items.slice((page - 1) * limit, page * limit);
-  const decorated = await Promise.all(paginated.map(n => decorate(n)));
-  
-  res.json({
-    items: decorated,
-    total: items.length,
-    page,
-    pages: Math.ceil(items.length / limit) || 1,
-  });
 });
 
 app.get("/api/news/:slug", async (req, res) => {
-  const article = await getNewsArticleBySlug(req.params.slug);
+  // Public links normally use slugs, but older feeds stored the article UUID
+  // in their URL. Accept both forms so those links do not fall into a
+  // validation/error path after the content model migration.
+  const article = await getNewsArticleBySlug(req.params.slug)
+    || (await getNewsArticles()).find(item => item.id === req.params.slug);
   const session = authenticated(req);
   const cmsUser = req.query.public !== 'true' && session?.kind === 'cms' && !(await tokenIsRevoked(session)) ? await getCmsUserById(session.id) : null;
   const isAdmin = Boolean(cmsUser && await hasAccess(cmsUser, 'content.news.manage'));
-  if (!article || (!isAdmin && (article.status !== "published" || new Date(article.published_at) > new Date())))
+  const isPublishedPublicEvent = article && article.status === 'published' && ['event', 'meeting'].includes(article.content_type) && article.event_start_at && (article.show_in_upcoming === true || article.show_in_upcoming === 1 || article.show_in_events === true || article.show_in_events === 1);
+  const isVisible = article && article.status === 'published' && ((article.published_at && new Date(article.published_at) <= new Date()) || isPublishedPublicEvent);
+  if (!article || (!isAdmin && !isVisible))
     return res.status(404).json({ error: "Article not found." });
   res.json(await decorate(article));
 });
@@ -994,8 +1015,12 @@ app.post("/api/news/bulk", admin, permission('content.news.manage'), async (req,
 
 // -- CMS Categories --
 app.get("/api/categories", async (req, res) => {
-  const categories = await getCategories();
-  res.json(categories);
+  try {
+    res.json(await getCategories());
+  } catch (error) {
+    console.error('Categories lookup failed:', error.message);
+    res.status(503).json({ error: 'Categories are temporarily unavailable.' });
+  }
 });
 
 app.get('/api/officials', async (req, res) => {
@@ -1062,12 +1087,17 @@ app.delete("/api/categories/:id", admin, permission('content.categories.manage')
 
 // -- CMS Media --
 app.get("/api/media", admin, permission('content.media.manage'), async (req, res) => {
-  const media = await getMedia();
-  const decoratedMedia = await Promise.all(media.map(async (m) => ({
-    ...m,
-    preview_url: await createDownloadUrl(m.storage_path, m.storage_bucket)
-  })));
-  res.json(decoratedMedia);
+  try {
+    const media = await getMedia();
+    const decoratedMedia = await Promise.all(media.map(async (m) => ({
+      ...m,
+      preview_url: await createDownloadUrl(m.storage_path, m.storage_bucket)
+    })));
+    res.json(decoratedMedia);
+  } catch (error) {
+    console.error('Media lookup failed:', error.message);
+    res.status(503).json({ error: 'Media library is temporarily unavailable.' });
+  }
 });
 
 app.post("/api/storage/upload-url", admin, permission('content.media.manage'), async (req, res) => {
@@ -1138,7 +1168,21 @@ app.put('/api/media/upload-proxy', admin, permission('content.media.manage'), ex
   const storagePath = String(req.query.storagePath || '');
   const contentType = String(req.query.contentType || '');
   if (!/^media\/\d{4}\/\d{2}\/[a-f0-9-]+\.(jpg|png|webp)$/.test(storagePath) || !['image/jpeg', 'image/png', 'image/webp'].includes(contentType) || !Buffer.isBuffer(req.body)) return res.status(400).json({ error: 'Invalid upload request.' });
-  try { await uploadObject(storagePath, req.body, contentType); res.sendStatus(200); } catch (error) { console.error('Proxy upload failed:', error.message); res.status(502).json({ error: 'Storage upload failed.' }); }
+  try {
+    await uploadObject(storagePath, req.body, contentType);
+    res.sendStatus(200);
+  } catch (error) {
+    // Refresh the remote client once so a rotated B2 key or a transient
+    // connection failure does not turn the browser upload into a dead end.
+    try {
+      await initializeStorage();
+      await uploadObject(storagePath, req.body, contentType);
+      res.sendStatus(200);
+    } catch (retryError) {
+      console.error('Proxy upload failed:', retryError.message);
+      res.status(502).json({ error: 'Remote storage upload failed.' });
+    }
+  }
 });
 
 app.post("/api/media/complete", admin, permission('content.media.manage'), async (req, res) => {
@@ -1153,7 +1197,7 @@ app.post("/api/media/complete", admin, permission('content.media.manage'), async
   }
 
   const bucketName = config.get('storage.bucket');
-  const isLocalStorage = config.get('storage.provider') === 'local';
+  const isLocalStorage = storageIsLocal();
 
   // Guard against duplicate completion
   const existing = await getMediaByStoragePath(storagePath);
@@ -1203,7 +1247,17 @@ app.post("/api/media/complete", admin, permission('content.media.manage'), async
     createdAt: new Date().toISOString().slice(0, 23).replace('T', ' '),
   });
   
-  res.status(201).json({ ...item, preview_url: await createDownloadUrl(storagePath) });
+  // Keep the completion response aligned with the database/media-list shape;
+  // the repository insert object uses camelCase internally.
+  res.status(201).json({
+    ...item,
+    storage_path: item.storage_path || item.storagePath,
+    storage_bucket: item.storage_bucket || item.storageBucket,
+    original_filename: item.original_filename || item.originalFilename,
+    content_type: item.content_type || item.contentType,
+    file_size: item.file_size ?? item.fileSize,
+    preview_url: await createDownloadUrl(storagePath),
+  });
 });
 
 app.delete("/api/media/:id", admin, permission('content.media.manage'), async (req, res) => {
@@ -1289,6 +1343,10 @@ app.put(/^\/uploads\/(.+)$/, admin, express.raw({ type: '*/*', limit: '50mb' }),
   const contentType = relative.endsWith('.jpg') ? 'image/jpeg' : relative.endsWith('.png') ? 'image/png' : 'image/webp';
   if (!Buffer.isBuffer(req.body) || req.body.length > config.get('storage.maxUploadMb') * 1024 * 1024 || !imageSignatureMatches(req.body, contentType)) return res.status(422).json({ error: 'The uploaded file is not a valid supported image.' });
   try {
+    if (config.get('storage.provider') === 'backblaze') {
+      await uploadObject(relative, req.body, contentType);
+      return res.status(200).json({ ok: true });
+    }
     const root = path.resolve(config.get('storage.localPath') || 'data/uploads');
     const target = path.resolve(root, relative);
     if (!target.startsWith(`${root}${path.sep}`)) return res.status(400).json({ error: 'Invalid upload path.' });
@@ -1330,7 +1388,19 @@ app.get('/robots.txt', (req, res) => {
   const origin = `${req.protocol}://${req.get('host')}`;
   res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /auth/\nDisallow: /admin/\nDisallow: /api/\nDisallow: /uploads/\nSitemap: ${origin}/sitemap.xml\n`);
 });
-const distDirectory = path.join(__dirname, 'dist');
+// server/index.js lives one directory below the Vite output directory in
+// both the repository and the production image.
+const distDirectory = path.resolve(__dirname, '..', 'dist');
+
+// API endpoints should never fall through to the SPA renderer. In particular,
+// /api/media/complete is a POST-only finalization endpoint; opening it in a
+// browser sends GET and must return a useful API response instead.
+app.use('/api', (req, res) => {
+  const isMediaCompletion = req.path === '/media/complete';
+  res.status(isMediaCompletion ? 405 : 404).json({
+    error: isMediaCompletion ? 'Use POST to finalize an uploaded media file.' : 'API endpoint not found.',
+  });
+});
 
 // Respect a visitor's public-cache preference while keeping private responses
 // protected by their existing no-store rules.

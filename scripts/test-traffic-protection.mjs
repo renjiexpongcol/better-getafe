@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { AdaptiveTrafficProtector, resolveClient } from '../src/services/trafficProtection.js';
+import { AdaptiveTrafficProtector, resolveClient } from '../server/src/services/trafficProtection.js';
 
 function request(path = '/api/news', address = '198.51.100.20') { return { originalUrl: path, path, method: 'GET', socket: { remoteAddress: address }, get: () => undefined }; }
 function response() { const events = new Map(); return { headers: new Map(), statusCode: 200, setHeader(k, v) { this.headers.set(k, v); }, status(v) { this.statusCode = v; return this; }, json(v) { this.body = v; return this; }, once(name, fn) { events.set(name, fn); }, finish() { events.get('finish')?.(); } }; }

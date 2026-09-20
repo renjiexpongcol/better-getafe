@@ -12,10 +12,20 @@ export class ConfigService {
   async resolve(stored) {
     const values = {}, sources = {};
     for (const [key, d] of Object.entries(definitions)) {
-      if (stored[key] !== undefined && stored[key] !== null) {
+      const environment = environmentValue(key, this.env);
+      // Development should follow the checked-out .env database so a stale
+      // saved host cannot silently point the CMS at a different instance.
+      // Persisted settings remain authoritative in production.
+      const useDevelopmentDatabase = this.env.NODE_ENV !== 'production'
+        && /^(database|portalDatabase)\./.test(key)
+        && environment !== undefined;
+      if (useDevelopmentDatabase) {
+        values[key] = environment;
+        sources[key] = 'environment';
+      } else if (stored[key] !== undefined && stored[key] !== null) {
         values[key] = d.secret ? await this.secrets.open(key, stored[key]) : stored[key];
         sources[key] = d.secret && stored[key].secret_ref ? 'secret-manager' : 'database';
-      } else { const fallback = environmentValue(key, this.env); values[key] = fallback ?? d.default; sources[key] = fallback !== undefined ? 'environment' : 'default'; }
+      } else { values[key] = environment ?? d.default; sources[key] = environment !== undefined ? 'environment' : 'default'; }
     }
     validate(values);
     return { values, sources };

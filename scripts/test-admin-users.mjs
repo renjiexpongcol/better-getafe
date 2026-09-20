@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { installAdminUsersRoutes, validateAccountChange } from '../src/services/adminUsersRoutes.js';
-import { config } from '../src/config/index.js';
-import { authorizeChanges } from '../src/config/permissions.js';
+import { installAdminUsersRoutes, validateAccountChange } from '../server/src/services/adminUsersRoutes.js';
+import { config } from '../server/src/config/index.js';
+import { authorizeChanges } from '../server/src/config/permissions.js';
 
 const actor = { id: 'operator', role: 'admin' };
 const target = { id: 'other', role: 'admin' };

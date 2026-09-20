@@ -1,6 +1,6 @@
 import { getLocalDb, saveLocalDb, isGcp } from './postgresCompatibility.js';
 import { getCmsPool } from '../services/cloudSql.js';
-import { barangays } from '../data/barangays.js';
+import { barangays } from '../../../src/data/barangays.js';
 
 const defaults = barangays;
 const defaultDetails = {
@@ -29,5 +29,4 @@ export async function saveBarangays(content) {
   }
   const db = await getLocalDb(); db.barangays = content; await saveLocalDb(db); return content;
 }
-
 

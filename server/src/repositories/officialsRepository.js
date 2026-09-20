@@ -1,6 +1,6 @@
 import { getLocalDb, saveLocalDb, isGcp } from './postgresCompatibility.js';
 import { getCmsPool } from '../services/cloudSql.js';
-import { barangays } from '../data/barangays.js';
+import { barangays } from '../../../src/data/barangays.js';
 
 const DEFAULT_OFFICIALS = {
   mayor: { name: 'Cary M. Camacho, MPM', role: 'Municipal Mayor' },
@@ -23,7 +23,20 @@ export async function getOfficials() {
   if (isGcp()) {
     const pool = await getCmsPool();
     const [rows] = await pool.execute('SELECT content FROM site_pages WHERE slug = ?', ['officials']);
-    return rows[0] ? JSON.parse(rows[0].content) : DEFAULT_OFFICIALS;
+    const saved = rows[0] ? JSON.parse(rows[0].content) : {};
+    // Older CMS saves may contain only the three primary officials. Merge
+    // missing groups back into the complete roster so a partial save cannot
+    // make council members, barangay captains, or department heads disappear.
+    return {
+      ...DEFAULT_OFFICIALS,
+      ...saved,
+      mayor: saved.mayor || DEFAULT_OFFICIALS.mayor,
+      viceMayor: saved.viceMayor || DEFAULT_OFFICIALS.viceMayor,
+      abcPresident: saved.abcPresident || DEFAULT_OFFICIALS.abcPresident,
+      sbMembers: saved.sbMembers ?? DEFAULT_OFFICIALS.sbMembers,
+      punongBarangays: saved.punongBarangays ?? DEFAULT_OFFICIALS.punongBarangays,
+      deptHeads: saved.deptHeads ?? DEFAULT_OFFICIALS.deptHeads,
+    };
   }
   const db = await getLocalDb();
   return db.officials || DEFAULT_OFFICIALS;
@@ -40,5 +53,3 @@ export async function saveOfficials(content) {
   await saveLocalDb(db);
   return content;
 }
-
-

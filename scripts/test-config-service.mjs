@@ -4,9 +4,9 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { ConfigService } from '../src/config/ConfigService.js';
-import { SecretProvider } from '../src/config/SecretProvider.js';
-import { DatabaseSettingsProvider } from '../src/config/DatabaseSettingsProvider.js';
+import { ConfigService } from '../server/src/config/ConfigService.js';
+import { SecretProvider } from '../server/src/config/SecretProvider.js';
+import { DatabaseSettingsProvider } from '../server/src/config/DatabaseSettingsProvider.js';
 const env = { SETTINGS_ENCRYPTION_KEY: crypto.randomBytes(32).toString('base64'), APP_NAME: 'Environment app' };
 async function fixture(t, prepare) {
  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'getafe-config-'));

@@ -10,6 +10,14 @@ import "./AdminDashboard.css";
 import { LayoutDashboard, Newspaper, Tags, Images, Users, MapPin, Settings2, ShieldCheck, LogOut, Menu, X, ChevronDown, UserRound, ArrowRight, Plus, Search, Bell, FileText } from "lucide-react";
 import { resolveModule } from "../../applicationModuleRegistry";
 const normalizeAdminTab = value => value === 'system-settings' ? 'settings' : value;
+const toIsoDateTime = value => value ? new Date(value).toISOString() : value;
+const toLocalDateTimeInput = value => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = number => String(number).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
 const navigationIcons = { dashboard: LayoutDashboard, news: Newspaper, categories: Tags, media: Images, officials: Users, barangays: MapPin, settings: Settings2, privacy: ShieldCheck, users: Users, groups: Users, permissions: ShieldCheck, policies: ShieldCheck, audit: FileText, access: ShieldCheck };
 const blank = {
   title: "",
@@ -191,9 +199,15 @@ export default function Admin() {
   const saveArticle = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...form,
+        published_at: toIsoDateTime(form.published_at),
+        event_start_at: toIsoDateTime(form.event_start_at),
+        event_end_at: toIsoDateTime(form.event_end_at),
+      };
       await api(editing ? `/api/news/${editing}` : "/api/news", token, {
         method: editing ? "PUT" : "POST",
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       setNotice(editing ? "Content updated." : "Content created.");
       setForm(blank);
@@ -296,7 +310,7 @@ export default function Admin() {
       setMedia((m) => [body, ...m]);
       setForm((f) => ({
         ...f,
-        featured_image: body.storage_path,
+        featured_image: body.storage_path || body.storagePath,
         // Render the local file immediately; the remote preview URL may be
         // signed, delayed by object storage, or unavailable in development.
         featured_image_preview: URL.createObjectURL(file),
@@ -384,9 +398,9 @@ export default function Admin() {
                 setForm({
                   ...a,
                   featured_image: a.featured_image_path || a.featured_image,
-                  published_at: a.published_at?.slice(0, 16) || "",
-                  event_start_at: a.event_start_at?.slice(0, 16) || "",
-                  event_end_at: a.event_end_at?.slice(0, 16) || "",
+                  published_at: toLocalDateTimeInput(a.published_at),
+                  event_start_at: toLocalDateTimeInput(a.event_start_at),
+                  event_end_at: toLocalDateTimeInput(a.event_end_at),
                 });
                 setEditing(a.id);
                 setTab("editor");
@@ -411,9 +425,9 @@ export default function Admin() {
                 setForm({
                   ...a,
                   featured_image: a.featured_image_path || a.featured_image,
-                  published_at: a.published_at?.slice(0, 16) || "",
-                  event_start_at: a.event_start_at?.slice(0, 16) || "",
-                  event_end_at: a.event_end_at?.slice(0, 16) || "",
+                  published_at: toLocalDateTimeInput(a.published_at),
+                  event_start_at: toLocalDateTimeInput(a.event_start_at),
+                  event_end_at: toLocalDateTimeInput(a.event_end_at),
                 });
                 setEditing(a.id);
                 setTab("editor");
@@ -426,9 +440,6 @@ export default function Admin() {
           <form className="cms-editor" onSubmit={saveArticle}>
             <div className="cms-title">
               <h1>{editing ? "Edit content" : "Add content"}</h1>
-              <button>
-                {form.status === "published" ? "Publish changes" : "Save draft"}
-              </button>
             </div>
             <label>
               Title
@@ -485,7 +496,7 @@ export default function Admin() {
               <label>
                 Category
                 <select
-                  value={form.category_id}
+                  value={form.category_id ?? ""}
                   onChange={(e) =>
                     setForm({ ...form, category_id: e.target.value })
                   }
@@ -522,10 +533,11 @@ export default function Admin() {
             {['event', 'meeting'].includes(form.content_type) && <div className="cms-row"><label>Starts at<input required type="datetime-local" value={form.event_start_at} onChange={(e) => setForm({ ...form, event_start_at: e.target.value })} /></label><label>Ends at<input type="datetime-local" value={form.event_end_at} onChange={(e) => setForm({ ...form, event_end_at: e.target.value })} /></label></div>}
             <fieldset className="cms-display-options"><legend>Display on</legend><p>Choose every public location where this single content item should appear.</p><div>
               <label><input type="checkbox" checked={Boolean(form.show_in_news)} onChange={(e) => setForm({ ...form, show_in_news: e.target.checked })} /> News page</label>
-              <label><input type="checkbox" checked={Boolean(form.show_in_upcoming)} onChange={(e) => setForm({ ...form, show_in_upcoming: e.target.checked })} /> Upcoming Events &amp; Meetings</label>
+              <label><input type="checkbox" checked={Boolean(form.show_in_upcoming)} onChange={(e) => { const show_in_upcoming = e.target.checked; setForm(current => show_in_upcoming && current.content_type === 'news' ? { ...current, content_type: 'event', show_in_upcoming: true, show_in_events: true } : { ...current, show_in_upcoming }) }} /> Upcoming Events &amp; Meetings</label>
               <label><input type="checkbox" checked={Boolean(form.show_in_events)} onChange={(e) => setForm({ ...form, show_in_events: e.target.checked })} /> Events page (/events)</label>
               <label><input type="checkbox" checked={Boolean(form.show_on_homepage)} onChange={(e) => setForm({ ...form, show_on_homepage: e.target.checked })} /> Homepage</label>
             </div></fieldset>
+            {form.show_in_upcoming && <p className="cms-schedule-help" role="status">Upcoming content must be an Event or Meeting with a start date. Select the event type and enter “Starts at” above.</p>}
             <label className="cms-important-control">
               <input
                 type="checkbox"
@@ -558,6 +570,11 @@ export default function Admin() {
                 onError={(event) => { event.currentTarget.style.display = "none" }}
               />
             )}
+            <div className="cms-editor-actions">
+              <button type="submit">
+                {form.status === "published" ? "Publish changes" : "Save draft"}
+              </button>
+            </div>
           </form>
         )}
         {tab === "categories" && (
@@ -1135,9 +1152,13 @@ function OfficialsSelectorEditor({ token, value, onSaved }) {
     punongBarangays: [],
     deptHeads: [],
   };
-  const [form, setForm] = useState(
-    value && Object.keys(value).length ? value : fallback,
-  );
+  const [form, setForm] = useState(() => ({
+    ...fallback,
+    ...(value || {}),
+    sbMembers: value?.sbMembers ?? fallback.sbMembers,
+    punongBarangays: value?.punongBarangays ?? fallback.punongBarangays,
+    deptHeads: value?.deptHeads ?? fallback.deptHeads,
+  }));
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);

@@ -24,19 +24,31 @@ export async function getConfigPool() {
 export async function closeConfigStore() { if (pool) await pool.end(); }
 export class DatabaseSettingsProvider {
   constructor({ file = process.env.CONFIG_LOCAL_FILE || path.resolve('data/settings.json'), poolProvider = getConfigPool } = {}) { this.file = file; this.poolProvider = poolProvider; this.pending = Promise.resolve(); }
+  async readFileSettings({ storageOnly = false } = {}) {
+    try {
+      const settings = JSON.parse(await fs.readFile(this.file, 'utf8')).settings || {}
+      // The local settings snapshot may contain deployment-specific database
+      // values. Only use its storage settings as a bootstrap fallback; all
+      // other categories continue to resolve from the current environment.
+      return storageOnly
+        ? Object.fromEntries(Object.entries(settings).filter(([key]) => key.startsWith('storage.')))
+        : settings
+    }
+    catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      try { return JSON.parse(await fs.readFile(path.resolve('data/cms.json'), 'utf8')).system_settings || {}; }
+      catch (legacyError) { if (legacyError.code !== 'ENOENT') throw legacyError; return {}; }
+    }
+  }
   async read() {
     const db = await this.poolProvider();
     if (db) {
       const [rows] = await db.execute('SELECT setting_key, value FROM system_settings');
-      return Object.fromEntries(rows.map(row => [row.setting_key, JSON.parse(row.value)]));
+      // A fresh database can exist before the saved settings have been
+      // imported. Keep the configured B2 credentials usable in that state.
+      return rows.length ? Object.fromEntries(rows.map(row => [row.setting_key, JSON.parse(row.value)])) : await this.readFileSettings({ storageOnly: true });
     }
-    try { return JSON.parse(await fs.readFile(this.file, 'utf8')).settings || {}; }
-    catch (error) {
-      if (error.code !== 'ENOENT') throw error;
-      // Import the first increment's settings once, without coupling future writes to CMS data.
-      try { return JSON.parse(await fs.readFile(path.resolve('data/cms.json'), 'utf8')).system_settings || {}; }
-      catch (legacyError) { if (legacyError.code !== 'ENOENT') throw legacyError; return {}; }
-    }
+    return this.readFileSettings();
   }
   async history() {
     const db = await this.poolProvider();
