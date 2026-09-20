@@ -19,7 +19,11 @@ import QRCode from 'qrcode';
 import { config } from './src/config/index.js';
 import { closeConfigStore } from './src/config/DatabaseSettingsProvider.js';
 import { installSettingsRoutes } from './src/services/settingsRoutes.js';
+import { installPublicDataRoutes } from './src/services/publicDataRoutes.js';
 import { installAdminUsersRoutes } from './src/services/adminUsersRoutes.js';
+import { installStaffRoutes } from './src/services/staffRoutes.js';
+import { installAccessManagementRoutes } from './src/services/accessManagementRoutes.js';
+import { effectiveAccessFor, hasAccess, requireAccess } from './src/services/authorizationService.js';
 import { loginThrottle, passwordResetEmailThrottle, issueCode, verifyCode, actionThrottle } from './src/services/authSecurity.js';
 import { stateKey, stateTransaction, putState, consumeState, readState } from './src/services/authState.js';
 import { replacePassword } from './src/services/passwords.js';
@@ -164,7 +168,7 @@ app.use(async (req, res, next) => {
       try {
         const user = await getCmsUserById(session.id);
         const ips = config.get('maintenance.allowedAdminIps').split(',').map(ip => ip.trim()).filter(Boolean);
-        if (['admin', 'super_admin'].includes(user?.role) && (!ips.length || ips.includes(req.ip))) return next();
+        if (['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user?.role) && (!ips.length || ips.includes(req.ip))) return next();
       } catch { /* Fail closed for regular requests. */ }
     }
     res.setHeader('Retry-After', '60');
@@ -256,6 +260,11 @@ const admin = async (req, res, next) => {
     console.error('Administrator authorization lookup failed:', error.message);
     res.status(503).json({ error: "Authentication service is temporarily unavailable." });
   }
+};
+
+const permission = permissionId => async (req, res, next) => {
+  try { await requireAccess(req.admin, permissionId); next(); }
+  catch (error) { res.status(error.status || 403).json({ error: error.message }); }
 };
 
 const resident = async (req, res, next) => {
@@ -563,20 +572,34 @@ app.get("/api/auth/me", async (req, res) => {
     }
     if (!session) {
       if (cookies[SESSION_COOKIE]) clearSessionCookie(res);
-      return res.status(401).json({ user: null, error: 'Authentication required.' });
+      // This is a normal state for visitors of public pages. Returning an
+      // empty session avoids noisy browser-console failures while preserving
+      // the protected-route behavior in the client.
+      return res.json({ user: null });
     }
     if (await tokenIsRevoked(session)) {
       clearSessionCookie(res);
-      return res.status(401).json({ user: null });
+      return res.json({ user: null });
     }
     const user = session.kind === 'cms' ? await getCmsUserById(session.id) : await getPortalUserById(session.id);
     if (!user || (session.updatedAt && session.updatedAt !== (user.updated_at || user.updatedAt || null))
       || (session.kind === 'cms' && !['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role))
       || (session.kind === 'portal' && user.role !== 'resident')) {
       clearSessionCookie(res);
-      return res.status(401).json({ error: "Authentication required." });
+      return res.json({ user: null });
     }
-    res.json({ user: { ...safeUser(user), ...(session.kind === 'portal' ? await googleOnboarding(user) : {}) }, admin: session.kind === 'cms' && ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role) });
+    const authorization = session.kind === 'cms' ? await effectiveAccessFor(user) : null;
+    res.json({
+      user: {
+        ...safeUser(user),
+        ...(session.kind === 'portal' ? await googleOnboarding(user) : {}),
+        ...(authorization ? {
+          groups: authorization.groups.map(group => ({ id: group.id, name: group.name })),
+          permissions: authorization.permissions.filter(permission => permission.allowed).map(permission => permission.id),
+        } : {}),
+      },
+      admin: session.kind === 'cms' && ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role),
+    });
   } catch (error) {
     console.error('Authentication session lookup failed:', error.message);
     res.status(503).json({ error: "The sign-in service is temporarily unavailable." });
@@ -774,7 +797,10 @@ app.post("/api/portal-auth/register", async (req, res) => {
 
 installSettingsRoutes(app, admin);
 installAdminUsersRoutes(app, admin);
+installStaffRoutes(app, admin);
+installAccessManagementRoutes(app, admin);
 installCitizenRoutes(app, resident, safeUser);
+installPublicDataRoutes(app);
 
 app.get('/api/public/config', (req, res) => {
   // This endpoint is only an internal bootstrap request. Reject direct browser
@@ -791,7 +817,7 @@ app.get('/api/public/config', (req, res) => {
   }
   res.setHeader('Cache-Control', 'no-store');
   try {
-    const publicKeys = Object.keys(config.values).filter(key => key.startsWith('general.') || key.startsWith('features.') || ['authentication.registrationEnabled', 'authentication.passwordMinLength', 'security.registrationCaptcha', 'security.recaptchaProvider', 'security.recaptchaSiteKey', 'notifications.enabled', 'maintenance.enabled', 'maintenance.message', 'maintenance.expectedCompletion'].includes(key));
+    const publicKeys = Object.keys(config.values).filter(key => key.startsWith('general.') || key.startsWith('features.') || key.startsWith('publicData.') || ['authentication.registrationEnabled', 'authentication.passwordMinLength', 'security.registrationCaptcha', 'security.recaptchaProvider', 'security.recaptchaSiteKey', 'notifications.enabled', 'maintenance.enabled', 'maintenance.message', 'maintenance.expectedCompletion'].includes(key));
     res.json(Object.fromEntries(publicKeys.map(key => [key, config.get(key)])));
   } catch (error) {
     console.error('Public configuration unavailable:', error.message);
@@ -812,7 +838,7 @@ app.get('/api/public/config', (req, res) => {
   }
 });
 
-app.get('/api/admin/reports', admin, async (req, res) => {
+app.get('/api/admin/reports', admin, permission('reports.view'), async (req, res) => {
   if (!config.get('features.reports')) return res.status(403).json({ error: 'Reports are disabled.' });
   try { const articles = await getNewsArticles(); res.json({ generatedAt: new Date().toISOString(), total: articles.length, published: articles.filter(article => article.status === 'published').length }); }
   catch { res.status(503).json({ error: 'Reports unavailable.' }); }
@@ -821,9 +847,7 @@ app.get('/api/admin/reports', admin, async (req, res) => {
 // this check aligned with the navigation and the general admin middleware;
 // restricting it to super_admin makes regular Administrators see an option
 // they can never use.
-const privacyAdmin = (req, res, next) => ['admin', 'super_admin'].includes(req.admin?.role)
-  ? next()
-  : res.status(403).json({ error: 'Data privacy requests require an authorized privacy administrator.' });
+const privacyAdmin = permission('privacy.manage');
 app.get('/api/admin/privacy-requests', admin, privacyAdmin, async (req, res) => {
   const db = await getLocalSqlite(), requests = db.prepare('SELECT * FROM privacy_requests ORDER BY created_at DESC').all();
   res.json(requests.map(request => ({ ...request, events: db.prepare('SELECT * FROM privacy_request_events WHERE request_id = ? ORDER BY created_at DESC').all(request.id) })));
@@ -840,16 +864,16 @@ app.patch('/api/admin/privacy-requests/:id', admin, privacyAdmin, async (req, re
   db.prepare('INSERT INTO privacy_request_events (id,request_id,actor_id,actor_type,event,note,created_at) VALUES (?,?,?,?,?,?,?)').run(createId(), request.id, req.admin.id, 'admin', `status:${status}`, note, updated);
   res.json({ ok: true, status, updated_at: updated });
 });
-app.post('/api/admin/integrations/test', admin, async (req, res) => {
+app.post('/api/admin/integrations/test', admin, permission('system.settings.manage'), async (req, res) => {
   try { await integrationRequest('health'); res.json({ ok: true }); }
   catch { res.status(422).json({ error: 'Integration health check failed. Check configuration and credentials.' }); }
 });
-app.post('/api/admin/ai', admin, async (req, res) => {
+app.post('/api/admin/ai', admin, permission('system.settings.manage'), async (req, res) => {
   if (!config.get('features.ai')) return res.status(403).json({ error: 'AI features are disabled.' });
   try { const response = await integrationRequest('ai', { prompt: String(req.body.prompt || '').slice(0, 5000) }); res.json(await response.json()); }
   catch { res.status(503).json({ error: 'AI integration is unavailable.' }); }
 });
-app.post('/api/admin/notifications/test', admin, async (req, res) => {
+app.post('/api/admin/notifications/test', admin, permission('system.settings.manage'), async (req, res) => {
   if (!config.get('notifications.enabled') || !config.get('notifications.emailEnabled')) return res.status(403).json({ error: 'Email notifications are disabled.' });
   try { await sendEmail(req.admin.email, 'Notification test', 'Email notifications are enabled.'); res.json({ ok: true }); }
   catch { res.status(503).json({ error: 'Notification delivery failed.' }); }
@@ -864,7 +888,8 @@ app.get('/api/notifications', async (req, res) => {
 app.get("/api/news", async (req, res) => {
   const allNews = await getNewsArticles();
   const session = authenticated(req);
-  const isAdmin = req.query.public !== 'true' && session && !(await tokenIsRevoked(session)) && session.kind === 'cms' && ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(session.role);
+  const cmsUser = req.query.public !== 'true' && session?.kind === 'cms' && !(await tokenIsRevoked(session)) ? await getCmsUserById(session.id) : null;
+  const isAdmin = Boolean(cmsUser && await hasAccess(cmsUser, 'content.news.manage'));
   let items = allNews.filter((n) => isAdmin || (n.status === "published" && n.published_at && new Date(n.published_at) <= new Date()));
 
   // The landing-page feed must only expose live announcements, even to CMS admins.
@@ -916,13 +941,14 @@ app.get("/api/news", async (req, res) => {
 app.get("/api/news/:slug", async (req, res) => {
   const article = await getNewsArticleBySlug(req.params.slug);
   const session = authenticated(req);
-  const isAdmin = req.query.public !== 'true' && session && !(await tokenIsRevoked(session)) && session.kind === 'cms' && ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(session.role);
+  const cmsUser = req.query.public !== 'true' && session?.kind === 'cms' && !(await tokenIsRevoked(session)) ? await getCmsUserById(session.id) : null;
+  const isAdmin = Boolean(cmsUser && await hasAccess(cmsUser, 'content.news.manage'));
   if (!article || (!isAdmin && (article.status !== "published" || new Date(article.published_at) > new Date())))
     return res.status(404).json({ error: "Article not found." });
   res.json(await decorate(article));
 });
 
-app.post("/api/news", admin, async (req, res) => {
+app.post("/api/news", admin, permission('content.news.manage'), async (req, res) => {
   if (!validateArticle(req.body, res)) return;
   const categories = await getCategories();
   if (req.body.category_id && !categories.some((category) => category.id === req.body.category_id)) {
@@ -932,7 +958,7 @@ app.post("/api/news", admin, async (req, res) => {
   res.status(201).json(await decorate(article));
 });
 
-app.put("/api/news/:id", admin, async (req, res) => {
+app.put("/api/news/:id", admin, permission('content.news.manage'), async (req, res) => {
   if (!validateArticle(req.body, res)) return;
   const categories = await getCategories();
   if (req.body.category_id && !categories.some((category) => category.id === req.body.category_id)) {
@@ -943,12 +969,12 @@ app.put("/api/news/:id", admin, async (req, res) => {
   res.json(await decorate(article));
 });
 
-app.delete("/api/news/:id", admin, async (req, res) => {
+app.delete("/api/news/:id", admin, permission('content.news.manage'), async (req, res) => {
   await deleteNewsArticle(req.params.id);
   res.status(204).end();
 });
 
-app.post("/api/news/bulk", admin, async (req, res) => {
+app.post("/api/news/bulk", admin, permission('content.news.manage'), async (req, res) => {
   try {
     const { ids, action } = req.body || {};
     if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: "Select at least one article" });
@@ -988,19 +1014,19 @@ app.get('/api/officials', async (req, res) => {
     res.json(content);
   } catch (error) { console.error('Officials lookup failed:', error.message); res.status(503).json({ error: 'Officials are temporarily unavailable.' }); }
 });
-app.put('/api/officials', admin, async (req, res) => {
+app.put('/api/officials', admin, permission('directory.manage'), async (req, res) => {
   try { if (!req.body || typeof req.body !== 'object') return res.status(422).json({ error: 'Invalid officials content.' }); res.json(await saveOfficials(sanitizeOfficials(req.body))); }
   catch (error) { console.error('Officials update failed:', error.message); res.status(500).json({ error: 'Officials could not be updated.' }); }
 });
 app.get('/api/barangays', async (req, res) => {
   try { res.json(sanitizeBarangays(await getBarangays())); } catch (error) { console.error('Barangays lookup failed:', error.message); res.status(503).json({ error: 'Barangays are temporarily unavailable.' }); }
 });
-app.put('/api/barangays', admin, async (req, res) => {
+app.put('/api/barangays', admin, permission('directory.manage'), async (req, res) => {
   try { if (!Array.isArray(req.body)) return res.status(422).json({ error: 'Invalid barangays content.' }); res.json(await saveBarangays(sanitizeBarangays(req.body))); }
   catch (error) { console.error('Barangays update failed:', error.message); res.status(500).json({ error: 'Barangays could not be updated.' }); }
 });
 
-app.post("/api/categories", admin, async (req, res) => {
+app.post("/api/categories", admin, permission('content.categories.manage'), async (req, res) => {
   const name = req.body.name?.trim();
   if (!name) return res.status(422).json({ error: "A category name is required." });
   const all = await getCategories();
@@ -1011,7 +1037,7 @@ app.post("/api/categories", admin, async (req, res) => {
   res.status(201).json(item);
 });
 
-app.put("/api/categories/:id", admin, async (req, res) => {
+app.put("/api/categories/:id", admin, permission('content.categories.manage'), async (req, res) => {
   const name = req.body.name?.trim();
   if (!name) return res.status(422).json({ error: "A category name is required." });
   
@@ -1020,7 +1046,7 @@ app.put("/api/categories/:id", admin, async (req, res) => {
   res.json(item);
 });
 
-app.delete("/api/categories/:id", admin, async (req, res) => {
+app.delete("/api/categories/:id", admin, permission('content.categories.manage'), async (req, res) => {
   const articles = await getNewsArticles();
   if (articles.some((n) => n.category_id === req.params.id))
     return res.status(409).json({ error: "This category is used by an article." });
@@ -1030,7 +1056,7 @@ app.delete("/api/categories/:id", admin, async (req, res) => {
 });
 
 // -- CMS Media --
-app.get("/api/media", admin, async (req, res) => {
+app.get("/api/media", admin, permission('content.media.manage'), async (req, res) => {
   const media = await getMedia();
   const decoratedMedia = await Promise.all(media.map(async (m) => ({
     ...m,
@@ -1039,7 +1065,7 @@ app.get("/api/media", admin, async (req, res) => {
   res.json(decoratedMedia);
 });
 
-app.post("/api/storage/upload-url", admin, async (req, res) => {
+app.post("/api/storage/upload-url", admin, permission('content.media.manage'), async (req, res) => {
   if (!config.get('features.uploads')) return res.status(403).json({ error: 'File uploads are disabled.' });
   const filename = String(req.body.filename || '').trim();
   const contentType = String(req.body.contentType || '').trim().toLowerCase();
@@ -1103,14 +1129,14 @@ app.post("/api/storage/upload-url", admin, async (req, res) => {
   }
 });
 
-app.put('/api/media/upload-proxy', admin, express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '25mb' }), async (req, res) => {
+app.put('/api/media/upload-proxy', admin, permission('content.media.manage'), express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '25mb' }), async (req, res) => {
   const storagePath = String(req.query.storagePath || '');
   const contentType = String(req.query.contentType || '');
   if (!/^media\/\d{4}\/\d{2}\/[a-f0-9-]+\.(jpg|png|webp)$/.test(storagePath) || !['image/jpeg', 'image/png', 'image/webp'].includes(contentType) || !Buffer.isBuffer(req.body)) return res.status(400).json({ error: 'Invalid upload request.' });
   try { await uploadObject(storagePath, req.body, contentType); res.sendStatus(200); } catch (error) { console.error('Proxy upload failed:', error.message); res.status(502).json({ error: 'Storage upload failed.' }); }
 });
 
-app.post("/api/media/complete", admin, async (req, res) => {
+app.post("/api/media/complete", admin, permission('content.media.manage'), async (req, res) => {
   const storagePath = String(req.body.storagePath || '');
   const relatedRecordId = req.body.relatedRecordId || null;
   
@@ -1175,7 +1201,7 @@ app.post("/api/media/complete", admin, async (req, res) => {
   res.status(201).json({ ...item, preview_url: await createDownloadUrl(storagePath) });
 });
 
-app.delete("/api/media/:id", admin, async (req, res) => {
+app.delete("/api/media/:id", admin, permission('content.media.manage'), async (req, res) => {
   const allMedia = await getMedia();
   const item = allMedia.find(m => m.id === req.params.id);
   if (!item) return res.status(404).json({ error: "Media not found." });

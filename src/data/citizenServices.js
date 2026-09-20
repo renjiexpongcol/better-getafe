@@ -35,8 +35,8 @@ export const citizenServices = [
 ].map(([id, name, category]) => ({ id, name, category }))
 
 export const serviceLink = service => service.category === 'treasury'
-  ? `/app/payments?settlement=${encodeURIComponent(service.name.replace(/ Settlement$| Fees$/g, ''))}`
-  : `/app/requests/new?service=${encodeURIComponent(service.id)}`
+  ? `/app?sysparm_object_id=payments&settlement=${encodeURIComponent(service.name.replace(/ Settlement$| Fees$/g, ''))}`
+  : `/app?sysparm_object_id=requests&sysparm_view=new&service=${encodeURIComponent(service.id)}`
 export function searchServices(query, category = '') {
   const words = query.toLowerCase().trim().split(/\s+/)
   return citizenServices.filter(service => (!category || service.category === category) && words.every(word => `${service.name} ${serviceCategories.find(item => item.id === service.category)?.name}`.toLowerCase().includes(word)))

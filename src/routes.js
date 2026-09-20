@@ -28,10 +28,17 @@ const routeOverrides = {
   './pages/legal/PrivacyPolicy.jsx': '/legal/privacy',
   './pages/legal/TermsOfUse.jsx': '/legal/terms',
   './pages/services/EmergencyHotlines.jsx': '/services/hotlines',
+  './pages/services/OfficeDetail.jsx': '/services/offices/:slug',
   './pages/services/BarangayDetail.jsx': '/services/barangays/:id',
   './pages/services/BarangayOfficial.jsx': '/services/barangays/:id/official',
   './pages/services/BarangayOfficials.jsx': '/services/barangays/:id/officials',
   './pages/services/BarangayOfficialProfile.jsx': '/services/barangays/:id/officials/:officialSlug',
+  './pages/data/Data.jsx': '/data',
+  './pages/data/Datasets.jsx': '/data/datasets',
+  './pages/data/DatasetDetail.jsx': '/data/datasets/:id',
+  './pages/data/Barangays.jsx': '/data/barangays',
+  './pages/data/BarangayStatistics.jsx': '/data/barangays/:slug',
+  './pages/app/StaffSysparm.jsx': '/app/staff',
 }
 
 // Human-readable titles used by the sitemap and the document title.
@@ -55,6 +62,7 @@ export const routeTitles = {
   '/services/barangay-clearance': 'Barangay Clearance Guide',
   '/services/education': 'Education & Scholarships',
   '/services/health': 'Health Services',
+  '/services/offices/:slug': 'Municipal Office',
   '/news': 'News & Updates',
   '/tourism': 'Discover Getafe',
   '/events': 'Gallery of Events',
@@ -66,13 +74,18 @@ export const routeTitles = {
   '/app/setup': 'Set Up Account',
   '/app/services': 'Municipal Services',
   '/app/requests': 'My Applications',
+  '/app/notifications': 'Notifications',
   '/app/documents': 'My Documents',
   '/app/appointments': 'Appointments',
   '/app/payments': 'Payments',
   '/app/settings': 'Account Settings',
   '/app/help': 'Help & Support',
   '/app/requests/new': 'New Request',
+  '/app/staff': 'Staff workspace',
   '/auth/login': 'Log In',
+  '/data': 'Philippines Open Data & Statistics',
+  '/data/datasets': 'Dataset Explorer',
+  '/data/barangays': 'Barangay Statistics',
 }
 
 // Routes that must NOT appear in the public sitemap (e.g. auth,
@@ -82,7 +95,7 @@ const HIDDEN_ROUTES = ['/auth/login', '/admin']
 const toKebab = (str) => str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
 
 // Build { path, Component, folder, name, title } for every page file.
-export const pageRoutes = Object.entries(pageModules).filter(([file]) => !file.endsWith('/AppPage.jsx') && !file.endsWith('/Notifications.jsx') && !file.endsWith('/app/Settings.jsx') && !file.endsWith('/dashboard/Profile.jsx')).map(([file, loader]) => {
+export const pageRoutes = Object.entries(pageModules).filter(([file]) => !file.endsWith('/AppPage.jsx') && !file.endsWith('/app/Settings.jsx') && !file.endsWith('/dashboard/Profile.jsx')).map(([file, loader]) => {
   const Component = lazy(loader)
   const [folder, name] = file.replace('./pages/', '').replace(/\.jsx$/, '').split('/')
   const kebab = toKebab(name)
@@ -102,11 +115,12 @@ export const pageRoutes = Object.entries(pageModules).filter(([file]) => !file.e
 export const publicRoutes = pageRoutes.filter((r) => !r.path.includes(':') && !HIDDEN_ROUTES.includes(r.path) && !r.path.startsWith('/app/') && !r.path.startsWith('/auth/') && !r.path.startsWith('/admin'))
 
 // Display labels + order for the sitemap groups.
-const groupOrder = ['home', 'info', 'services', 'weather', 'dashboard', 'app', 'tourism', 'events', 'news', 'legal']
+const groupOrder = ['home', 'info', 'services', 'data', 'weather', 'dashboard', 'app', 'tourism', 'events', 'news', 'legal']
 const groupLabels = {
   home: 'Home',
   info: 'Information',
   services: 'Services',
+  data: 'Data & Statistics',
   weather: 'Weather',
   dashboard: 'Citizen Dashboard',
   app: 'Citizen Portal',

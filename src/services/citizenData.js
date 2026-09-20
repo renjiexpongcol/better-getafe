@@ -19,7 +19,7 @@ export function dateLabel(value, options = {}) {
 export const money = value => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value) || 0)
 export const upcomingAppointments = items => items.filter(item => ['scheduled', 'confirmed', 'requested'].includes(statusKey(item.status)) && parseDate(item.appointment_at)?.getTime() > Date.now()).sort((a, b) => parseDate(a.appointment_at) - parseDate(b.appointment_at))
 export function notificationLink(item) {
-  if (item.application_id) return `/app/requests/${encodeURIComponent(item.application_id)}`
-  if (item.document_id) return `/app/documents?document=${encodeURIComponent(item.document_id)}`
-  return `/app/notifications?notification=${encodeURIComponent(item.id)}`
+  if (item.application_id) return `/app?sysparm_object_id=requests&sysparm_record_id=${encodeURIComponent(item.application_id)}`
+  if (item.document_id) return `/app?sysparm_object_id=documents&sysparm_record_id=${encodeURIComponent(item.document_id)}`
+  return `/app?sysparm_object_id=notifications&sysparm_record_id=${encodeURIComponent(item.id)}`
 }

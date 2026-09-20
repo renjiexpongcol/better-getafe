@@ -1,7 +1,10 @@
 import { getCmsUsers, saveCmsAccount } from '../repositories/cmsUserRepository.js';
 import { config } from '../config/index.js';
-import { allPermissions, cmsRoles, permissionsFor, requirePermission } from '../config/permissions.js';
+import { allPermissions, cmsRoles, permissionsFor } from '../config/permissions.js';
 import { sendEmail } from './email.js';
+import { ensureAuthorizationData, requireAccess } from './authorizationService.js';
+
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
 
 export function validateAccountChange(actor, target, values) {
   if (!values || typeof values.name !== 'string' || !values.name.trim() || values.name.length > 160) throw new Error('Enter a name of up to 160 characters.');
@@ -13,9 +16,9 @@ export function validateAccountChange(actor, target, values) {
 }
 
 export function installAdminUsersRoutes(app, admin) {
-  app.use('/api/admin/users', admin, (req, res, next) => {
-    try { requirePermission(req.admin, 'settings.security.edit'); requirePermission(req.admin, 'settings.edit'); }
-    catch { return res.status(403).json({ error: 'User management requires security and settings edit permissions.' }); }
+  app.use('/api/admin/users', admin, async (req, res, next) => {
+    try { await requireAccess(req.admin, ['GET', 'HEAD'].includes(req.method) ? 'users.view' : 'users.manage'); }
+    catch (error) { return res.status(error.status || 403).json({ error: error.message }); }
     if (!['GET', 'HEAD'].includes(req.method)) {
       const allowed = new Set([`${req.protocol}://${req.get('host')}`]);
       if (config.get('general.url')) allowed.add(new URL(config.get('general.url')).origin);
@@ -36,15 +39,22 @@ export function installAdminUsersRoutes(app, admin) {
       if (req.params.id && !target) return res.status(404).json({ error: 'Account not found.' });
       try {
         validateAccountChange(req.admin, target, req.body);
-        // A newly created administrator inherits full settings permissions.
-        if ((!target || target.role === 'disabled') && req.body.role === 'admin' && permissionsFor(req.admin).length !== allPermissions.length) throw new Error('Full settings access is required to create or reactivate an administrator.');
       } catch (error) { return res.status(400).json({ error: error.message }); }
       if (!target && users.some(user => user.email.toLowerCase() === req.body.email.trim().toLowerCase())) return res.status(409).json({ error: 'This email already has an account.' });
       const email = req.body.email?.trim().toLowerCase();
       const id = await saveCmsAccount({ ...req.body, name: req.body.name.trim(), email }, target?.id);
       if (!target) {
+        // New accounts are group-first: mark the legacy role migration as
+        // handled so their access comes only from explicit group membership.
+        const authorizationDb = await ensureAuthorizationData();
+        authorizationDb.prepare('INSERT OR IGNORE INTO auth_user_bootstrap (user_id,created_at) VALUES (?,datetime(\'now\'))').run(id);
         try {
-          await sendEmail(email, `${config.get('general.name')} administrator account`, `Hello ${req.body.name.trim()},\n\nAn administrator account has been created for you on the ${config.get('general.name')}.\n\nEmail: ${email}\nInitial password: ${req.body.password}\nRole: ${req.body.role}\n\nPlease sign in and change this password immediately. Keep this message confidential.`);
+          const portalName = config.get('general.name');
+          const signInUrl = config.get('general.url') || 'http://localhost:5173';
+          const roleLabel = req.body.role === 'staff' ? 'Municipal staff' : req.body.role === 'super_admin' ? 'Super administrator' : 'Administrator';
+          const text = `Hello ${req.body.name.trim()},\n\nYour ${portalName} staff account is ready.\n\nSign in: ${signInUrl}/auth/login\nEmail: ${email}\nTemporary password: ${req.body.password}\nRole: ${roleLabel}\n\nFor your security, sign in as soon as possible and change the temporary password. Never share your password or this email. If you did not expect this account, contact the municipal administrator.\n\nRegards,\n${portalName}`;
+          const html = `<!doctype html><html><body style="margin:0;background:#f3f7fb;color:#18334e;font-family:Arial,Helvetica,sans-serif"><div style="max-width:620px;margin:30px auto;padding:0 16px"><div style="overflow:hidden;border:1px solid #dce6ef;border-radius:14px;background:#fff;box-shadow:0 8px 24px rgba(24,51,78,.08)"><div style="padding:26px 30px;background:#123c67;color:#fff"><div style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;opacity:.8">${escapeHtml(portalName)}</div><h1 style="margin:9px 0 0;font-size:25px;line-height:1.2">Your staff account is ready</h1></div><div style="padding:30px"><p style="margin:0 0 16px;font-size:16px">Hello ${escapeHtml(req.body.name.trim())},</p><p style="margin:0 0 22px;color:#58718a;line-height:1.6">An account has been created for you to access the ${escapeHtml(portalName)} municipal staff workspace.</p><div style="padding:18px;border:1px solid #dce8f2;border-radius:10px;background:#f7fbff"><p style="margin:0 0 10px;font-size:12px;color:#6c849a;text-transform:uppercase;letter-spacing:.8px;font-weight:bold">Account details</p><p style="margin:7px 0"><strong>Email:</strong> ${escapeHtml(email)}</p><p style="margin:7px 0"><strong>Temporary password:</strong> <span style="font-family:monospace;color:#123c67">${escapeHtml(req.body.password)}</span></p><p style="margin:7px 0"><strong>Role:</strong> ${escapeHtml(roleLabel)}</p></div><p style="margin:24px 0"><a href="${escapeHtml(signInUrl)}/auth/login" style="display:inline-block;padding:12px 18px;border-radius:7px;background:#1677d2;color:#fff;text-decoration:none;font-weight:bold">Sign in to the portal</a></p><div style="padding-top:18px;border-top:1px solid #e5edf4;color:#667e94;font-size:13px;line-height:1.6"><strong style="color:#18334e">Keep your account secure</strong><br>Change the temporary password after signing in. Never share your password or this email. If you did not expect this account, contact the municipal administrator.</div></div></div><p style="margin:18px 0;text-align:center;color:#8194a5;font-size:11px">This is an automated message from ${escapeHtml(portalName)}.</p></div></body></html>`;
+          await sendEmail(email, `${portalName} · Your staff account is ready`, text, undefined, undefined, [], html);
           return res.status(201).json({ id, saved: true, emailSent: true });
         } catch (error) {
           return res.status(201).json({ id, saved: true, emailSent: false, warning: 'Account created, but the welcome email could not be sent. Verify SMTP settings and provide the initial password securely.' });

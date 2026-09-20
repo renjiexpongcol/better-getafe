@@ -3,12 +3,14 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Settings from "../../components/AdminSettings";
 import AdminPrivacyRequests from "../../components/AdminPrivacyRequests";
-import AdminUsers from "../../components/AdminUsers";
+import AdminAccessManagement from "../../components/AdminAccessManagement";
 import "../../components/ImportantAnnouncement.css";
 import "../../citizen.css";
 import "./AdminDashboard.css";
 import { LayoutDashboard, Newspaper, Tags, Images, Users, MapPin, Settings2, ShieldCheck, LogOut, Menu, X, ChevronDown, UserRound, ArrowRight, Plus, Search, Bell, FileText } from "lucide-react";
-const navigationIcons = { dashboard: LayoutDashboard, news: Newspaper, categories: Tags, media: Images, officials: Users, barangays: MapPin, settings: Settings2, privacy: ShieldCheck, users: Users, access: ShieldCheck };
+import { resolveModule } from "../../applicationModuleRegistry";
+const normalizeAdminTab = value => value === 'system-settings' ? 'settings' : value;
+const navigationIcons = { dashboard: LayoutDashboard, news: Newspaper, categories: Tags, media: Images, officials: Users, barangays: MapPin, settings: Settings2, privacy: ShieldCheck, users: Users, groups: Users, permissions: ShieldCheck, policies: ShieldCheck, audit: FileText, access: ShieldCheck };
 const blank = {
   title: "",
   slug: "",
@@ -30,7 +32,7 @@ const api = (url, _token, options = {}) =>
   fetch(url, {
     ...options,
     credentials: "include",
-    headers: { "Content-Type": "application/json", ...options.headers },
+    headers: { "Content-Type": "application/json", "X-Requested-With": "GetafeCitizenPortal", ...options.headers },
   }).then(async (r) => {
     const contentType = r.headers.get("content-type") || "";
     const body =
@@ -99,7 +101,7 @@ export default function Admin() {
     [form, setForm] = useState(blank),
     [editing, setEditing] = useState(null),
     [notice, setNotice] = useState(""),
-    [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || "dashboard"),
+    [tab, setTab] = useState(() => { const params = new URLSearchParams(window.location.search); const requested = params.get('sysparm_object_id') || params.get('tab') || 'dashboard'; const canonical = normalizeAdminTab(requested); return resolveModule('admin', requested) ? canonical : 'dashboard'; }),
     [media, setMedia] = useState([]),
     [settings, setSettings] = useState(null),
     [confirmDialog, setConfirmDialog] = useState(null),
@@ -109,11 +111,19 @@ export default function Admin() {
     [profileMenuOpen, setProfileMenuOpen] = useState(false),
     [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   useEffect(() => {
-    const onPop = () => setTab(new URLSearchParams(window.location.search).get('tab') || 'dashboard');
+    const onPop = () => { const params = new URLSearchParams(window.location.search); const requested = params.get('sysparm_object_id') || params.get('tab') || 'dashboard'; const canonical = normalizeAdminTab(requested); setTab(resolveModule('admin', requested) ? canonical : 'dashboard'); };
     const onEscape = event => { if (event.key === 'Escape') { setMobileSidebarOpen(false); setProfileMenuOpen(false); if (accountMenuRef.current?.contains(document.activeElement)) accountButtonRef.current?.focus(); } };
     window.addEventListener('popstate', onPop);
     window.addEventListener('keydown', onEscape);
     return () => { window.removeEventListener('popstate', onPop); window.removeEventListener('keydown', onEscape); };
+  }, []);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('sysparm_object_id')) {
+      params.delete('tab');
+      params.set('sysparm_object_id', tab === 'settings' ? 'system-settings' : tab);
+      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+    }
   }, []);
   useEffect(() => {
     document.body.classList.toggle("cms-drawer-open", mobileSidebarOpen);
@@ -306,14 +316,18 @@ export default function Admin() {
   const navigationGroups = [
     ["Main", [["dashboard", "Dashboard"], ["news", "News & Events"], ["categories", "Categories"], ["media", "Media Library"]]],
     ["Management", [["officials", "Officials"], ["barangays", "Barangays"]]],
-    ["Access & security", [["users", "User Management"], ["privacy", "Privacy Requests"]]],
+    ["Access & security", [["access", "Access Management"]]],
+    ["Governance", [["privacy", "Privacy Requests"]]],
     ["System", [["settings", "Settings"]]],
-  ];
+  ].map(([group, items]) => [group, items.filter(([key]) => user.permissions?.includes(resolveModule('admin', key === 'settings' ? 'system-settings' : key)?.permission))]).filter(([, items]) => items.length);
 
   const selectTab = (key) => {
     setProfileMenuOpen(false);
     setTab(key);
-    window.history.pushState(null, '', `${window.location.pathname}?tab=${key}`);
+    const params = new URLSearchParams(window.location.search);
+    params.delete('tab');
+    params.set('sysparm_object_id', key === 'settings' ? 'system-settings' : key);
+    window.history.pushState(null, '', `${window.location.pathname}?${params.toString()}`);
     setMobileSidebarOpen(false);
   };
   return (
@@ -321,7 +335,7 @@ export default function Admin() {
       {mobileSidebarOpen && <button className="portal-scrim" aria-label="Close navigation" onClick={() => setMobileSidebarOpen(false)}/>}
       <aside className={`citizen-sidebar ${mobileSidebarOpen ? 'open' : ''}`} aria-label="Admin navigation" id="cms-navigation">
         <div className="citizen-sidebar-brand"><img src="/assets/getafe-seal.png" alt="Municipality of Getafe seal"/><span>ADMIN PORTAL<small>Municipality of Getafe</small></span><button onClick={() => setMobileSidebarOpen(false)} aria-label="Close menu"><X size={20}/></button></div>
-        <nav className="portal-nav">{navigationGroups.map(([group, items]) => <div key={group}><small>{group}</small>{items.map(([key, label]) => { const Icon = navigationIcons[key]; return <a href={`?tab=${key}`} className={tab === key ? 'active' : ''} aria-current={tab === key ? 'page' : undefined} onClick={event => { event.preventDefault(); selectTab(key); }} key={key}><Icon size={17}/>{label}</a>; })}</div>)}</nav>
+        <nav className="portal-nav">{navigationGroups.map(([group, items]) => <div key={group}><small>{group}</small>{items.map(([key, label]) => { const Icon = navigationIcons[key]; return <a href={`?sysparm_object_id=${key}`} className={tab === key ? 'active' : ''} aria-current={tab === key ? 'page' : undefined} onClick={event => { event.preventDefault(); selectTab(key); }} key={key}><Icon size={17}/>{label}</a>; })}</div>)}</nav>
       </aside>
       <section className="citizen-main">
         <header className="citizen-topbar"><div className="portal-breadcrumb"><button className="citizen-menu-toggle" onClick={() => setMobileSidebarOpen(true)} aria-label="Open navigation" aria-expanded={mobileSidebarOpen}><Menu size={21}/></button></div>
@@ -333,7 +347,7 @@ export default function Admin() {
         </header>
         <div className="cms-main citizen-content" id="admin-content">
         {accountOpen && <div className="profile-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setAccountOpen(false); }}><section ref={accountDialogRef} className="profile-modal-card" role="dialog" aria-modal="true" aria-labelledby="admin-account-title"><section className="citizen-panel portal-form"><button type="button" className="profile-form-close" aria-label="Close profile" onClick={() => setAccountOpen(false)}><X size={19}/></button><div className="profile-photo-row"><div className="profile-photo"><span>{(user.name || 'Admin').split(/\s+/).filter(Boolean).slice(0,2).map(part => part[0]).join('').toUpperCase()}</span></div><div><h2 id="admin-account-title">Personal and contact information</h2><p className="portal-muted">Your administrator account information. Your email is linked to your account.</p></div></div><div className="portal-form-grid"><label>Full name<input value={user.name || ''} readOnly/></label><label>Email address<input value={user.email || ''} readOnly/></label><label>Role<input value={user.role === 'super_admin' ? 'Super administrator' : 'Administrator'} readOnly/></label></div><Link className="citizen-secondary" to="/auth/forgot-password">Reset password</Link></section></section></div>}
-        {tab === 'users' && <AdminUsers key="users" currentUser={user} mode="users"/>}
+        {['users', 'groups', 'permissions', 'policies', 'audit', 'access'].includes(tab) && <AdminAccessManagement key={tab} currentUser={user} initialTab={tab === 'access' ? 'users' : tab}/>}
         {notice && (
           <div
             className={`cms-toast toast-${settings?.values?.["notifications.toastPosition"] || "top-right"}`}
@@ -357,10 +371,10 @@ export default function Admin() {
               ['Draft content', FileText, articles.length - published, 'Continue editing content', 'news'],
               ['Categories', Tags, categories.length, 'Organize portal content', 'categories'],
               ['Media files', Images, media.length, 'Manage your media library', 'media'],
-            ].map(([label, Icon, value, description, key]) => <a href={`?tab=${key}`} className="citizen-stat" key={label} onClick={event => { event.preventDefault(); selectTab(key); }}><div><span>{label}</span><Icon size={18}/></div><strong>{value}</strong><small>{description}<ArrowRight size={14}/></small></a>)}</section>
-            <section className="portal-quick"><h2>Quick actions</h2><div>{[['Add Content', Newspaper, 'editor'], ['Upload Media', Images, 'media'], ['Manage Users', Users, 'users'], ['Privacy Requests', ShieldCheck, 'privacy'], ['Settings', Settings2, 'settings']].map(([label, Icon, key]) => <button type="button" key={key} onClick={() => { if (key === 'editor') { setForm(blank); setEditing(null); } selectTab(key); }}><Icon size={20}/><span>{label}</span></button>)}</div></section>
-            <section><div className="citizen-section-head"><h2>Administration</h2></div><div className="citizen-service-grid">{[['Content management', Newspaper, 'Publish news and organize municipal updates.', 'news'], ['Municipal officials', Users, 'Maintain your directory of public officials.', 'officials'], ['Barangays', MapPin, 'Manage barangay information and profiles.', 'barangays'], ['Access & security', ShieldCheck, 'Manage users, roles and portal permissions.', 'access']].map(([label, Icon, description, key]) => <a className="citizen-service" href={`?tab=${key}`} key={key} onClick={event => { event.preventDefault(); selectTab(key); }}><span><Icon size={20}/></span><strong>{label}</strong><p>{description}</p><small>Manage<ArrowRight size={14}/></small></a>)}</div></section>
-            <section className="citizen-panel admin-recent"><div className="citizen-panel-head"><h2>Recent content</h2><a href="?tab=news" onClick={event => { event.preventDefault(); selectTab('news'); }}>View all<ArrowRight size={14}/></a></div>
+            ].map(([label, Icon, value, description, key]) => <a href={`?sysparm_object_id=${key}`} className="citizen-stat" key={label} onClick={event => { event.preventDefault(); selectTab(key); }}><div><span>{label}</span><Icon size={18}/></div><strong>{value}</strong><small>{description}<ArrowRight size={14}/></small></a>)}</section>
+            <section className="portal-quick"><h2>Quick actions</h2><div>{[['Add Content', Newspaper, 'editor'], ['Upload Media', Images, 'media'], ['Manage Users', Users, 'access'], ['Privacy Requests', ShieldCheck, 'privacy'], ['Settings', Settings2, 'settings']].map(([label, Icon, key]) => <button type="button" key={key} onClick={() => { if (key === 'editor') { setForm(blank); setEditing(null); } selectTab(key); }}><Icon size={20}/><span>{label}</span></button>)}</div></section>
+            <section><div className="citizen-section-head"><h2>Administration</h2></div><div className="citizen-service-grid">{[['Content management', Newspaper, 'Publish news and organize municipal updates.', 'news'], ['Municipal officials', Users, 'Maintain your directory of public officials.', 'officials'], ['Barangays', MapPin, 'Manage barangay information and profiles.', 'barangays'], ['Access & security', ShieldCheck, 'Manage users, roles and portal permissions.', 'access']].map(([label, Icon, description, key]) => <a className="citizen-service" href={`?sysparm_object_id=${key}`} key={key} onClick={event => { event.preventDefault(); selectTab(key); }}><span><Icon size={20}/></span><strong>{label}</strong><p>{description}</p><small>Manage<ArrowRight size={14}/></small></a>)}</div></section>
+            <section className="citizen-panel admin-recent"><div className="citizen-panel-head"><h2>Recent content</h2><a href="?sysparm_object_id=news" onClick={event => { event.preventDefault(); selectTab('news'); }}>View all<ArrowRight size={14}/></a></div>
             <ArticleTable
               articles={articles.slice(0, 5)}
               selected={selectedArticles}

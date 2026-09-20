@@ -51,7 +51,8 @@ const permissionLabels = {
 export default function AdminUsers({ currentUser }) {
   const [data, setData] = useState(null),
     [error, setError] = useState(""),
-    [message, setMessage] = useState("");
+    [message, setMessage] = useState(""),
+    [formError, setFormError] = useState("");
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
     [form, setForm] = useState(null),
@@ -77,29 +78,33 @@ export default function AdminUsers({ currentUser }) {
     event.preventDefault();
     setBusy(true);
     setError("");
+    setFormError("");
     setMessage("");
     try {
       const result = await request(`/api/admin/users${form.id ? `/${form.id}` : ""}`, {
         method: form.id ? "PATCH" : "POST",
         body: JSON.stringify(form),
       });
-      if (form.id)
+      const accountId = form.id || result.id;
+      if (accountId && (form.id || form.role === "staff")) {
+        const nextGrants = { ...JSON.parse(grants) };
+        if (form.role === "staff") nextGrants[accountId] = form.permissions || [];
+        else delete nextGrants[accountId];
         await request("/api/admin/settings/security", {
           method: "PATCH",
           body: JSON.stringify({
             values: {
-              "security.permissionGrants": JSON.stringify({
-                ...JSON.parse(grants),
-              [form.id]: form.permissions || JSON.parse(grants)[form.id] || data.permissions,
-              }),
+              "security.permissionGrants": JSON.stringify(nextGrants),
             },
           }),
         });
+      }
       setForm(null);
       setMessage(result.warning || (form.id ? "Account saved. Access changes apply to subsequent requests." : "Account created and welcome email sent."));
       await load();
     } catch (e) {
-      setError(e.message);
+      if (form) setFormError(e.message);
+      else setError(e.message);
     } finally {
       setBusy(false);
     }
@@ -187,8 +192,9 @@ export default function AdminUsers({ currentUser }) {
               </div>
               <button
                 onClick={() => {
-                  setForm({ name: "", email: "", password: "", role: "admin" });
+                  setForm({ name: "", email: "", password: "", role: "admin", permissions: [] });
                   setError("");
+                  setFormError("");
                 }}
               >
                 <Plus size={17} /> Add account
@@ -279,6 +285,7 @@ export default function AdminUsers({ currentUser }) {
                               permissions: JSON.parse(grants)[user.id] || user.permissions,
                             });
                             setError("");
+                            setFormError("");
                           }}
                         >
                           Manage Access
@@ -310,9 +317,7 @@ export default function AdminUsers({ currentUser }) {
                 <div className="admin-access-modal-heading">
                   <div>
                     <h2 id="admin-access-title">
-                      {form.id
-                        ? "Manage access"
-                        : "Create administrator account"}
+                      {form.id ? "Manage access" : "Create staff or administrator account"}
                     </h2>
                     <p className="admin-description">
                       Review account details and assigned access before saving.
@@ -327,6 +332,7 @@ export default function AdminUsers({ currentUser }) {
                     ×
                   </button>
                 </div>
+                {formError && <div className="admin-feedback error admin-modal-feedback" role="alert">{formError}</div>}
                 <form onSubmit={save}>
                   <fieldset disabled={busy}>
                     <label>
@@ -391,7 +397,7 @@ export default function AdminUsers({ currentUser }) {
                         ))}
                       </select>
                     </label>
-                    {form.id && <fieldset className="admin-access-permissions"><legend>Custom permissions</legend><p>These permissions override the selected role for this user.</p>{data.permissions.map((permission) => { const assigned = form.permissions || JSON.parse(grants)[form.id] || data.permissions; const [label, description] = permissionLabels[permission] || [permission, 'Permission for this system capability.']; return <label key={permission} title={description}><input type="checkbox" checked={assigned.includes(permission)} onChange={(event) => setForm({ ...form, permissions: event.target.checked ? [...assigned, permission] : assigned.filter((item) => item !== permission) })}/><span>{label}</span><span className="permission-help" tabIndex="0" aria-label={`${label}: ${description}`}>?</span><span className="permission-tooltip" role="tooltip">{description}</span></label>; })}</fieldset>}
+                    {form.role === "staff" && <fieldset className="admin-access-permissions"><legend>Delegated access</legend><p>Choose the settings this staff member can access. These permissions override the Staff role defaults.</p>{data.permissions.map((permission) => { const assigned = form.permissions || []; const [label, description] = permissionLabels[permission] || [permission, 'Permission for this system capability.']; return <label key={permission} title={description}><input type="checkbox" checked={assigned.includes(permission)} onChange={(event) => setForm({ ...form, permissions: event.target.checked ? [...assigned, permission] : assigned.filter((item) => item !== permission) })}/><span>{label}</span><span className="permission-help" tabIndex="0" aria-label={`${label}: ${description}`}>?</span><span className="permission-tooltip" role="tooltip">{description}</span></label>; })}</fieldset>}
                     <div className="admin-form-actions">
                       <button type="button" onClick={() => setForm(null)}>
                         Cancel

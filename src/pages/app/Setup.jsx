@@ -95,7 +95,7 @@ export default function Setup() {
         if (!response.ok) throw new Error(body.error || 'Profile photo upload failed.')
       }
       await citizenApi('/onboarding/complete', { method: 'POST' })
-      window.location.replace('/app/dashboard')
+      window.location.replace('/app?sysparm_object_id=dashboard')
     } catch (cause) { setError(cause.message) } finally { setSaving(false) }
   }
   const upload = event => {

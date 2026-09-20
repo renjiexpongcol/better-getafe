@@ -78,6 +78,11 @@ export const definitions = {
   'features.reports': bool('Reports', '', true),
   'features.ai': bool('AI features', ''),
   'features.publicRegistration': bool('Public registration', '', true),
+  'publicData.enabled': bool('Enable public data portal', '', true),
+  'publicData.disclaimer': text('Public data disclaimer', '', 'Statistical information displayed on this portal is retrieved from public datasets and saved releases provided by external statistical sources. Dataset availability and release dates may differ from the latest publication of the originating agency. Refer to the cited source for official definitions and methodology.', { multiline: true }),
+  'publicData.featuredDatasets': text('Featured dataset IDs (comma separated)', '', ''),
+  'publicData.featuredTopics': text('Featured topics (comma separated)', '', ''),
+  'publicData.catalogCacheHours': number('Dataset catalog cache hours', '', 2, 1, 6),
   'maintenance.enabled': bool('Maintenance mode', ''),
   'maintenance.message': text('Maintenance message', '', 'The portal is undergoing maintenance. Please try again later.'),
   'maintenance.expectedCompletion': text('Expected completion (ISO date/time)', ''),
@@ -107,7 +112,7 @@ for (const [category, prefix, legacy] of [['database', 'CMS', 'DB'], ['portalDat
     [`${category}.idleTimeout`]: number('Idle timeout (ms)', `${prefix}_DB_IDLE_TIMEOUT_MS`, 60000, 1000, 3600000),
   });
 }
-export const categories = ['general', 'database', 'portalDatabase', 'google', 'storage', 'authentication', 'email', 'security', 'notifications', 'integrations', 'weather', 'features', 'maintenance', 'legal', 'advanced'];
+export const categories = ['general', 'database', 'portalDatabase', 'google', 'storage', 'authentication', 'email', 'security', 'notifications', 'integrations', 'weather', 'publicData', 'features', 'maintenance', 'legal', 'advanced'];
 export function validate(values) {
   if (!values || Array.isArray(values) || typeof values !== 'object' || !Object.keys(values).length) throw new Error('Supply settings to update.');
   for (const [key, value] of Object.entries(values)) {

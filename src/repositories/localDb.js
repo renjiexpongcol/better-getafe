@@ -102,6 +102,7 @@ function seed() {
 export async function getLocalDb() {
   fs.mkdirSync(path.dirname(sqlitePath), { recursive: true });
   sqlite ||= new DatabaseSync(sqlitePath);
+  sqlite.exec('PRAGMA foreign_keys = ON');
   sqlite.exec('CREATE TABLE IF NOT EXISTS application_state (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL)');
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS resident_profiles (
@@ -113,10 +114,10 @@ export async function getLocalDb() {
     CREATE TABLE IF NOT EXISTS applications (
       id TEXT PRIMARY KEY, user_id TEXT NOT NULL, reference_number TEXT NOT NULL UNIQUE,
       service_name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft', payment_status TEXT NOT NULL DEFAULT 'not_required',
-      submitted_at TEXT, last_updated TEXT NOT NULL, details TEXT NOT NULL DEFAULT '{}'
+      submitted_at TEXT, last_updated TEXT NOT NULL, details TEXT NOT NULL DEFAULT '{}', completed_at TEXT, closed_at TEXT, closed_by TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_applications_user_id ON applications(user_id);
-    CREATE TABLE IF NOT EXISTS application_status_history (id TEXT PRIMARY KEY, application_id TEXT NOT NULL, status TEXT NOT NULL, note TEXT, created_at TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS application_status_history (id TEXT PRIMARY KEY, application_id TEXT NOT NULL, status TEXT NOT NULL, note TEXT, created_at TEXT NOT NULL, previous_status TEXT, new_status TEXT, fulfillment_note TEXT, changed_by TEXT, changed_at TEXT, completion_date TEXT, closed_at TEXT);
     CREATE TABLE IF NOT EXISTS application_documents (id TEXT PRIMARY KEY, application_id TEXT NOT NULL, user_id TEXT NOT NULL, name TEXT NOT NULL, storage_path TEXT, verification_status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS idx_application_documents_user_id ON application_documents(user_id);
     CREATE TABLE IF NOT EXISTS payments (id TEXT PRIMARY KEY, application_id TEXT NOT NULL, user_id TEXT NOT NULL, amount REAL NOT NULL, method TEXT, status TEXT NOT NULL DEFAULT 'pending', official_receipt TEXT, created_at TEXT NOT NULL);
@@ -136,7 +137,65 @@ export async function getLocalDb() {
     CREATE TABLE IF NOT EXISTS barangay_appointment_integrations (barangay_id TEXT PRIMARY KEY, notification_email TEXT, portal_url TEXT, updated_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, read_at TEXT, archived_at TEXT, created_at TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+    CREATE TABLE IF NOT EXISTS auth_groups (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL DEFAULT '',
+      enabled INTEGER NOT NULL DEFAULT 1, system_group INTEGER NOT NULL DEFAULT 0,
+      archived_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS auth_permissions (
+      id TEXT PRIMARY KEY, category TEXT NOT NULL, label TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', sensitive INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS auth_user_groups (
+      user_id TEXT NOT NULL, group_id TEXT NOT NULL, created_at TEXT NOT NULL, created_by TEXT,
+      PRIMARY KEY (user_id, group_id), FOREIGN KEY (group_id) REFERENCES auth_groups(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_auth_user_groups_user ON auth_user_groups(user_id);
+    CREATE INDEX IF NOT EXISTS idx_auth_user_groups_group ON auth_user_groups(group_id);
+    CREATE TABLE IF NOT EXISTS auth_user_bootstrap (user_id TEXT PRIMARY KEY, created_at TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS auth_group_permissions (
+      group_id TEXT NOT NULL, permission_id TEXT NOT NULL, created_at TEXT NOT NULL, created_by TEXT,
+      PRIMARY KEY (group_id, permission_id), FOREIGN KEY (group_id) REFERENCES auth_groups(id) ON DELETE CASCADE,
+      FOREIGN KEY (permission_id) REFERENCES auth_permissions(id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS auth_policies (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL DEFAULT '', effect TEXT NOT NULL DEFAULT 'allow',
+      permission_id TEXT, condition_json TEXT NOT NULL DEFAULT '{}', enabled INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS auth_group_policies (
+      group_id TEXT NOT NULL, policy_id TEXT NOT NULL, created_at TEXT NOT NULL, created_by TEXT,
+      PRIMARY KEY (group_id, policy_id), FOREIGN KEY (group_id) REFERENCES auth_groups(id) ON DELETE CASCADE,
+      FOREIGN KEY (policy_id) REFERENCES auth_policies(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_auth_group_policies_policy ON auth_group_policies(policy_id);
+    CREATE TABLE IF NOT EXISTS auth_audit_logs (
+      id TEXT PRIMARY KEY, actor_id TEXT NOT NULL, action TEXT NOT NULL, target_type TEXT NOT NULL, target_id TEXT NOT NULL,
+      previous_value TEXT, new_value TEXT, correlation_id TEXT NOT NULL, created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_auth_audit_created ON auth_audit_logs(created_at);
+    CREATE INDEX IF NOT EXISTS idx_auth_audit_actor ON auth_audit_logs(actor_id);
+    CREATE INDEX IF NOT EXISTS idx_auth_audit_target ON auth_audit_logs(target_type,target_id);
   `);
+  // Keep the shared portal schema compatible for every upload consumer,
+  // including staff routes that can run before a resident route is opened.
+  for (const [table, column, definition] of [
+    ['applications', 'completed_at', 'TEXT'],
+    ['applications', 'closed_at', 'TEXT'],
+    ['applications', 'closed_by', 'TEXT'],
+    ['application_documents', 'document_kind', "TEXT NOT NULL DEFAULT 'uploaded'"],
+    ['notifications', 'application_id', 'TEXT'],
+    ['notifications', 'document_id', 'TEXT'],
+    ['application_status_history', 'previous_status', 'TEXT'],
+    ['application_status_history', 'new_status', 'TEXT'],
+    ['application_status_history', 'fulfillment_note', 'TEXT'],
+    ['application_status_history', 'changed_by', 'TEXT'],
+    ['application_status_history', 'changed_at', 'TEXT'],
+    ['application_status_history', 'completion_date', 'TEXT'],
+    ['application_status_history', 'closed_at', 'TEXT'],
+    ['auth_policies', 'permission_id', 'TEXT'],
+  ]) {
+    const columns = new Set(sqlite.prepare(`PRAGMA table_info(${table})`).all().map(item => item.name));
+    if (!columns.has(column)) sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
   sqlite.prepare("INSERT OR IGNORE INTO appointment_schedule_config (id) VALUES (1)").run();
   const row = sqlite.prepare('SELECT data FROM application_state WHERE id=1').get();
   if (!row) {

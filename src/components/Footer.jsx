@@ -18,6 +18,7 @@ const EXPLORE_LINKS = [
   { name: 'Gallery of Events', url: '/events' },
   { name: 'Accessibility', url: '/info/accessibility' },
   { name: 'Sitemap', url: '/info/sitemap' },
+  { name: 'Open Data & Statistics', url: '/data' },
 ];
 
 const GOV_LINKS = [

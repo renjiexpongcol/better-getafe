@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   ChevronRight,
@@ -116,21 +116,21 @@ export function AccountSettingsContent({ onClose }) {
             title="Change your password"
             description="Keep your account secure with a strong password."
             action=""
-            href="/app/help"
+            href="/app?sysparm_object_id=help"
           />
           <SettingsRow
             icon={ShieldCheck}
             title="Two-factor authentication"
             description="Add an extra layer of security to your account."
             action="Not enabled"
-            href="/app/help"
+            href="/app?sysparm_object_id=help"
           />
           <SettingsRow
             icon={CircleHelp}
             title="Account access and support"
             description="Get help recovering access or changing your account information."
             action=""
-            href="/app/help"
+            href="/app?sysparm_object_id=help"
           />
         </section>
         <section id="settings-privacy" className="settings-card">
@@ -161,6 +161,7 @@ export function AccountSettingsContent({ onClose }) {
             <PrivacyRequests items={data?.privacyRequests || []} />
           )}
         </section>
+        {category === "Notifications" && <NotificationSettings />}
         {open && <PrivacyWorkflow onClose={() => setOpen(false)} />}
         <div className="settings-modal-footer">
           <span>
@@ -179,6 +180,21 @@ export function AccountSettingsContent({ onClose }) {
       </div>
     </div>
   );
+}
+
+function NotificationSettings() {
+  const { data, reload } = useCitizen()
+  const [emailEnabled, setEmailEnabled] = useState(false), [smsEnabled, setSmsEnabled] = useState(false), [saving, setSaving] = useState(false), [error, setError] = useState('')
+  useEffect(() => { setEmailEnabled(Boolean(data?.profile?.email_notifications)); setSmsEnabled(Boolean(data?.profile?.sms_notifications)) }, [data?.profile?.email_notifications, data?.profile?.sms_notifications])
+  const update = async (channel, value) => {
+    const next = { emailNotifications: channel === 'email' ? value : emailEnabled, smsNotifications: channel === 'sms' ? value : smsEnabled }
+    setError(''); setSaving(true)
+    try { await citizenApi('/notification-preferences', { method: 'PUT', body: JSON.stringify(next) }); await reload() } catch (cause) { setError(cause.message) } finally { setSaving(false) }
+  }
+  return <section className="settings-notification-content">
+    <div className="settings-notification-group"><p className="settings-notification-label">Essential notifications</p><div className="settings-notification-row"><div><strong>In-app notifications</strong><small>Receive important updates directly in your citizen portal.</small></div><span className="settings-always-on">Always on</span></div></div>
+    <div className="settings-notification-group"><p className="settings-notification-label">Optional channels</p><label className="settings-notification-row settings-notification-toggle"><div><strong>Email notifications</strong><small>Receive important updates by email.</small></div><input type="checkbox" checked={emailEnabled} disabled={saving} onChange={event => update('email', event.target.checked)}/><span aria-hidden="true"/></label><label className="settings-notification-row settings-notification-toggle"><div><strong>SMS notifications</strong><small>Receive time-sensitive updates by SMS.</small></div><input type="checkbox" checked={smsEnabled} disabled={saving} onChange={event => update('sms', event.target.checked)}/><span aria-hidden="true"/></label>{error && <p className="portal-error" role="alert">{error}</p>}</div>
+  </section>
 }
 
 export default function Settings() {

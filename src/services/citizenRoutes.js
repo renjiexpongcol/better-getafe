@@ -19,6 +19,8 @@ export function installCitizenRoutes(app, resident, safeUser) {
     for (const [table, column, definition] of [
       ['resident_profiles', 'avatar_storage_path', 'TEXT'],
       ['resident_profiles', 'gender', 'TEXT'],
+      ['resident_profiles', 'email_notifications', 'INTEGER NOT NULL DEFAULT 0'],
+      ['resident_profiles', 'sms_notifications', 'INTEGER NOT NULL DEFAULT 0'],
       ['application_documents', 'document_kind', "TEXT NOT NULL DEFAULT 'uploaded'"],
       ['notifications', 'application_id', 'TEXT'], ['notifications', 'document_id', 'TEXT'],
       ['appointments', 'service_id', 'TEXT'], ['appointments', 'reason', 'TEXT'], ['appointments', 'contact_number', 'TEXT'],
@@ -83,6 +85,15 @@ export function installCitizenRoutes(app, resident, safeUser) {
     if (body.barangay && !barangays.some(item => item.name === String(body.barangay).trim())) return res.status(422).json({ error: 'Choose one of Getafe’s 24 barangays.' })
     db.prepare(`INSERT INTO resident_profiles (user_id, full_name, mobile, gender, barangay, house_lot, street, purok_sitio, municipality, province, zip_code, verification_status, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'unverified', ?) ON CONFLICT(user_id) DO UPDATE SET full_name=excluded.full_name, mobile=excluded.mobile, gender=excluded.gender, barangay=excluded.barangay, house_lot=excluded.house_lot, street=excluded.street, purok_sitio=excluded.purok_sitio, municipality=excluded.municipality, province=excluded.province, zip_code=excluded.zip_code, updated_at=excluded.updated_at`).run(req.resident.id, String(body.full_name || req.resident.name).slice(0, 160), String(body.mobile || '').slice(0, 32), String(body.gender || '').slice(0, 16), String(body.barangay || '').slice(0, 160), String(body.house_lot || '').slice(0, 160), String(body.street || '').slice(0, 160), String(body.purok_sitio || '').slice(0, 160), String(body.municipality || 'Getafe').slice(0, 100), String(body.province || 'Bohol').slice(0, 100), String(body.zip_code || '').slice(0, 16), timestamp)
     res.json({ ok: true, profile: profileView(db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(req.resident.id)) })
+  })
+  app.put('/api/citizen/notification-preferences', resident, async (req, res) => {
+    const db = await database(), profile = db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
+    const emailNotifications = req.body?.emailNotifications === true
+    const smsNotifications = req.body?.smsNotifications === true
+    if (smsNotifications && (!smsConfigured() || !validMobile(profile?.mobile))) return res.status(422).json({ error: smsConfigured() ? 'Save a valid mobile number before enabling SMS notifications.' : 'SMS notifications are not configured yet.' })
+    const timestamp = now()
+    db.prepare(`INSERT INTO resident_profiles (user_id, full_name, mobile, email_notifications, sms_notifications, municipality, province, verification_status, updated_at) VALUES (?, ?, ?, ?, ?, 'Getafe', 'Bohol', 'unverified', ?) ON CONFLICT(user_id) DO UPDATE SET email_notifications=excluded.email_notifications, sms_notifications=excluded.sms_notifications, updated_at=excluded.updated_at`).run(req.resident.id, profile?.full_name || req.resident.name, profile?.mobile || '', emailNotifications ? 1 : 0, smsNotifications ? 1 : 0, timestamp)
+    res.json({ ok: true, emailNotifications, smsNotifications })
   })
   app.post('/api/citizen/onboarding/complete', resident, async (req, res) => {
     if (!await completeGoogleOnboarding(req.resident)) return res.status(422).json({ error: 'Complete your profile and create a password before continuing.' })
@@ -274,6 +285,11 @@ export function installCitizenRoutes(app, resident, safeUser) {
     const result = db.prepare('UPDATE notifications SET read_at = COALESCE(read_at, ?) WHERE id = ? AND user_id = ?').run(now(), req.params.id, req.resident.id)
     if (!result.changes) return res.status(404).json({ error: 'Notification not found.' })
     res.json({ ok: true })
+  })
+  app.patch('/api/citizen/notifications/read-all', resident, async (req, res) => {
+    const db = await database()
+    const result = db.prepare('UPDATE notifications SET read_at = COALESCE(read_at, ?) WHERE user_id = ? AND read_at IS NULL').run(now(), req.resident.id)
+    res.json({ ok: true, updated: result.changes })
   })
   app.get('/api/citizen/appointments/availability', resident, async (req, res) => {
     const service = citizenServices.find(item => item.id === req.query.service_id)

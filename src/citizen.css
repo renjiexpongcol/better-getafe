@@ -129,8 +129,13 @@
 .portal-v2 .citizen-profile-button b { font-size:12px; font-weight:600; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .portal-popover-anchor { position:relative; }
 .portal-popover { position:absolute; top:calc(100% + 16px); right:0; z-index:15; width:340px; background:white; border:1px solid var(--portal-border); border-radius:10px; box-shadow:0 8px 30px #12345b1a; padding:8px; max-height:70vh; overflow:auto; }
+.portal-notification-popover { scrollbar-width:none; -ms-overflow-style:none; }
+.portal-notification-popover::-webkit-scrollbar { display:none; }
 .portal-popover-heading { display:flex; justify-content:space-between; gap:16px; padding:10px; border-bottom:1px solid var(--portal-border); }
 .portal-popover-heading span { font-size:12px; color:var(--portal-muted); }
+.portal-notification-heading-actions { display:flex; align-items:center; gap:9px; }
+.portal-notification-heading-actions button { padding:0; border:0; background:transparent; color:#1263b5; font:inherit; font-size:11px; cursor:pointer; }
+.portal-notification-heading-actions button:hover { text-decoration:underline; }
 .portal-popover > button { display:grid; gap:4px; width:100%; padding:12px 10px; text-align:left; border:0; background:none; border-radius:5px; color:#284461; }
 .portal-popover > button:hover,.portal-popover > button.unread { background:#f0f6fc; }
 .portal-popover > button strong { font-size:13px; }
@@ -219,6 +224,21 @@
 @media(max-width:650px){.portal-appointment-form{grid-template-columns:1fr}.portal-appointment-form > label:nth-of-type(3){grid-column:auto}}
 .portal-action-modal p { margin:0 0 20px; color:var(--portal-muted); font-size:13px; }
 .portal-action-icon { display:grid; place-items:center; width:44px; height:44px; margin:auto; border-radius:10px; background:#eaf3ff; color:var(--portal-blue); }
+.service-detail-backdrop { place-items:center; }
+.service-detail-modal { text-align:left; }
+.service-detail-modal h2,.service-detail-modal > p { text-align:center; }
+.service-detail-modal h2 { margin-top:14px; }
+.service-detail-note { display:grid; gap:4px; margin:20px 0; padding:13px 14px; border:1px solid #d8e7f4; border-radius:8px; background:#f5f9fd; color:#516f8b; font-size:12px; line-height:1.5; }
+.service-detail-note strong { color:#244f76; font-size:12px; }
+.service-detail-actions { display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-top:22px; }
+.service-detail-actions .citizen-primary { display:inline-flex; align-items:center; gap:7px; }
+.service-request-modal { text-align:left; }
+.service-request-heading { padding-right:34px; }
+.service-request-heading h2 { margin-top:0; }
+.service-request-modal label { display:grid; gap:6px; margin:14px 0; color:#385875; font-size:12px; font-weight:650; }
+.service-request-modal :is(input,select,textarea) { width:100%; min-height:40px; padding:9px 11px; border:1px solid var(--portal-border); border-radius:6px; background:#fff; color:#193752; font:inherit; font-size:13px; }
+.service-request-modal textarea { min-height:120px; resize:vertical; }
+.service-request-modal :is(input,select)[readonly],.service-request-modal select:disabled { background:#f6f8fb; color:#63758b; }
 .portal-action-close { position:absolute; top:10px; right:10px; display:grid; place-items:center; width:32px; height:32px; border:0; border-radius:6px; background:transparent; color:#60748c; }
 .portal-action-close:hover { background:#f0f6fc; }
 .portal-action-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:18px; text-align:left; }
@@ -280,7 +300,8 @@
 .portal-v2 .citizen-section-head h2,.portal-v2 .citizen-panel-head h2 { font-size:20px; margin:0; }
 .portal-v2 .citizen-section-head > a,.portal-v2 .citizen-panel-head > a { font-size:11px; font-weight:600; white-space:nowrap; }
 .portal-v2 .citizen-service-grid { gap:16px; grid-template-columns:repeat(4,minmax(0,1fr)); }
-.portal-v2 .citizen-service { padding:17px; border-radius:10px; display:flex; flex-direction:column; }
+.portal-v2 .citizen-service { width:100%; padding:17px; border:1px solid #d7e3ef; border-radius:10px; display:flex; flex-direction:column; background:#fff; color:#193752; text-align:left; cursor:pointer; transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease; }
+.portal-v2 .citizen-service:hover { border-color:#8fb5d8; box-shadow:0 10px 24px rgba(22,78,124,.1); transform:translateY(-2px); }
 .portal-v2 .citizen-service > span { width:37px; height:37px; border-radius:8px; margin-bottom:13px; background:#edf4fb; color:#3177b5; }
 .portal-v2 .citizen-service strong { font-size:14px; font-weight:650; line-height:1.4; }
 .portal-v2 .citizen-service p { font-size:12px; color:var(--portal-muted); margin:6px 0 15px; min-height:36px; }
@@ -366,6 +387,23 @@
 .profile-photo-row { display:flex; align-items:center; gap:18px; margin-bottom:24px; padding-bottom:20px; border-bottom:1px solid #e5ebf2; }.profile-photo-row h2 { margin-bottom:5px; }.profile-photo { display:grid; place-items:center; flex:0 0 88px; width:88px; height:88px; overflow:hidden; border-radius:50%; background:#e6f0fa; color:#2d608d; font-size:24px; font-weight:700; }.profile-photo img { width:100%; height:100%; object-fit:cover; }.profile-photo-button { display:inline-flex!important; width:max-content; align-items:center; gap:7px; margin:10px 0 3px!important; padding:8px 11px; border:1px solid #b8cce1; border-radius:6px; color:#21659e; background:#fff; font-size:12px!important; cursor:pointer; }.profile-photo-button:hover { background:#f3f8fc; border-color:#7ea8cf; }.profile-photo-button input { display:none; }.profile-photo-help { display:block; color:#74879b; font-size:10px; }.profile-photo-row .portal-error { margin:8px 0 0; padding:8px 10px; font-size:11px; }
 .portal-filters { display:flex; flex-wrap:wrap; gap:8px; margin:20px 0; }.portal-filters a { padding:7px 13px; border:1px solid var(--portal-border); border-radius:6px; background:white; color:#526e87; font-size:12px; }.portal-filters a.active { background:#e5effa; border-color:#9bbbe0; color:#205b93; }
 .portal-notice { padding:18px 0; border-bottom:1px solid #e6edf4; }.portal-notice p { margin:5px 0; font-size:13px; color:var(--portal-muted); }.portal-notice > div { display:flex; align-items:center; gap:14px; margin-top:10px; }.portal-notice a,.portal-notice button { font-size:12px; color:#1263b5; }.portal-notice button { border:1px solid #d6e2ee; border-radius:5px; background:#fff; padding:5px 9px; }
+.notifications-page-panel { padding:0; overflow:hidden; }
+.notifications-page-actions { display:flex; justify-content:flex-end; padding:14px 24px 0; }
+.notifications-mark-all { display:inline-flex; align-items:center; gap:7px; padding:9px 12px; border:1px solid #b9d2e9; border-radius:7px; background:#fff; color:#1263b5; font-size:12px; font-weight:700; white-space:nowrap; }
+.notifications-mark-all:hover { background:#edf6ff; border-color:#8db7dc; }
+.notifications-page-error { margin:16px 24px 0; }
+.notifications-list { padding:10px 24px 18px; }
+.notifications-list .portal-notice { position:relative; display:flex; gap:12px; margin:0; padding:18px 0; border-bottom:1px solid #e6edf4; }
+.notifications-list .portal-notice:last-child { border-bottom:0; }
+.portal-notice-marker { flex:0 0 8px; width:8px; height:8px; margin-top:7px; border-radius:50%; background:transparent; }
+.portal-notice.is-unread .portal-notice-marker { background:#1677d2; box-shadow:0 0 0 4px #e4f1ff; }
+.portal-notice-content { display:block !important; min-width:0; flex:1; margin-top:0 !important; }
+.portal-notice-heading { display:flex; align-items:center; gap:9px; margin:0; }
+.portal-notice-heading h3 { color:#173b64; }
+.portal-notice.is-unread .portal-notice-heading h3 { font-weight:750; }
+.portal-notice-content > small { display:block; margin-top:8px; }
+.portal-notice-content > div:last-child { margin-top:12px; }
+@media(max-width:650px){.notifications-page-actions{padding:12px 18px 0}.notifications-mark-all{width:100%; justify-content:center}.notifications-list{padding:8px 18px 14px}}
 .portal-detail-summary { display:flex; justify-content:space-between; gap:15px; margin-bottom:22px; }.portal-detail-summary p { color:var(--portal-muted); font-size:12px; margin:4px 0; }.portal-details { white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; color:#546c83; }
 .portal-help { padding:28px 32px; border:1px solid #dbe6f1; background:linear-gradient(145deg,#fff 0%,#f8fbff 100%); box-shadow:0 12px 30px rgba(25,67,110,.06); }
 .portal-help > h2 { margin:0 0 22px; color:#14365f; font-size:1.45rem; letter-spacing:-.02em; }
@@ -449,6 +487,27 @@
 @media(max-width:350px){.portal-v2 .citizen-stats,.portal-v2 .citizen-service-grid{grid-template-columns:1fr}.portal-v2 .citizen-top-actions > a:first-child{display:none}}
 @media(prefers-reduced-motion:reduce){.portal-v2 *{transition:none!important;animation:none!important}}
 .settings-categories:has(button.active:nth-child(7)) + .settings-panel:after{content:'Help & Support\A\A Find answers, contact the municipality, or report a non-emergency concern.\A\A Help center\A Browse frequently asked questions about services, applications, appointments, documents, and payments.\A\A Contact the municipality\A (038) 502-9088\A lgugetafe@yahoo.com\A\A Report a non-emergency concern\A Submit a detailed report and receive a reference number for follow-up.';white-space:pre-wrap;display:block;margin-top:8px;padding:0 4px 26px;color:#17365d;font-size:14px;line-height:1.9;border-bottom:1px solid #e5eaf0}
+.settings-categories:has(button.active:nth-child(3)) + .settings-panel:after { content:none; display:none; }
+.settings-notification-content { display:grid; gap:26px; color:#17365d; }
+.settings-notification-intro { display:grid; gap:8px; }
+.settings-notification-intro h3 { margin:0; font-size:16px; }
+.settings-notification-intro p { margin:0; color:#617894; font-size:13px; line-height:1.6; }
+.settings-notification-group { display:grid; gap:10px; }
+.settings-notification-label { margin:0; color:#315b83; font-size:12px; font-weight:800; letter-spacing:.02em; }
+.settings-notification-row { display:flex; align-items:center; justify-content:space-between; gap:18px; min-height:66px; padding:14px 4px; border-top:1px solid #e5eaf0; }
+.settings-notification-row > div { display:grid; gap:4px; }
+.settings-notification-row strong { font-size:13px; font-weight:700; }
+.settings-notification-row small { color:#617894; font-size:12px; }
+.settings-always-on { color:#15965a; font-size:12px; font-weight:700; white-space:nowrap; }
+.settings-notification-toggle { cursor:pointer; }
+.settings-notification-toggle input { position:absolute; opacity:0; pointer-events:none; }
+.settings-notification-toggle > span { position:relative; flex:0 0 38px; width:38px; height:22px; border-radius:999px; background:#c5d2df; transition:background .18s ease; }
+.settings-notification-toggle > span::after { position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; content:""; box-shadow:0 1px 3px #17365d33; transition:transform .18s ease; }
+.settings-notification-toggle input:checked + span { background:#1677d2; }
+.settings-notification-toggle input:checked + span::after { transform:translateX(16px); }
+.settings-notification-row { border-top:0; }
+.settings-modal-close { border:0; border-radius:50%; background:transparent; }
+.settings-modal-close:hover { background:#edf5fc; }
 .settings-modal-footer > span{margin-left:auto}
 .settings-modal{position:relative}.settings-modal-footer{position:absolute;right:0;bottom:0;width:calc(100% - 240px);box-sizing:border-box;justify-content:flex-end;margin:0;padding:14px 32px;border-radius:0 0 18px 0;z-index:3}.settings-modal-footer>span{margin-left:0}.settings-panel{padding-bottom:82px}
 @media(max-width:760px){.settings-modal-footer{right:0;width:100%;border-radius:0 0 14px 14px;padding:14px 20px}.settings-panel{padding-bottom:82px}}
@@ -465,4 +524,5 @@
 .settings-categories:has(button.active:nth-child(3)) + .settings-panel:after{content:'Notification preferences\A\A Choose where you want to receive updates about applications, appointments, payments, and documents.\A\A Essential notifications\A\A In-app notifications                                      Always on\A Receive important updates directly in your citizen portal.\A\A Optional channels\A\A Email notifications                                      OFF\A Receive important updates by email.\A\A SMS notifications                                        OFF\A Receive time-sensitive updates by SMS.';white-space:pre-wrap;display:block;margin-top:8px;padding:0 4px 24px;color:#17365d;font-size:14px;line-height:1.9;border-bottom:1px solid #e5eaf0}.settings-categories:has(button.active:nth-child(3)) + .settings-panel:after{font-variant-numeric:tabular-nums}
 .mfa-modal-backdrop{z-index:2200;background:rgba(11,36,71,.72)}.mfa-setup-modal{width:min(520px,100%);padding:0;background:#fff}.mfa-modal-content{display:flex;flex-direction:column;align-items:center;gap:14px;padding:32px;text-align:center}.mfa-modal-content h2,.mfa-modal-content p{margin:0}.mfa-modal-content form{display:flex;width:100%;flex-direction:column;align-items:center;gap:14px}.mfa-modal-content label{display:grid;width:100%;gap:6px;color:#385875;font-size:.8rem;font-weight:700;text-align:left}.mfa-modal-content input{min-height:44px;padding:10px 12px;border:1px solid #cdd9e5;border-radius:8px;font:inherit;font-size:1.1rem;letter-spacing:.18em;text-align:center}.mfa-qr{width:220px;height:220px;border:1px solid #dce7f2;border-radius:10px}.mfa-modal-content details{width:100%;color:#58718e;font-size:.78rem}.mfa-secret{display:block;margin-top:8px;padding:10px;overflow-wrap:anywhere;border-radius:8px;background:#f4f7fa;color:#173b64}.mfa-recovery-codes{display:grid;width:100%;grid-template-columns:1fr 1fr;gap:8px}.mfa-recovery-codes code{padding:9px;border:1px solid #dce7f2;border-radius:7px;background:#f8fafc;color:#173b64}.mfa-modal-content .portal-error{color:#b42318}
 .mfa-authentication-icon{display:block;width:34px;height:34px;object-fit:contain}.settings-panel .mfa-authentication-icon{width:22px;height:22px}.settings-panel #settings-access>.settings-card-heading{display:none}
+.settings-categories:has(button.active:nth-child(3)) + .settings-panel:after { content:none; display:none; }
 .mfa-app-recommendations{width:100%;padding:13px;border:1px solid #d7e5f2;border-radius:10px;background:#f6faff;text-align:left}.mfa-app-recommendations>div:first-child{display:flex;align-items:flex-start;gap:9px;color:#174c79}.mfa-app-recommendations strong,.mfa-app-recommendations small{display:block}.mfa-app-recommendations small,.mfa-app-recommendations p{margin:3px 0 0;color:#54708a;font-size:.76rem;line-height:1.45}.mfa-app-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}.mfa-app-links a{display:inline-flex;align-items:center;gap:5px;padding:7px 9px;border:1px solid #bfd4e8;border-radius:7px;background:#fff;color:#176ab0;font-size:.76rem;font-weight:700;text-decoration:none}.mfa-app-links a:hover{border-color:#176ab0;background:#edf7ff}.mfa-modal-content details p{margin:8px 0 0;text-align:left;font-size:.76rem}

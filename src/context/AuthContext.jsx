@@ -6,6 +6,7 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [sessionUnavailable, setSessionUnavailable] = useState(false)
   const requestRef = useRef(0)
   const sessionRef = useRef({ promise: null, checkedAt: 0, user: null })
 
@@ -34,10 +35,30 @@ export function AuthProvider({ children }) {
     // Loading is only for the initial session check. Background checks run on
     // navigation and window focus; hiding the app here unmounts open dialogs.
     const promise = (async () => { try {
-      const response = await fetch('/api/auth/me', { credentials: 'include', cache: 'no-store', headers: { 'X-Requested-With': 'GetafeCitizenPortal' } })
-      const body = await response.json().catch(() => ({}))
+      // A server can briefly be unavailable while its database connection is
+      // recovering. Retry those transient checks before treating a session as
+      // absent; a 401/403 remains an immediate, definitive sign-out.
+      let response, body
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          response = await fetch('/api/auth/me', { credentials: 'include', cache: 'no-store', headers: { 'X-Requested-With': 'GetafeCitizenPortal' } })
+          body = await response.json().catch(() => ({}))
+          if (response.status < 500 && response.status !== 429) break
+        } catch {
+          response = null
+        }
+        if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 180 * (attempt + 1)))
+      }
       if (requestId !== requestRef.current) return null
+      if (!response || response.status >= 500 || response.status === 429) {
+        // Keep any known account in place. On a cold refresh, ProtectedRoute
+        // shows a recovery state instead of incorrectly sending the user to
+        // the sign-in screen while the server is still reachable only later.
+        setSessionUnavailable(true)
+        return sessionRef.current.user
+      }
       const nextUser = response.ok ? body?.user || null : null
+      setSessionUnavailable(false)
       if (!nextUser || sessionRef.current.user?.id !== nextUser.id) clearPrivateCache()
       sessionRef.current.user = nextUser
       sessionRef.current.checkedAt = Date.now()
@@ -46,7 +67,7 @@ export function AuthProvider({ children }) {
       setUser(current => JSON.stringify(current) === JSON.stringify(nextUser) ? current : nextUser)
       return nextUser
     } catch {
-      if (requestId === requestRef.current) { clearClientAuthState(); setUser(null) }
+      if (requestId === requestRef.current) setSessionUnavailable(true)
       return null
     } finally {
       if (requestId === requestRef.current) { sessionRef.current.promise = null; setLoading(false) }
@@ -83,6 +104,12 @@ export function AuthProvider({ children }) {
     }
   }, [clearClientAuthState, validateSession])
 
+  useEffect(() => {
+    if (!sessionUnavailable) return undefined
+    const retry = setTimeout(() => validateSession(true), 2000)
+    return () => clearTimeout(retry)
+  }, [sessionUnavailable, validateSession])
+
   const login = async (email, password, remember = false) => {
     try {
       const response = await fetch('/api/auth/login', {
@@ -100,6 +127,7 @@ export function AuthProvider({ children }) {
       ++requestRef.current
       clearClientAuthState()
       sessionRef.current = { promise: null, checkedAt: Date.now(), user: current.user }
+      setSessionUnavailable(false)
       setUser(current.user)
       setLoading(false)
       return { ok: true, admin: current.admin === true }
@@ -125,6 +153,7 @@ export function AuthProvider({ children }) {
       ++requestRef.current
       clearClientAuthState()
       sessionRef.current = { promise: null, checkedAt: Date.now(), user: current.user }
+      setSessionUnavailable(false)
       setUser(current.user)
       setLoading(false)
       return { ok: true, setup: true }
@@ -136,6 +165,7 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     ++requestRef.current
     setUser(null)
+    setSessionUnavailable(false)
     setLoading(false)
     clearClientAuthState()
     let response
@@ -173,13 +203,14 @@ export function AuthProvider({ children }) {
       ++requestRef.current
       clearClientAuthState()
       sessionRef.current = { promise: null, checkedAt: Date.now(), user: body.user }
+      setSessionUnavailable(false)
       setUser(body.user)
       setLoading(false)
       return { ok: true, recoveryCodeUsed: body.recoveryCodeUsed === true }
     } catch { return { ok: false, error: 'MFA verification is temporarily unavailable.' } }
   }
 
-  return <AuthContext.Provider value={{ user, loading, login, completeMfa, register, logout, validateSession }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, sessionUnavailable, login, completeMfa, register, logout, validateSession }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

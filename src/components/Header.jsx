@@ -1,7 +1,7 @@
 import { usePublicConfig } from '../context/PublicConfig'
 import { useEffect, useState } from 'react'
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
-import { Accessibility, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, LogOut, Mail, Map, Newspaper, PhoneCall, Rocket, Siren, Users, WalletCards } from 'lucide-react'
+import { Accessibility, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, LogOut, Mail, Map, Newspaper, PhoneCall, Rocket, Siren, Users, WalletCards, ChartNoAxesCombined } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import HeaderWeather from './HeaderWeather'
 
@@ -18,7 +18,8 @@ export default function Header() {
   const navigate = useNavigate()
   const isLandingPage = location.pathname === '/'
   const hideThreshold = isLandingPage ? LANDING_HEADER_HIDE_THRESHOLD : DEFAULT_HEADER_HIDE_THRESHOLD
-  const homePath = user ? (['admin', 'super_admin'].includes(user.role) ? '/admin' : '/app/dashboard') : '/'
+  const cmsRoles = ['admin', 'super_admin', 'staff', 'it_support', 'content_manager']
+  const homePath = user ? (['admin', 'super_admin'].includes(user.role) ? '/admin' : ['staff', 'it_support', 'content_manager'].includes(user.role) ? '/app/staff?sysparm_object_id=dashboard' : '/app?sysparm_object_id=dashboard') : '/'
 
   const initials = user
     ? user.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()
@@ -105,6 +106,7 @@ export default function Header() {
         ['Contact Us', '/contact', 'Reach the municipal offices.', Mail],
         ['News and Updates', '/news', 'Latest local announcements.', Newspaper],
         ['Weather Updates', '/weather', 'Live conditions and forecasts.', CloudSun],
+        ['Data & Statistics', '/data', 'Public datasets and official statistical releases.', ChartNoAxesCombined],
         ['Emergency Hotlines', '/services/hotlines', 'Police, fire, medical, and public services.', PhoneCall],
       ],
     },
@@ -175,7 +177,7 @@ export default function Header() {
                 <span className="user-name">{user.name}</span>
                 <span className="user-role">{user.role}</span>
               </span>
-              {user.role === 'admin' && <Link to="/admin" className="login-button">CMS</Link>}
+              {cmsRoles.includes(user.role) && <Link to={homePath} className="login-button">{['staff', 'it_support', 'content_manager'].includes(user.role) ? 'Staff workspace' : 'CMS'}</Link>}
               <button
                 type="button"
                 className="logout-button"

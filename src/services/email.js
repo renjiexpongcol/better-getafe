@@ -10,7 +10,7 @@ export async function buildEmail(values) {
   catch { candidate.close(); throw new Error('SMTP connection failed. Check host, TLS settings and credentials.'); }
 }
 export function activateEmail(value) { const previous = transport; transport = value; previous?.close(); }
-export async function sendEmail(to, subject, text, candidate = transport, values = config.values, attachments = []) {
+export async function sendEmail(to, subject, text, candidate = transport, values = config.values, attachments = [], html = undefined) {
   if (!candidate) throw new Error('Email is not configured.');
-  return candidate.sendMail({ from: { name: values['email.senderName'], address: values['email.senderEmail'] }, to, replyTo: values['email.replyTo'] || undefined, subject, text, attachments });
+  return candidate.sendMail({ from: { name: values['email.senderName'], address: values['email.senderEmail'] }, to, replyTo: values['email.replyTo'] || undefined, subject, text, html, attachments });
 }

@@ -31,21 +31,21 @@ export default function Login() {
     const value = searchParams.get('returnUrl')
     return value && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/auth') ? value : null
   })()
-  const destination = role => returnUrl || (['admin', 'super_admin'].includes(role) ? '/admin' : '/app/dashboard')
+  const destination = role => returnUrl || (['admin', 'super_admin'].includes(role) ? '/admin' : ['staff', 'it_support', 'content_manager'].includes(role) ? '/app/staff?sysparm_object_id=dashboard' : '/app?sysparm_object_id=dashboard')
   useEffect(() => { if (searchParams.get('google') === 'existing') setInfo('This Google email already has a Getafe e-services account. Please sign in with your existing account.'); if (searchParams.get('mfa')) setMfaChallenge(searchParams.get('mfa')) }, [searchParams])
   const handleResult = res => {
     if (res.verificationRequired) { setChallenge(res.challengeId); setError(''); return }
     if (res.mfaRequired) { setMfaChallenge(res.mfaChallengeId); setError(''); return }
     if (res.passwordExpired) { setRenewal(res.resetToken); setError(''); return }
     if (!res.ok) setError(res.error)
-    else navigate(res.setup ? '/app/setup' : destination(res.admin ? 'admin' : 'resident'), { replace: true })
+    else navigate(res.setup ? '/app/setup' : destination(res.user?.role || (res.admin ? 'admin' : 'resident')), { replace: true })
   }
   const completeMfaChallenge = async event => {
     event.preventDefault(); setLoading(true); setError('')
     const result = await completeMfa(mfaChallenge, code)
     setLoading(false)
     if (!result.ok) setError(result.error)
-    else navigate(destination('resident'), { replace: true })
+    else navigate(destination(result.admin ? 'admin' : result.user?.role), { replace: true })
   }
   const completeChallenge = async event => {
     event.preventDefault(); setLoading(true); setError('')
@@ -55,7 +55,7 @@ export default function Login() {
       const body = await response.json()
       if (!response.ok) throw new Error(body.error)
       if (renewal) { setRenewal(null); setError('Password updated. Sign in with your new password.'); setForm(previous => ({ ...previous, password: '' })) }
-      else navigate(destination(body.admin ? 'admin' : 'resident'), { replace: true })
+      else navigate(destination(body.user?.role || (body.admin ? 'admin' : 'resident')), { replace: true })
     } catch (error) { setError(error.message) } finally { setLoading(false) }
   }
   const [form, setForm] = useState({

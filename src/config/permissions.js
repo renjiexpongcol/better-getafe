@@ -1,13 +1,23 @@
 import { config } from './index.js';
-export const allPermissions = ['settings.view', 'settings.edit', 'settings.secrets.edit', 'settings.database.edit', 'settings.storage.edit', 'settings.security.edit', 'settings.audit.view'];
+export const allPermissions = ['settings.view', 'settings.edit', 'settings.secrets.edit', 'settings.database.edit', 'settings.storage.edit', 'settings.security.edit', 'settings.audit.view', 'requests.view', 'requests.manage'];
 export const cmsRoles = ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'];
-export const rolePermissions = { staff: ['settings.view'], it_support: ['settings.view', 'settings.edit', 'settings.database.edit', 'settings.storage.edit'], content_manager: ['settings.view'] };
+export const rolePermissions = { staff: ['settings.view', 'requests.view', 'requests.manage'], it_support: ['settings.view', 'settings.edit', 'settings.database.edit', 'settings.storage.edit', 'requests.view', 'requests.manage'], content_manager: ['settings.view'] };
 export function permissionsFor(user) {
   if (!cmsRoles.includes(user?.role)) return [];
   if (user.role === 'super_admin') return allPermissions;
-  if (rolePermissions[user.role]) return rolePermissions[user.role];
   const grants = JSON.parse(config.get('security.permissionGrants'));
-  return grants[user.id] || allPermissions;
+  // An explicit grant is an override for every non-super-admin role. This
+  // allows an administrator to delegate a tailored set of permissions to a
+  // staff account instead of forcing the role defaults.
+  if (Object.prototype.hasOwnProperty.call(grants, user.id)) {
+    const granted = Array.isArray(grants[user.id]) ? grants[user.id] : [];
+    // Backward compatibility for staff accounts delegated before request
+    // permissions were introduced. Their existing access should not break
+    // when the staff request workspace is enabled.
+    if (['staff', 'it_support'].includes(user.role) && !granted.some(permission => permission.startsWith('requests.'))) return [...new Set([...granted, 'requests.view', 'requests.manage'])];
+    return granted;
+  }
+  return rolePermissions[user.role] || allPermissions;
 }
 export function requirePermission(user, permission) { if (!permissionsFor(user).includes(permission)) throw new Error(`Permission required: ${permission}`); }
 export function authorizeChanges(user, values) {

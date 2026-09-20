@@ -54,7 +54,11 @@ export default function Directory() {
     return `/services/${service.category}`
   }
 
-  const officeHref = (service) => service.slug === 'health' ? 'https://www.facebook.com/GetafeRHU' : service.slug === 'civil-registry' ? '/services/certificates' : `/news/${service.slug}`
+  const officeHref = (service) => service.slug === 'health'
+    ? 'https://www.facebook.com/GetafeRHU'
+    : service.slug === 'civil-registry'
+      ? '/services/certificates'
+      : `/services/offices/${encodeURIComponent(service.slug)}`
 
   const chooseDepartment = (value) => {
     setQuery(value)
