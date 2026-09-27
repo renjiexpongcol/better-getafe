@@ -4,12 +4,17 @@ import { MapPin } from 'lucide-react'
 import { barangays } from '../../data/barangays'
 import BarangayCard from '../../components/BarangayCard'
 import BarangayModal from '../../components/BarangayModal'
+import { publicApi } from '../../services/apiClient'
 
 export default function Barangays() {
   const [records, setRecords] = useState(barangays)
   const [selectedBarangay, setSelectedBarangay] = useState(null)
   const [searchParams] = useSearchParams()
-  useEffect(() => { fetch('/api/barangays').then((r) => r.ok ? r.json() : Promise.reject()).then((value) => { if (Array.isArray(value) && value.length) setRecords(value) }).catch(() => {}) }, [])
+  useEffect(() => {
+    let active = true
+    publicApi('/barangays').then((value) => { if (active && Array.isArray(value) && value.length) setRecords(value) }).catch(() => {})
+    return () => { active = false }
+  }, [])
 
   // Auto-open a barangay's modal when arriving with ?brgy=<id> (e.g. from
   // the "Getafe at a Glance" table).

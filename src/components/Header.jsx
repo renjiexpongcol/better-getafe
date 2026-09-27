@@ -1,9 +1,10 @@
 import { usePublicConfig } from '../context/PublicConfig'
 import { useEffect, useState } from 'react'
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
-import { Accessibility, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, LogOut, Mail, Map, Newspaper, PhoneCall, Rocket, Siren, Users, WalletCards, ChartNoAxesCombined } from 'lucide-react'
+import { Accessibility, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, LogOut, Mail, Map, Menu, Newspaper, PhoneCall, Rocket, Siren, Users, WalletCards, ChartNoAxesCombined, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import HeaderWeather from './HeaderWeather'
+import { ROUTES } from '../routeRegistry'
 
 const DEFAULT_HEADER_HIDE_THRESHOLD = 90
 const LANDING_HEADER_HIDE_THRESHOLD = 220
@@ -11,6 +12,7 @@ const LANDING_HEADER_HIDE_THRESHOLD = 220
 export default function Header() {
   const settings = usePublicConfig()
   const [openMenu, setOpenMenu] = useState(null)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [time, setTime] = useState('')
   const [isHidden, setIsHidden] = useState(false)
   const { user, logout } = useAuth()
@@ -19,7 +21,20 @@ export default function Header() {
   const isLandingPage = location.pathname === '/'
   const hideThreshold = isLandingPage ? LANDING_HEADER_HIDE_THRESHOLD : DEFAULT_HEADER_HIDE_THRESHOLD
   const cmsRoles = ['admin', 'super_admin', 'staff', 'it_support', 'content_manager']
-  const homePath = user ? (['admin', 'super_admin'].includes(user.role) ? '/admin' : ['staff', 'it_support', 'content_manager'].includes(user.role) ? '/app/staff?sysparm_object_id=dashboard' : '/app?sysparm_object_id=dashboard') : '/'
+  const homePath = user ? (['admin', 'super_admin'].includes(user.role) ? ROUTES.admin.root : ['staff', 'it_support', 'content_manager'].includes(user.role) ? ROUTES.staff.root : ROUTES.app.root) : '/'
+
+  useEffect(() => {
+    setMobileNavOpen(false)
+    setOpenMenu(null)
+  }, [location.pathname])
+
+  useEffect(() => {
+    const closeOnResize = () => {
+      if (window.innerWidth > 980) setMobileNavOpen(false)
+    }
+    window.addEventListener('resize', closeOnResize)
+    return () => window.removeEventListener('resize', closeOnResize)
+  }, [])
 
   const initials = user
     ? user.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()
@@ -91,7 +106,7 @@ export default function Header() {
       items: [
         ['Citizen Services', '/services', 'Common requests for Getafe residents.', Users],
         ['Emergency Hotlines', '/services/hotlines', 'Fast access to urgent public numbers.', Siren],
-        ['Accessibility', '/info/accessibility', 'Inclusive access information.', Accessibility],
+        ['Accessibility', '/accessibility', 'Inclusive access information.', Accessibility],
       ],
     },
     {
@@ -99,7 +114,7 @@ export default function Header() {
       key: 'information',
       items: [
         ['About Us', '/info/about', 'Mission, vision, and who we serve.', Info],
-        ['Municipal Officials', '/info/officials', 'Elected leaders, barangay captains, and department heads.', Landmark],
+        ['Municipal Officials', '/officials', 'Elected leaders, barangay captains, and department heads.', Landmark],
         ['History & Hymn', '/info/history', 'The story, seal, and song of Getafe.', BookOpen],
         ['Tourism', '/tourism', 'Explore Getafe destinations, islands, and coastal places.', Compass],
         ['Gallery of Events', '/events', 'See the celebrations and milestones of Getafe.', CalendarDays],
@@ -129,7 +144,18 @@ export default function Header() {
           </div>
         </Link>
 
-        <nav className="main-nav" aria-label="Main navigation">
+        <button
+          type="button"
+          className="mobile-menu-toggle"
+          aria-label={mobileNavOpen ? 'Close main navigation' : 'Open main navigation'}
+          aria-expanded={mobileNavOpen}
+          aria-controls="site-navigation"
+          onClick={() => { setMobileNavOpen(value => !value); setOpenMenu(null) }}
+        >
+          {mobileNavOpen ? <X size={21} aria-hidden="true" /> : <Menu size={21} aria-hidden="true" />}
+        </button>
+
+        <nav id="site-navigation" className={`main-nav${mobileNavOpen ? ' is-open' : ''}`} aria-label="Main navigation">
           <NavLink to={homePath} className={({isActive}) => isActive ? "active" : ""}>Home</NavLink>
           {menuItems.map((menu) => (
             <div
@@ -146,10 +172,12 @@ export default function Header() {
                 type="button"
                 className={openMenu === menu.key ? 'nav-dropdown-trigger active' : 'nav-dropdown-trigger'}
                 aria-expanded={openMenu === menu.key}
+                aria-controls={`nav-menu-${menu.key}`}
+                onClick={() => setOpenMenu(current => current === menu.key ? null : menu.key)}
               >
                 {menu.label} <ChevronDown size={15} aria-hidden="true" />
               </button>
-              <div className={openMenu === menu.key ? 'nav-dropdown-menu open' : 'nav-dropdown-menu'}>
+              <div id={`nav-menu-${menu.key}`} className={openMenu === menu.key ? 'nav-dropdown-menu open' : 'nav-dropdown-menu'}>
                 {menu.items.map(([title, url, description, Icon]) => (
                   <Link to={url} onClick={() => setOpenMenu(null)} key={title}>
                     <span className="nav-dropdown-icon"><Icon size={18} aria-hidden="true" /></span>
@@ -194,7 +222,7 @@ export default function Header() {
         </div>
       </div>
       </header>
-      {isLandingPage && settings['general.communityBannerEnabled'] !== false && (
+      {isLandingPage && settings['general.communityBannerEnabled'] === true && (
         <aside className="civic-community-banner" aria-label="Getafe civic technology community">
           <div className="container civic-community-inner">
             <div className="civic-community-copy">

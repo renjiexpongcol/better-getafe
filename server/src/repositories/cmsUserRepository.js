@@ -1,5 +1,6 @@
 import { getCmsPool } from '../services/cloudSql.js';
-import { getLocalDb, saveLocalDb, isGcp, now, id, hash } from './postgresCompatibility.js';
+import { getLocalDb, saveLocalDb, isGcp, now, id } from './postgresCompatibility.js';
+import { hashPassword } from '../services/passwordHashing.js';
 
 export async function getCmsUsers() {
   if (isGcp()) {
@@ -25,7 +26,7 @@ export async function saveCmsAccount(values, userId) {
     if (userId) await pool.execute('UPDATE users SET name=?, role=?, updated_at=? WHERE id=?', [values.name, values.role, updated, userId]);
     else {
       userId = id();
-      await pool.execute('INSERT INTO users (id,name,email,password,role,created_at,updated_at) VALUES (?,?,?,?,?,?,?)', [userId, values.name, values.email, hash(values.password), values.role, updated, updated]);
+      await pool.execute('INSERT INTO users (id,name,email,password,role,created_at,updated_at) VALUES (?,?,?,?,?,?,?)', [userId, values.name, values.email, await hashPassword(values.password), values.role, updated, updated]);
     }
   } else {
     const db = await getLocalDb();
@@ -35,11 +36,24 @@ export async function saveCmsAccount(values, userId) {
       Object.assign(user, { name: values.name, role: values.role, updated_at: updated });
     } else {
       userId = id();
-      db.users.push({ id: userId, name: values.name, email: values.email, password: hash(values.password), role: values.role, created_at: updated, updated_at: updated });
+      db.users.push({ id: userId, name: values.name, email: values.email, password: await hashPassword(values.password), role: values.role, created_at: updated, updated_at: updated });
     }
     await saveLocalDb(db);
   }
   return userId;
+}
+
+export async function saveCmsAvatar(userId, avatarStoragePath) {
+  if (isGcp()) {
+    const pool = await getCmsPool();
+    await pool.execute('UPDATE users SET avatar_storage_path=? WHERE id=?', [avatarStoragePath, userId]);
+  } else {
+    const db = await getLocalDb();
+    const user = db.users.find(item => item.id === userId);
+    if (!user) throw new Error('Account unavailable.');
+    user.avatar_storage_path = avatarStoragePath;
+    await saveLocalDb(db);
+  }
 }
 
 export async function getCmsUserById(userId) {
@@ -51,5 +65,3 @@ export async function getCmsUserByEmail(email) {
   const users = await getCmsUsers();
   return users.find(u => u.email === String(email).trim().toLowerCase()) || null;
 }
-
-

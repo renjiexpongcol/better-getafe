@@ -2,6 +2,7 @@
 const entries = new Map()
 const pending = new Map()
 const versions = new Map()
+const retryCooldowns = new Map()
 const storagePrefix = 'getafe-public-cache:'
 
 export function readCached(key, { persist = false } = {}) {
@@ -20,6 +21,13 @@ export function invalidateCached(key, { persist = false } = {}) {
   versions.set(key, (versions.get(key) || 0) + 1)
   if (persist) {
     try { sessionStorage.removeItem(storagePrefix + key) } catch { /* Storage can be disabled. */ }
+  }
+}
+
+export function invalidateCachedPrefix(prefix) {
+  const keys = new Set([...entries.keys(), ...pending.keys()])
+  for (const key of keys) {
+    if (key.startsWith(prefix)) invalidateCached(key)
   }
 }
 
@@ -48,4 +56,63 @@ export function cachedRequest(key, fetcher, { ttl = 60000, force = false, persis
   }).finally(() => { if (pending.get(key) === request) pending.delete(key) })
   pending.set(key, request)
   return request
+}
+
+export class ApiRequestError extends Error {
+  constructor(message, status, body = {}, retryAfter = 0) {
+    super(message)
+    this.name = 'ApiRequestError'
+    this.status = status
+    this.body = body
+    this.retryAfter = retryAfter
+  }
+}
+
+export function retryAfterMilliseconds(response) {
+  const value = response.headers.get('Retry-After')
+  if (!value) return 0
+  const seconds = Number(value)
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000)
+  const timestamp = Date.parse(value)
+  return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : 0
+}
+
+const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
+
+async function fetchJsonWithBackoff(url, options = {}) {
+  const method = String(options.method || 'GET').toUpperCase()
+  const readOnly = method === 'GET' || method === 'HEAD'
+  const maxAttempts = readOnly ? 3 : 1
+  const requestOptions = { ...options }
+  delete requestOptions.cacheTtl
+  delete requestOptions.persist
+  delete requestOptions.force
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const cooldown = retryCooldowns.get(url) || 0
+    if (cooldown > Date.now()) await wait(cooldown - Date.now())
+    const response = await fetch(url, requestOptions)
+    const retryAfter = retryAfterMilliseconds(response)
+    if (response.status === 429) {
+      const fallback = Math.min(5000, 250 * (2 ** attempt))
+      const delay = Math.max(retryAfter, fallback) + Math.floor(Math.random() * 125)
+      retryCooldowns.set(url, Date.now() + delay)
+      // A 429 is an explicit server-side back-pressure signal. Preserve the
+      // cooldown for a later caller, but do not replay this request here: a
+      // page load must not multiply the traffic the limiter is shedding.
+    }
+    const body = response.status === 204 ? null : await response.json().catch(() => ({}))
+    if (!response.ok) throw new ApiRequestError(body?.error || body?.message || 'The service is temporarily unavailable.', response.status, body, Math.ceil(retryAfter / 1000))
+    return body
+  }
+  throw new ApiRequestError('The service is temporarily unavailable.', 503)
+}
+
+export function cachedJson(url, options = {}) {
+  const method = String(options.method || 'GET').toUpperCase()
+  const cacheable = method === 'GET' || method === 'HEAD'
+  const key = 'http:' + method + ':' + url
+  const { cacheTtl = 300000, persist = true, force = false } = options
+  if (!cacheable) return fetchJsonWithBackoff(url, options)
+  return cachedRequest(key, () => fetchJsonWithBackoff(url, options), { ttl: cacheTtl, persist, force })
 }

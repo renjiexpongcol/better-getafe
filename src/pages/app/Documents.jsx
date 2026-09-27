@@ -9,7 +9,7 @@ function DocumentsContent() {
   const { data, reload } = useCitizen(), [params] = useSearchParams()
   const [file, setFile] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('')
   const documents = (data?.documents || []).filter(item => !params.has('document') || item.id === params.get('document'))
-  const applications = data?.applications || [], selectedApplicationId = params.get('sysparm_record_id') || params.get('application_id') || '', selectedApplication = applications.find(item => item.id === selectedApplicationId), showUpload = params.get('sysparm_view') === 'upload' || Boolean(selectedApplicationId)
+  const applications = data?.applications || [], selectedApplicationId = params.get('application') || '', selectedApplication = applications.find(item => item.id === selectedApplicationId), showUpload = params.get('view') === 'upload' || Boolean(selectedApplicationId)
   const upload = async event => {
     event.preventDefault()
     if (!file || !selectedApplication) return

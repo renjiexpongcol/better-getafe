@@ -10,13 +10,22 @@ export function PublicConfigProvider({ children }) {
  const [ready, setReady] = useState(() => initialConfig() !== undefined)
  useEffect(() => {
   let active = true
-  const reload = (force = false) => cachedRequest(cacheKey, async () => {
+  let latestRequest = 0
+  const reload = (force = false) => {
+   const requestId = ++latestRequest
+   return cachedRequest(cacheKey, async () => {
     const response = await fetch('/api/public/config', { cache: 'no-store' })
     if (!response.ok) throw new Error('Configuration unavailable')
     return response.json()
-  }, { ...cacheOptions, persist: publicCacheEnabled(), force: force || !publicCacheEnabled() }).then(body => { if (active) setValues(current => JSON.stringify(current) === JSON.stringify(body) ? current : body) }).catch(() => {}).finally(() => { if (active) setReady(true) })
-  reload()
-  const refresh = () => { if (document.visibilityState === 'visible') reload() }
+   }, { ...cacheOptions, persist: publicCacheEnabled(), force: force || !publicCacheEnabled() })
+    .then(body => { if (active && requestId === latestRequest) setValues(current => JSON.stringify(current) === JSON.stringify(body) ? current : body) })
+    .catch(() => {})
+    .finally(() => { if (active && requestId === latestRequest) setReady(true) })
+  }
+  // Public settings can change in another tab or on another application
+  // instance, so do not let a persisted browser cache mask the latest value.
+  reload(true)
+  const refresh = () => { if (document.visibilityState === 'visible') reload(true) }
   const changed = () => reload(true)
   const timer = setInterval(refresh, cacheOptions.ttl)
   window.addEventListener('focus', refresh)

@@ -238,7 +238,7 @@ npm install
 
 # Development
 
-Start the Vite development server:
+Start the API and Vite development server together:
 
 ```bash
 npm run dev
@@ -255,6 +255,8 @@ Vite will normally provide a local address similar to:
 ```text
 http://localhost:5173
 ```
+
+To run the API and frontend separately, start the API with `npm start` first, then run `npm run dev:vite` in another terminal. The frontend-only command waits for the API health endpoint before starting Vite.
 
 ---
 
@@ -814,9 +816,9 @@ Before submitting a change:
 
 ## Local News CMS
 
-The News & Updates section is now managed by the local CMS at `/admin`. Start the full application with `npm run build` followed by `npm start`; this serves both the website and CMS API. For front-end-only work, run `npm run dev` and use `npm start` in another terminal for the CMS API (port 8080), or configure a Vite proxy.
+The News & Updates section is now managed by the local CMS at `/admin`. Start the full application with `npm run build` followed by `npm start`; this serves both the website and CMS API. For front-end-only work, start `npm start` in one terminal and `npm run dev:vite` in another. The frontend-only command waits for the CMS API on port 8080 before Vite starts.
 
-Copy `.env.example` to `.env` and change both CMS values before deployment. The first start creates `data/cms.json` with categories and sample articles. Local development credentials are `admin@getafe.gov.ph` and `ChangeMe123!`. The generated data file and uploaded media are intentionally local and should not be committed.
+Copy `.env.example` to `.env`, configure PostgreSQL and the storage provider, and provision a CMS administrator through the access-management flow before deployment. Never use a shared or documented default password. Generated local data and uploaded media are intentionally local and should not be committed.
 
 The API provides public `GET /api/news`, `GET /api/news/:slug`, and `GET /api/categories`; management requests require the CMS bearer token. Admin endpoints support article, category, and media CRUD.
 

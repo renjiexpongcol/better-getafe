@@ -6,22 +6,39 @@
   "scripts": {
     "dev": "node scripts/dev-runner.mjs",
     "dev:frontend": "node scripts/dev-runner.mjs",
-    "dev:vite": "vite",
+    "dev:vite": "node scripts/dev-runner.mjs --frontend-only",
     "build": "vite build",
     "start": "node server.js",
     "test:traffic": "node scripts/test-traffic-protection.mjs",
+    "test:api-security": "node scripts/test-api-security.mjs",
+    "test:api-security-http": "node scripts/test-api-security-http.mjs",
+    "test:resident-preferences": "node --test scripts/test-resident-preferences.mjs",
+    "test:settings-navigation": "node --test scripts/test-settings-navigation.mjs",
+    "test:auth": "node --test scripts/test-auth-hardening.mjs",
+    "test:admin-users": "node --test scripts/test-admin-users.mjs",
+    "test:google-oauth": "node --test scripts/test-google-oauth.mjs",
     "cms:check": "node --env-file-if-exists=.env scripts/verify-cms-configuration.mjs",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "migrate": "node scripts/migrate-settings.mjs",
     "migrate:postgres": "node scripts/migrate-postgresql.mjs",
-    "test:config": "node --test scripts/test-config-service.mjs"
+    "media:reconcile": "node scripts/reconcile-media.mjs",
+    "test:config": "node --test scripts/test-config-service.mjs",
+    "test:appointments": "node --test scripts/test-appointment-scheduling.mjs",
+    "test:media-paths": "node --test scripts/test-media-upload-paths.mjs",
+    "test:officials": "node --test scripts/test-time-aware-officials.mjs",
+    "test:routing": "node --test scripts/test-routing.mjs",
+    "test:request-cache": "node scripts/test-request-cache.mjs",
+    "test:redis": "node scripts/test-redis-services.mjs",
+    "test:storage": "node scripts/test-storage.mjs",
+    "test:b2-network": "node server/scripts/test-b2-network.js",
+    "diagnose:b2": "node server/scripts/diagnose-b2.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",
     "@aws-sdk/s3-request-presigner": "^3.1131.0",
     "@google-cloud/secret-manager": "^7.1.0",
-    "@google-cloud/storage": "^8.1.0",
+    "@smithy/node-http-handler": "^4.12.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "leaflet": "^1.9.4",
@@ -39,9 +56,10 @@
   "devDependencies": {
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^8.57.0",
-    "vite": "^5.0.8"
+    "playwright": "^1.63.0",
+    "vite": "^8.3.0"
   },
   "engines": {
     "node": ">=22"

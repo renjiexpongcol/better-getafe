@@ -4,7 +4,7 @@ import { ArrowRight } from 'lucide-react'
 
 export default function RelatedPages() {
   const { pathname } = useLocation()
-  if (pathname.startsWith('/admin') || pathname.startsWith('/auth')) return null
+  if (pathname.startsWith('/admin') || pathname.startsWith('/auth') || pathname.startsWith('/discover/')) return null
   const current = publicRoutes.find((route) => pathname === route.path)
   const section = current?.folder
   const suggestions = publicRoutes.filter((route) => route.path !== pathname && !route.path.includes('official-profile') && !route.path.includes('barangay-detail') && (section ? route.folder === section : true)).slice(0, 3)

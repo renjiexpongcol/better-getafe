@@ -1,5 +1,6 @@
+import DiscoverGetafe from '../../components/DiscoverGetafe'
 import Hero from '../../components/Hero'
-import NewsSection from '../../components/NewsSection'
+import MunicipalityUpdatesSection from '../../components/MunicipalityUpdatesSection'
 import EmergencyAlert from '../../components/EmergencyAlert'
 import ImportantAnnouncement from '../../components/ImportantAnnouncement'
 import EventsSection from '../../components/EventsSection'
@@ -11,7 +12,7 @@ function MayorCorner() {
 }
 
 function HomeHelp() {
-  return <><section className="section home-help-section"><div className="container home-help-inner"><div><p className="eyebrow">Need help from the LGU?</p><h2>We can point you in the right direction.</h2><p>Use these shortcuts to begin a request, find a document, or contact the right municipal office.</p></div><CitizenActions className="home-help-grid" /></div></section><section className="section home-about-section"><div className="container home-about-inner"><div className="home-about-seal"><img src="/assets/getafe-seal.png" alt="Municipality of Getafe seal" /></div><div><p className="eyebrow">About Getafe</p><h2>One town, one people.</h2><p>Learn about the municipality, its officials, barangays, history, and the people who make Getafe home.</p><div className="home-about-links"><Link to="/info/about">Municipality</Link><Link to="/info/officials">Officials</Link><Link to="/services/barangays">Barangays</Link><Link to="/info/history">History</Link></div></div></div></section></>
+  return <><section className="section home-help-section"><div className="container home-help-inner"><div><p className="eyebrow">Need help from the LGU?</p><h2>We can point you in the right direction.</h2><p>Use these shortcuts to begin a request, find a document, or contact the right municipal office.</p></div><CitizenActions className="home-help-grid" /></div></section><section className="section home-about-section"><div className="container home-about-inner"><div className="home-about-seal"><img src="/assets/getafe-seal.png" alt="Municipality of Getafe seal" /></div><div><p className="eyebrow">About Getafe</p><h2>One town, one people.</h2><p>Learn about the municipality, its officials, barangays, history, and the people who make Getafe home.</p><div className="home-about-links"><Link to="/info/about">Municipality</Link><Link to="/officials">Officials</Link><Link to="/barangays">Barangays</Link><Link to="/info/history">History</Link></div></div></div></section></>
 }
 
 export default function Home() {
@@ -20,11 +21,12 @@ export default function Home() {
       <ImportantAnnouncement />
       <EmergencyAlert />
       <Hero />
-      <section className="section home-help-links"><div className="container"><div className="section-head"><p className="eyebrow">Start with what you need</p><h2>What can we help you with?</h2></div><CitizenActions /></div></section>
-      <NewsSection />
+      <section className="section home-help-links" aria-labelledby="home-help-links-title"><div className="container"><div className="section-head"><p className="eyebrow">Start with what you need</p><h2 id="home-help-links-title">What can we help you with?</h2></div><CitizenActions /></div></section>
+      <MunicipalityUpdatesSection />
       <EventsSection />
       <MayorCorner />
       <HomeHelp />
+      <DiscoverGetafe />
     </main>
   )
 }

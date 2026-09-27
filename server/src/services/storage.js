@@ -1,95 +1,355 @@
-import { S3Client, HeadBucketCommand, HeadObjectCommand, DeleteObjectCommand, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  HeadBucketCommand,
+  HeadObjectCommand,
+  DeleteObjectCommand,
+  PutObjectCommand,
+  GetObjectCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { config } from '../config/index.js';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
+import dns from 'node:dns/promises';
 import fs from 'node:fs/promises';
+import net from 'node:net';
 import path from 'node:path';
-let client; let bucketName; let localRoot;
-export async function buildStorage(values) {
-  const configuredProvider = values['storage.provider'];
-  if (configuredProvider === 'local') {
-    localRoot = path.resolve(values['storage.localPath'] || process.env.LOCAL_STORAGE_PATH || 'data/uploads');
-    await fs.mkdir(localRoot, { recursive: true });
-    return { local: true, root: localRoot };
+import tls from 'node:tls';
+import { config } from '../config/index.js';
+import { createBackblazeHttpsAgent } from './b2HttpAgent.js';
+
+const MAX_ATTEMPTS = 3;
+const CONNECTION_TIMEOUT_MS = 8_000;
+const REQUEST_TIMEOUT_MS = 20_000;
+const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
+let activeStorage = { provider: null, client: null, bucket: null, root: null, endpoint: null, region: null };
+const defaultClientFactory = options => new S3Client(options);
+let clientFactory = defaultClientFactory;
+let presign = (client, command, options) => getSignedUrl(client, command, options);
+export function setStorageClientFactoryForTests(factory) { clientFactory = factory || defaultClientFactory; }
+export function setStoragePresignerForTests(factory) { presign = factory || ((client, command, options) => getSignedUrl(client, command, options)); }
+
+function errorCode(error) {
+  return error?.Code || error?.code || error?.name || 'UnknownError';
+}
+
+function storageError(operation, key, error) {
+  console.error(JSON.stringify({ event: 'storage_operation', provider: activeStorage.provider === 'backblaze' ? 'backblaze-b2' : activeStorage.provider, operation, key: key || null, result: 'failed', errorCode: errorCode(error), status: error?.$metadata?.httpStatusCode || null }));
+}
+
+function retryable(error) {
+  const status = Number(error?.$metadata?.httpStatusCode || error?.statusCode || 0);
+  const name = errorCode(error);
+  return RETRYABLE_STATUS.has(status) || ['TimeoutError', 'RequestTimeout', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE', 'NetworkingError', 'InternalError', 'SlowDown'].includes(name) || name.startsWith('NetworkingError:');
+}
+
+async function send(operation, key, command) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const result = await activeStorage.client.send(command);
+      console.info(JSON.stringify({ event: 'storage_operation', provider: 'backblaze-b2', operation, key: key || null, result: 'ok', attempt }));
+      return result;
+    } catch (error) {
+      if (attempt < MAX_ATTEMPTS && retryable(error)) {
+        await new Promise(resolve => setTimeout(resolve, 100 * (2 ** (attempt - 1))));
+        continue;
+      }
+      storageError(operation, key, error);
+      throw error;
+    }
   }
-  if (values['storage.provider'] !== 'backblaze') throw new Error('Only Backblaze B2 or local storage is supported.');
-  const saved = {
-    endpoint: values['storage.endpoint'], region: values['storage.region'],
-    bucket: values['storage.bucket'], keyId: values['storage.keyId'],
+}
+
+function validObjectKey(key) {
+  return typeof key === 'string' && key.length > 0 && key.length <= 1024 && !key.startsWith('/') && !key.includes('\\') && !/[\0-\x1f\x7f]/.test(key) && !key.split('/').some(part => !part || part === '.' || part === '..');
+}
+
+function localPath(key, root = activeStorage.root) {
+  if (!validObjectKey(key)) throw new Error('Invalid storage object key.');
+  const resolvedRoot = path.resolve(root);
+  const target = path.resolve(resolvedRoot, key);
+  if (!target.startsWith(`${resolvedRoot}${path.sep}`)) throw new Error('Invalid storage object key.');
+  return target;
+}
+
+function localSettings(values) {
+  return values['storage.localPath'] || process.env.LOCAL_STORAGE_PATH || 'data/uploads';
+}
+
+async function buildLocalStorage(values) {
+  const root = path.resolve(localSettings(values));
+  await fs.mkdir(root, { recursive: true });
+  return { provider: 'local', root };
+}
+
+function explainConfiguration(candidate) {
+  const missing = Object.entries(candidate).filter(([, value]) => !String(value || '').trim()).map(([name]) => ({ endpoint: 'B2_ENDPOINT', region: 'B2_REGION', bucket: 'B2_BUCKET_NAME', keyId: 'B2_KEY_ID', applicationKey: 'B2_APPLICATION_KEY' })[name]);
+  if (missing.length) throw new Error(`Backblaze B2 storage configuration is incomplete. Missing: ${missing.join(', ')}`);
+  let endpoint;
+  const cleanEndpoint = String(candidate.endpoint || '').trim();
+  if (/["']/.test(cleanEndpoint)) throw new Error('B2_ENDPOINT must not contain quote characters.');
+  try { endpoint = new URL(cleanEndpoint); } catch { throw new Error('B2_ENDPOINT must be a valid HTTPS S3-compatible endpoint.'); }
+  if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password || endpoint.search || endpoint.hash || endpoint.pathname !== '/') {
+    throw new Error('B2_ENDPOINT must be the HTTPS S3-compatible service endpoint for the configured bucket region.');
+  }
+  if (!/^[a-z0-9][a-z0-9.-]{1,62}$/i.test(candidate.bucket)) throw new Error('B2_BUCKET_NAME is invalid.');
+  if (!/^[a-z0-9-]+$/i.test(candidate.region)) throw new Error('B2_REGION is invalid.');
+  const expectedHost = `s3.${candidate.region}.backblazeb2.com`;
+  if (endpoint.hostname.toLowerCase() !== expectedHost.toLowerCase()) throw new Error(`B2_ENDPOINT region does not match B2_REGION. Expected https://${expectedHost}.`);
+  return endpoint.origin;
+}
+
+function classifyInitializationError(error) {
+  const name = errorCode(error);
+  const status = Number(error?.$metadata?.httpStatusCode || error?.statusCode || 0);
+  if (name === 'TimeoutError' || name === 'ETIMEDOUT' || name === 'RequestTimeout') return 'Backblaze B2 connection timed out (NETWORK).';
+  if (name === 'ENOTFOUND' || name === 'EAI_AGAIN') return 'Backblaze B2 endpoint could not be resolved (DNS).';
+  if (name === 'ECONNREFUSED') return 'Backblaze B2 connection was refused (NETWORK).';
+  if (['CERT_HAS_EXPIRED', 'ERR_TLS_CERT_ALTNAME_INVALID', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'ERR_TLS_CERT_SIGNATURE_ALGORITHM_UNSUPPORTED'].includes(name)) return 'TLS connection to Backblaze B2 failed (TLS).';
+  if (name === 'InvalidAccessKeyId' || name === 'UnrecognizedClientException' || name === 'InvalidToken') return 'Backblaze B2 credentials were rejected (AUTHENTICATION).';
+  if (name === 'SignatureDoesNotMatch') return 'Backblaze B2 request signature was rejected. Check endpoint, region, credentials and signed headers (AUTHENTICATION).';
+  if (name === 'NoSuchBucket') return 'Configured Backblaze B2 bucket was not found (BUCKET).';
+  if (name === 'NotFound') return 'Backblaze B2 bucket or diagnostic object was not found (BUCKET).';
+  if (['AccessDenied', 'Forbidden'].includes(name) || status === 403) return 'Backblaze B2 access denied. Check application-key permissions (PERMISSION).';
+  if (['PermanentRedirect', 'AuthorizationHeaderMalformed', 'IncorrectEndpoint'].includes(name)) return 'Backblaze B2 endpoint/region does not match the bucket (REGION).';
+  if (['ECONNRESET', 'NetworkingError', 'EHOSTUNREACH', 'ENETUNREACH'].includes(name)) return `Backblaze B2 network request failed (${name}, NETWORK).`;
+  return `Backblaze B2 storage health check failed (${name}${status ? `, HTTP ${status}` : ''}).`;
+}
+
+function probeConnection({ address, family, secure, hostname }) {
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      socket.destroy();
+      resolve(error ? { ok: false, code: error.code || error.name || 'UnknownError' } : { ok: true });
+    };
+    const socket = secure
+      ? tls.connect({ host: address, port: 443, family, servername: hostname, rejectUnauthorized: true })
+      : net.connect({ host: address, port: 443, family });
+    const timer = setTimeout(() => finish(Object.assign(new Error('probe timed out'), { code: 'ETIMEDOUT' })), secure ? 6_000 : 4_000);
+    socket.once(secure ? 'secureConnect' : 'connect', () => finish());
+    socket.once('error', finish);
+  });
+}
+
+async function diagnoseEndpoint(endpoint, region, bucket, credentialsConfigured) {
+  const hostname = new URL(endpoint).hostname;
+  console.info('[Storage] Provider: Backblaze B2');
+  console.info(`[Storage] Endpoint: ${endpoint}`);
+  console.info(`[Storage] Region: ${region}`);
+  console.info(`[Storage] Bucket: ${bucket}`);
+  console.info(`[Storage] Credentials configured: ${credentialsConfigured ? 'yes' : 'no'}`);
+  console.info('[Storage] Configuration variables: B2_ENDPOINT=configured, B2_REGION=configured, B2_BUCKET_NAME=configured, B2_KEY_ID=configured, B2_APPLICATION_KEY=configured');
+  console.info('[Storage] Connection test: starting...');
+  let addresses;
+  try {
+    addresses = await dns.lookup(hostname, { all: true, verbatim: false });
+    console.info(`[Storage] DNS: OK (${addresses.length} address${addresses.length === 1 ? '' : 'es'})`);
+    console.info(`[Storage] DNS IPv4: ${addresses.filter(address => address.family === 4).map(address => address.address).join(', ') || 'none'}`);
+    console.info(`[Storage] DNS IPv6: ${addresses.filter(address => address.family === 6).map(address => address.address).join(', ') || 'none'}`);
+  } catch (error) {
+    console.info(`[Storage] DNS: FAILED (${error.code || error.name || 'UnknownError'})`);
+    throw error;
+  }
+  const representatives = [4, 6].map(family => addresses.find(address => address.family === family)).filter(Boolean);
+  let tcpResult;
+  for (const address of representatives) {
+    tcpResult = await probeConnection({ address: address.address, family: address.family, secure: false, hostname });
+    if (tcpResult.ok) break;
+  }
+  console.info(`[Storage] TCP 443: ${tcpResult?.ok ? 'OK' : `FAILED (${tcpResult?.code || 'UnknownError'})`}`);
+  if (!tcpResult?.ok) throw Object.assign(new Error('Backblaze B2 TCP connection failed.'), { code: tcpResult?.code || 'ETIMEDOUT' });
+  let tlsResult;
+  for (const address of representatives) {
+    tlsResult = await probeConnection({ address: address.address, family: address.family, secure: true, hostname });
+    if (tlsResult.ok) break;
+  }
+  console.info(`[Storage] TLS: ${tlsResult?.ok ? 'OK' : `FAILED (${tlsResult?.code || 'UnknownError'})`}`);
+  if (!tlsResult?.ok) throw Object.assign(new Error('Backblaze B2 TLS connection failed.'), { code: tlsResult?.code || 'ETIMEDOUT' });
+}
+
+export async function buildStorage(values) {
+  const provider = values['storage.provider'];
+  if (provider === 'local') return buildLocalStorage(values);
+  if (provider !== 'backblaze') throw new Error(`Unsupported storage provider: ${provider || '(empty)'}.`);
+
+  const candidate = {
+    endpoint: values['storage.endpoint'],
+    region: values['storage.region'],
+    bucket: values['storage.bucket'],
+    keyId: values['storage.keyId'],
     applicationKey: values['storage.applicationKey'],
   };
-  const environment = {
-    endpoint: process.env.B2_ENDPOINT, region: process.env.B2_REGION,
-    bucket: process.env.B2_BUCKET_NAME, keyId: process.env.B2_KEY_ID,
-    applicationKey: process.env.B2_APPLICATION_KEY,
-  };
-  const candidates = [saved];
-  const same = JSON.stringify(saved) === JSON.stringify(environment);
-  if (!same) candidates.push(environment);
-  let lastError;
-  for (const candidate of candidates) {
-    const region = candidate.region || 'us-east-005';
-    const endpoint = candidate.endpoint || `https://s3.${region}.backblazeb2.com`;
-    if (!endpoint || !candidate.keyId || !candidate.applicationKey || !candidate.bucket) continue;
-    const resource = new S3Client({ endpoint, region, forcePathStyle: true, credentials: { accessKeyId: candidate.keyId, secretAccessKey: candidate.applicationKey } });
-    try {
-      await resource.send(new HeadBucketCommand({ Bucket: candidate.bucket }));
-      bucketName = candidate.bucket;
-      return { client: resource, bucket: candidate.bucket };
-    } catch (error) { lastError = error; }
+  const missing = Object.entries(candidate).filter(([, value]) => !String(value || '').trim()).map(([name]) => ({ endpoint: 'B2_ENDPOINT', region: 'B2_REGION', bucket: 'B2_BUCKET_NAME', keyId: 'B2_KEY_ID', applicationKey: 'B2_APPLICATION_KEY' })[name]);
+  if (missing.length) throw new Error(`Backblaze B2 storage configuration is incomplete. Missing: ${missing.join(', ')}`);
+  const endpoint = explainConfiguration(candidate);
+  if (clientFactory === defaultClientFactory) {
+    try { await diagnoseEndpoint(endpoint, candidate.region, candidate.bucket, Boolean(candidate.keyId && candidate.applicationKey)); }
+    catch (error) { throw new Error(classifyInitializationError(error), { cause: error }); }
   }
-  throw new Error(`Backblaze B2 storage test failed. Check the endpoint, bucket and application key.${lastError?.message ? ` ${lastError.message}` : ''}`);
+  console.info(`[Storage] S3 client configuration: ${JSON.stringify({ endpoint, region: candidate.region, bucket: candidate.bucket, forcePathStyle: true, maxAttempts: MAX_ATTEMPTS })}`);
+  const resource = clientFactory({
+    endpoint,
+    region: candidate.region,
+    forcePathStyle: true,
+    credentials: { accessKeyId: candidate.keyId, secretAccessKey: candidate.applicationKey },
+    maxAttempts: MAX_ATTEMPTS,
+    requestHandler: new NodeHttpHandler({ connectionTimeout: CONNECTION_TIMEOUT_MS, requestTimeout: REQUEST_TIMEOUT_MS, httpsAgent: createBackblazeHttpsAgent() }),
+  });
+  try {
+    // Use HeadBucket for the startup check. A bucket-scoped B2 key can be
+    // allowed to read existing objects while lacking list permission; in
+    // that case HeadObject on a guaranteed-absent key returns 403 even though
+    // the bucket and credentials are valid.
+    try {
+      console.info('[Storage] S3 request: HeadBucket startup bucket-access check');
+      await resource.send(new HeadBucketCommand({ Bucket: candidate.bucket }));
+      console.info('[Storage] S3 request: OK');
+    } catch (error) {
+      throw error;
+    }
+    console.info('[Storage] Authentication: OK');
+    console.info('[Storage] Bucket access: OK');
+    console.info(JSON.stringify({ event: 'storage_health', provider: 'backblaze-b2', status: 'healthy', bucket: candidate.bucket, region: candidate.region }));
+    return { provider: 'backblaze', client: resource, bucket: candidate.bucket, endpoint, region: candidate.region };
+  } catch (error) {
+    resource.destroy();
+    console.error(`[Storage] S3 request: FAILED (${errorCode(error)}${error?.$metadata?.httpStatusCode ? `, HTTP ${error.$metadata.httpStatusCode}` : ''})`);
+    console.error(JSON.stringify({ event: 'storage_health', provider: 'backblaze-b2', status: 'degraded', bucket: candidate.bucket, region: candidate.region, errorCode: errorCode(error), httpStatus: error?.$metadata?.httpStatusCode || null }));
+    throw new Error(classifyInitializationError(error), { cause: error });
+  }
 }
-export function activateStorage(resource) { client = resource?.client || null; bucketName = resource?.bucket || bucketName; localRoot = resource?.local ? resource.root : null; }
-export function storageIsLocal() { return Boolean(localRoot); }
+
+export function activateStorage(resource) {
+  const previous = activeStorage;
+  activeStorage = resource || { provider: null, client: null, bucket: null, root: null, endpoint: null, region: null };
+  if (previous.client && previous.client !== activeStorage.client) previous.client.destroy();
+}
+export function storageIsLocal() { return activeStorage.provider === 'local'; }
+export function localObjectExists(objectKey) { return fs.stat(localPath(objectKey)).then(stat => stat.isFile()).catch(error => { if (error.code === 'ENOENT') return false; throw error; }); }
+export function storageProvider() { return activeStorage.provider; }
+export function storageHealth() { return { status: activeStorage.provider && activeStorage.provider !== 'degraded' ? 'healthy' : 'degraded', provider: activeStorage.provider === 'backblaze' ? 'backblaze-b2' : activeStorage.provider || 'unknown' }; }
 export async function initializeStorage() { const resource = await buildStorage(config.values); activateStorage(resource); return resource; }
-export async function createUploadUrl(objectPath, contentType, fileSize) { if (localRoot) { await fs.mkdir(path.dirname(path.join(localRoot, objectPath)), { recursive: true }); return `/uploads/${objectPath.replaceAll('\\', '/')}`; } if (!client) throw new Error('Backblaze storage is not initialized.'); return getSignedUrl(client, new PutObjectCommand({ Bucket: bucketName, Key: objectPath, ContentType: contentType }), { expiresIn: config.get('storage.signedUrlMinutes') * 60 }); }
-export async function uploadObject(objectPath, body, contentType) {
-  if (localRoot) {
-    const target = path.resolve(localRoot, objectPath);
-    if (!target.startsWith(`${localRoot}${path.sep}`)) throw new Error('Invalid upload path.');
+
+export async function createUploadUrl(objectKey, contentType, fileSize) {
+  if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
+  if (!contentType || !Number.isSafeInteger(Number(fileSize)) || Number(fileSize) < 1) throw new Error('Invalid upload metadata.');
+  if (storageIsLocal()) {
+    const target = localPath(objectKey);
     await fs.mkdir(path.dirname(target), { recursive: true });
-    await fs.writeFile(target, body);
+    return `/uploads/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
+  }
+  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  const expiresIn = Math.min(900, Math.max(60, Number(config.get('storage.signedUrlMinutes') || 15) * 60));
+  return presign(activeStorage.client, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: objectKey, ContentType: contentType }), { expiresIn });
+}
+export function validateObjectKey(objectKey) { return validObjectKey(objectKey); }
+
+export async function uploadObject(objectKey, body, contentType) {
+  if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
+  if (!Buffer.isBuffer(body) || !body.length || !contentType) throw new Error('Invalid upload content.');
+  if (storageIsLocal()) {
+    const target = localPath(objectKey);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, body, { flag: 'w' });
     return;
   }
-  if (!client) throw new Error('Backblaze storage is not initialized.');
-  await client.send(new PutObjectCommand({ Bucket: bucketName, Key: objectPath, Body: body, ContentType: contentType }));
+  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  return send('upload', objectKey, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: objectKey, Body: body, ContentType: contentType }));
 }
 
 export function imageSignatureMatches(bytes, contentType) {
-  if (!Buffer.isBuffer(bytes)) return false
-  if (contentType === 'image/jpeg') return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
-  if (contentType === 'image/png') return bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-  if (contentType === 'image/webp') return bytes.length >= 12 && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP'
-  return false
+  if (!Buffer.isBuffer(bytes)) return false;
+  if (contentType === 'image/jpeg') return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (contentType === 'image/png') return bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  if (contentType === 'image/webp') return bytes.length >= 12 && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP';
+  return false;
 }
-export async function createDownloadUrl(objectPath, targetBucket = bucketName) { if (!objectPath) return null; if (localRoot && !/^https?:\/\//.test(objectPath)) return `/uploads/${objectPath.replace(/^\/+/, '').replaceAll('\\', '/')}`; if (!client || /^https?:\/\//.test(objectPath)) return objectPath; if (config.get('storage.visibility') === 'public' && config.get('storage.publicBaseUrl')) return `${config.get('storage.publicBaseUrl').replace(/\/$/, '')}/${objectPath.split('/').map(encodeURIComponent).join('/')}`; return getSignedUrl(client, new GetObjectCommand({ Bucket: targetBucket || bucketName, Key: objectPath }), { expiresIn: config.get('storage.signedUrlMinutes') * 60 }); }
-export async function getObjectMetadata(objectPath, targetBucket = bucketName) { if (!client) throw new Error('Backblaze storage is not initialized.'); try { return await client.send(new HeadObjectCommand({ Bucket: targetBucket || bucketName, Key: objectPath })); } catch { return null; } }
-export async function objectExists(objectPath) { return Boolean(await getObjectMetadata(objectPath)); }
-export async function deleteObject(objectPath, targetBucket = bucketName) { if (localRoot) return fs.rm(path.resolve(localRoot, objectPath), { force: true }).catch(() => {}); if (!client) throw new Error('Backblaze storage is not initialized.'); await client.send(new DeleteObjectCommand({ Bucket: targetBucket || bucketName, Key: objectPath })); }
+export function validateImageUpload(bytes, contentType, maxBytes) {
+  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowed.includes(contentType) || !Buffer.isBuffer(bytes) || !bytes.length || bytes.length > maxBytes || !imageSignatureMatches(bytes, contentType)) return false;
+  return true;
+}
 
-function privateLocalPath(key) {
-  // Citizen uploads live outside the directory exposed by /uploads. Object
-  // prefixes become folders in B2 and remain private in local development.
-  const privateKey = key.startsWith('citizen-private/')
-  const root = `${path.resolve(localRoot)}-citizen-private`
-  const relativeKey = privateKey ? key.slice('citizen-private/'.length) : key
-  const target = path.resolve(root, relativeKey)
-  if (!target.startsWith(`${root}${path.sep}`)) throw new Error('Invalid document path.')
-  return target
+export async function createDownloadUrl(objectKey, targetBucket = activeStorage.bucket) {
+  if (!objectKey) return null;
+  if (/^https?:\/\//i.test(objectKey)) return objectKey;
+  if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
+  if (storageIsLocal()) return `/uploads/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
+  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  if (config.get('storage.visibility') === 'public') {
+    const baseUrl = config.get('storage.publicBaseUrl');
+    if (baseUrl) return `${baseUrl.replace(/\/$/, '')}/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
+    return `${activeStorage.endpoint}/${encodeURIComponent(targetBucket || activeStorage.bucket)}/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
+  }
+  const expiresIn = Math.min(900, Math.max(60, Number(config.get('storage.signedUrlMinutes') || 15) * 60));
+  return presign(activeStorage.client, new GetObjectCommand({ Bucket: targetBucket || activeStorage.bucket, Key: objectKey }), { expiresIn });
+}
+
+export async function getObjectMetadata(objectKey, targetBucket = activeStorage.bucket) {
+  if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
+  if (storageIsLocal()) return statLocalObject(objectKey);
+  if (!activeStorage.client) {
+    throw new Error('Backblaze storage is not initialized.');
+  }
+  try {
+    return await send('metadata', objectKey, new HeadObjectCommand({ Bucket: targetBucket || activeStorage.bucket, Key: objectKey }));
+  } catch (error) { if (isStorageNotFoundError(error)) return null; throw error; }
+}
+async function statLocalObject(objectKey) {
+  try { const stat = await fs.stat(localPath(objectKey)); return { ContentLength: stat.size, LastModified: stat.mtime, ContentType: 'application/octet-stream' }; }
+  catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+}
+export async function objectExists(objectKey) { return Boolean(await getObjectMetadata(objectKey)); }
+export function isStorageNotFoundError(error) {
+  const code = errorCode(error);
+  return ['ENOENT', 'NoSuchKey', 'NotFound', 'ObjectNotFound', 'NoSuchObject'].includes(code) || (code === '404' && error?.$metadata?.httpStatusCode === 404);
+}
+
+export async function deleteObject(objectKey, targetBucket = activeStorage.bucket) {
+  if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
+  if (storageIsLocal()) return fs.rm(localPath(objectKey), { force: true });
+  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  try { await send('delete', objectKey, new DeleteObjectCommand({ Bucket: targetBucket || activeStorage.bucket, Key: objectKey })); }
+  catch (error) { if (!isStorageNotFoundError(error)) throw error; }
+}
+export async function readObject(objectKey, targetBucket = activeStorage.bucket) {
+  if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
+  if (storageIsLocal()) return fs.readFile(localPath(objectKey));
+  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  const result = await send('download', objectKey, new GetObjectCommand({ Bucket: targetBucket || activeStorage.bucket, Key: objectKey }));
+  return Buffer.from(await result.Body.transformToByteArray());
+}
+
+function privateLocalPath(key, suffix) {
+  if (!validObjectKey(key)) throw new Error('Invalid private storage key.');
+  const root = `${path.resolve(activeStorage.root)}${suffix}`;
+  return localPath(key, root);
 }
 export async function writeCitizenFile(key, bytes, contentType) {
-  if (localRoot) { const target = privateLocalPath(key); await fs.mkdir(path.dirname(target), { recursive: true }); await fs.writeFile(target, bytes); return }
-  if (!client) throw new Error('Document storage is unavailable.')
-  if (config.get('storage.visibility') === 'public') throw new Error('Private document storage is required.')
-  await client.send(new PutObjectCommand({ Bucket: bucketName, Key: key, Body: bytes, ContentType: contentType }))
+  if (!Buffer.isBuffer(bytes) || !bytes.length) throw new Error('Invalid file content.');
+  if (storageIsLocal()) { const target = privateLocalPath(key, '-citizen-private'); await fs.mkdir(path.dirname(target), { recursive: true }); await fs.writeFile(target, bytes); return; }
+  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  return send('upload-private', key, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: key, Body: bytes, ContentType: contentType }));
 }
-export async function deleteCitizenFile(key) {
-  if (localRoot) return fs.rm(privateLocalPath(key), { force: true })
-  return deleteObject(key)
-}
+export async function deleteCitizenFile(key) { if (storageIsLocal()) return fs.rm(privateLocalPath(key, '-citizen-private'), { force: true }); return deleteObject(key); }
 export async function readCitizenFile(key) {
-  if (localRoot) return fs.readFile(privateLocalPath(key))
-  if (!client) throw new Error('Document storage is unavailable.')
-  const result = await client.send(new GetObjectCommand({ Bucket: bucketName, Key: key }))
-  return Buffer.from(await result.Body.transformToByteArray())
+  if (storageIsLocal()) return fs.readFile(privateLocalPath(key, '-citizen-private'));
+  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  const result = await send('download-private', key, new GetObjectCommand({ Bucket: activeStorage.bucket, Key: key }));
+  return Buffer.from(await result.Body.transformToByteArray());
+}
+export async function writePrivateFile(key, bytes, contentType) {
+  if (!Buffer.isBuffer(bytes) || !bytes.length) throw new Error('Invalid file content.');
+  if (storageIsLocal()) { const target = privateLocalPath(key, '-private'); await fs.mkdir(path.dirname(target), { recursive: true }); await fs.writeFile(target, bytes); return; }
+  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  return send('upload-private', key, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: key, Body: bytes, ContentType: contentType }));
+}
+export async function deletePrivateFile(key) { if (storageIsLocal()) return fs.rm(privateLocalPath(key, '-private'), { force: true }); return deleteObject(key); }
+export async function readPrivateFile(key) {
+  if (storageIsLocal()) return fs.readFile(privateLocalPath(key, '-private'));
+  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  const result = await send('download-private', key, new GetObjectCommand({ Bucket: activeStorage.bucket, Key: key }));
+  return Buffer.from(await result.Body.transformToByteArray());
 }

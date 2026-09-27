@@ -42,7 +42,7 @@ export function installSettingsRoutes(app, admin) {
       validate(values);
       const service = req.params.service;
       if (service === 'database' || service === 'portalDatabase') { requirePermission(req.admin, 'settings.database.edit'); resource = await buildDatabase(values, service, req.admin); await discardDatabase(resource); }
-      else if (service === 'storage') { requirePermission(req.admin, 'settings.storage.edit'); await buildStorage(values); }
+      else if (service === 'storage') { requirePermission(req.admin, 'settings.storage.edit'); resource = await buildStorage(values); resource.client?.destroy(); }
       else if (service === 'email') {
         resource = await buildEmail(values);
         if (!resource) throw new Error('Enable SMTP to test email.');
@@ -58,8 +58,9 @@ export function installSettingsRoutes(app, admin) {
     } catch (error) {
       if (req.params.service === 'email') resource?.close();
       const message = String(error?.message || '');
-      const safe = /Permission required:|Enter a valid email address|Application Default Credentials|Could not load the default credentials|Database connection or schema validation failed|Storage test failed|SMTP connection failed|Authentication failed for MySQL user|Unable to reach MySQL|does not exist or is not accessible|TLS certificate validation failed|Legacy database configuration|Unsupported database connection mode|host is required|IP address is required|Invalid Cloud SQL instance|A persistent configuration database is required/.test(message);
-      res.status(422).json({ error: safe ? message : 'Connection test failed. Check the connection fields, credentials and required service permissions.' });
+      const safe = /Permission required:|Enter a valid email address|Application Default Credentials|Could not load the default credentials|Database connection or schema validation failed|Storage test failed|Backblaze B2|B2_ENDPOINT|B2_REGION|B2_BUCKET_NAME|B2_KEY_ID|B2_APPLICATION_KEY|SMTP connection failed|Authentication failed for MySQL user|Unable to reach MySQL|does not exist or is not accessible|TLS certificate validation failed|Legacy database configuration|Unsupported database connection mode|host is required|IP address is required|Invalid Cloud SQL instance|A persistent configuration database is required/.test(message);
+      const forbidden = message.startsWith('Permission required:') || message.startsWith('Cannot grant');
+      res.status(forbidden ? 403 : 422).json({ error: safe ? message : 'Connection test failed. Check the connection fields, credentials and required service permissions.' });
     }
   });
   const save = async (req, res) => {
@@ -71,7 +72,7 @@ export function installSettingsRoutes(app, admin) {
     } catch (error) { return res.status(error.message.startsWith('Permission') || error.message.startsWith('Cannot grant') ? 403 : 422).json({ error: 'Invalid settings or insufficient permission for this change.' }); }
     try { await config.update(patch, { ...req.admin, ip: req.ip }); res.json({ ...snapshot(req.admin), saved: true }); }
     catch (error) {
-      const safe = /^(Database connection or schema validation failed|Storage test failed|SMTP connection failed|Configure the bootstrap SETTINGS_ENCRYPTION_KEY|Configure SETTINGS_SECRET_PROJECT|Enable and configure SMTP|SMTP host and sender email are required|SMTP TLS is required|Could not load the default credentials|A persistent configuration database is required)/.test(error.message);
+      const safe = /^(Database connection or schema validation failed|Storage test failed|Backblaze B2|B2_ENDPOINT|B2_REGION|B2_BUCKET_NAME|B2_KEY_ID|B2_APPLICATION_KEY|SMTP connection failed|Configure the bootstrap SETTINGS_ENCRYPTION_KEY|Configure SETTINGS_SECRET_PROJECT|Enable and configure SMTP|SMTP host and sender email are required|SMTP TLS is required|Could not load the default credentials|A persistent configuration database is required)/.test(error.message);
       res.status(422).json({ error: safe ? error.message : 'Settings could not be saved. Current configuration remains active. Check validation, secret store and configuration database availability.' });
     }
   };
@@ -81,7 +82,11 @@ export function installSettingsRoutes(app, admin) {
   app.get('/api/admin/settings/:category', permission('settings.view'), (req, res) => {
     if (!categories.includes(req.params.category)) return res.status(404).json({ error: 'Unknown category.' });
     const body = snapshot(req.admin);
-    for (const field of ['values', 'metadata']) body[field] = Object.fromEntries(Object.entries(body[field]).filter(([key]) => key.startsWith(`${req.params.category}.`)));
+    // Keep the payload scoped to the active category. Metadata is safe to
+    // share across categories and lets the client search the horizontal
+    // navigation without fetching another full settings snapshot; values are
+    // the potentially sensitive part and stay category-scoped.
+    body.values = Object.fromEntries(Object.entries(body.values).filter(([key]) => key.startsWith(`${req.params.category}.`)));
     res.json(body);
   });
 }

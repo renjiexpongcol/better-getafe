@@ -17,9 +17,18 @@ export async function prepareRuntime(values, previous, context = {}) {
         prepared.push({ activate: () => { activateDatabase(category, resource); systemStatus[category] = { status: resource ? 'connected' : 'local', checkedAt: new Date().toISOString(), latencyMs: Date.now() - start }; }, discard: () => discardDatabase(resource) });
       }
     }
-    if (!initialized || changed('storage', values, previous) || changed('google', values, previous)) {
-      const start = Date.now(), bucket = await buildStorage(values);
-      prepared.push({ activate: () => { activateStorage(bucket); systemStatus.storage = { status: bucket ? 'connected' : 'local', checkedAt: new Date().toISOString(), latencyMs: Date.now() - start }; }, discard: async () => {} });
+    if (!initialized || changed('storage', values, previous)) {
+      const start = Date.now();
+      let storage;
+      try { storage = await buildStorage(values); }
+      catch (error) {
+        if (context.initializing && values['storage.provider'] === 'backblaze') {
+          console.error('[STARTUP] Backblaze B2 initialization failed; local storage fallback is disabled.');
+          systemStatus.storage = { status: 'degraded', provider: 'backblaze-b2', checkedAt: new Date().toISOString() };
+        }
+        throw error;
+      }
+      prepared.push({ activate: () => { activateStorage(storage); systemStatus.storage = { status: 'connected', provider: storage.provider, checkedAt: new Date().toISOString(), latencyMs: Date.now() - start }; }, discard: async () => storage.client?.destroy() });
     }
     if (!initialized || changed('email', values, previous)) {
       const start = Date.now(), email = await buildEmail(values);

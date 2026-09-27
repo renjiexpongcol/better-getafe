@@ -168,7 +168,7 @@ export default function BarangayModal({ barangay, onClose }) {
                 </span>
 
                 {hasCaptain ? (
-                  <Link className="info-value official-profile-link" to={`/services/barangays/${barangay.id}/official`} onClick={onClose}>
+                  <Link className="info-value official-profile-link" to={`/barangays/${barangay.id}/official`} onClick={onClose}>
                     {barangay.captain}
                   </Link>
                 ) : (
@@ -262,7 +262,7 @@ export default function BarangayModal({ barangay, onClose }) {
               : 'Data reference unavailable'}
           </span>
 
-          <Link className="modal-detail-link" to={`/services/barangays/${barangay.id}`} onClick={onClose}>
+          <Link className="modal-detail-link" to={`/barangays/${barangay.id}`} onClick={onClose}>
             View full profile <ExternalLink size={14} />
           </Link>
 

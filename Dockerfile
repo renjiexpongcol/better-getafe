@@ -41,7 +41,7 @@ COPY src ./src
 # Copy the Vite production build
 COPY --from=builder /app/dist ./dist
 
-# Cloud Run listens on the PORT environment variable.
+# The hosting platform supplies the PORT environment variable.
 EXPOSE 8080
 
 CMD ["node", "server.js"]

@@ -4,7 +4,9 @@ export const validMobile = value => /^\+?[0-9]{10,15}$/.test(String(value || '')
 
 export async function rememberGoogleProfile(user, profile) {
   const picture = typeof profile.picture === 'string' && profile.picture.startsWith('https://') ? profile.picture : null
-  await (await getPortalPool()).execute('INSERT INTO google_profiles (user_id, picture) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET picture=COALESCE(EXCLUDED.picture, google_profiles.picture)', [user.id, picture])
+  const pool = await getPortalPool()
+  await pool.execute('INSERT INTO google_profiles (user_id, picture) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET picture=COALESCE(EXCLUDED.picture, google_profiles.picture)', [user.id, picture])
+  await pool.execute('UPDATE portal_users SET email_verified_at = COALESCE(email_verified_at, CURRENT_TIMESTAMP) WHERE id = ?', [user.id])
 }
 
 export async function googleOnboarding(user) {

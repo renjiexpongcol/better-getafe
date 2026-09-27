@@ -2,8 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { Upload, UserRound, ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { usePublicConfig } from '../../context/PublicConfig'
+import { passwordPassesPolicy } from '../../passwordPolicy'
 import { citizenApi } from '../../services/citizenData'
 import { barangays } from '../../data/barangays'
+import StableAvatar from '../../components/StableAvatar'
 import '../../citizen.css'
 
 const steps = [
@@ -17,6 +20,8 @@ const steps = [
 
 export default function Setup() {
   const { user, loading } = useAuth()
+  const publicConfig = usePublicConfig()
+  const minimumPasswordLength = Number(publicConfig['authentication.passwordMinLength'] || 12)
   const fileInput = useRef(null)
   const reviewDialog = useRef(null)
   const [step, setStep] = useState(0)
@@ -73,12 +78,12 @@ export default function Setup() {
     if (step === 0) return form.firstName.trim() && form.lastName.trim() && photo
     if (step === 1) return /^\+?[0-9]{10,15}$/.test(form.mobile.replace(/[\s()-]/g, '')) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
     if (step === 2) return form.houseLot.trim() && form.street.trim() && form.purok.trim() && form.barangay.trim()
-    if (step === 3) return passwordSet || (password.length >= 8 && password === confirmPassword && /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password))
+    if (step === 3) return passwordSet || (passwordPassesPolicy(password, minimumPasswordLength) && password === confirmPassword)
     return true
   }
   const next = async () => {
     setError('')
-    if (!valid()) { setError(step === 3 ? 'Use at least 8 characters with uppercase, lowercase, a number, and a special character. Both passwords must match.' : 'Please complete the required fields. A profile photo and a valid mobile number (10–15 digits) are required for Google accounts.'); return }
+    if (!valid()) { setError(step === 3 ? `Use at least ${minimumPasswordLength} characters with uppercase, lowercase, a number, and a special character. Avoid common passwords and keep it within 1,024 characters. Both passwords must match.` : 'Please complete the required fields. A profile photo and a valid mobile number (10–15 digits) are required for Google accounts.'); return }
     if (step === 3 && !passwordSet) {
       setSaving(true)
       try { await citizenApi('/onboarding/password', { method: 'POST', body: JSON.stringify({ password }) }); setPasswordSet(true); setPassword(''); setConfirmPassword('') }
@@ -95,7 +100,7 @@ export default function Setup() {
         if (!response.ok) throw new Error(body.error || 'Profile photo upload failed.')
       }
       await citizenApi('/onboarding/complete', { method: 'POST' })
-      window.location.replace('/app?sysparm_object_id=dashboard')
+      window.location.replace('/app')
     } catch (cause) { setError(cause.message) } finally { setSaving(false) }
   }
   const upload = event => {
@@ -109,7 +114,7 @@ export default function Setup() {
   return <main className="account-setup"><section className="account-setup-modal" role="dialog" aria-modal="true" aria-labelledby="setup-title">
     <header className="account-setup-heading"><img src="/assets/getafe-seal.png" alt="Municipality of Getafe"/><div><h1 id="setup-title">Setup Account Information</h1><p>Confirm your name, profile photo, email address and mobile number. Complete any missing details before using the website.</p></div></header>
     <section className="setup-upload-card">
-      <div className="setup-photo">{photo ? <img src={photo.url} alt="Selected profile"/> : <UserRound aria-hidden="true"/>}</div>
+      <div className="setup-photo">{photo ? <StableAvatar src={photo.url} alt="Selected profile" initials={(user?.name || 'Citizen').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase()} /> : <UserRound aria-hidden="true"/>}</div>
       <div className="setup-upload-copy"><h2>Upload Instructions</h2><em>To avoid delay or disapproval of your applications, please follow the instructions below.</em><ol><li>The photo must be taken no more than 6 months prior to uploading.</li><li>The applicant's face must be clear.</li></ol></div>
       <button type="button" className="setup-upload-button" onClick={() => fileInput.current?.click()}><Upload size={15}/> Upload</button>
       <input ref={fileInput} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={upload}/>
@@ -122,7 +127,7 @@ export default function Setup() {
       {step === 0 && <div className="setup-grid"><label><span>Last Name</span><input value={form.lastName} onChange={update('lastName')} placeholder="Enter Last Name..." required/></label><label><span>First Name</span><input value={form.firstName} onChange={update('firstName')} placeholder="Enter First Name..." required/></label><label><span>Middle Name <i>- optional</i></span><input value={form.middleName} onChange={update('middleName')} placeholder="Enter Middle Name..."/></label></div>}
       {step === 1 && <div className="setup-grid"><label>Mobile Number<input type="tel" value={form.mobile} onChange={update('mobile')} placeholder="Enter mobile number..." required/></label><label>Email Address<input type="email" value={form.email} readOnly placeholder="Enter email address..." required/></label></div>}
       {step === 2 && <div className="setup-grid"><label>House / Lot Number<input value={form.houseLot} onChange={update('houseLot')} placeholder="Enter house or lot number..." required/></label><label>Street<input value={form.street} onChange={update('street')} placeholder="Enter street..." required/></label><label>Purok / Sitio<input value={form.purok} onChange={update('purok')} placeholder="Enter purok or sitio..." required/></label><label>Barangay<select value={form.barangay} onChange={update('barangay')} required><option value="">Select barangay...</option>{barangays.map(barangay => <option key={barangay.id} value={barangay.name}>{barangay.name}</option>)}</select></label></div>}
-      {step === 3 && <div className="setup-grid">{passwordSet ? <div className="setup-complete"><Check size={28}/><p>Your portal password has been created.</p></div> : <><label>New Password<input type="password" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Create a strong password" required/></label><label>Confirm Password<input type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder="Reenter your password" required/></label></>}</div>}
+      {step === 3 && <div className="setup-grid">{passwordSet ? <div className="setup-complete"><Check size={28}/><p>Your portal password has been created.</p></div> : <><label>New Password<input type="password" minLength={minimumPasswordLength} maxLength="1024" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} placeholder={`At least ${minimumPasswordLength} characters`} required/></label><label>Confirm Password<input type="password" minLength={minimumPasswordLength} maxLength="1024" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder="Reenter your password" required/></label></>}</div>}
       {step === 4 && <div className="setup-review-backdrop" role="presentation"><section ref={reviewDialog} className="setup-review-modal" role="dialog" aria-modal="true" aria-labelledby="setup-review-title" tabIndex="-1"><header><div><h2 id="setup-review-title">Check your information</h2><p>Please confirm these details before completing your account setup.</p></div></header><div className="setup-review"><p><b>Name</b><span>{fullName}</span></p><p><b>Email</b><span>{form.email}</span></p><p><b>Mobile</b><span>{form.mobile}</span></p><p><b>Address</b><span>{[form.houseLot, form.street, form.purok, form.barangay].filter(Boolean).join(', ') || 'Not provided'}</span></p></div><footer><button type="button" className="setup-back" onClick={() => { setError(''); setStep(3) }}><ChevronLeft size={16}/> Back</button><button type="button" className="setup-next" onClick={next}>Confirm information <ChevronRight size={16}/></button></footer></section></div>}
       {step === 5 && <div className="setup-review-backdrop" role="presentation"><section ref={reviewDialog} className="setup-review-modal setup-complete-modal" role="dialog" aria-modal="true" aria-labelledby="setup-complete-title" tabIndex="-1"><div className="setup-complete-modal-body"><span><Check size={25}/></span><div><h2 id="setup-complete-title">Account setup complete</h2><p>Your account information is ready. Select <b>Finish Setup</b> to continue to your dashboard.</p></div></div><footer><button type="button" className="setup-back" onClick={() => { setError(''); setStep(4) }}><ChevronLeft size={16}/> Back</button><button type="button" className="setup-next" onClick={next} disabled={saving}>{saving ? 'Saving…' : 'Finish Setup'}</button></footer></section></div>}
       {step < 4 && <footer className="setup-actions">{step > 0 && <button type="button" className="setup-back" onClick={() => { setError(''); setStep(current => current - 1) }}><ChevronLeft size={16}/> Back</button>}<button type="button" className="setup-next" onClick={next} disabled={saving}>{saving ? 'Saving…' : <>Continue <ChevronRight size={16}/></>}</button></footer>}

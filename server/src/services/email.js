@@ -1,4 +1,5 @@
 import { config } from '../config/index.js';
+import { contactAcknowledgementTemplate } from '../email/templates/contactAcknowledgement.js';
 let transport;
 export async function buildEmail(values) {
   if (!values['email.enabled']) return null;
@@ -12,5 +13,19 @@ export async function buildEmail(values) {
 export function activateEmail(value) { const previous = transport; transport = value; previous?.close(); }
 export async function sendEmail(to, subject, text, candidate = transport, values = config.values, attachments = [], html = undefined) {
   if (!candidate) throw new Error('Email is not configured.');
-  return candidate.sendMail({ from: { name: values['email.senderName'], address: values['email.senderEmail'] }, to, replyTo: values['email.replyTo'] || undefined, subject, text, html, attachments });
+  return candidate.sendMail({ from: { name: 'Getafe Citizen Portal', address: values['email.senderEmail'] }, to, replyTo: values['email.replyTo'] || undefined, subject, text, html, attachments });
+}
+
+export async function sendContactAcknowledgement({ to, recipientName, referenceNumber, category, subject, submittedAt }) {
+  const values = config.values;
+  const template = contactAcknowledgementTemplate({
+    recipientName,
+    referenceNumber,
+    category,
+    subject,
+    submittedAt,
+    portalName: values['general.name'] || 'Municipality of Getafe',
+    logoUrl: values['general.logo'] || undefined,
+  });
+  return sendEmail(to, `We received your message – ${values['general.name'] || 'Municipality of Getafe'}`, template.text, transport, values, [], template.html);
 }

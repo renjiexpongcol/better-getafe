@@ -21,6 +21,9 @@ npm run migrate:postgres
 npm start
 ```
 
+When deploying a new application version, run the migration before switching
+traffic to it.
+
 The settings UI uses the same server-side configuration. A saved password is encrypted with `SETTINGS_ENCRYPTION_KEY` in development or stored in the configured secret manager in production. It is never included in a settings response, audit record, frontend bundle, or browser storage.
 
 Back up and restore the Docker database from the host:

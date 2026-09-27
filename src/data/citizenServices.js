@@ -1,5 +1,7 @@
 // Service definitions shared by portal search and application validation.
 // The catalogue is drawn from the municipality's existing service pages.
+import { ROUTES } from '../routeRegistry.js'
+
 export const serviceCategories = [
   { id: 'certificates', name: 'Certificates & IDs', description: 'Civil records, IDs and municipal certificates', icon: 'FileText' },
   { id: 'business', name: 'Business & Trade', description: 'Business registration, permits and clearances', icon: 'BriefcaseBusiness' },
@@ -35,8 +37,8 @@ export const citizenServices = [
 ].map(([id, name, category]) => ({ id, name, category }))
 
 export const serviceLink = service => service.category === 'treasury'
-  ? `/app?sysparm_object_id=payments&settlement=${encodeURIComponent(service.name.replace(/ Settlement$| Fees$/g, ''))}`
-  : `/app?sysparm_object_id=requests&sysparm_view=new&service=${encodeURIComponent(service.id)}`
+  ? `${ROUTES.app.payments}?settlement=${encodeURIComponent(service.name.replace(/ Settlement$| Fees$/g, ''))}`
+  : `${ROUTES.app.newRequest}?service=${encodeURIComponent(service.id)}`
 export function searchServices(query, category = '') {
   const words = query.toLowerCase().trim().split(/\s+/)
   return citizenServices.filter(service => (!category || service.category === category) && words.every(word => `${service.name} ${serviceCategories.find(item => item.id === service.category)?.name}`.toLowerCase().includes(word)))

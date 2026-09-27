@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronRight, Search, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { publicApi } from '../../services/apiClient'
 
 const formatDate = (value) => new Intl.DateTimeFormat('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(value))
 
@@ -8,10 +9,13 @@ export default function Events() {
   const [events, setEvents] = useState([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [retry, setRetry] = useState(0)
 
   useEffect(() => {
-    fetch('/api/news?display=events&limit=24&public=true')
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Events unavailable')))
+    setLoading(true)
+    setError('')
+    publicApi('/news?display=events&limit=24&public=true')
       .then((data) => {
         const items = data.items || []
         const mergedItems = items.map((item) => ({
@@ -22,14 +26,15 @@ export default function Events() {
       })
       .catch(() => {
         setEvents([])
+        setError('We could not load the event calendar right now.')
       })
       .finally(() => setLoading(false))
-  }, [])
+  }, [retry])
 
   const filteredEvents = useMemo(() => {
     const term = query.trim().toLowerCase()
     return term ? events.filter((event) => {
-      const eventDate = event.event_start_at || event.published_at
+      const eventDate = event.event_start_at
       return `${event.title} ${event.excerpt} ${event.content_type || ''} ${event.category?.name || ''} ${eventDate ? formatDate(eventDate) : ''}`.toLowerCase().includes(term)
     }) : events
   }, [events, query])
@@ -54,15 +59,15 @@ export default function Events() {
 
           {query && !loading && <p className="events-result-count" role="status">Showing {filteredEvents.length} {filteredEvents.length === 1 ? 'event' : 'events'}</p>}
 
-          {loading ? <p className="events-state">Loading the event gallery…</p> : filteredEvents.length ? (
+          {loading ? <div className="list-state-card events-state" role="status"><strong>Loading the event gallery…</strong><p>Getting the latest community activities.</p></div> : error ? <div className="list-state-card" role="alert"><strong>Events are temporarily unavailable</strong><p>{error} Please try again in a moment.</p><button type="button" onClick={() => setRetry(value => value + 1)}>Try again</button></div> : filteredEvents.length ? (
             <div className="event-sections">
               {filteredEvents.map((event, index) => {
-                const date = event.event_start_at || event.published_at
+                const date = event.event_start_at
                 const image = event.featured_image || event.images?.[0] || '/assets/Getafe_Bohol_1.jpg'
                 return (
                   <article className="event-story" key={event.id || event.slug}>
-                    <Link to={`/news/${event.slug}`} className="event-photo" aria-label={`View ${event.title}`}><img src={image} alt={`${event.title} event`} loading={index ? 'lazy' : 'eager'} /></Link>
-                    <div className="event-story-content"><div className="event-story-meta">{date && <time dateTime={date}>{formatDate(date)}</time>}</div><h3>{event.title}</h3><p>{event.excerpt}</p><Link className="event-story-link" to={`/news/${event.slug}`} aria-label={`View event story: ${event.title}`}>View event story <ChevronRight size={16} aria-hidden="true" /></Link></div>
+                    <Link to={`/events/${event.slug}`} className="event-photo" aria-label={`View ${event.title}`}><img src={image} alt={`${event.title} event`} loading={index ? 'lazy' : 'eager'} /></Link>
+                    <div className="event-story-content"><div className="event-story-meta">{date && <time dateTime={date}>{formatDate(date)}</time>}</div><h3>{event.title}</h3><p>{event.excerpt}</p><Link className="event-story-link" to={`/events/${event.slug}`} aria-label={`View event story: ${event.title}`}>View event story <ChevronRight size={16} aria-hidden="true" /></Link></div>
                   </article>
                 )
               })}

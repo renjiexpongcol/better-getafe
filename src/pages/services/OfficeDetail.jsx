@@ -1,5 +1,6 @@
-import { ArrowLeft, ArrowUpRight, Building2 } from 'lucide-react'
+import { ArrowUpRight, Building2 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
+import { ResourceNotFound } from '../../components/RouteStatusPages'
 
 const offices = {
   executive: {
@@ -55,19 +56,15 @@ const offices = {
 
 export default function OfficeDetail() {
   const { slug } = useParams()
-  const office = offices[slug] || {
-    title: 'Municipal Office',
-    label: 'Municipal Services',
-    description: 'Information about this municipal office is not currently available.',
-    services: [],
-  }
+  const office = offices[slug]
+
+  if (!office) return <ResourceNotFound type="service" />
 
   return (
     <main className="service-directory-page">
       <div className="page-header">
         <div className="container page-header-inner">
           <div>
-            <Link className="article-back" to="/services/directory">← Services &amp; departments</Link>
             <p className="service-directory-kicker">{office.label}</p>
             <h1 className="page-title">{office.title}</h1>
             <p className="page-subtitle">{office.description}</p>

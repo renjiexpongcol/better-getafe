@@ -87,9 +87,9 @@ test('serialized updates preserve unrelated fields and audit entries', async t =
  assert.equal(service.get('general.name'), 'A'); assert.equal(service.get('general.company'), 'B');
  assert.equal((await provider.history()).length, 2);
 });
-test('unknown keys, wrong types, invalid URLs, and master keys are rejected', async t => {
+test('unknown keys, wrong types, masked secrets, invalid URLs, and master keys are rejected', async t => {
  const { service } = await fixture(t);
- for (const patch of [{ SETTINGS_ENCRYPTION_KEY: 'bad' }, { 'storage.signedUrlMinutes': 999999 }, { 'storage.provider': 's3' }, { 'general.url': 'javascript:alert(1)' }, { 'features.uploads': 'false' }]) assert.throws(() => service.update(patch, actor));
+ for (const patch of [{ SETTINGS_ENCRYPTION_KEY: 'bad' }, { 'email.password': '********' }, { 'storage.signedUrlMinutes': 999999 }, { 'storage.provider': 's3' }, { 'general.url': 'javascript:alert(1)' }, { 'features.uploads': 'false' }]) assert.throws(() => service.update(patch, actor));
 });
 test('AES-GCM authenticates both the ciphertext and setting key', async () => {
  const secrets = new SecretProvider(env), envelope = await secrets.seal('email.password', 'hidden');

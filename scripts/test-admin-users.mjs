@@ -1,13 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { installAdminUsersRoutes, validateAccountChange } from '../server/src/services/adminUsersRoutes.js';
+import { buildStaffWelcomeEmail, installAdminUsersRoutes, validateAccountChange } from '../server/src/services/adminUsersRoutes.js';
 import { config } from '../server/src/config/index.js';
 import { authorizeChanges } from '../server/src/config/permissions.js';
 
 const actor = { id: 'operator', role: 'admin' };
 const target = { id: 'other', role: 'admin' };
-const values = { name: 'Test account', role: 'admin', email: 'test@example.com', password: 'test-password-long' };
+const values = { name: 'Test account', role: 'admin', email: 'test@example.com', password: 'Test-password9-long' };
+test('staff welcome email provides password reset without disclosing the initial password', () => {
+  const email = buildStaffWelcomeEmail({ name: 'Test account', email: values.email, portalName: 'Getafe', signInUrl: 'https://portal.example', roleLabel: 'Administrator', password: values.password });
+  assert.match(email.text, /Forgot password/);
+  assert.match(email.html, /https:\/\/portal\.example\/auth\/forgot-password/);
+  assert.doesNotMatch(email.text, /test-password-long/);
+  assert.doesNotMatch(email.html, /test-password-long/);
+});
 test('self access cannot be changed, including disabling the final operator', () => {
   assert.throws(() => validateAccountChange(actor, actor, { ...values, role: 'disabled' }), /own account/);
 });
@@ -18,8 +25,8 @@ test('ordinary administrators cannot promote or modify super administrators', ()
 test('super administrators can assign roles to other accounts', () => {
   assert.doesNotThrow(() => validateAccountChange({ ...actor, role: 'super_admin' }, target, { ...values, role: 'super_admin' }));
 });
-test('invalid roles, email, and short passwords are rejected', () => {
-  for (const patch of [{ role: 'resident' }, { name: '' }, { email: 'invalid' }, { password: 'short' }]) assert.throws(() => validateAccountChange(actor, null, { ...values, ...patch }));
+test('invalid roles, email, weak, common, and short passwords are rejected', () => {
+  for (const patch of [{ role: 'resident' }, { name: '' }, { email: 'invalid' }, { password: 'short' }, { password: 'password1' }, { password: 'alllowercase123!' }]) assert.throws(() => validateAccountChange(actor, null, { ...values, ...patch }));
 });
 test('ordinary administrators cannot remove their own recovery grants', () => {
   assert.throws(() => authorizeChanges(actor, { 'security.permissionGrants': JSON.stringify({ operator: [] }) }), /own settings recovery/);

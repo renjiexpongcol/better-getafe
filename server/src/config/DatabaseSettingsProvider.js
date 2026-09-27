@@ -79,7 +79,7 @@ export class DatabaseSettingsProvider {
       let result;
       try {
         await connection.beginTransaction();
-        // This existing singleton row serializes saves across Cloud Run replicas.
+        // This existing singleton row serializes saves across application replicas.
         await connection.execute('SELECT id FROM settings_lock WHERE id = 1 FOR UPDATE');
         const [rows] = await connection.execute('SELECT setting_key, value FROM system_settings');
         result = await work(Object.fromEntries(rows.map(row => [row.setting_key, JSON.parse(row.value)])));

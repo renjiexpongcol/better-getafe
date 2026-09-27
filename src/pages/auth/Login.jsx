@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import {
   Mail, Lock, Eye, EyeOff, ArrowRight,
@@ -7,6 +7,19 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { usePublicConfig } from '../../context/PublicConfig'
+import { safeReturnPath } from '../../authNavigation'
+import { passwordPassesPolicy } from '../../passwordPolicy'
+import { ROUTES } from '../../routeRegistry'
+
+const loginChallengeStorageKey = 'getafe:login:email-challenge'
+const secondsUntil = timestamp => Math.max(0, Math.ceil((Number(timestamp || 0) - Date.now()) / 1000))
+const readStoredLoginChallenge = () => {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = JSON.parse(window.sessionStorage.getItem(loginChallengeStorageKey) || 'null')
+    return stored?.challengeId ? stored : null
+  } catch { return null }
+}
 
 export default function Login() {
   const { user, loading: authLoading, login, completeMfa, register } = useAuth()
@@ -15,48 +28,142 @@ export default function Login() {
   const [mode, setMode] = useState('signin') // 'signin' | 'register'
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [cooldown, setCooldown] = useState(0)
   const [error, setError] = useState('')
   const [forgot, setForgot] = useState(false)
   const settings = usePublicConfig()
-  const [challenge, setChallenge] = useState(null)
+  const storedChallenge = readStoredLoginChallenge()
+  const [challenge, setChallenge] = useState(storedChallenge?.challengeId || null)
   const [mfaChallenge, setMfaChallenge] = useState(null)
   const [code, setCode] = useState('')
+  const [resendUntil, setResendUntil] = useState(storedChallenge?.nextResendAt || 0)
+  const [resendCooldown, setResendCooldown] = useState(() => secondsUntil(storedChallenge?.nextResendAt))
+  const [challengeMessage, setChallengeMessage] = useState('')
   const [renewal, setRenewal] = useState(null)
-  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const [captchaToken, setCaptchaToken] = useState('')
   const [info, setInfo] = useState('')
-  const returnUrl = (() => {
-    const value = searchParams.get('returnUrl')
-    return value && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/auth') ? value : null
-  })()
-  const destination = role => returnUrl || (['admin', 'super_admin'].includes(role) ? '/admin' : ['staff', 'it_support', 'content_manager'].includes(role) ? '/app/staff?sysparm_object_id=dashboard' : '/app?sysparm_object_id=dashboard')
-  useEffect(() => { if (searchParams.get('google') === 'existing') setInfo('This Google email already has a Getafe e-services account. Please sign in with your existing account.'); if (searchParams.get('mfa')) setMfaChallenge(searchParams.get('mfa')) }, [searchParams])
+  const actionInFlight = useRef(false)
+  const codeRef = useRef(null)
+  const returnUrl = safeReturnPath(searchParams.get('returnUrl'))
+  const destination = role => returnUrl || (['admin', 'super_admin'].includes(role) ? ROUTES.admin.root : ['staff', 'it_support', 'content_manager'].includes(role) ? ROUTES.staff.root : ROUTES.app.root)
+  const setEmailChallenge = (challengeId, nextResendAt, retryAfter = 30) => {
+    const target = Number(nextResendAt) || Date.now() + Math.max(1, Number(retryAfter) || 30) * 1000
+    setChallenge(challengeId)
+    setResendUntil(target)
+    setResendCooldown(secondsUntil(target))
+    setChallengeMessage('')
+    try { window.sessionStorage.setItem(loginChallengeStorageKey, JSON.stringify({ challengeId, nextResendAt: target })) } catch { /* storage is optional */ }
+  }
+  const clearEmailChallenge = () => {
+    setChallenge(null)
+    setResendUntil(0)
+    setResendCooldown(0)
+    try { window.sessionStorage.removeItem(loginChallengeStorageKey) } catch { /* storage is optional */ }
+  }
+  const applyResendCooldown = (nextResendAt, retryAfter = 30) => {
+    const target = Number(nextResendAt) || Date.now() + Math.max(1, Number(retryAfter) || 30) * 1000
+    setResendUntil(target)
+    setResendCooldown(secondsUntil(target))
+    if (challenge) {
+      try { window.sessionStorage.setItem(loginChallengeStorageKey, JSON.stringify({ challengeId: challenge, nextResendAt: target })) } catch { /* storage is optional */ }
+    }
+  }
+  useEffect(() => {
+    if (searchParams.get('google') === 'existing') setInfo('This Google email already has a Getafe e-services account. Please sign in with your existing account.')
+    const fragment = new URLSearchParams(window.location.hash.slice(1))
+    const challengeId = fragment.get('mfa') || searchParams.get('mfa')
+    if (challengeId) {
+      setMfaChallenge(challengeId)
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}`)
+    }
+  }, [searchParams])
+  useEffect(() => {
+    if (!resendUntil) return undefined
+    const update = () => {
+      const remaining = secondsUntil(resendUntil)
+      setResendCooldown(remaining)
+      if (!remaining) window.clearInterval(timer)
+    }
+    const timer = window.setInterval(update, 1000)
+    update()
+    return () => window.clearInterval(timer)
+  }, [resendUntil])
+  useEffect(() => {
+    if (!cooldown) return undefined
+    const timer = setInterval(() => setCooldown(value => Math.max(0, value - 1)), 1000)
+    return () => clearInterval(timer)
+  }, [cooldown])
+  const applyRateLimit = result => {
+    if (!result?.retryAfter && result?.error !== 'rate_limited') return false
+    const seconds = Math.max(1, Math.ceil(Number(result.retryAfter) || 60))
+    setCooldown(seconds)
+    setError(`Too many attempts. Please try again in ${seconds} seconds.`)
+    return true
+  }
   const handleResult = res => {
-    if (res.verificationRequired) { setChallenge(res.challengeId); setError(''); return }
-    if (res.mfaRequired) { setMfaChallenge(res.mfaChallengeId); setError(''); return }
-    if (res.passwordExpired) { setRenewal(res.resetToken); setError(''); return }
-    if (!res.ok) setError(res.error)
-    else navigate(res.setup ? '/app/setup' : destination(res.user?.role || (res.admin ? 'admin' : 'resident')), { replace: true })
+    if (res.verificationRequired) { setEmailChallenge(res.challengeId, res.nextResendAt, res.retryAfter); setError(''); return }
+    if (res.mfaRequired) { clearEmailChallenge(); setMfaChallenge(res.mfaChallengeId); setError(''); return }
+    if (res.passwordExpired) { clearEmailChallenge(); setRenewal(res.resetToken); setError(''); return }
+    if (!res.ok) { if (!applyRateLimit(res)) setError(res.error); return }
+    else { clearEmailChallenge(); navigate(res.setup ? '/app/setup' : destination(res.user?.role || (res.admin ? 'admin' : 'resident')), { replace: true }) }
   }
   const completeMfaChallenge = async event => {
-    event.preventDefault(); setLoading(true); setError('')
-    const result = await completeMfa(mfaChallenge, code)
-    setLoading(false)
-    if (!result.ok) setError(result.error)
-    else navigate(destination(result.admin ? 'admin' : result.user?.role), { replace: true })
+    event.preventDefault(); if (actionInFlight.current || loading || cooldown > 0) return; actionInFlight.current = true; setLoading(true); setError('')
+    try {
+      const result = await completeMfa(mfaChallenge, code)
+      if (!result.ok) { if (!applyRateLimit(result)) setError(result.error) }
+      else navigate(destination(result.admin ? 'admin' : result.user?.role), { replace: true })
+    } catch { setError('Verification is temporarily unavailable.') } finally { setLoading(false); actionInFlight.current = false }
   }
   const completeChallenge = async event => {
-    event.preventDefault(); setLoading(true); setError('')
+    event.preventDefault(); if (actionInFlight.current || loading || cooldown > 0) return; actionInFlight.current = true; setLoading(true); setError('')
     try {
+      if (renewal && !passwordPassesPolicy(newPassword, Number(settings['authentication.passwordMinLength'] || 12))) throw new Error('Choose a stronger password that meets the password requirements.')
       if (renewal && newPassword !== confirmNewPassword) throw new Error('Passwords do not match.')
-      const response = await fetch(renewal ? '/api/auth/renew-password' : '/api/auth/verify-code', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(renewal ? { resetToken: renewal, currentPassword, password: newPassword } : { challengeId: challenge, code }) })
-      const body = await response.json()
-      if (!response.ok) throw new Error(body.error)
-      if (renewal) { setRenewal(null); setError('Password updated. Sign in with your new password.'); setForm(previous => ({ ...previous, password: '' })) }
-      else navigate(destination(body.user?.role || (body.admin ? 'admin' : 'resident')), { replace: true })
-    } catch (error) { setError(error.message) } finally { setLoading(false) }
+      if (!renewal && code.length !== 6) throw new Error('Enter the six-digit verification code.')
+      const response = await fetch(renewal ? '/api/auth/renew-password' : '/api/auth/verify-code', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(renewal ? { resetToken: renewal, password: newPassword } : { challengeId: challenge, code }) })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        if (response.status === 429) {
+          const seconds = Math.max(1, Math.ceil(Number(body.retryAfter || response.headers.get('Retry-After')) || 60))
+          setCooldown(seconds)
+          throw new Error(`Too many attempts. Please try again in ${seconds} seconds.`)
+        }
+        if (!renewal && response.status === 401 && /expired/i.test(body.error || '')) {
+          setResendUntil(0)
+          setResendCooldown(0)
+          setChallengeMessage('')
+        }
+        throw new Error(body.error || 'Verification failed.')
+      }
+      if (renewal) { clearEmailChallenge(); setRenewal(null); setError('Password updated. Sign in with your new password.'); setForm(previous => ({ ...previous, password: '' })) }
+      else { clearEmailChallenge(); navigate(destination(body.user?.role || (body.admin ? 'admin' : 'resident')), { replace: true }) }
+    } catch (error) { setError(error.message) } finally { actionInFlight.current = false; setLoading(false) }
+  }
+  const resendVerificationCode = async () => {
+    if (actionInFlight.current || loading || resendCooldown > 0 || !challenge) return
+    actionInFlight.current = true
+    setLoading(true)
+    setError('')
+    setChallengeMessage('')
+    try {
+      const response = await fetch('/api/auth/resend-code', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'GetafeCitizenPortal' }, body: JSON.stringify({ challengeId: challenge }) })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        if (response.status === 429) {
+          const retryAfter = Math.max(1, Math.ceil(Number(body.retryAfter || response.headers.get('Retry-After')) || 30))
+          applyResendCooldown(body.nextResendAt, retryAfter)
+        }
+        if (response.status === 401) clearEmailChallenge()
+        throw new Error(body.error || "We couldn't send a new code. Please try again.")
+      }
+      setCode('')
+      setChallengeMessage(body.message || 'A new code has been sent to your email.')
+      applyResendCooldown(body.nextResendAt, body.retryAfter)
+      window.requestAnimationFrame(() => codeRef.current?.focus())
+    } catch (error) { setError(error.message) } finally { actionInFlight.current = false; setLoading(false) }
   }
   const [form, setForm] = useState({
     name: '',
@@ -86,6 +193,7 @@ export default function Login() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    if (actionInFlight.current || loading || cooldown > 0) return
     setError('')
 
     if (mode === 'signin') {
@@ -93,29 +201,35 @@ export default function Login() {
         setError('Please enter your email and password.')
         return
       }
+      actionInFlight.current = true
       setLoading(true)
       login(form.email, form.password, form.remember).then((res) => {
         setLoading(false)
         handleResult(res)
+      }).finally(() => {
+        actionInFlight.current = false
       })
     } else {
       if (!form.name.trim() || !form.email.trim() || !form.password) {
         setError('Please fill in all required fields.')
         return
       }
-      if (form.password.length < (settings['authentication.passwordMinLength'] || 8)) {
-        setError(`Password must be at least ${settings['authentication.passwordMinLength'] || 8} characters long.`)
+      if (!passwordPassesPolicy(form.password, Number(settings['authentication.passwordMinLength'] || 12))) {
+        setError('Choose a stronger password with uppercase and lowercase letters, a number, and a special character. Avoid common passwords.')
         return
       }
       if (form.password !== form.confirm) {
         setError('Passwords do not match.')
         return
       }
+      actionInFlight.current = true
       setLoading(true)
       setTimeout(() => {
         register(form.name, form.email, form.password, captchaToken).then((res) => {
           setLoading(false)
           handleResult(res)
+        }).finally(() => {
+          actionInFlight.current = false
         })
       }, 650)
     }
@@ -129,9 +243,9 @@ export default function Login() {
 
   const inputIcon = mode === 'signin' ? <Mail size={18} /> : <User size={18} />
 
-  if (mfaChallenge) return <main className="login-page login-challenge-page"><section className="login-main"><form className="login-card password-renewal-card" onSubmit={completeMfaChallenge}><img className="mfa-authentication-icon" src="/assets/icons/auth-pack/authentication.png" alt="" aria-hidden="true"/><h1>Two-factor authentication</h1><p>Enter the six-digit code from your authenticator app, or one of your recovery codes.</p><label>Authenticator or recovery code<input required type="text" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value)} /></label>{error && <p role="alert">{error}</p>}<button className="login-submit" disabled={loading}>{loading ? 'Verifying…' : 'Verify and sign in'}</button><button className="renewal-cancel" type="button" onClick={() => { setMfaChallenge(null); setCode(''); setError('') }}>Return to sign in</button></form></section></main>
+  if (mfaChallenge) return <main className="login-page login-challenge-page"><section className="login-main"><form className="login-card password-renewal-card" onSubmit={completeMfaChallenge}><img className="mfa-authentication-icon" src="/assets/icons/auth-pack/authentication.png" alt="" aria-hidden="true"/><h1>Two-factor authentication</h1><p>Enter the six-digit code from your authenticator app, or one of your recovery codes.</p><label>Authenticator or recovery code<input required type="text" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value)} /></label>{error && <p role="alert">{error}</p>}<button className="login-submit" disabled={loading || cooldown > 0}>{loading ? 'Verifying…' : cooldown > 0 ? `Try again in ${cooldown}s` : 'Verify and sign in'}</button><button className="renewal-cancel" type="button" onClick={() => { setMfaChallenge(null); setCode(''); setError('') }}>Return to sign in</button></form></section></main>
 
-  if (challenge || renewal) return <main className="login-page login-challenge-page"><section className="login-main"><form className={`login-card ${renewal ? 'password-renewal-card' : 'email-code-card'}`} onSubmit={completeChallenge}>{renewal && <img className="renewal-logo" src="/assets/getafe-seal.png" alt="Municipality of Getafe" />}<h1>{renewal ? 'Update your password' : 'Check your email'}</h1><p>{renewal ? 'You need to update your password because it has expired or this is your first time signing in.' : 'Enter the six-digit sign-in code sent to your email address.'}</p>{renewal ? <><label>Current password<input required type="password" autoComplete="current-password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} placeholder="Current password" /></label><label>New password<input required minLength="8" type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="New password" /></label><label>Confirm password<input required minLength="8" type="password" autoComplete="new-password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} placeholder="Confirm password" /></label></> : <label>Verification code<input required type="text" inputMode="numeric" pattern="[0-9]*" maxLength="6" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /></label>}{error && <p role="alert">{error}</p>}<button className="login-submit" disabled={loading}>{loading ? 'Checking…' : renewal ? 'Sign in' : 'Continue'}</button><button className="renewal-cancel" type="button" onClick={() => { setChallenge(null); setRenewal(null); setCode('') }}>Return to sign in</button></form></section></main>
+  if (challenge || renewal) return <main className="login-page login-challenge-page"><section className="login-main"><form className={`login-card ${renewal ? 'password-renewal-card' : 'email-code-card'}`} onSubmit={completeChallenge}>{renewal && <img className="renewal-logo" src="/assets/getafe-seal.png" alt="Municipality of Getafe" />}<h1>{renewal ? 'Update your password' : 'Check your email'}</h1><p>{renewal ? 'You need to update your password because it has expired or this is your first time signing in.' : 'Enter the six-digit sign-in code sent to your email address.'}</p>{renewal ? <><label htmlFor="new-password">New password<input id="new-password" required minLength={Number(settings['authentication.passwordMinLength'] || 12)} maxLength="1024" type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="New password" /></label><label htmlFor="confirm-new-password">Confirm password<input id="confirm-new-password" required minLength={Number(settings['authentication.passwordMinLength'] || 12)} maxLength="1024" type="password" autoComplete="new-password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} placeholder="Confirm password" /></label></> : <><label htmlFor="verification-code">Verification code<input ref={codeRef} id="verification-code" required type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} aria-describedby={`${error ? 'verification-code-error' : ''}${challengeMessage ? ' verification-code-status' : ''}`} aria-invalid={Boolean(error)} /></label>{challengeMessage && <p id="verification-code-status" className="email-code-message" role="status">{challengeMessage}</p>}</>}{error && <p id={renewal ? undefined : 'verification-code-error'} className="login-error" role="alert">{error}</p>}<button className="login-submit" disabled={loading || cooldown > 0 || (!renewal && code.length !== 6)}>{loading ? (renewal ? 'Checking…' : 'Verifying…') : cooldown > 0 ? `Try again in ${cooldown}s` : renewal ? 'Sign in' : 'Continue'}</button>{!renewal && <><p className="email-resend-prompt">Didn't receive the code?</p><button className="email-resend-button" type="button" onClick={resendVerificationCode} disabled={loading || resendCooldown > 0} aria-label={resendCooldown > 0 ? `Resend code in ${resendCooldown} seconds` : 'Resend code'}>{loading ? 'Sending…' : resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}</button><button className="login-tertiary-link" type="button" onClick={() => { clearEmailChallenge(); setCode(''); setError(''); setChallengeMessage('') }}>← Back to sign in</button></>}{renewal && <button className="renewal-cancel" type="button" onClick={() => { clearEmailChallenge(); setRenewal(null); setCode('') }}>Return to sign in</button>}</form></section></main>
 
   return (
     <div className="login-page">
@@ -279,8 +393,10 @@ export default function Login() {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete={mode === 'signin' ? 'current-password' : 'off'}
-                  placeholder={mode === 'signin' ? '••••••••' : `At least ${settings['authentication.passwordMinLength'] || 8} characters`}
+                  autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                  minLength={mode === 'register' ? Number(settings['authentication.passwordMinLength'] || 12) : undefined}
+                  maxLength={mode === 'register' ? 1024 : undefined}
+                  placeholder={mode === 'signin' ? '••••••••' : `At least ${settings['authentication.passwordMinLength'] || 12} characters`}
                   value={form.password}
                   onChange={update('password')}
                 />
@@ -325,9 +441,11 @@ export default function Login() {
               </div>
             )}
 
-            <button type="submit" className="login-submit" disabled={loading}>
+            <button type="submit" className="login-submit" disabled={loading || cooldown > 0}>
               {loading ? (
                 <><Loader2 size={18} className="spin" /> {mode === 'signin' ? 'Signing in…' : 'Creating account…'}</>
+              ) : cooldown > 0 ? (
+                <>Try again in {cooldown}s</>
               ) : (
                 <>{mode === 'signin' ? 'Sign in' : 'Create account'} <ArrowRight size={18} /></>
               )}

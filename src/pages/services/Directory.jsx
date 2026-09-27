@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowUpRight, Building2, ClipboardCheck, FileCheck2, HeartHandshake, Landmark, Map, Search, Users, WalletCards } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, Building2, ClipboardCheck, FileCheck2, HeartHandshake, Landmark, Map, Search, Users, WalletCards } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { citizenServices, serviceCategories } from '../../data/citizenServices'
+import { publicApi } from '../../services/apiClient'
 
 const fallbackServices = [
   ['Executive', 'The Office of the Mayor and executive offices coordinate municipal programs, policy, and public service delivery.', Landmark],
@@ -10,9 +11,14 @@ const fallbackServices = [
   ['Treasury', 'Access local tax, payment, business, and revenue-related information from the Municipal Treasurer.', WalletCards],
   ['Assessment', 'Learn about property assessment, tax declarations, and assessment office transactions.', ClipboardCheck],
   ['Civil Registry', 'Find information about birth, marriage, death, and other civil registry document requests.', FileCheck2],
-  ['Health', 'Connect with municipal health programs, public health services, and rural health support.', HeartHandshake],
+  ['Health', 'Connect with municipal health programs, public health services, rural health support, and the Getafe RHU.', HeartHandshake],
   ['Social Welfare', 'Find assistance programs and social welfare support for families, children, senior citizens, and vulnerable residents.', Users],
 ].map(([title, excerpt, Icon]) => ({ title, excerpt, Icon, slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-') }))
+const matchesQuery = (value, query) => {
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  const haystack = value.toLowerCase()
+  return words.every(word => haystack.includes(word))
+}
 
 export default function Directory() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -22,8 +28,7 @@ export default function Directory() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/news?category=services&limit=24')
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Services unavailable')))
+    publicApi('/news?category=services&limit=24')
       .then((data) => {
         const items = data.items || []
         setServices(items.length ? items : fallbackServices)
@@ -35,22 +40,21 @@ export default function Directory() {
   }, [])
 
   const filteredServices = useMemo(() => {
-    const term = query.trim().toLowerCase()
-    return term ? services.filter((service) => `${service.title} ${service.excerpt}`.toLowerCase().includes(term)) : services
+    return query.trim() ? services.filter((service) => matchesQuery(`${service.title} ${service.excerpt} ${service.slug || ''}`, query)) : services
   }, [query, services])
 
   const filteredCitizenServices = useMemo(() => {
-    const term = query.trim().toLowerCase()
-    if (!term) return []
+    if (!query.trim()) return []
     return citizenServices.filter((service) => {
       const category = serviceCategories.find((item) => item.id === service.category)
-      return `${service.name} ${category?.name || ''}`.toLowerCase().includes(term)
+      return matchesQuery(`${service.name} ${category?.name || ''} ${category?.description || ''}`, query)
     })
   }, [query])
 
   const serviceHref = (service) => {
     if (service.id === 'barangay-clearance') return '/services/barangay-clearance'
     if (service.category === 'business') return '/services/business-trade'
+    if (service.category === 'treasury') return '/services/offices/treasury'
     return `/services/${service.category}`
   }
 
@@ -99,17 +103,27 @@ export default function Directory() {
               {filteredServices.map((service) => {
                 const Icon = service.Icon || Building2
                 const destination = officeHref(service)
-                const officeLink = <>{service.slug === 'health' ? 'View Health Office on Facebook' : 'View office information'} <ArrowUpRight size={15} /></>
+                const officeLink = <>{service.slug === 'health' ? 'View Health Office on Facebook' : 'View office information'} <ArrowRight size={15} aria-hidden="true" /></>
                 return <article className="service-directory-card service-directory-office-card" key={service.id || service.slug}>
-                  <div className="service-directory-icon"><Icon size={22} aria-hidden="true" /></div>
-                  <p className="service-directory-label">Municipal office</p>
-                  <h2>{service.title}</h2>
+                  <div className="service-directory-office-identity">
+                    <div className="service-directory-icon"><Icon size={20} aria-hidden="true" /></div>
+                    <div className="service-directory-office-heading">
+                      <p className="service-directory-label">Municipal office</p>
+                      <h2>{service.title}</h2>
+                    </div>
+                  </div>
                   <p>{service.excerpt}</p>
                   {service.slug === 'health' ? <a href={destination} target="_blank" rel="noopener noreferrer" className="service-directory-link" aria-label="Open Getafe Rural Health Unit on Facebook">{officeLink}</a> : <Link to={destination} className="service-directory-link">{officeLink}</Link>}
                 </article>
               })}
             </div></section>}
-          </> : <p className="service-directory-empty">No service or department matches your search.</p>}
+          </> : <div className="service-directory-empty" role="status">
+            {query ? <>
+              <h2>No services found for “{query}”</h2>
+              <p>Try another search or browse all municipal services.</p>
+              <Link to="/services" className="service-directory-link">Browse all services <ArrowRight size={15} aria-hidden="true" /></Link>
+            </> : <p>No municipal services are available right now.</p>}
+          </div>}
         </div>
       </section>
     </main>

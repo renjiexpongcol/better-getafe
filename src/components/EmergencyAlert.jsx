@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, Bell, ShieldAlert } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { publicApi } from '../services/apiClient'
 
 export default function EmergencyAlert() {
   const [notice, setNotice] = useState(null)
@@ -9,8 +10,7 @@ export default function EmergencyAlert() {
 
   useEffect(() => {
     let cancelled = false
-    const loadNotice = () => fetch('/api/news?category=announcements&limit=1')
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Announcements unavailable')))
+    const loadNotice = () => publicApi('/news?category=announcements&limit=1')
       .then((data) => { if (!cancelled) setNotice(data.items?.[0] || null) })
       .catch(() => { if (!cancelled) setNotice(null) })
 
@@ -48,7 +48,7 @@ export default function EmergencyAlert() {
     }
   }
 
-  return <div className="home-notice-viewport"><section className={`home-notice${isDismissing ? ' home-notice--dismissing' : ''}`} onTransitionEnd={handleTransitionEnd} aria-label={`${noticeType}: ${notice.title}`} aria-live="polite"><div className="container home-notice-inner"><span className="home-notice-icon"><ShieldAlert size={17} aria-hidden="true" /></span><div className="home-notice-copy"><span className="home-notice-label">{noticeType}</span><Link className="home-notice-title" to={`/news/${notice.slug}`}>{notice.title}</Link>{shortSummary && <span className="home-notice-description">{shortSummary}</span>}</div><Link to={`/news/${notice.slug}`}>View details <ArrowRight size={15} /></Link></div></section></div>
+  return <div className="home-notice-viewport"><section className={`home-notice${isDismissing ? ' home-notice--dismissing' : ''}`} onTransitionEnd={handleTransitionEnd} aria-label={`${noticeType}: ${notice.title}`} aria-live="polite"><div className="container home-notice-inner"><span className="home-notice-icon"><ShieldAlert size={17} aria-hidden="true" /></span><div className="home-notice-copy"><span className="home-notice-label">{noticeType}</span><Link className="home-notice-title" to={`/news/${notice.slug}`}>{notice.title}</Link>{shortSummary && <span className="home-notice-description">{shortSummary}</span>}</div><Link className="home-notice-action" to={`/news/${notice.slug}`}>View details <ArrowRight size={15} aria-hidden="true" /></Link></div></section></div>
 }
 
 export function NoticePlaceholder() {

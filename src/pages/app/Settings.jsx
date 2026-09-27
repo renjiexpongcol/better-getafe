@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useEffect, useState } from "react";
+import { Component, forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import {
   Bell,
   ChevronRight,
@@ -15,11 +15,21 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import AppPage from "./AppPage";
 import { useAuth } from "../../context/AuthContext";
 import { useCitizen } from "../../context/CitizenContext";
-import { citizenApi, dateLabel } from "../../services/citizenData";
-import { Link } from "react-router-dom";
+import { citizenApi, dateLabel, notificationPreferencesApi, notificationPreferencesError } from "../../services/citizenData";
+import { Link, Navigate } from "react-router-dom";
+import { ROUTES } from "../../routeRegistry";
+import { usePublicConfig } from "../../context/PublicConfig";
+import { passwordPassesPolicy } from "../../passwordPolicy";
+import { useResidentPreferences } from "../../context/ResidentPreferencesContext";
+import { formatResidentDateTime } from "../../services/residentPreferences";
+import {
+  DEFAULT_SETTINGS_CATEGORY,
+  getSettingsCategory,
+  normalizeSettingsCategory,
+  SETTINGS_CATEGORIES,
+} from "./settingsNavigation";
 
 const scopes = [
   ["account_data", "Delete eligible personal/account data"],
@@ -29,185 +39,327 @@ const scopes = [
 ];
 const scopeLabel = (value) =>
   scopes.find(([key]) => key === value)?.[1] || value;
+const sessionDateLabel = (value, fallback = "Recently") => {
+  if (!value) return fallback;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? fallback : formatResidentDateTime(date, {
+    date: {},
+    time: { hour: "numeric", minute: "2-digit" },
+  });
+};
 
-export function AccountSettingsContent({ onClose }) {
+const SETTINGS_CATEGORY_ICONS = {
+  account: UserRound,
+  security: ShieldCheck,
+  notifications: Bell,
+  privacy: ShieldCheck,
+  appearance: Palette,
+  language: Globe2,
+};
+
+export function AccountSettingsContent({ onEditProfile, onChangePassword, changePasswordRef, activeCategory = DEFAULT_SETTINGS_CATEGORY, onCategoryChange }) {
   const { user } = useAuth(),
     { data } = useCitizen(),
+    { beginEditing, loading: preferencesLoading, loaded: preferencesLoaded, reload: reloadPreferences, t, error: preferenceError } = useResidentPreferences(),
     [open, setOpen] = useState(false),
-    [showPrivacyRequests, setShowPrivacyRequests] = useState(false),
-    [category, setCategory] = useState("Account");
-  const chooseCategory = (label) => setCategory(label);
+    [showPrivacyRequests, setShowPrivacyRequests] = useState(false);
+  const category = normalizeSettingsCategory(activeCategory);
+  const categoryConfig = getSettingsCategory(category);
+  const settingsPanelRef = useRef(null);
+  useEffect(() => { if (preferencesLoaded) beginEditing() }, [beginEditing, preferencesLoaded]);
+  useEffect(() => {
+    if (settingsPanelRef.current) settingsPanelRef.current.scrollTop = 0;
+  }, [category]);
+  const chooseCategory = nextCategory => onCategoryChange?.(normalizeSettingsCategory(nextCategory));
   return (
     <div className="settings-layout">
-      <aside className="settings-categories" aria-label="Settings categories">
-        {[
-          [UserRound, "Account", "Profile and personal info"],
-          [ShieldCheck, "Security", "Password and access"],
-          [Bell, "Notifications", "Alerts and preferences"],
-          [ShieldCheck, "Privacy & Data", "Manage your data"],
-          [Palette, "Appearance", "Theme and display"],
-          [Globe2, "Language & Region", "Language and time zone"],
-          [CircleHelp, "Help & Support", "Get help or contact us"],
-        ].map(([Icon, label, description]) => (
-          <button
-            type="button"
-            className={category === label ? "active" : ""}
-            aria-current={category === label ? "page" : undefined}
-            onClick={() => chooseCategory(label)}
-            key={label}
-          >
-            <Icon size={21} />
-            <span>
-              <strong>{label}</strong>
-              <small>{description}</small>
-            </span>
-          </button>
-        ))}
-      </aside>
-      <div className="settings-panel">
-        <header className="settings-panel-heading">
-          <h2>{category} Settings</h2>
-          <p>Manage your {category.toLowerCase()} preferences and options.</p>
-        </header>
-        <section
-          id="settings-profile"
-          className="settings-card profile-settings-card"
-        >
-          <div className="settings-card-heading">
-            <span className="settings-card-icon">
-              <UserRound size={21} />
-            </span>
-            <div>
-              <h3>Profile Information</h3>
-              <p>Keep your personal information up to date.</p>
-            </div>
-            <Link to="/app/profile" className="settings-edit-link">
-              Edit
-            </Link>
-          </div>
-          <div className="settings-profile-summary">
-            <span className="settings-avatar">
-              {(user?.name || "Citizen")
-                .split(/\s+/)
-                .map((part) => part[0])
-                .join("")
-                .slice(0, 2)
-                .toUpperCase()}
-            </span>
-            <div>
-              <strong>{user?.name || "Citizen"}</strong>
-              <p>{user?.email}</p>
-              <span className="settings-status">Active</span>
-            </div>
-          </div>
-        </section>
-        <section id="settings-access" className="settings-card">
-          <div className="settings-card-heading">
-            <span className="settings-card-icon">
-              <LockKeyhole size={21} />
-            </span>
-            <div>
-              <h3>Account Access</h3>
-              <p>Manage your login, security and support options.</p>
-            </div>
-          </div>
-          <SettingsRow
-            icon={LockKeyhole}
-            title="Change your password"
-            description="Keep your account secure with a strong password."
-            action=""
-            href="/app?sysparm_object_id=help"
-          />
-          <SettingsRow
-            icon={ShieldCheck}
-            title="Two-factor authentication"
-            description="Add an extra layer of security to your account."
-            action="Not enabled"
-            href="/app?sysparm_object_id=help"
-          />
-          <SettingsRow
-            icon={CircleHelp}
-            title="Account access and support"
-            description="Get help recovering access or changing your account information."
-            action=""
-            href="/app?sysparm_object_id=help"
-          />
-        </section>
-        <section id="settings-privacy" className="settings-card">
-          <button
-            type="button"
-            className="settings-row-button"
-            onClick={() => setOpen(true)}
-          >
-            <ShieldCheck size={18} />
-            <span>
-              <strong>Request data deletion</strong>
-              <small>Submit a request to delete your personal data.</small>
-            </span>
-            <ChevronRight size={18} />
-          </button>
-          <button
-            type="button"
-            className="privacy-view-requests-button"
-            onClick={() => setShowPrivacyRequests((value) => !value)}
-            aria-expanded={showPrivacyRequests}
-          >
-            {showPrivacyRequests
-              ? "Hide privacy deletion requests"
-              : "View privacy deletion requests"}
-            <ChevronRight size={17} />
-          </button>
-          {showPrivacyRequests && (
-            <PrivacyRequests items={data?.privacyRequests || []} />
-          )}
-        </section>
-        {category === "Notifications" && <NotificationSettings />}
-        {open && <PrivacyWorkflow onClose={() => setOpen(false)} />}
-        <div className="settings-modal-footer">
-          <span>
+      <aside className="settings-categories" aria-label={t("settings.categories", "Settings categories")}>
+        {SETTINGS_CATEGORIES.map(({ id, labelKey, descriptionKey, fallback }) => {
+          const Icon = SETTINGS_CATEGORY_ICONS[id];
+          const active = category === id;
+          return (
             <button
               type="button"
-              className="portal-action-secondary"
-              onClick={onClose}
+              className={active ? "active" : ""}
+              aria-current={active ? "page" : undefined}
+              onClick={() => chooseCategory(id)}
+              key={id}
             >
-              Cancel
+              <Icon size={21} />
+              <span>
+                <strong>{t(`settings.${labelKey}`, fallback)}</strong>
+                <small>{t(`settings.${descriptionKey}`, fallback)}</small>
+              </span>
             </button>
-            <button type="button" className="citizen-primary" onClick={onClose}>
-              Save Changes
+          );
+        })}
+      </aside>
+      <div ref={settingsPanelRef} className="settings-panel">
+        <SettingsPanelErrorBoundary resetKey={category} t={t}>
+          <header className="settings-panel-heading">
+            <h2>{t(`settings.${categoryConfig.headingKey}`, `${categoryConfig.fallback} Settings`)}</h2>
+            <p>{t(`settings.${categoryConfig.introKey}`, `Manage your ${categoryConfig.fallback.toLowerCase()} preferences and options.`)}</p>
+            {preferencesLoading && <p className="settings-preference-status" role="status">{t("settings.loadingPreferences", "Loading your preferences…")}</p>}
+          </header>
+          {category === "account" && <section id="settings-profile" className="settings-card profile-settings-card">
+            <div className="settings-card-heading">
+              <span className="settings-card-icon"><UserRound size={21} /></span>
+              <div>
+                <h3>Account information</h3>
+                <p>Information about your Municipality of Getafe portal account.</p>
+              </div>
+              {onEditProfile && <button type="button" className="settings-edit-link" onClick={onEditProfile}>Edit profile</button>}
+            </div>
+            <AccountInformation user={user} data={data} />
+          </section>}
+          {category === "security" && <section id="settings-access" className="settings-card">
+            <div className="settings-card-heading">
+              <span className="settings-card-icon"><LockKeyhole size={21} /></span>
+              <div>
+                <h3>Account Access</h3>
+                <p>Manage your login, security and support options.</p>
+              </div>
+            </div>
+            <SettingsRow ref={changePasswordRef} icon={LockKeyhole} title="Change your password" description="Keep your account secure with a strong password." action="" href="/app/help" onPasswordChange={onChangePassword} />
+            <SettingsRow icon={ShieldCheck} title="Two-factor authentication" description="Add an extra layer of security to your account." action="Not enabled" href="/app/help" />
+            <SettingsRow icon={CircleHelp} title="Account access and support" description="Get help recovering access or changing your account information." action="" href="/app/help" />
+            <ActiveSessions />
+          </section>}
+          {category === "privacy" && <section id="settings-privacy" className="settings-card">
+            <button type="button" className="settings-row-button" onClick={() => setOpen(true)}>
+              <ShieldCheck size={18} />
+              <span><strong>Request data deletion</strong><small>Submit a request to delete your personal data.</small></span>
+              <ChevronRight size={18} />
             </button>
-          </span>
-        </div>
+            <button type="button" className="privacy-view-requests-button" onClick={() => setShowPrivacyRequests(value => !value)} aria-expanded={showPrivacyRequests}>
+              {showPrivacyRequests ? "Hide privacy deletion requests" : "View privacy deletion requests"}<ChevronRight size={17} />
+            </button>
+            {showPrivacyRequests && <PrivacyRequests items={data?.privacyRequests || []} />}
+          </section>}
+          {category === "notifications" && <NotificationSettings />}
+          {category === "appearance" && <AppearanceSettings />}
+          {category === "language" && <LanguageRegionSettings />}
+          {preferenceError && <div className="portal-error settings-preference-error" role="alert"><span>{preferenceError}</span><button type="button" className="settings-inline-action" onClick={reloadPreferences}>{t("settings.tryAgain", "Try again")}</button></div>}
+          {open && category === "privacy" && <PrivacyWorkflow onClose={() => setOpen(false)} />}
+        </SettingsPanelErrorBoundary>
       </div>
     </div>
   );
 }
 
-function NotificationSettings() {
-  const { data, reload } = useCitizen()
-  const [emailEnabled, setEmailEnabled] = useState(false), [smsEnabled, setSmsEnabled] = useState(false), [saving, setSaving] = useState(false), [error, setError] = useState('')
-  useEffect(() => { setEmailEnabled(Boolean(data?.profile?.email_notifications)); setSmsEnabled(Boolean(data?.profile?.sms_notifications)) }, [data?.profile?.email_notifications, data?.profile?.sms_notifications])
-  const update = async (channel, value) => {
-    const next = { emailNotifications: channel === 'email' ? value : emailEnabled, smsNotifications: channel === 'sms' ? value : smsEnabled }
-    setError(''); setSaving(true)
-    try { await citizenApi('/notification-preferences', { method: 'PUT', body: JSON.stringify(next) }); await reload() } catch (cause) { setError(cause.message) } finally { setSaving(false) }
+class SettingsPanelErrorBoundary extends Component {
+  state = { error: null };
+
+  static getDerivedStateFromError(error) {
+    return { error };
   }
+
+  componentDidUpdate(previousProps) {
+    if (previousProps.resetKey !== this.props.resetKey && this.state.error) this.setState({ error: null });
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    const { t } = this.props;
+    return <div className="settings-panel-error" role="alert">
+      <strong>{t("settings.panelErrorTitle", "This settings section could not be displayed.")}</strong>
+      <p>{t("settings.panelErrorDescription", "Your account is still open. Try this section again or choose another category.")}</p>
+      <button type="button" className="settings-inline-action" onClick={() => this.setState({ error: null })}>{t("settings.tryAgain", "Try again")}</button>
+    </div>;
+  }
+}
+
+export function AccountSettingsFooter({ onClose }) {
+  const { loaded, saving, saveEditing, cancelEditing, t } = useResidentPreferences();
+  const [saveMessage, setSaveMessage] = useState("");
+  const save = async () => {
+    setSaveMessage("");
+    try { await saveEditing(); setSaveMessage(t("settings.saved", "Changes saved.")) } catch { /* The settings panel keeps the draft and shows the provider error. */ }
+  };
+  return (
+    <footer className="settings-modal-footer">
+      <span className="settings-save-confirmation" role="status" aria-live="polite">{saveMessage}</span>
+      <span>
+        <button type="button" className="portal-action-secondary" onClick={() => { cancelEditing(); onClose() }} disabled={saving}>
+          {t("settings.cancel", "Cancel")}
+        </button>
+        <button type="button" className="citizen-primary" onClick={save} disabled={saving || !loaded}>
+          {saving ? t("settings.saving", "Saving…") : t("settings.save", "Save Changes")}
+        </button>
+      </span>
+    </footer>
+  );
+}
+
+function PreferenceRow({ label, description, children }) {
+  return <div className="settings-preference-row"><div><strong>{label}</strong><small>{description}</small></div><div className="settings-preference-control">{children}</div></div>
+}
+
+function PreferenceChoice({ value, current, label, onChange }) {
+  return <button type="button" className={`settings-choice${current === value ? " active" : ""}`} aria-pressed={current === value} onClick={() => onChange(value)}>{label}</button>
+}
+
+function AppearanceSettings() {
+  const { effective, updateDraft, resetDraft, t } = useResidentPreferences();
+  const appearance = effective.appearance;
+  return <section className="settings-category-placeholder settings-preferences" aria-label={t("settings.appearance", "Appearance")}>
+    <p className="settings-live-preview">{t("settings.livePreview")}</p>
+    <PreferenceRow label={t("settings.theme")} description={t("settings.themeDescription")}>
+      <div className="settings-choice-group" role="group" aria-label={t("settings.theme")}>
+        {[['light', t('settings.light')], ['dark', t('settings.dark')], ['system', t('settings.system')]].map(([value, label]) => <PreferenceChoice key={value} value={value} current={appearance.theme} label={label} onChange={theme => updateDraft({ appearance: { theme } })} />)}
+      </div>
+    </PreferenceRow>
+    <PreferenceRow label={t("settings.contrast")} description={t("settings.contrastDescription")}>
+      <div className="settings-choice-group" role="group" aria-label={t("settings.contrast")}>
+        {[['standard', t('settings.standard')], ['high', t('settings.high')]].map(([value, label]) => <PreferenceChoice key={value} value={value} current={appearance.contrast} label={label} onChange={contrast => updateDraft({ appearance: { contrast } })} />)}
+      </div>
+    </PreferenceRow>
+    <PreferenceRow label={t("settings.textSize")} description={t("settings.textSizeDescription")}>
+      <div className="settings-choice-group" role="group" aria-label={t("settings.textSize")}>
+        {[['small', t('settings.small')], ['default', t('settings.default')], ['large', t('settings.large')]].map(([value, label]) => <PreferenceChoice key={value} value={value} current={appearance.textScale} label={label} onChange={textScale => updateDraft({ appearance: { textScale } })} />)}
+      </div>
+    </PreferenceRow>
+    <PreferenceRow label={t("settings.reduceMotion")} description={t("settings.reduceMotionDescription")}>
+      <label className="settings-switch"><input type="checkbox" checked={Boolean(appearance.reduceMotion)} onChange={event => updateDraft({ appearance: { reduceMotion: event.target.checked } })}/><span aria-hidden="true"/></label>
+    </PreferenceRow>
+    <div className="settings-preference-actions"><button type="button" className="settings-inline-action" onClick={resetDraft}>{t("settings.reset", "Reset defaults")}</button></div>
+  </section>
+}
+
+function LanguageRegionSettings() {
+  const { effective, updateDraft, t } = useResidentPreferences();
+  const locale = effective.locale;
+  return <section className="settings-category-placeholder settings-preferences" aria-label={t("settings.languageRegion", "Language & Region")}>
+    <p className="settings-live-preview">{t("settings.livePreview")}</p>
+    <PreferenceRow label={t("settings.language")} description={t("settings.languageDescription")}>
+      <select value={locale.language} onChange={event => updateDraft({ locale: { language: event.target.value } })}>
+        <option value="en">{t("settings.english")}</option><option value="ceb">{t("settings.cebuano")}</option>
+      </select>
+    </PreferenceRow>
+    <PreferenceRow label={t("settings.region")} description={t("settings.regionDescription")}>
+      <select value={locale.region} onChange={event => updateDraft({ locale: { region: event.target.value } })} aria-label={t("settings.region")}><option value="PH">{t("settings.philippines")}</option></select>
+    </PreferenceRow>
+    <PreferenceRow label={t("settings.timezone")} description={t("settings.timezoneDescription")}>
+      <output className="settings-readonly-value">{locale.timezone}</output>
+    </PreferenceRow>
+    <PreferenceRow label={t("settings.dateFormat")} description={t("settings.dateFormatDescription")}>
+      <select value={locale.dateFormat} onChange={event => updateDraft({ locale: { dateFormat: event.target.value } })}>
+        <option value="long">September 27, 2026</option><option value="medium">Sep 27, 2026</option><option value="dayMonth">27 September 2026</option><option value="numeric">09/27/2026</option>
+      </select>
+    </PreferenceRow>
+    <PreferenceRow label={t("settings.timeFormat")} description={t("settings.timeFormatDescription")}>
+      <div className="settings-choice-group" role="group" aria-label={t("settings.timeFormat")}>
+        {[['12h', t('settings.twelveHour')], ['24h', t('settings.twentyFourHour')]].map(([value, label]) => <PreferenceChoice key={value} value={value} current={locale.timeFormat} label={label} onChange={timeFormat => updateDraft({ locale: { timeFormat } })} />)}
+      </div>
+    </PreferenceRow>
+    <PreferenceRow label={t("settings.weekStart")} description={t("settings.weekStartDescription")}>
+      <div className="settings-choice-group" role="group" aria-label={t("settings.weekStart")}>
+        {[['sunday', t('settings.sunday')], ['monday', t('settings.monday')]].map(([value, label]) => <PreferenceChoice key={value} value={value} current={locale.weekStart} label={label} onChange={weekStart => updateDraft({ locale: { weekStart } })} />)}
+      </div>
+    </PreferenceRow>
+  </section>
+}
+
+function AccountInformation({ user, data }) {
+  const accountName = data?.profile?.full_name || user?.name || "Citizen";
+  const accountType = user?.role === "resident" ? "Resident account" : user?.role || "Account";
+  const accountStatus = user ? "Active" : "Unavailable";
+  return (
+    <dl className="settings-account-information">
+      <div><dt>Account type</dt><dd>{accountType}</dd></div>
+      <div><dt>Account status</dt><dd><span className="settings-account-status"><span aria-hidden="true">●</span>{accountStatus}</span></dd></div>
+      <div><dt>Account name</dt><dd>{accountName}</dd></div>
+      <div><dt>Email address</dt><dd><span>{user?.email || "Not available"}</span>{data?.profile?.email_verified && <small>Verified</small>}</dd></div>
+    </dl>
+  );
+}
+
+function ActiveSessions() {
+  const [sessions, setSessions] = useState([]), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [error, setError] = useState('')
+  const headers = { 'X-Requested-With': 'GetafeCitizenPortal', 'Content-Type': 'application/json' }
+  const load = async () => {
+    try {
+      const response = await fetch('/api/auth/sessions', { credentials: 'include', headers })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || 'Could not load active sessions.')
+      setSessions(body.sessions || [])
+    } catch (cause) { setError(cause.message) } finally { setLoading(false) }
+  }
+  useEffect(() => { load() }, [])
+  const revoke = async (path, body) => {
+    setBusy(true); setError('')
+    try {
+      const response = await fetch(path, { method: 'DELETE', credentials: 'include', headers, body: body ? JSON.stringify(body) : undefined })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Could not revoke sessions.')
+      await load()
+    } catch (cause) { setError(cause.message) } finally { setBusy(false) }
+  }
+  const hasOtherSessions = sessions.some(session => !session.current)
+  return <div className="settings-notification-group">
+    <p className="settings-notification-label">Active sessions</p>
+    <small className="settings-session-description">Review devices signed in to your account. Idle sessions expire automatically.</small>
+    {loading ? <p>Loading sessions…</p> : <div className="settings-session-list" aria-label="Active sessions">
+      {sessions.map(session => <div className={`settings-session-row${session.current ? ' is-current' : ''}`} key={session.id}>
+        <div className="settings-session-details">
+          <strong>{session.current ? 'This device' : 'Signed-in device'}</strong>
+          {session.current && <span className="settings-session-current">Current session</span>}
+          <small>Last active: {sessionDateLabel(session.lastActivityAt)}</small>
+          <small>Expires: {sessionDateLabel(session.expiresAt, 'Not available')}</small>
+        </div>
+        {!session.current && <button className="settings-inline-action settings-session-signout" type="button" disabled={busy} onClick={() => revoke(`/api/auth/sessions/${encodeURIComponent(session.id)}`)}>Sign out</button>}
+      </div>)}
+    </div>}
+    {hasOtherSessions && <button className="settings-inline-action settings-signout-other" type="button" disabled={busy} onClick={() => revoke('/api/auth/sessions', { keepCurrent: true })}>Sign out other sessions</button>}
+    {error && <p className="portal-error" role="alert">{error}</p>}
+  </div>
+}
+
+function NotificationSettings() {
+  const { user } = useAuth()
+  const [preferences, setPreferences] = useState(null), [loading, setLoading] = useState(true), [saving, setSaving] = useState(false), [saveState, setSaveState] = useState(''), [error, setError] = useState('')
+  const [verificationChallenge, setVerificationChallenge] = useState(''), [verificationCode, setVerificationCode] = useState(''), [verificationBusy, setVerificationBusy] = useState(false)
+  const loadPreferences = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try { setPreferences(await notificationPreferencesApi.get()) }
+    catch (cause) { setPreferences(null); setError(notificationPreferencesError(cause)) }
+    finally { setLoading(false) }
+  }, [])
+  useEffect(() => { loadPreferences() }, [loadPreferences])
+  const update = async (key, value) => {
+    if (!preferences) return
+    const previous = preferences
+    setPreferences({ ...preferences, [key]: value }); setError(''); setSaveState('Saving…'); setSaving(true)
+    try { setPreferences(await notificationPreferencesApi.update({ [key]: value })); setSaveState('Saved') }
+    catch (cause) { setPreferences(previous); setError(notificationPreferencesError(cause, 'update')); setSaveState('') }
+    finally { setSaving(false) }
+  }
+  const requestVerification = async () => {
+    setVerificationBusy(true); setError('')
+    try { const result = await citizenApi('/email-verification/request', { method: 'POST' }); setVerificationChallenge(result.challengeId) } catch { setError('We couldn\'t send a verification code right now. Try again.') } finally { setVerificationBusy(false) }
+  }
+  const confirmVerification = async event => {
+    event.preventDefault(); setVerificationBusy(true); setError('')
+    try { const result = await citizenApi('/email-verification/confirm', { method: 'POST', body: JSON.stringify({ challengeId: verificationChallenge, code: verificationCode }) }); setPreferences(result); setVerificationChallenge(''); setVerificationCode('') } catch { setError('We couldn\'t verify your email address. Try again.') } finally { setVerificationBusy(false) }
+  }
+  const categories = [['requestUpdates', 'Requests & applications', 'Status changes and updates to your service requests.'], ['appointmentUpdates', 'Appointments', 'Confirmations, reminders, cancellations and changes.'], ['documentUpdates', 'Documents', 'Updates when requested documents change status.'], ['paymentUpdates', 'Payments', 'Payment confirmations and important payment updates.'], ['municipalAnnouncements', 'Municipal announcements', 'Important notices and public advisories.'], ['eventUpdates', 'Events & meetings', 'Relevant municipal event and meeting updates.']]
+  if (loading) return <section className="settings-notification-content" aria-busy="true"><div className="settings-notification-skeleton" aria-label="Loading notification preferences"><span/><span/><span/></div></section>
+  if (!preferences) return <section className="settings-notification-content"><div className="settings-notification-error" role="alert"><p>{error || "We couldn't load your notification settings."}</p><button type="button" className="settings-inline-action" onClick={loadPreferences}>Try again</button></div></section>
   return <section className="settings-notification-content">
     <div className="settings-notification-group"><p className="settings-notification-label">Essential notifications</p><div className="settings-notification-row"><div><strong>In-app notifications</strong><small>Receive important updates directly in your citizen portal.</small></div><span className="settings-always-on">Always on</span></div></div>
-    <div className="settings-notification-group"><p className="settings-notification-label">Optional channels</p><label className="settings-notification-row settings-notification-toggle"><div><strong>Email notifications</strong><small>Receive important updates by email.</small></div><input type="checkbox" checked={emailEnabled} disabled={saving} onChange={event => update('email', event.target.checked)}/><span aria-hidden="true"/></label><label className="settings-notification-row settings-notification-toggle"><div><strong>SMS notifications</strong><small>Receive time-sensitive updates by SMS.</small></div><input type="checkbox" checked={smsEnabled} disabled={saving} onChange={event => update('sms', event.target.checked)}/><span aria-hidden="true"/></label>{error && <p className="portal-error" role="alert">{error}</p>}</div>
+    <div className="settings-notification-group"><p className="settings-notification-label">Email notifications</p><label className="settings-notification-row settings-notification-toggle"><div><strong>Email notifications</strong><small>Receive important updates by email at {preferences.email || user?.email || 'your verified email address'}.</small></div><input type="checkbox" checked={Boolean(preferences.emailEnabled)} disabled={saving} onChange={event => update('emailEnabled', event.target.checked)}/><span aria-hidden="true"/></label>
+      {!preferences.emailVerified && <div className="settings-email-verification"><p>Email notifications</p><span>Verify your email address to receive email notifications.</span><button type="button" className="settings-inline-action" disabled={verificationBusy} onClick={requestVerification}>Verify email</button>{verificationChallenge && <form onSubmit={confirmVerification}><input aria-label="Email verification code" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={verificationCode} onChange={event => setVerificationCode(event.target.value.replace(/\D/g, ''))} placeholder="6-digit code"/><button type="submit" className="settings-inline-action" disabled={verificationBusy || verificationCode.length !== 6}>Confirm</button></form>}</div>}
+      <p className="settings-notification-label settings-sub-label">Email me about</p>{categories.map(([key, label, description]) => <label className={`settings-notification-row settings-notification-toggle settings-category-row${preferences.emailEnabled ? '' : ' is-disabled'}`} key={key}><div><strong>{label}</strong><small>{description}</small></div><input type="checkbox" checked={Boolean(preferences[key])} disabled={saving || !preferences.emailEnabled} onChange={event => update(key, event.target.checked)}/><span aria-hidden="true"/></label>)}
+      {saveState && <p className="settings-save-state" role="status">{saveState}</p>}{error && <p className="portal-error" role="alert">{error}</p>}</div>
   </section>
 }
 
 export default function Settings() {
-  return (
-    <AppPage title="Account settings">
-      <section className="citizen-settings-page">
-        <AccountSettingsContent onClose={() => {}} />
-      </section>
-    </AppPage>
-  );
+  return <Navigate to={ROUTES.app.root} replace state={{ openSettingsModal: true, settingsCategory: DEFAULT_SETTINGS_CATEGORY }} />
 }
 
-function SettingsRow({ icon: Icon, title, description, action, href }) {
+const SettingsRow = forwardRef(function SettingsRow({ icon: Icon, title, description, action, href, onPasswordChange }, ref) {
   const { user } = useAuth();
   const [mfaOpen, setMfaOpen] = useState(false),
     [passwordOpen, setPasswordOpen] = useState(false);
@@ -215,11 +367,15 @@ function SettingsRow({ icon: Icon, title, description, action, href }) {
   return (
     <>
       <Link
+        ref={ref}
         to={title === "Change your password" ? undefined : isMfa ? "#" : href}
         className="citizen-settings-row settings-row-link"
         onClick={(event) => {
           if (title === "Change your password" || isMfa) event.preventDefault();
-          if (title === "Change your password") setPasswordOpen(true);
+          if (title === "Change your password") {
+            if (onPasswordChange) return onPasswordChange();
+            setPasswordOpen(true);
+          }
           if (isMfa) setMfaOpen(true);
         }}
       >
@@ -252,7 +408,7 @@ function SettingsRow({ icon: Icon, title, description, action, href }) {
         )}
     </>
   );
-}
+})
 
 function MfaSetupModal({ onClose }) {
   const { user, validateSession } = useAuth();
@@ -523,6 +679,8 @@ function MfaSetupModal({ onClose }) {
 }
 
 function PasswordChangeModal({ onClose }) {
+  const publicConfig = usePublicConfig();
+  const minimumPasswordLength = Number(publicConfig["authentication.passwordMinLength"] || 12);
   const [currentPassword, setCurrentPassword] = useState(""),
     [password, setPassword] = useState(""),
     [confirm, setConfirm] = useState(""),
@@ -533,6 +691,7 @@ function PasswordChangeModal({ onClose }) {
     event.preventDefault();
     setError("");
     setMessage("");
+    if (!passwordPassesPolicy(password, minimumPasswordLength)) return setError("Choose a stronger password with uppercase and lowercase letters, a number, and a special character. Avoid common passwords.");
     if (password !== confirm) return setError("Passwords do not match.");
     setBusy(true);
     try {
@@ -596,7 +755,8 @@ function PasswordChangeModal({ onClose }) {
               New password
               <input
                 required
-                minLength="8"
+                minLength={minimumPasswordLength}
+                maxLength="1024"
                 type="password"
                 autoComplete="new-password"
                 value={password}
@@ -607,7 +767,8 @@ function PasswordChangeModal({ onClose }) {
               Confirm new password
               <input
                 required
-                minLength="8"
+                minLength={minimumPasswordLength}
+                maxLength="1024"
                 type="password"
                 autoComplete="new-password"
                 value={confirm}

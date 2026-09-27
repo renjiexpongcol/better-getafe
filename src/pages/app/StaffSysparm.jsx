@@ -1,20 +1,25 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, Bell, CheckCircle2, CircleHelp, ClipboardList, Clock3, ChevronDown, LayoutDashboard, LogOut, Menu, RefreshCw, Search, Settings2, X } from 'lucide-react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { resolveModuleAccess } from '../../applicationModuleRegistry'
+import { ModuleAccessDeniedPage, ModuleNotFoundPage } from '../../components/RouteStatusPages'
 import './StaffSysparm.css'
 import './StaffHeader.css'
 import './StaffRequestModal.css'
 import FulfillmentNoteModal from './FulfillmentNoteModal'
 import StaffRequestModal from './StaffRequestModal'
+import { ROUTES, staffLocation } from '../../routeRegistry'
 
 const dateLabel = value => value ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' }) : 'Not available'
 const statusLabel = value => String(value || 'submitted').replace(/_/g, ' ').replace(/\b\w/g, character => character.toUpperCase())
 
 export default function StaffSysparm() {
   const { user, logout } = useAuth()
-  const [params] = useSearchParams()
-  const objectId = params.get('sysparm_object_id') || 'dashboard'
+  const location = useLocation()
+  const routeState = staffLocation(location.pathname)
+  const objectId = routeState?.module || 'dashboard'
+  const moduleAccess = resolveModuleAccess('staff', objectId, user)
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -49,6 +54,10 @@ export default function StaffSysparm() {
   useEffect(() => { loadDashboard() }, [])
 
   const openRequest = async application => {
+    if (!routeState?.recordId) {
+      navigate(ROUTES.staff.request(application.id))
+      return
+    }
     setSelectedRequest(application)
     setRequestStatus(application.status || 'submitted')
     setRequestNote('')
@@ -65,7 +74,11 @@ export default function StaffSysparm() {
     } catch (loadError) { setRequestError(loadError.message) } finally { setRequestLoading(false) }
   }
 
-  const closeRequest = () => { if (!savingRequest) setSelectedRequest(null) }
+  useEffect(() => {
+    if (routeState?.recordId) openRequest({ id: routeState.recordId, status: 'submitted' })
+  }, [routeState?.recordId])
+
+  const closeRequest = () => { if (!savingRequest) { setSelectedRequest(null); navigate(ROUTES.staff.requests) } }
 
   const saveRequest = async event => {
     event.preventDefault()
@@ -90,7 +103,7 @@ export default function StaffSysparm() {
       setRequestNotice('Request updated and the resident has been notified.')
       setFulfillmentOpen(false)
       await loadDashboard()
-      if (body.closed) setSelectedRequest(null)
+      if (body.closed) { setSelectedRequest(null); navigate(ROUTES.staff.requests) }
     } catch (saveError) { setRequestError(saveError.message); setFulfillmentError(saveError.message) } finally { setSavingRequest(false) }
   }
 
@@ -122,6 +135,9 @@ export default function StaffSysparm() {
     if (result.ok) navigate('/auth/login', { replace: true })
   }
 
+  if (!routeState || moduleAccess.state === 'not-found') return <main className="staff-workspace"><ModuleNotFoundPage home={ROUTES.staff.root} /></main>
+  if (moduleAccess.state === 'forbidden') return <main className="staff-workspace"><ModuleAccessDeniedPage /></main>
+
   return (
     <main className="staff-workspace">
       <aside className={`staff-sidebar${menuOpen ? ' open' : ''}`}>
@@ -131,10 +147,10 @@ export default function StaffSysparm() {
           <button type="button" className="staff-menu-close" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X size={19} /></button>
         </div>
         <nav className="staff-nav" aria-label="Staff workspace">
-          {can('staff.dashboard.view') && <Link className={objectId === 'dashboard' ? 'active' : ''} to="/app/staff?sysparm_object_id=dashboard"><LayoutDashboard size={18} />Workspace</Link>}
-          {can('requests.view') && <Link className={objectId === 'request-management' ? 'active' : ''} to="/app/staff?sysparm_object_id=request-management"><ClipboardList size={18} />Service requests</Link>}
-          {can('notifications.view') && <Link className={objectId === 'notifications' ? 'active' : ''} to="/app/staff?sysparm_object_id=notifications"><Bell size={18} />Notifications</Link>}
-          {can('settings.view') && <Link className={objectId === 'system-settings' ? 'active' : ''} to="/app/staff?sysparm_object_id=system-settings"><Settings2 size={18} />System parameters</Link>}
+          {can('staff.dashboard.view') && <Link className={objectId === 'dashboard' ? 'active' : ''} to={ROUTES.staff.root}><LayoutDashboard size={18} />Workspace</Link>}
+          {can('requests.view') && <Link className={objectId === 'request-management' ? 'active' : ''} to={ROUTES.staff.requests}><ClipboardList size={18} />Service requests</Link>}
+          {can('notifications.view') && <Link className={objectId === 'notifications' ? 'active' : ''} to={ROUTES.staff.notifications}><Bell size={18} />Notifications</Link>}
+          {can('settings.view') && <Link className={objectId === 'system-settings' ? 'active' : ''} to={ROUTES.staff.settings}><Settings2 size={18} />System parameters</Link>}
         </nav>
       </aside>
 
@@ -143,7 +159,7 @@ export default function StaffSysparm() {
           <button type="button" className="staff-menu-toggle" onClick={() => setMenuOpen(true)} aria-label="Open menu"><Menu size={21} /></button>
           <div className="staff-top-actions">
             <label className="staff-search"><Search size={18}/><input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search services, news, and information" aria-label="Search services, news, and information"/></label>
-            <Link className="staff-icon-button" to="/app/staff?sysparm_object_id=help" aria-label="Help and support"><CircleHelp size={18}/></Link>
+            <Link className="staff-icon-button" to={ROUTES.staff.help} aria-label="Help and support"><CircleHelp size={18}/></Link>
             <button type="button" className="staff-icon-button" aria-label="Notifications"><Bell size={18}/></button>
             <div className="staff-profile-wrap"><button type="button" className="staff-profile-button" onClick={() => setProfileOpen(current => !current)} aria-expanded={profileOpen}><span>{(user?.name || 'Staff').slice(0, 1).toUpperCase()}</span><b>{user?.name || 'Municipal staff'}</b><ChevronDown size={15}/></button>{profileOpen && <div className="staff-profile-menu"><strong>{user?.name || 'Municipal staff'}</strong><small>{user?.email || 'Staff account'}</small><button type="button" onClick={signOut}><LogOut size={15}/>Sign out</button></div>}</div>
           </div>
@@ -154,7 +170,7 @@ export default function StaffSysparm() {
             {[[ClipboardList, 'Total requests', dashboard?.counts.total], [Clock3, 'Pending review', dashboard?.counts.pending], [RefreshCw, 'In progress', dashboard?.counts.inProgress], [CheckCircle2, 'Completed', dashboard?.counts.completed]].map(([Icon, label, value]) => <article key={label}><span><Icon size={19}/></span><div><small>{label}</small><strong>{loading ? '—' : value ?? 0}</strong></div></article>)}
           </section>
           <section className="staff-panel staff-requests-panel">
-            <div className="staff-panel-heading"><div><p className="staff-eyebrow">Service requests</p><h2>Recent resident applications</h2></div><Link to="/app/staff?sysparm_object_id=request-management">View all <ArrowRight size={17}/></Link></div>
+            <div className="staff-panel-heading"><div><p className="staff-eyebrow">Service requests</p><h2>Recent resident applications</h2></div><Link to={ROUTES.staff.requests}>View all <ArrowRight size={17}/></Link></div>
             {loading ? <p className="staff-empty">Loading service requests…</p> : dashboard?.applications?.length ? <div className="staff-request-table"><div className="staff-request-row staff-request-heading"><span>Resident</span><span>Service</span><span>Reference</span><span>Status</span><span>Submitted</span></div>{dashboard.applications.slice(0, 8).map(application => <div className="staff-request-row staff-request-row-clickable" key={application.id} role="button" tabIndex="0" onClick={() => openRequest(application)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openRequest(application) } }}><span><strong>{application.resident_name}</strong><small>{application.resident_email}</small></span><span>{application.service_name}</span><span className="staff-reference">{application.reference_number}</span><span><b className={`staff-status ${String(application.status || '').toLowerCase()}`}>{statusLabel(application.status)}</b></span><span>{dateLabel(application.submitted_at || application.last_updated)}</span></div>)}</div> : <p className="staff-empty">No service requests have been submitted yet.</p>}
           </section>
           <StaffRequestModal selectedRequest={selectedRequest} requestLoading={requestLoading} requestStatus={requestStatus} setRequestStatus={setRequestStatus} requestNote={requestNote} setRequestNote={setRequestNote} requestError={requestError} requestNotice={requestNotice} savingRequest={savingRequest} closeRequest={closeRequest} saveRequest={saveRequest} requestFile={requestFile} setRequestFile={setRequestFile} uploadingFile={uploadingFile}/>

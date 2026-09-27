@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { matchPath, useLocation } from 'react-router-dom';
 import { routeTitles } from '../routes';
 import { usePublicConfig } from '../context/PublicConfig';
 
@@ -8,7 +8,11 @@ export default function PageTitleManager() {
   const settings = usePublicConfig();
 
   useEffect(() => {
-    document.title = `${settings['general.name'] || 'Getafe'} | ${routeTitles[pathname] || "Official Portal"}`;
+    // Error views own their title because resource errors can occur on valid
+    // routes that otherwise have a different page title.
+    if (document.querySelector('.route-status-page h1')) return;
+    const dynamicTitle = Object.entries(routeTitles).find(([pattern]) => pattern.includes(':') && matchPath({ path: pattern, end: true }, pathname))?.[1];
+    document.title = `${settings['general.name'] || 'Getafe'} | ${routeTitles[pathname] || dynamicTitle || 'Page not found'}`;
   }, [pathname, settings['general.name']]);
 
   useEffect(() => {

@@ -45,7 +45,7 @@
 .important-announcement p { margin: 0; color: #59657a; font-size: 14px; line-height: 1.65; white-space: pre-line; }
 .important-announcement-actions { display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; margin-top: 22px; }
 .important-announcement-actions a { color: #1263b5; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
-.important-announcement-actions button { align-self: flex-end; padding: 10px 15px; border: 2px solid #0b3f9d; border-radius: 7px; background: #0f2747; color: #fff; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.important-announcement-actions button { align-self: center; padding: 10px 15px; border: 2px solid #0b3f9d; border-radius: 7px; background: #0f2747; color: #fff; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
 .important-announcement-actions button:hover { background: #0b3f9d; }
 .important-announcement-actions :focus-visible { outline: 3px solid #1677d2; outline-offset: 3px; }
 .cms-editor .cms-important-control { display: flex; align-items: flex-start; gap: 12px; padding: 16px; border: 1px solid #cfe0f2; border-radius: 8px; background: #f0f6ff; }

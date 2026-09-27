@@ -34,6 +34,7 @@ export const permissionCatalog = [
   ['system.database.view', 'System', 'View database settings', 'View sanitized database configuration and status.', true],
   ['system.database.configure', 'System', 'Configure database', 'Change database connection configuration.', true],
   ['system.database.test', 'System', 'Test database connection', 'Test a proposed database connection.', true],
+  ['system.infrastructure.view', 'System', 'View infrastructure status', 'View sanitized Redis and worker health metrics.', true],
   ['settings.view', 'System', 'View system settings', 'Open and review system configuration.', true],
   ['staff.dashboard.view', 'Staff Workspace', 'View staff dashboard', 'Open the municipal staff workspace.'],
   ['notifications.view', 'Staff Workspace', 'View staff notifications', 'View staff notifications.'],
@@ -97,10 +98,30 @@ export async function ensureBootstrapMembership(user) {
 }
 
 function readPath(source, path) { return String(path || '').split('.').reduce((value, key) => value?.[key], source) }
+function comparePolicyValues(actual, expected, operator = 'equals') {
+  if (operator === 'equals') return actual === expected
+  if (operator === 'not_equals') return actual !== expected
+  if (operator === 'contains') return String(actual ?? '').toLowerCase().includes(String(expected ?? '').toLowerCase())
+  if (operator === 'starts_with') return String(actual ?? '').toLowerCase().startsWith(String(expected ?? '').toLowerCase())
+  if (operator === 'ends_with') return String(actual ?? '').toLowerCase().endsWith(String(expected ?? '').toLowerCase())
+  const left = Number(actual), right = Number(expected)
+  if (!Number.isNaN(left) && !Number.isNaN(right)) {
+    if (operator === 'greater_than') return left > right
+    if (operator === 'greater_or_equal') return left >= right
+    if (operator === 'less_than') return left < right
+    if (operator === 'less_or_equal') return left <= right
+  }
+  return false
+}
 function policyMatches(condition, user, resource) {
   if (!condition || !Object.keys(condition).length) return true
   if (Array.isArray(condition.all)) return condition.all.every(item => policyMatches(item, user, resource))
   if (Array.isArray(condition.any)) return condition.any.some(item => policyMatches(item, user, resource))
+  if (condition.resource_field && condition.operator) {
+    const actual = readPath(resource, condition.resource_field)
+    const expected = condition.value_source === 'literal' ? condition.value : readPath(user, condition.user_field)
+    return comparePolicyValues(actual, expected, condition.operator)
+  }
   const resourceField = condition.resource_field || condition.resourceField
   const userField = condition.user_field || condition.userField
   if (resourceField && userField) return readPath(resource, resourceField) === readPath(user, userField)

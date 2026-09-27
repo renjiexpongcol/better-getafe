@@ -1,6 +1,6 @@
 import { Settings2, Building2, Globe2, Database, Cloud, Folder, LockKeyhole, ShieldCheck, Mail, Bell, Plug, CloudSun, Flag, Wrench, FileText, SlidersHorizontal, Activity, History, Users, Image, KeyRound } from 'lucide-react'
 
-export const categoryLabels = { general: 'General', database: 'Database', portalDatabase: 'Portal Database', google: 'Google Cloud', storage: 'Storage', authentication: 'Authentication', email: 'Email', security: 'Security', notifications: 'Notifications', integrations: 'Integrations', weather: 'Weather', features: 'Feature Flags', maintenance: 'Maintenance', legal: 'Legal Policies', advanced: 'Advanced', status: 'System Status', history: 'Audit History' }
+export const categoryLabels = { general: 'General', database: 'Database', portalDatabase: 'Portal Database', google: 'Google Cloud', storage: 'Storage', authentication: 'Authentication', email: 'Email', security: 'Security', notifications: 'Notifications', integrations: 'Integrations', weather: 'Weather', publicData: 'publicData', features: 'Feature Flags', maintenance: 'Maintenance', legal: 'Legal Policies', advanced: 'Advanced', status: 'System Status', history: 'Audit History' }
 const icons = { general: Settings2, database: Database, portalDatabase: Database, google: Cloud, storage: Folder, authentication: LockKeyhole, security: ShieldCheck, email: Mail, notifications: Bell, integrations: Plug, weather: CloudSun, features: Flag, maintenance: Wrench, legal: FileText, advanced: SlidersHorizontal, status: Activity, history: History }
 export const sectionIcon = category => icons[category] || Settings2
 
@@ -8,12 +8,13 @@ export const sectionIcon = category => icons[category] || Settings2
 const layouts = {
   general: [
     ['Application details', 'The identity and contact details of your Getafe portal.', Building2, ['name', 'company', 'url', 'supportEmail']],
+    ['Facebook updates', 'Choose the official Facebook Page Plugin or a native Getafe fallback card.', Globe2, ['facebookUrl', 'facebookEmbedMode']],
     ['Regional preferences', 'Language, timezone and formatting for your application.', Globe2, ['timezone', 'locale', 'currency', 'dateFormat', 'language']],
     ['Brand assets', 'Logo and browser icon used by the application.', Image, ['logo', 'favicon']],
     ['Community banner', 'Configure the special announcement shown on the public home page.', Users, ['communityBannerEnabled', 'communityBannerTitle', 'communityBannerMessage', 'communityBannerUrl']],
   ],
   security: [
-    ['reCAPTCHA protection', 'Protect public forms against automated abuse.', ShieldCheck, ['registrationCaptcha', 'recaptchaProvider', 'recaptchaSiteKey', 'recaptchaSecretKey']],
+    ['reCAPTCHA protection', 'Protect public forms against automated abuse.', ShieldCheck, ['registrationCaptcha', 'contactCaptcha', 'recaptchaProvider', 'recaptchaSiteKey', 'recaptchaSecretKey']],
     ['Browser & request protection', 'Control registration limits and browser security protections.', LockKeyhole, ['registrationRateLimit', 'frameProtection', 'contentTypeProtection']],
     ['Administrator access', 'Manage who can view and update system configuration.', Users, ['permissionGrants']],
   ],
@@ -67,6 +68,7 @@ export function categorySections(category, fields) {
 
 const descriptions = {
   'security.registrationCaptcha': 'Protect registration forms from automated submissions.',
+  'security.contactCaptcha': 'Protect the public contact form from automated submissions.',
   'security.recaptchaSiteKey': 'Public site key from the Google reCAPTCHA admin console.',
   'security.frameProtection': 'Prevent other websites from embedding the portal in a frame.',
   'security.contentTypeProtection': 'Prevent browsers from guessing a different content type.',

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import './ImportantAnnouncement.css'
 import { clearExpiredAnnouncementDismissals, dismissAnnouncement, isAnnouncementDismissed } from '../services/announcementDismissals'
+import { publicApi } from '../services/apiClient'
 
 export default function ImportantAnnouncement() {
   const [notice, setNotice] = useState(null)
@@ -13,25 +14,20 @@ export default function ImportantAnnouncement() {
 
   useEffect(() => {
     clearExpiredAnnouncementDismissals()
-    const controller = new AbortController()
     const load = async () => {
       try {
-        const response = await fetch('/api/news?important=true&limit=1', { signal: controller.signal, cache: 'no-store' })
-        if (!response.ok) throw new Error('Announcements unavailable')
-        const data = await response.json()
-        if (!controller.signal.aborted) {
-          const next = data.items?.[0] || null
-          setNotice(next)
-          const nextVersion = next?.version || next?.updated_at || 1
-          setDismissed(next && isAnnouncementDismissed(next.id, nextVersion) ? new Set([next.id]) : new Set())
-        }
+        const data = await publicApi('/news?important=true&limit=1')
+        const next = data.items?.[0] || null
+        setNotice(next)
+        const nextVersion = next?.version || next?.updated_at || 1
+        setDismissed(next && isAnnouncementDismissed(next.id, nextVersion) ? new Set([next.id]) : new Set())
       } catch {
-        if (!controller.signal.aborted) setNotice(null)
+        setNotice(null)
       }
     }
     load()
     const interval = setInterval(load, 60000)
-    return () => { controller.abort(); clearInterval(interval) }
+    return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {

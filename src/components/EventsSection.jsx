@@ -1,17 +1,45 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { publicApi } from '../services/apiClient'
 
 const dateKey = (value) => {
+  if (!value) return ''
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-const eventDate = (event) => event.event_start_at || event.startDate || event.start_date || event.event_date || event.date || event.published_at
+const localDate = (key) => {
+  const [year, month, day] = key.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+const eventDate = (event) => event.event_start_at
 const monthLabel = (date) => new Intl.DateTimeFormat('en-PH', { month: 'long', year: 'numeric' }).format(date)
-const shortMonth = (value) => new Intl.DateTimeFormat('en-PH', { month: 'short' }).format(new Date(value)).toUpperCase()
-const dayLabel = (value) => new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(value))
+const shortMonth = (value) => new Intl.DateTimeFormat('en-PH', { month: 'short' }).format(localDate(dateKey(value))).toUpperCase()
+const dayLabel = (value) => new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(localDate(value))
+
+function eventDays(event) {
+  const occurrences = Array.isArray(event.event_occurrences) ? event.event_occurrences : Array.isArray(event.occurrences) ? event.occurrences : null
+  if (occurrences) {
+    return [...new Set(occurrences.map((occurrence) => dateKey(typeof occurrence === 'string' ? occurrence : occurrence?.date || occurrence?.event_date || occurrence?.start_at)).filter(Boolean))].sort()
+  }
+
+  const start = dateKey(event.event_start_at)
+  if (!start) return []
+  const end = dateKey(event.event_end_at) || start
+  const startDate = localDate(start)
+  const endDate = localDate(end)
+  if (endDate < startDate) return [start]
+
+  const days = []
+  for (const date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
+    days.push(dateKey(date))
+  }
+  return days
+}
 
 function Calendar({ activeMonth, eventsByDate, onMonthChange, onSelectDate, selectedDate }) {
   const year = activeMonth.getFullYear()
@@ -27,48 +55,68 @@ function Calendar({ activeMonth, eventsByDate, onMonthChange, onSelectDate, sele
     <div className="home-calendar-days">{cells.map((day, index) => {
       if (!day) return <span className="home-calendar-blank" key={`blank-${index}`} />
       const key = dateKey(new Date(year, month, day))
-      const count = eventsByDate.get(key)?.length || 0
+      const hasEvents = (eventsByDate.get(key)?.length || 0) > 0
       const isSelected = key === selectedDate
       const isToday = key === today
-      const label = count ? `${count} ${count === 1 ? 'event' : 'events'} on ${dayLabel(new Date(year, month, day))}` : dayLabel(new Date(year, month, day))
-      return <button type="button" className={`home-calendar-day ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''} ${count ? 'has-events' : ''}`} onClick={() => onSelectDate(key)} aria-label={label} aria-pressed={isSelected} key={key}><span>{day}</span>{count > 0 && <i aria-hidden="true" />}</button>
+      const label = hasEvents ? `${eventsByDate.get(key).length} ${eventsByDate.get(key).length === 1 ? 'event' : 'events'} on ${dayLabel(key)}` : dayLabel(key)
+      return <button type="button" className={`home-calendar-day ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''} ${hasEvents ? 'has-events' : ''}`} onClick={() => onSelectDate(key)} aria-label={label} aria-pressed={isSelected} key={key}><span>{day}</span>{hasEvents && <i aria-hidden="true" />}</button>
     })}</div>
   </section>
 }
 
-function EventRow({ event }) {
+function EventRow({ event, displayDate }) {
   const date = eventDate(event)
-  const time = event.startTime || event.start_time || event.time
-  const endTime = event.endTime || event.end_time
+  const occurrences = Array.isArray(event.event_occurrences) ? event.event_occurrences : Array.isArray(event.occurrences) ? event.occurrences : []
+  const occurrence = occurrences.find((item) => dateKey(typeof item === 'string' ? item : item?.date || item?.event_date || item?.start_at) === displayDate)
+  const time = occurrence?.start_time || occurrence?.startTime || occurrence?.time || event.startTime || event.start_time || event.time || (() => {
+    const parsed = new Date(date)
+    return Number.isNaN(parsed.getTime()) || (parsed.getHours() === 0 && parsed.getMinutes() === 0) ? '' : new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(parsed)
+  })()
+  const endTime = occurrence?.end_time || occurrence?.endTime || event.endTime || event.end_time
   const schedule = time ? `${time}${endTime ? ` – ${endTime}` : ''}` : ''
   const location = event.location || event.venue
+  const key = dateKey(displayDate || date)
 
-  return <article className="home-event-row"><time className="home-event-date" dateTime={date}><span>{shortMonth(date)}</span><strong>{new Date(date).getDate()}</strong></time><div className="home-event-copy">{event.category?.name && <p className="home-event-category">{event.category.name}</p>}<h4>{event.title}</h4>{location && <p><MapPin size={14} aria-hidden="true" />{location}</p>}{schedule && <p><Clock3 size={14} aria-hidden="true" />{schedule}</p>}{event.excerpt && <p className="home-event-description">{event.excerpt}</p>}<Link to={`/news/${event.slug}`}>View details <ArrowRight size={14} aria-hidden="true" /></Link></div></article>
+  return <article className="home-event-row"><time className="home-event-date" dateTime={displayDate || date}><span>{shortMonth(displayDate || date)}</span><strong>{localDate(key).getDate()}</strong></time><div className="home-event-copy">{event.category?.name && <p className="home-event-category">{event.category.name}</p>}<h4>{event.title}</h4>{(location || schedule) && <p className="home-event-meta">{location && <><MapPin size={13} aria-hidden="true" />{location}</>}{location && schedule && <span aria-hidden="true"> · </span>}{schedule && <><Clock3 size={13} aria-hidden="true" />{schedule}</>}</p>}{event.excerpt && <p className="home-event-description">{event.excerpt}</p>}<Link to={`/events/${event.slug}`}>View details <ArrowRight size={14} aria-hidden="true" /></Link></div></article>
 }
 
 export default function EventsSection() {
+  const today = dateKey(new Date())
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeMonth, setActiveMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
-  const [selectedDate, setSelectedDate] = useState('')
+  const [error, setError] = useState('')
+  const [retry, setRetry] = useState(0)
+  const [activeMonth, setActiveMonth] = useState(() => { const date = new Date(); return new Date(date.getFullYear(), date.getMonth(), 1) })
+  const [selectedDate, setSelectedDate] = useState(today)
 
   useEffect(() => {
-    fetch('/api/news?display=upcoming&temporal=upcoming&limit=24&public=true')
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Events unavailable')))
-      .then((data) => setEvents((data.items || []).filter((event) => dateKey(eventDate(event)))))
-      .catch(() => setEvents([]))
+    setLoading(true)
+    setError('')
+    publicApi('/news?display=events&limit=100&public=true')
+      .then((data) => setEvents((data.items || []).filter((event) => eventDays(event).length)))
+      .catch(() => { setEvents([]); setError('The event calendar is temporarily unavailable.') })
       .finally(() => setLoading(false))
-  }, [])
+    return undefined
+  }, [retry])
 
   const eventsByDate = useMemo(() => {
     const grouped = new Map()
-    events.forEach((event) => { const key = dateKey(eventDate(event)); grouped.set(key, [...(grouped.get(key) || []), event]) })
+    events.forEach((event) => eventDays(event).forEach((key) => grouped.set(key, [...(grouped.get(key) || []), event])))
     return grouped
   }, [events])
-  const monthEvents = useMemo(() => events.filter((event) => { const date = new Date(eventDate(event)); return date.getFullYear() === activeMonth.getFullYear() && date.getMonth() === activeMonth.getMonth() }).sort((a, b) => new Date(eventDate(a)) - new Date(eventDate(b))), [activeMonth, events])
-  const selectedEvents = selectedDate ? (eventsByDate.get(selectedDate) || []) : monthEvents
-  const selectedLabel = selectedDate ? `Events on ${dayLabel(selectedDate)}` : 'Upcoming events'
-  const changeMonth = (offset) => { setActiveMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1)); setSelectedDate('') }
+  const eventsForSelectedDate = selectedDate ? (eventsByDate.get(selectedDate) || []) : []
+  const upcomingEvents = useMemo(() => events
+    .map((event) => ({ event, nextDate: eventDays(event).find((key) => key >= today) }))
+    .filter(({ nextDate }) => nextDate)
+    .sort((a, b) => a.nextDate.localeCompare(b.nextDate) || new Date(eventDate(a.event)) - new Date(eventDate(b.event))), [events, today])
 
-  return <section className="section home-events-section"><div className="container"><div className="home-subsection-head"><div><p className="eyebrow">Mark your calendar</p><h2>Upcoming events &amp; meetings</h2></div><Link to="/events">View full calendar <ArrowRight size={15} /></Link></div><div className="home-events-layout"><Calendar activeMonth={activeMonth} eventsByDate={eventsByDate} onMonthChange={changeMonth} onSelectDate={setSelectedDate} selectedDate={selectedDate} /><section className="home-events-list" aria-live="polite"><div className="home-events-list-head"><h3>{selectedLabel}</h3>{selectedDate && <button type="button" onClick={() => setSelectedDate('')}>Show all upcoming events</button>}</div>{loading ? <p className="home-events-state">Loading events…</p> : selectedEvents.length ? selectedEvents.map((event) => <EventRow event={event} key={event.id || event.slug} />) : <div className="home-events-empty"><CalendarDays size={21} aria-hidden="true" /><div><strong>{selectedDate ? 'No events scheduled for this date.' : 'No upcoming events have been published yet.'}</strong><p>{selectedDate ? 'Choose another date or view all upcoming events.' : 'Please check back for future municipal activities and announcements.'}</p><Link to="/events">View all upcoming events <ArrowRight size={14} /></Link></div></div>}</section></div></div></section>
+  const changeMonth = (offset) => {
+    const target = new Date(activeMonth.getFullYear(), activeMonth.getMonth() + offset, 1)
+    const day = localDate(selectedDate).getDate()
+    const targetDay = Math.min(day, new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate())
+    setActiveMonth(target)
+    setSelectedDate(dateKey(new Date(target.getFullYear(), target.getMonth(), targetDay)))
+  }
+
+  return <section className="section home-events-section"><div className="container"><div className="home-subsection-head"><div><p className="eyebrow">Mark your calendar</p><h2>Upcoming events &amp; meetings</h2></div><Link to="/events">View full calendar <ArrowRight size={15} /></Link></div><div className="home-events-layout"><div className="home-calendar-column"><Calendar activeMonth={activeMonth} eventsByDate={eventsByDate} onMonthChange={changeMonth} onSelectDate={setSelectedDate} selectedDate={selectedDate} /><section className="home-selected-events" aria-live="polite"><h3>{selectedDate ? `Events on ${dayLabel(selectedDate)}` : 'Events for selected date'}</h3>{loading ? <p className="home-events-state" role="status">Loading events…</p> : error ? <p className="home-events-state" role="alert">{error}</p> : eventsForSelectedDate.length ? eventsForSelectedDate.map((event) => <EventRow event={event} displayDate={selectedDate} key={event.id || event.slug} />) : <p className="home-events-state">No scheduled events for this date.</p>}</section></div><section className="home-events-list" aria-live="polite"><div className="home-events-list-head"><h3>Upcoming events</h3></div>{loading ? <p className="home-events-state" role="status">Loading events…</p> : error ? <div className="list-state-card" role="alert"><strong>Events are temporarily unavailable</strong><p>{error}</p><button type="button" onClick={() => setRetry(value => value + 1)}>Try again</button></div> : upcomingEvents.length ? upcomingEvents.map(({ event, nextDate }) => <EventRow event={event} displayDate={nextDate} key={event.id || event.slug} />) : <div className="home-events-empty"><CalendarDays size={21} aria-hidden="true" /><div><strong>No upcoming events have been published yet.</strong><p>Please check back for future municipal activities and announcements.</p><Link to="/events">View all events <ArrowRight size={14} /></Link></div></div>}</section></div></div></section>
 }

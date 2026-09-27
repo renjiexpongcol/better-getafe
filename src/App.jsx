@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useState } from 'react'
-import { Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { ResidentPreferencesProvider } from './context/ResidentPreferencesContext'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import RelatedPages from './components/RelatedPages'
@@ -12,7 +13,10 @@ import MaintenancePage from './components/MaintenancePage'
 import CookieCacheBanner from './components/CookieCacheBanner'
 import BackToTop from './components/BackToTop'
 import { pageRoutes } from './routes'
-import { resolveModule } from './applicationModuleRegistry'
+import { AccessDeniedPage, ErrorBoundaryPreview, ErrorPage, ErrorStatusPreview, NotFoundPage, ResourceNotFoundPreview, RouteErrorBoundary } from './components/RouteStatusPages'
+import { getProtectedRouteState, LEGACY_REDIRECTS } from './routeConfig'
+import { legacyAdminTarget, legacyAppTarget, legacyStaffTarget, normalizePathname, ownedSearch, ROUTES, settingsCategoryKey } from './routeRegistry'
+import speechNarrationService from './services/speechNarrationService'
 
 // ============================================================
 // ScrollToTop: whenever the route changes, instantly jump back to
@@ -28,41 +32,9 @@ function ScrollToTop() {
 }
 
 // ============================================================
-// Routing is defined in src/routes.js, which auto-discovers every
-// file in src/pages/<category>/<Name>.jsx (via import.meta.glob)
-// and builds lazy-loaded routes from the folder structure.
-// Add a page by dropping a file into the right folder — no route
-// registration required here.
+// Route paths are built from the page manifest in src/routeConfig.js.
+// App adds the authentication boundaries, legacy aliases, and 404 states.
 // ============================================================
-
-// Legacy aliases -> new grouped routes.
-const redirects = [
-  ['/login', '/auth/login'],
-  ['/dashboard', '/app/dashboard'],
-  ['/dashboard/profile', '/app/profile'],
-  ['/dashboard/request-document', '/app/requests/new'],
-  ['/account', '/app/profile'],
-  ['/settings', '/app/settings'],
-  ['/app/settings', '/app?sysparm_object_id=profile'],
-  ['/app/profile', '/app?sysparm_object_id=profile'],
-  ['/app/dashboard', '/app?sysparm_object_id=dashboard'],
-  ['/app/requests', '/app?sysparm_object_id=requests'],
-  ['/app/appointments', '/app?sysparm_object_id=appointments'],
-  ['/app/documents', '/app?sysparm_object_id=documents'],
-  ['/app/notifications', '/app?sysparm_object_id=notifications'],
-  ['/app/services', '/app?sysparm_object_id=services'],
-  ['/app/payments', '/app?sysparm_object_id=payments'],
-  ['/app/help', '/app?sysparm_object_id=help'],
-  ['/app/staff-syparm', '/app/staff?sysparm_object_id=dashboard'],
-  ['/hotlines', '/services/hotlines'],
-  ['/news/article', '/news'],
-  ['/news/civil-registry', '/services/certificates'],
-  ['/news/pandanon-island', '/tourism/pandanon'],
-  ['/news/corte-paradise-resort', '/tourism/corte-paradise'],
-  ['/news/handumon-marine-sanctuary', '/tourism/handumon'],
-  ['/accessibility', '/info/accessibility'],
-]
-const legacyApplicationPaths = new Set(['/app/dashboard', '/app/requests', '/app/appointments', '/app/documents', '/app/notifications', '/app/services', '/app/payments', '/app/help'])
 
 function PageLoader() {
   return (
@@ -73,89 +45,105 @@ function PageLoader() {
 }
 
 function App() {
-  return <PublicConfigProvider><AuthProvider><AppContent /></AuthProvider></PublicConfigProvider>
+  return <PublicConfigProvider><AuthProvider><ResidentPreferencesProvider><AppContent /></ResidentPreferencesProvider></AuthProvider></PublicConfigProvider>
 }
 
 function RouteLayout({ children }) {
   const { pathname } = useLocation()
   const { user } = useAuth()
-  if ((pathname === '/app' || pathname.startsWith('/app/')) && pathname !== '/app/setup' && user?.setupRequired) return <Navigate to="/app/setup" replace />
-  return <Suspense fallback={<PageLoader />}>{children}</Suspense>
+  if ((pathname === '/app' || pathname.startsWith('/app/')) && pathname !== '/app/setup' && user?.role === 'resident' && user.setupRequired) return <Navigate to="/app/setup" replace />
+  return <RouteErrorBoundary resetKey={pathname}><Suspense fallback={<PageLoader />}>{children}</Suspense></RouteErrorBoundary>
 }
 
-function ProtectedRoute({ children, admin = false, citizen = false }) {
-  const { user, loading, sessionUnavailable, validateSession } = useAuth()
+function ProtectedRoute({ children, admin = false, citizen = false, staff = false }) {
+  const { user, sessionUnavailable, validateSession } = useAuth()
   const location = useLocation()
   const [checkedKey, setCheckedKey] = useState(null)
   useEffect(() => {
     let active = true
-    validateSession().then(() => { if (active) setCheckedKey(location.key) })
+    validateSession().finally(() => { if (active) setCheckedKey(location.key) })
     return () => { active = false }
   }, [location.key, validateSession])
-  // Only block the initial protected-page render. Revalidating the session on
-  // navigation should not replace the whole page with a flash of loader UI.
-  if (checkedKey === null) return <PageLoader />
+  if (checkedKey !== location.key) return <PageLoader />
   if (!user && sessionUnavailable) return <div className="page-loader" role="status" aria-live="polite">Restoring your secure session…</div>
-  if (!user) return <Navigate to={`/auth/login?returnUrl=${encodeURIComponent(location.pathname + location.search)}`} replace />
-  if (admin && !['admin', 'super_admin'].includes(user.role)) return <Navigate to={['staff', 'it_support', 'content_manager'].includes(user.role) ? '/app/staff?sysparm_object_id=dashboard' : '/'} replace />
-  if (citizen && user.role !== 'resident') return <Navigate to={['admin', 'super_admin'].includes(user.role) ? '/admin' : '/app/staff?sysparm_object_id=dashboard'} replace />
-  return children
-}
-
-function StaffRoute({ children }) {
-  const { user } = useAuth()
-  if (!['staff', 'it_support', 'content_manager'].includes(user?.role)) {
-    return <Navigate to={user?.role === 'admin' || user?.role === 'super_admin' ? '/admin' : '/'} replace />
+  const requiredRole = admin ? 'admin' : staff ? 'staff' : citizen ? 'citizen' : null
+  const access = getProtectedRouteState({ user, requiredRole })
+  if (access === 'unauthenticated') return <Navigate to={`/auth/login?returnUrl=${encodeURIComponent(location.pathname + location.search)}`} replace />
+  if (access === 'forbidden') {
+    const dashboardTo = ['admin', 'super_admin'].includes(user?.role)
+      ? '/admin'
+      : ['staff', 'it_support', 'content_manager'].includes(user?.role)
+        ? ROUTES.staff.root
+        : user?.role === 'resident'
+          ? ROUTES.app.root
+          : '/'
+    return <AccessDeniedPage dashboardTo={dashboardTo} />
   }
   return children
-}
-
-function ModuleNotFound() {
-  return <main className="page-not-found" role="alert"><h1>Module not found</h1><p>The requested application module is not available.</p></main>
-}
-
-function ModuleAccessDenied() {
-  return <main className="page-not-found" role="alert"><h1>Access restricted</h1><p>Your account does not have permission to open this module. Ask an administrator to review your group membership.</p></main>
 }
 
 function LegacyRedirect({ to }) {
   const location = useLocation()
   const target = new URL(to, window.location.origin)
-  const current = new URLSearchParams(location.search)
-  current.forEach((value, key) => { if (!target.searchParams.has(key)) target.searchParams.set(key, value) })
-  return <Navigate to={`${target.pathname}${target.search}`} replace />
+  return <Navigate to={`${target.pathname}${target.search || ownedSearch(target.pathname, location.search)}${target.hash || location.hash}`} replace />
 }
 
-function ApplicationModuleRoute({ shell }) {
-  const { user } = useAuth()
+function LegacyPatternRedirect({ build }) {
+  const params = useParams()
   const location = useLocation()
-  const [params] = useSearchParams()
-  const objectId = params.get('sysparm_object_id') || 'dashboard'
-  const module = resolveModule(shell, objectId)
-  if (!params.has('sysparm_object_id')) {
-    const next = new URLSearchParams(params)
-    next.set('sysparm_object_id', objectId)
-    return <Navigate to={`${location.pathname}?${next.toString()}`} replace />
+  const target = build(params)
+  return <Navigate to={`${target}${ownedSearch(target, location.search)}${location.hash}`} replace />
+}
+
+function CanonicalRoute({ scope, children }) {
+  const location = useLocation()
+  let legacyTarget = null
+  const legacyParams = new URLSearchParams(location.search)
+  if (scope === 'admin' && location.pathname === ROUTES.admin.root) {
+    legacyTarget = legacyAdminTarget(location.search)
+    if (!legacyTarget && (legacyParams.has('sysparm_object_id') || legacyParams.has('tab'))) legacyTarget = `/admin/${encodeURIComponent(legacyParams.get('sysparm_object_id') || legacyParams.get('tab') || 'invalid-module')}`
   }
-  if (!module) return <ModuleNotFound />
-  if (shell !== 'app' && Array.isArray(user?.permissions) && !user.permissions.includes(module.permission)) return <ModuleAccessDenied />
-  const routePath = objectId === 'requests' && params.get('sysparm_view') === 'new' ? '/app/requests/new' : params.get('sysparm_record_id') && objectId === 'requests' ? '/app/requests/:id' : module.legacyPath
-  const route = pageRoutes.find(item => item.path === routePath)
-  if (!route) return <ModuleNotFound />
-  const Component = route.Component
-  return <Component />
+  if (scope === 'app' && location.pathname === ROUTES.app.root) {
+    legacyTarget = legacyAppTarget(location.search)
+    if (!legacyTarget && legacyParams.has('sysparm_object_id')) legacyTarget = `/app/${encodeURIComponent(legacyParams.get('sysparm_object_id') || 'invalid-module')}`
+  }
+  if (scope === 'staff' && location.pathname === ROUTES.staff.root) {
+    legacyTarget = legacyStaffTarget(location.search)
+    if (!legacyTarget && legacyParams.has('sysparm_object_id')) legacyTarget = `/app/staff/${encodeURIComponent(legacyParams.get('sysparm_object_id') || 'invalid-module')}`
+  }
+  if (scope === 'admin' && location.pathname === ROUTES.admin.settings) {
+    const requested = new URLSearchParams(location.search).get('category')
+    const category = requested && (settingsCategoryKey(requested) || requested)
+    legacyTarget = ROUTES.admin.setting(category || 'general')
+  }
+  if (legacyTarget) return <Navigate to={legacyTarget} replace />
+  const canonicalSearch = ownedSearch(location.pathname, location.search)
+  if (canonicalSearch !== location.search) return <Navigate to={`${location.pathname}${canonicalSearch}`} replace />
+  return children
 }
 
 function AppContent() {
   const location = useLocation()
-  const navigate = useNavigate()
+  const normalizedPathname = normalizePathname(location.pathname)
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine)
+  const [browseOffline, setBrowseOffline] = useState(false)
   const isAuthPage = location.pathname.startsWith('/auth') || location.pathname.startsWith('/admin')
   const isCitizenDashboard = location.pathname === '/app' || location.pathname.startsWith('/app/')
   const settings = usePublicConfig()
   const { user, loading, sessionUnavailable } = useAuth()
   useEffect(() => {
-    if (!loading && !sessionUnavailable && isCitizenDashboard && !user) navigate('/auth/login', { replace: true })
-  }, [loading, sessionUnavailable, isCitizenDashboard, user, navigate])
+    speechNarrationService.stop()
+  }, [location.pathname])
+  useEffect(() => {
+    const onOnline = () => { setIsOnline(true); setBrowseOffline(false) }
+    const onOffline = () => { setIsOnline(false); setBrowseOffline(false) }
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
+    return () => {
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+    }
+  }, [])
   useEffect(() => {
     const root = document.getElementById('root')
     const hideProtectedPage = () => {
@@ -172,6 +160,7 @@ function AppContent() {
       window.removeEventListener('pageshow', restoreGuard)
     }
   }, [isCitizenDashboard, location.pathname])
+  if (normalizedPathname !== location.pathname) return <Navigate to={`${normalizedPathname}${location.search}${location.hash}`} replace />
   if (!settings.ready) return <div className="configuration-loader" aria-busy="true" />
   const maintenance = !isAuthPage && !loading && settings['maintenance.enabled'] === true && !(user && ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role))
 
@@ -183,23 +172,42 @@ function AppContent() {
         <PageTitleManager />
         {!isAuthPage && !isCitizenDashboard && <Header />}
         <RouteLayout>
-          <Routes>
-            <Route path="/app" element={<ProtectedRoute citizen><ApplicationModuleRoute shell="app" /></ProtectedRoute>} />
-            <Route path="/app/staff" element={<ProtectedRoute><StaffRoute><ApplicationModuleRoute shell="staff" /></StaffRoute></ProtectedRoute>} />
-            <Route path="/services/barangays/:id" element={<BarangayDetailRoute />} />
-            <Route path="/services/barangays/:id/official" element={<BarangayOfficialRoute />} />
-            <Route path="/info/officials/:id" element={<OfficialProfileRoute />} />
-            {pageRoutes.filter(({ path }) => path !== '/app/staff' && !legacyApplicationPaths.has(path)).map(({ path, Component }) => (
-              <Route key={path} path={path} element={path.startsWith('/app/staff-syparm') ? <ProtectedRoute><StaffRoute><Component /></StaffRoute></ProtectedRoute> : path.startsWith('/app/') || path.startsWith('/admin') ? <ProtectedRoute admin={path.startsWith('/admin')} citizen={path.startsWith('/app/')}><Component /></ProtectedRoute> : <Component />} />
+        {!isOnline && !browseOffline ? <ErrorPage code="offline" secondaryAction={{ label: 'Continue browsing', onClick: () => setBrowseOffline(true) }} /> : <Routes>
+            {import.meta.env.DEV && <Route path="/errors/resource/:type" element={<ResourceNotFoundPreview />} />}
+            {import.meta.env.DEV && <Route path="/errors/boundary" element={<ErrorBoundaryPreview />} />}
+            {import.meta.env.DEV && <Route path="/errors/:code" element={<ErrorStatusPreview />} />}
+            <Route path="/errors" element={<Navigate to="/" replace />} />
+            <Route path="/errors/*" element={<Navigate to="/" replace />} />
+            {(() => {
+              const Dashboard = pageRoutes.find(({ path }) => path === '/app/dashboard')?.Component
+              const Staff = pageRoutes.find(({ path }) => path === '/app/staff')?.Component
+              const Admin = pageRoutes.find(({ path }) => path === '/admin')?.Component
+              return <>
+                <Route path="/app" element={<ProtectedRoute citizen><CanonicalRoute scope="app">{Dashboard && <Dashboard />}</CanonicalRoute></ProtectedRoute>} />
+                <Route path="/app/staff" element={<ProtectedRoute staff><CanonicalRoute scope="staff">{Staff && <Staff />}</CanonicalRoute></ProtectedRoute>} />
+                <Route path="/app/staff/requests" element={<ProtectedRoute staff>{Staff && <Staff />}</ProtectedRoute>} />
+                <Route path="/app/staff/requests/:id" element={<ProtectedRoute staff>{Staff && <Staff />}</ProtectedRoute>} />
+                <Route path="/app/staff/notifications" element={<ProtectedRoute staff>{Staff && <Staff />}</ProtectedRoute>} />
+                <Route path="/app/staff/settings" element={<ProtectedRoute staff>{Staff && <Staff />}</ProtectedRoute>} />
+                <Route path="/app/staff/help" element={<ProtectedRoute staff>{Staff && <Staff />}</ProtectedRoute>} />
+                <Route path="/admin/*" element={<ProtectedRoute admin><CanonicalRoute scope="admin">{Admin && <Admin />}</CanonicalRoute></ProtectedRoute>} />
+              </>
+            })()}
+            {pageRoutes.filter(({ path }) => !['/admin', '/app/dashboard', '/app/staff'].includes(path)).map(({ path, Component }) => (
+              <Route key={path} path={path} element={path.startsWith('/app/') ? <ProtectedRoute citizen><CanonicalRoute scope="app"><Component /></CanonicalRoute></ProtectedRoute> : <Component />} />
             ))}
-            {redirects.map(([from, to]) => (
+            {LEGACY_REDIRECTS.map(([from, to]) => (
               <Route key={from} path={from} element={<LegacyRedirect to={to} />} />
             ))}
-            <Route path="/app/staff-syparm/*" element={<Navigate to="/app/staff?sysparm_object_id=dashboard" replace />} />
-            <Route path="/app/*" element={<ProtectedRoute citizen><Navigate to="/app?sysparm_object_id=dashboard" replace /></ProtectedRoute>} />
-            <Route path="/admin/*" element={<ProtectedRoute admin><Navigate to="/admin" replace /></ProtectedRoute>} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+            <Route path="/info/officials/:id" element={<LegacyPatternRedirect build={({ id }) => `/officials/${encodeURIComponent(id)}`} />} />
+            <Route path="/services/barangays/:id" element={<LegacyPatternRedirect build={({ id }) => `/barangays/${encodeURIComponent(id)}`} />} />
+            <Route path="/services/barangays/:id/official" element={<LegacyPatternRedirect build={({ id }) => `/barangays/${encodeURIComponent(id)}/official`} />} />
+            <Route path="/services/barangays/:id/officials" element={<LegacyPatternRedirect build={({ id }) => `/barangays/${encodeURIComponent(id)}/officials`} />} />
+            <Route path="/services/barangays/:id/officials/:officialSlug" element={<LegacyPatternRedirect build={({ id, officialSlug }) => `/barangays/${encodeURIComponent(id)}/officials/${encodeURIComponent(officialSlug)}`} />} />
+            <Route path="/app/staff/*" element={<ProtectedRoute staff><NotFoundPage /></ProtectedRoute>} />
+            <Route path="/app/*" element={<ProtectedRoute citizen><NotFoundPage /></ProtectedRoute>} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>}
         </RouteLayout>
         {!isAuthPage && !isCitizenDashboard && <RelatedPages />}
         {!isAuthPage && !isCitizenDashboard && <BackToTop />}
@@ -208,21 +216,6 @@ function AppContent() {
         {!loading && !user && location.pathname === '/' && <CookieCacheBanner />}
       </div>
   )
-}
-
-function OfficialProfileRoute() {
-  const OfficialProfile = pageRoutes.find((route) => route.path === '/info/official-profile')?.Component
-  return OfficialProfile ? <OfficialProfile /> : null
-}
-
-function BarangayDetailRoute() {
-  const BarangayDetail = pageRoutes.find((route) => route.name === 'BarangayDetail')?.Component
-  return BarangayDetail ? <BarangayDetail /> : null
-}
-
-function BarangayOfficialRoute() {
-  const BarangayOfficial = pageRoutes.find((route) => route.name === 'BarangayOfficial')?.Component
-  return BarangayOfficial ? <BarangayOfficial /> : null
 }
 
 export default App

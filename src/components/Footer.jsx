@@ -4,19 +4,31 @@ import {
   FaFacebookF, FaGithub, FaInstagram, FaYoutube, FaXTwitter, FaRss,
 } from 'react-icons/fa6';
 
+const safeExternalUrl = (value) => {
+  const candidate = String(value || '').trim().replace(/^(?:"|')|(?:"|')$/g, '');
+  if (!candidate) return '';
+  try {
+    const url = new URL(candidate);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+  } catch {
+    return '';
+  }
+};
+
 const EXPLORE_LINKS = [
   { name: 'About Us', url: '/info/about' },
-  { name: 'Municipal Officials', url: '/info/officials' },
+  { name: 'Municipal Officials', url: '/officials' },
   { name: 'History & Hymn', url: '/info/history' },
-  { name: 'Barangays of Getafe', url: '/services/barangays' },
+  { name: 'Barangays of Getafe', url: '/barangays' },
   { name: 'Municipal Services', url: '/services' },
   { name: 'Services & Departments', url: '/services/directory' },
   { name: 'Emergency Hotlines', url: '/services/hotlines' },
   { name: 'News & Updates', url: '/news' },
   { name: 'Weather Updates', url: '/weather' },
-  { name: 'Discover Getafe', url: '/tourism' },
+  { name: 'Tourism guides', url: '/tourism' },
+  { name: 'Discover Getafe', url: '/discover' },
   { name: 'Gallery of Events', url: '/events' },
-  { name: 'Accessibility', url: '/info/accessibility' },
+  { name: 'Accessibility', url: '/accessibility' },
   { name: 'Sitemap', url: '/info/sitemap' },
   { name: 'Open Data & Statistics', url: '/data' },
 ];
@@ -42,27 +54,27 @@ const JUDICIARY_LINKS = [
 const SOCIAL_LINKS = [
   {
     name: 'Facebook',
-    url: import.meta.env.VITE_GETAFE_FACEBOOK_URL || 'https://web.facebook.com/profile.php?id=61577786097184&locale=en_US',
+    url: safeExternalUrl(import.meta.env.VITE_GETAFE_FACEBOOK_URL || 'https://web.facebook.com/profile.php?id=61577786097184&locale=en_US'),
     icon: FaFacebookF,
   },
   {
     name: 'Instagram',
-    url: import.meta.env.VITE_GETAFE_INSTAGRAM_URL || '',
+    url: safeExternalUrl(import.meta.env.VITE_GETAFE_INSTAGRAM_URL),
     icon: FaInstagram,
   },
   {
     name: 'YouTube',
-    url: import.meta.env.VITE_GETAFE_YOUTUBE_URL || '',
+    url: safeExternalUrl(import.meta.env.VITE_GETAFE_YOUTUBE_URL),
     icon: FaYoutube,
   },
   {
     name: 'X',
-    url: import.meta.env.VITE_GETAFE_X_URL || '',
+    url: safeExternalUrl(import.meta.env.VITE_GETAFE_X_URL),
     icon: FaXTwitter,
   },
   {
     name: 'GitHub',
-    url: import.meta.env.VITE_GETAFE_GITHUB_URL || '',
+    url: safeExternalUrl(import.meta.env.VITE_GETAFE_GITHUB_URL),
     icon: FaGithub,
   },
   {
@@ -81,7 +93,7 @@ export default function Footer() {
   const settings = usePublicConfig();
   return (
     <footer className="site-footer" style={{ borderTop: '4px solid #3b82f6' }}>
-      <div className="container footer-grid" style={{ paddingTop: '4rem', paddingBottom: '3rem' }}>
+      <div className="container footer-grid" style={{ paddingTop: '1.5rem', paddingBottom: '3rem' }}>
 
         {/* Column 1: Municipality Branding */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
@@ -122,7 +134,7 @@ export default function Footer() {
 
           <div style={{ marginTop: '0.5rem' }}>
             <div style={{ color: '#9ca3af', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.6rem', fontWeight: '600' }}>Government Partners</div>
-            <div style={{ display: 'flex', gap: '0.9rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.9rem', alignItems: 'center', flexWrap: 'wrap' }}>
               {/* FOI image has ~26% internal padding, so render it larger so its visible glyph matches the seals */}
               <img src="/assets/FOI-logo.png" alt="FOI Logo" style={{ height: '53px', width: '53px', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
               <img src="/assets/transparency-seal.png" alt="Transparency Seal" style={{ height: '40px', width: '40px', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
@@ -170,20 +182,10 @@ export default function Footer() {
       </div>
 
       {/* Footer Bottom Bar */}
-      <div className="container footer-bottom" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', padding: '1.5rem 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#9ca3af', fontSize: '0.875rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <div className="container footer-bottom" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', padding: '1.5rem 20px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#9ca3af', fontSize: '0.875rem', flexWrap: 'wrap', gap: '1rem', textAlign: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center' }}>
           <span>© {new Date().getFullYear()} Municipality of Getafe, Bohol. All Rights Reserved.</span>
-          <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>Official Government Website</span>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', alignItems: 'flex-end' }}>
-          <div className="footer-credit">This page was created by Renjie Pongcol, inspired by BetterGov.</div>
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <Link to="/legal/privacy" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = '#fff'} onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}>Privacy Policy</Link>
-          <span style={{ opacity: 0.5 }}>·</span>
-          <Link to="/legal/terms" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = '#fff'} onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}>Terms of Use</Link>
-          <span style={{ opacity: 0.5 }}>·</span>
-          <Link to="/info/accessibility" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = '#fff'} onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}>Accessibility</Link>
-          </div>
+          <span style={{ fontSize: '0.8rem', opacity: 0.8, fontStyle: 'italic', fontFamily: 'cursive' }}>All content is in the public domain unless otherwise stated.</span>
         </div>
       </div>
     </footer>

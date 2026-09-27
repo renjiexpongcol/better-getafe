@@ -23,5 +23,16 @@ export function sanitizeOfficials(value) {
 
 export function sanitizeBarangays(value) {
   if (!Array.isArray(value)) return value
-  return value.map(item => ({ ...item, details: sanitizeRichText(item?.details), captainDetails: sanitizeRichText(item?.captainDetails) }))
+  return value.map(item => {
+    const { cover_image_preview: _preview, details: legacyDetails, ...record } = item || {}
+    const coverImage = typeof record.cover_image === 'string' ? record.cover_image.trim() : ''
+    const safeCoverImage = /^(?:https?:\/\/[^"'<>\s]+|\/(?!\/)[^"'<>\s]*|media\/[a-zA-Z0-9_\/-]+\.(?:jpg|png|webp))$/i.test(coverImage) ? coverImage : ''
+    return {
+      ...record,
+      more_information: sanitizeRichText(record.more_information ?? legacyDetails),
+      cover_image: safeCoverImage,
+      cover_image_alt: typeof record.cover_image_alt === 'string' ? record.cover_image_alt.trim().slice(0, 255) : '',
+      captainDetails: sanitizeRichText(record.captainDetails),
+    }
+  })
 }

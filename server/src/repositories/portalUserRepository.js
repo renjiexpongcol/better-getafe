@@ -1,10 +1,11 @@
 import { getPortalPool } from '../services/cloudSql.js';
-import { getLocalDb, saveLocalDb, isPortalGcp, id, now, hash } from './postgresCompatibility.js';
+import { getLocalDb, saveLocalDb, isPortalGcp, id, now } from './postgresCompatibility.js';
+import { hashPassword } from '../services/passwordHashing.js';
 
 export async function getPortalUserByEmail(email) {
   if (isPortalGcp()) {
     try { const pool = await getPortalPool(); const [rows] = await pool.execute(
-      "SELECT id, name, email, password, role, mfa_enabled, mfa_secret_encrypted, mfa_recovery_codes, mfa_verified_at, created_at, updated_at FROM portal_users WHERE email = ?",
+      "SELECT id, name, email, password, role, mfa_enabled, mfa_secret_encrypted, mfa_recovery_codes, mfa_verified_at, email_verified_at, created_at, updated_at FROM portal_users WHERE email = ?",
       [String(email).trim().toLowerCase()]
     );
     return rows[0] || null;
@@ -20,7 +21,7 @@ export async function getPortalUserById(userId) {
   if (isPortalGcp()) {
     const pool = await getPortalPool();
     const [rows] = await pool.execute(
-      "SELECT id, name, email, password, role, mfa_enabled, mfa_secret_encrypted, mfa_recovery_codes, mfa_verified_at, created_at, updated_at FROM portal_users WHERE id = ?",
+      "SELECT id, name, email, password, role, mfa_enabled, mfa_secret_encrypted, mfa_recovery_codes, mfa_verified_at, email_verified_at, created_at, updated_at FROM portal_users WHERE id = ?",
       [userId]
     );
     return rows[0] || null;
@@ -77,12 +78,12 @@ export async function consumePortalRecoveryCode(userId, code, matches) {
 export async function createPortalUser(name, email, password) {
   const created = now();
   const user = { 
-    id: id(), 
-    name, 
-    email: String(email).toLowerCase(), 
-    password: hash(password), 
-    role: "resident", 
-    created_at: created, 
+    id: id(),
+    name,
+    email: String(email).toLowerCase(),
+    password: await hashPassword(password),
+    role: "resident",
+    created_at: created,
     updated_at: created 
   };
 
@@ -106,7 +107,4 @@ export async function createPortalUser(name, email, password) {
   await saveLocalDb(db);
   return user;
 }
-
-
-
 

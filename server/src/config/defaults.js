@@ -13,6 +13,8 @@ export const definitions = {
   'general.dateFormat': choice('Date format', '', 'medium', ['short', 'medium', 'long']),
   'general.language': text('Default language', '', 'en'),
   'general.supportEmail': text('Support email', '', '', { format: 'email' }),
+  'general.facebookUrl': text('Facebook page URL', 'VITE_GETAFE_FACEBOOK_URL', 'https://www.facebook.com/profile.php?id=61577786097184&locale=en_US', { format: 'url' }),
+  'general.facebookEmbedMode': choice('Facebook display mode', '', 'embed', ['embed', 'fallback']),
   'general.logo': text('Logo URL', '', '', { format: 'url' }),
   'general.favicon': text('Favicon URL', '', '', { format: 'url' }),
   'general.communityBannerEnabled': bool('Community banner', '', true),
@@ -29,25 +31,25 @@ export const definitions = {
   'storage.endpoint': text('Backblaze endpoint', 'B2_ENDPOINT'),
   'storage.keyId': secret('Backblaze key ID', 'B2_KEY_ID'),
   'storage.applicationKey': secret('Backblaze application key', 'B2_APPLICATION_KEY'),
-  'storage.region': text('Bucket region (validated against existing bucket)', '', ''),
+  'storage.region': text('Bucket region', 'B2_REGION', ''),
   'storage.signedUrlMinutes': number('Signed URL lifetime (minutes)', '', 15, 1, 10080),
   'storage.maxUploadMb': number('Maximum upload (MB)', '', 5, 1, 500),
   'storage.allowedTypes': text('Allowed image MIME types (comma separated)', '', 'image/jpeg,image/png,image/webp'),
   'storage.visibility': choice('Storage visibility', '', 'private', ['private', 'public']),
   'storage.prefix': text('Storage folder', '', 'media'),
-  'storage.publicBaseUrl': text('Public storage URL', 'B2_PUBLIC_BASE_URL|GCS_PUBLIC_BASE_URL', '', { format: 'url' }),
+  'storage.publicBaseUrl': text('Public storage URL', 'STORAGE_PUBLIC_BASE_URL|B2_PUBLIC_BASE_URL|GCS_PUBLIC_BASE_URL', '', { format: 'url' }),
   'email.enabled': bool('Enable SMTP', 'SMTP_ENABLED'),
   'email.smtpHost': text('SMTP host', 'SMTP_HOST'),
   'email.smtpPort': number('SMTP port', 'SMTP_PORT', 587, 1, 65535),
   'email.username': text('SMTP username', 'SMTP_USER'),
   'email.password': secret('SMTP password', 'SMTP_PASSWORD|SMTP_PASS'),
   'email.security': choice('SMTP security', 'SMTP_SECURITY', 'starttls', ['starttls', 'tls', 'none']),
-  'email.senderName': text('Sender name', 'SMTP_FROM_NAME', 'Getafe Portal'),
+  'email.senderName': text('Sender name', 'SMTP_FROM_NAME', 'Getafe Citizen Portal'),
   'email.senderEmail': text('Sender email', 'SMTP_FROM', '', { format: 'email' }),
   'email.replyTo': text('Reply-to email', 'SMTP_REPLY_TO', '', { format: 'email' }),
   'authentication.sessionMinutes': number('Session timeout (minutes)', '', 720, 5, 43200),
   'authentication.rememberDays': number('Remembered session (days)', '', 30, 1, 90),
-  'authentication.passwordMinLength': number('Minimum password length', '', 8, 8, 128),
+  'authentication.passwordMinLength': number('Minimum password length', '', 12, 8, 128),
   'authentication.passwordExpiryDays': number('Password expiration (days; 0 disables)', '', 0, 0, 365),
   'authentication.failedLoginLimit': number('Failed login limit', '', 5, 1, 100),
   'authentication.lockoutMinutes': number('Lockout duration (minutes)', '', 15, 1, 1440),
@@ -55,6 +57,7 @@ export const definitions = {
   'authentication.requireEmailVerification': bool('Require email verification', ''),
   'authentication.mfaEnabled': bool('Require email sign-in code', ''),
   'security.registrationCaptcha': bool('Enable reCAPTCHA protection', '', false),
+  'security.contactCaptcha': bool('Enable contact-form reCAPTCHA protection', '', false),
   'security.recaptchaProvider': choice('reCAPTCHA provider', '', 'google', ['google']),
   'security.recaptchaSiteKey': text('reCAPTCHA site key', '', '', { description: 'Public site key from the reCAPTCHA admin console.' }),
   'security.recaptchaSecretKey': secret('reCAPTCHA secret key', ''),
@@ -123,6 +126,7 @@ export function validate(values) {
     const d = definitions[key];
     if (!d) throw new Error(`Unknown setting: ${key}`);
     if (value === null) continue;
+    if (d.secret && value === '********') throw new Error(`${d.label} cannot use a masked placeholder`);
     if (typeof value !== d.type || (d.type === 'string' && (value.length > (d.secret ? 16384 : d.multiline ? 50000 : 2000) || /[\x00\r\n]/.test(value) && !d.multiline)) || (d.type === 'number' && (!Number.isInteger(value) || value < d.min || value > d.max))) throw new Error(`Invalid value for ${d.label}`);
     if (d.required && !value.trim()) throw new Error(`${d.label} is required`);
     if (d.options && !d.options.includes(value)) throw new Error(`Invalid ${d.label}`);

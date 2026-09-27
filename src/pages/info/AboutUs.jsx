@@ -352,7 +352,7 @@ export default function AboutUs() {
                   return (
                     <tr key={b.name}>
                       <td className="getafe-brgy-name">
-                        <Link to={`/services/barangays?brgy=${brgyId(b.name)}`} className="getafe-brgy-link">
+                        <Link to={`/barangays?brgy=${brgyId(b.name)}`} className="getafe-brgy-link">
                           {b.name}
                         </Link>
                       </td>

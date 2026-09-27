@@ -1,8 +1,6 @@
 import { statisticsService, StatisticsError, validateQuery } from './statisticsService.js';
 
-const rate = new Map();
-function allowed(req, limit) { const key = req.ip || 'anonymous'; const now = Date.now(); const record = rate.get(key) || { at: now, count: 0 }; if (now - record.at > 60_000) { record.at = now; record.count = 0; } record.count += 1; rate.set(key, record); return record.count <= limit; }
-function route(handler, limit = 80) { return async (req, res) => { if (!allowed(req, limit)) return res.status(429).json({ error: 'Too many public-data requests. Please try again shortly.' }); try { const result = await handler(req); res.set('Cache-Control', 'private, max-age=300').json(result); } catch (error) { const known = error instanceof StatisticsError; console.warn(JSON.stringify({ event: 'statistics.error', category: error.code || 'UNKNOWN', status: error.status || 500 })); res.status(known ? error.status : 500).json({ error: known ? error.message : 'The public data service is temporarily unavailable.', code: known ? error.code : 'INTERNAL_ERROR' }); } }; }
+function route(handler) { return async (req, res) => { try { const result = await handler(req); res.set('Cache-Control', 'private, max-age=300').json(result); } catch (error) { const known = error instanceof StatisticsError; console.warn(JSON.stringify({ event: 'statistics.error', category: error.code || 'UNKNOWN', status: error.status || 500 })); res.status(known ? error.status : 500).json({ error: known ? error.message : 'The public data service is temporarily unavailable.', code: known ? error.code : 'INTERNAL_ERROR' }); } }; }
 function catalogueQuery(query) {
   const value = {};
   if (query.q !== undefined) value.q = String(query.q).slice(0, 160);
@@ -36,6 +34,6 @@ export function installPublicDataRoutes(app) {
   app.get('/api/public-data/datasets', route(req => statisticsService.datasets(catalogueQuery(req.query))));
   app.get('/api/public-data/datasets/:id', route(req => statisticsService.dataset(req.params.id)));
   app.get('/api/public-data/datasets/:id/values', route(req => statisticsService.values(req.params.id, catalogueQuery(req.query))));
-  app.post('/api/public-data/datasets/:id/query', route(req => statisticsService.query(req.params.id, validateQuery(req.body)), 20));
+  app.post('/api/public-data/datasets/:id/query', route(req => statisticsService.query(req.params.id, validateQuery(req.body))));
   app.get('/api/public-data/classification', route(req => statisticsService.classification(catalogueQuery(req.query))));
 }

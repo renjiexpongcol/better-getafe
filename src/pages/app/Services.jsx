@@ -7,6 +7,7 @@ import { citizenServices, serviceCategories } from '../../data/citizenServices'
 import { useAuth } from '../../context/AuthContext'
 import { useCitizen } from '../../context/CitizenContext'
 import { citizenApi } from '../../services/citizenData'
+import { ROUTES } from '../../routeRegistry'
 
 export default function Services() {
   const [params] = useSearchParams()
@@ -46,7 +47,7 @@ export default function Services() {
       })
       setRequestingService(null)
       setPurpose('')
-      navigate(`/app?sysparm_object_id=requests&sysparm_record_id=${encodeURIComponent(result.id)}&submitted=1`)
+      navigate(`${ROUTES.app.request(result.id)}?submitted=1`)
     } catch (requestError) {
       setError(requestError.message)
       setBusy(false)
@@ -56,14 +57,14 @@ export default function Services() {
   return <AppPage title="Browse municipal services">
     <ServiceSearch autoFocus={params.has('search')}/>
     <nav className="portal-filters" aria-label="Service categories">
-      <Link className={!category ? 'active' : ''} to="/app?sysparm_object_id=services">All services</Link>
-      {serviceCategories.map(item => <Link className={category === item.id ? 'active' : ''} key={item.id} to={`/app?sysparm_object_id=services&category=${item.id}`}>{item.name}</Link>)}
+      <Link className={!category ? 'active' : ''} to={ROUTES.app.services}>All services</Link>
+      {serviceCategories.map(item => <Link className={category === item.id ? 'active' : ''} key={item.id} to={`${ROUTES.app.services}?category=${encodeURIComponent(item.id)}`}>{item.name}</Link>)}
     </nav>
     <p className="portal-muted">Select a service to view details and start a request. The responsible office will review your information and advise you of requirements and fees.</p>
     <div className="citizen-service-grid">
       {services.map(service => <button type="button" className="citizen-service" key={service.id} onClick={() => setSelectedService(service)}><span><FileText size={20}/></span><strong>{service.name}</strong><p>{serviceCategories.find(item => item.id === service.category)?.description}</p><small>View service details<ArrowRight size={16}/></small></button>)}
     </div>
-    {!services.length && <Empty title="No services in this category" href="/app?sysparm_object_id=services" action="View all services"/>}
+    {!services.length && <Empty title="No services in this category" href={ROUTES.app.services} action="View all services"/>}
     {selectedService && <div className="portal-action-backdrop service-detail-backdrop" role="presentation" onMouseDown={event => event.target === event.currentTarget && setSelectedService(null)}>
       <section className="portal-action-modal service-detail-modal" role="dialog" aria-modal="true" aria-labelledby="service-detail-title">
         <button type="button" className="portal-action-close" aria-label="Close service details" onClick={() => setSelectedService(null)}><X size={18}/></button>

@@ -18,4 +18,4 @@ https://getafe.gov.ph/api/auth/google/callback
 https://getafe.supra-intra.org/api/auth/google/callback
 ```
 
-Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` in the deployment environment or Admin Settings. The redirect URI must exactly match the origin and path registered in Google Cloud Console. For production, use the production HTTPS URI; keep the localhost URI only for local development.
+Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` in the deployment environment or Admin Settings. Do not wrap the redirect URI in quotes: use `https://getafe.gov.ph/api/auth/google/callback`, not `"https://getafe.gov.ph/api/auth/google/callback"`. The redirect URI must exactly match the origin and path registered in Google Cloud Console. For production, use the production HTTPS URI; keep the localhost URI only for local development.

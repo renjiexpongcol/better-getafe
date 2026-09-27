@@ -1,16 +1,27 @@
 services:
   redis:
     image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
     restart: unless-stopped
     volumes:
       - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      default:
+        aliases: [getafe-redis]
   app:
     build: .
     ports: ["8080:8080"]
     environment:
       NODE_ENV: production
-      RATE_LIMIT_REDIS_URL: redis://redis:6379
-    depends_on: [redis]
+      REDIS_ENABLED: "true"
+      REDIS_URL: redis://getafe-redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
 volumes:
   redis-data:

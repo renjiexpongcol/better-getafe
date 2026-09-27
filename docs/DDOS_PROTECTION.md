@@ -15,7 +15,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  I[Resolve identity: API key, user, trusted IP] --> C[Choose route policy]
+  I[Resolve identity: verified API principal, user, trusted IP] --> C[Choose route policy]
   C --> T[Token bucket]
   T -->|token| N[Concurrency guard then route]
   T -->|short deficit| Q{Queue capacity and healthy?}
@@ -24,27 +24,31 @@ flowchart TD
   T -->|sustained excess| R
 ```
 
-The application now uses token buckets with burst capacity, a strictly bounded short-delay tier, per-client route concurrency, strike-based recovery, and a final 429 rejection tier before JSON parsing or database work. With `RATE_LIMIT_REDIS_URL`, a Lua operation updates the token balance and strike count atomically across instances. If Redis is unavailable, the service deliberately falls back to a local limiter with half burst capacity: availability continues, but global enforcement is weaker until Redis recovers.
+The application uses token buckets with burst capacity, a strictly bounded short-delay tier, per-client route concurrency, strike-based recovery, and a final 429 rejection tier before JSON parsing or database work. With `REDIS_ENABLED=true` and `REDIS_URL`, one shared Redis client runs the Lua operation that updates token balance and strike count atomically across instances. If Redis is unavailable, the service deliberately falls back to a bounded local emergency limiter and logs `source: "local-fallback"`; it never becomes unlimited and automatically returns to Redis after reconnecting.
 
-Identity is API-key hash, then authenticated-user hash, then client-IP hash. Forwarding headers are accepted only if the immediate socket peer is in `RATE_LIMIT_TRUSTED_PROXY_CIDRS`; otherwise they are ignored. Do not add public or broad ranges to this setting.
+Identity is a server-validated service principal, authenticated-user hash, verified API-client principal, then client-IP hash. A raw caller-supplied header never creates an internal identity. Optional backend services use INTERNAL_SERVICE_ID, INTERNAL_SERVICE_SECRET, and a short-lived HMAC signature over the timestamp, method, and request path; authentication and expensive endpoint policies still apply to those requests. Forwarding headers are accepted only if the immediate socket peer is in RATE_LIMIT_TRUSTED_PROXY_CIDRS. Local/direct requests use the socket address and ignore forwarded headers. Do not add public or broad ranges to the explicit CIDR setting.
+
+Traffic is classified before the limiter consumes a bucket: anonymous public reads use route-grouped public buckets, signed-in residents use the generous authenticated policy, CMS staff use admin_staff, login and verification flows use strict auth/OTP policies, and expensive public operations retain endpoint-specific protection. Public groups such as officials, barangays, news, events, and weather do not share one tiny /api/* bucket. Verified service calls bypass only normal request limiting and remain subject to route authorization.
+
+Authenticated `GET /api/media` requests use the dedicated `media_read` policy (`RATE_LIMIT_MEDIA_READ_PER_MINUTE`, `RATE_LIMIT_MEDIA_READ_BURST`, and `RATE_LIMIT_MEDIA_READ_MAX_DELAY_MS`). Upload and deletion routes remain on the stricter upload/write policy; the read policy does not disable or bypass Redis protection.
 
 ## Required production controls
 
-1. Put the public hostname behind **Cloudflare proxying** (orange-cloud DNS), enable its managed DDoS protection and bot protection, and keep the Cloud Run URL out of public links.
-2. Make Cloud Run ingress **internal-and-cloud-load-balancing** and expose it only through an external HTTPS load balancer. This prevents attackers from bypassing Cloudflare and hitting the `run.app` origin directly. Restrict the load balancer/origin path to the expected proxy where your network design permits it.
+1. Put the public hostname behind **Cloudflare proxying** (orange-cloud DNS), enable its managed DDoS protection and bot protection, and keep the application origin out of public links.
+2. Restrict the application origin to the approved reverse proxy or load balancer. This prevents attackers from bypassing Cloudflare and reaching the origin directly.
 3. At Cloudflare, cache static assets and public GET responses where appropriate. Add WAF rate-limit rules for `/api/auth/*` and `/api/portal-auth/*` (for example, challenge above 10 requests per 15 minutes per IP) and a broader rule for `/api/*`. Exempt health probes only when their source is trusted.
-4. Set a bounded Cloud Run maximum instance count that your Cloud SQL connection limits can sustain. Alert on 429 spikes, request count, latency, instance count, and Cloud SQL connection saturation.
+4. Set a bounded application instance count that your database connection limits can sustain. Alert on 429 spikes, request count, latency, instance count, and database connection saturation.
 
 ## Application controls
 
-The values in `.env.example` are development examples, not universal production limits. Tune by route and observed traffic. Public, normal API, high-security auth, and intensive upload/report endpoints each have independent sustained rate, burst, delay, and concurrency policies. The frontend retries only GET/HEAD 429s, at most twice, using `Retry-After` plus jitter; it never automatically repeats writes.
+The values in .env.example are development examples, not universal production limits. Tune by route and observed traffic. Public, authenticated, admin/staff, expensive, authentication, OTP, contact, upload, and admin-sensitive endpoints each have independent rate, burst, delay, and concurrency policies. Public officials, barangays, news, event, category, and notification reads use Redis-backed stale-while-revalidate caches with invalidation after CMS writes. The browser shares in-flight public requests and retries only read-only 429 responses with a capped, jittered backoff that honors Retry-After; writes are never automatically replayed.
 
-The service returns `429 Too Many Requests`, `Retry-After`, and standard `RateLimit-*` headers when a limit is exceeded. Health endpoints are excluded so Cloud Run does not restart healthy instances during a traffic event.
+The service returns `429 Too Many Requests`, `Retry-After`, and standard `RateLimit-*` headers when a limit is exceeded. Health endpoints are excluded so the hosting platform does not restart healthy instances during a traffic event.
 
 ## Incident response
 
 1. Turn on Cloudflare Under Attack mode or a managed challenge for the affected path.
 2. Tighten the edge WAF rule temporarily; do not rely on an application redeploy during an active volumetric attack.
-3. Inspect Cloudflare and Cloud Run logs for the targeted paths, countries/ASNs, response status, and origin-bypass attempts.
+3. Inspect the reverse proxy and application logs for the targeted paths, countries/ASNs, response status, and origin-bypass attempts.
 4. If the database is under pressure, enable the portal maintenance setting while keeping trusted administrators and health checks available.
 5. After the event, remove temporary broad blocks, retain precise rules, and adjust the application limits only with observed traffic data.
