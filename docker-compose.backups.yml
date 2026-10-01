@@ -1,0 +1,23 @@
+services:
+  backups:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: ${BACKUP_DB_HOST:-host.docker.internal}
+      PGPORT: ${DB_PORT:-5432}
+      PGDATABASE: ${DB_NAME:-getafe_portal}
+      PGUSER: ${DB_USER:-getafe_app}
+      PGPASSWORD: ${DB_PASSWORD:-getafe_local_dev_password}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+    entrypoint: ["sh", "/scripts/eservices-backup.sh"]
+    volumes:
+      - ./scripts/eservices-backup.sh:/scripts/eservices-backup.sh:ro
+      - getafe-backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /backups/last-success && test $$(find /backups/last-success -mmin -1500 | wc -l) -gt 0"]
+      interval: 5m
+      timeout: 10s
+      retries: 2
+volumes:
+  getafe-backups:

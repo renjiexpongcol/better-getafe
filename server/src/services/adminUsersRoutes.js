@@ -29,10 +29,9 @@ export function validateAccountChange(actor, target, values) {
 export function installAdminUsersRoutes(app, admin) {
   app.use('/api/admin/users', admin, async (req, res, next) => {
     if (!['GET', 'HEAD'].includes(req.method)) {
-      const allowed = new Set([`${req.protocol}://${req.get('host')}`]);
-      if (config.get('general.url')) allowed.add(new URL(config.get('general.url')).origin);
+      const allowed = new Set([config.get('general.url'), process.env.PUBLIC_SITE_URL, ...(process.env.API_CORS_ORIGINS || '').split(',')].map(value => { try { return value ? new URL(value).origin : '' } catch { return '' } }).filter(Boolean));
       if (process.env.NODE_ENV !== 'production') allowed.add('http://localhost:5173');
-      if ((req.get('origin') && !allowed.has(req.get('origin'))) || req.get('sec-fetch-site') === 'cross-site') return res.status(403).json({ error: 'Cross-origin account changes are not allowed.' });
+      if (req.get('origin') && !allowed.has(req.get('origin'))) return res.status(403).json({ error: 'Cross-origin account changes are not allowed.' });
       if (!req.is('application/json')) return res.status(415).json({ error: 'Use application/json.' });
     }
     try { await requireAccess(req.admin, ['GET', 'HEAD'].includes(req.method) ? 'users.view' : 'users.manage'); }

@@ -54,7 +54,7 @@ export async function consumePortalRecoveryCode(userId, code, matches) {
     try {
       await connection.beginTransaction();
       const [[user]] = await connection.execute('SELECT mfa_recovery_codes FROM portal_users WHERE id=? FOR UPDATE', [userId]);
-      const hashes = JSON.parse(user?.mfa_recovery_codes || '[]');
+      const hashes = Array.isArray(user?.mfa_recovery_codes) ? [...user.mfa_recovery_codes] : JSON.parse(user?.mfa_recovery_codes || '[]');
       const index = hashes.findIndex(hashValue => matches(code, hashValue));
       if (index < 0) { await connection.rollback(); return false; }
       hashes.splice(index, 1);
@@ -107,4 +107,3 @@ export async function createPortalUser(name, email, password) {
   await saveLocalDb(db);
   return user;
 }
-

@@ -1,27 +1,12 @@
 import { createPortal } from "react-dom";
 import { Component, forwardRef, useCallback, useEffect, useRef, useState } from "react";
-import {
-  Bell,
-  ChevronRight,
-  CircleHelp,
-  Database,
-  Download,
-  ExternalLink,
-  Globe2,
-  LockKeyhole,
-  Palette,
-  ShieldCheck,
-  Smartphone,
-  UserRound,
-  X,
-} from "lucide-react";
+import { Bell, ChevronRight, CircleHelp, Download, ExternalLink, Globe2, LockKeyhole, Palette, ShieldCheck, Smartphone, UserRound, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useCitizen } from "../../context/CitizenContext";
 import { citizenApi, dateLabel, notificationPreferencesApi, notificationPreferencesError } from "../../services/citizenData";
 import { Link, Navigate } from "react-router-dom";
 import { ROUTES } from "../../routeRegistry";
-import { usePublicConfig } from "../../context/PublicConfig";
-import { passwordPassesPolicy } from "../../passwordPolicy";
+
 import { useResidentPreferences } from "../../context/ResidentPreferencesContext";
 import { formatResidentDateTime } from "../../services/residentPreferences";
 import {
@@ -66,41 +51,68 @@ export function AccountSettingsContent({ onEditProfile, onChangePassword, change
   const category = normalizeSettingsCategory(activeCategory);
   const categoryConfig = getSettingsCategory(category);
   const settingsPanelRef = useRef(null);
+  const categoryButtonRefs = useRef({});
   useEffect(() => { if (preferencesLoaded) beginEditing() }, [beginEditing, preferencesLoaded]);
   useEffect(() => {
-    if (settingsPanelRef.current) settingsPanelRef.current.scrollTop = 0;
+    const scrollContainer = settingsPanelRef.current?.closest('.profile-modal-body');
+    if (scrollContainer) scrollContainer.scrollTop = 0;
   }, [category]);
   const chooseCategory = nextCategory => onCategoryChange?.(normalizeSettingsCategory(nextCategory));
+  const handleCategoryKeyDown = (event, currentCategory) => {
+    const index = SETTINGS_CATEGORIES.findIndex(item => item.id === currentCategory);
+    if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? SETTINGS_CATEGORIES.length - 1
+        : (index + (event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1) + SETTINGS_CATEGORIES.length) % SETTINGS_CATEGORIES.length;
+    const nextCategory = SETTINGS_CATEGORIES[nextIndex].id;
+    chooseCategory(nextCategory);
+    window.requestAnimationFrame(() => categoryButtonRefs.current[nextCategory]?.focus());
+  };
   return (
     <div className="settings-layout">
-      <aside className="settings-categories" aria-label={t("settings.categories", "Settings categories")}>
-        {SETTINGS_CATEGORIES.map(({ id, labelKey, descriptionKey, fallback }) => {
+      <div className="settings-mobile-navigation">
+        <label htmlFor="settings-category-select">Settings section</label>
+        <select id="settings-category-select" value={category} onChange={event => chooseCategory(event.target.value)}>
+          {SETTINGS_CATEGORIES.map(({ id, labelKey, fallback }) => <option value={id} key={id}>{t(`settings.${labelKey}`, fallback)}</option>)}
+        </select>
+      </div>
+      <nav className="settings-categories" aria-label={t("settings.categories", "Settings categories")} role="tablist">
+        {SETTINGS_CATEGORIES.map(({ id, labelKey, fallback }) => {
           const Icon = SETTINGS_CATEGORY_ICONS[id];
           const active = category === id;
           return (
             <button
               type="button"
               className={active ? "active" : ""}
-              aria-current={active ? "page" : undefined}
+              id={`settings-tab-${id}`}
+              role="tab"
+              aria-selected={active}
+              aria-controls={`settings-panel-${id}`}
+              tabIndex={active ? 0 : -1}
+              ref={element => { categoryButtonRefs.current[id] = element }}
+              onKeyDown={event => handleCategoryKeyDown(event, id)}
               onClick={() => chooseCategory(id)}
               key={id}
             >
               <Icon size={21} />
               <span>
                 <strong>{t(`settings.${labelKey}`, fallback)}</strong>
-                <small>{t(`settings.${descriptionKey}`, fallback)}</small>
               </span>
             </button>
           );
         })}
-      </aside>
-      <div ref={settingsPanelRef} className="settings-panel">
+      </nav>
+      <div ref={settingsPanelRef} className="settings-panel" id={`settings-panel-${category}`} role="tabpanel" aria-labelledby={`settings-tab-${category}`} tabIndex="0">
         <SettingsPanelErrorBoundary resetKey={category} t={t}>
-          <header className="settings-panel-heading">
-            <h2>{t(`settings.${categoryConfig.headingKey}`, `${categoryConfig.fallback} Settings`)}</h2>
-            <p>{t(`settings.${categoryConfig.introKey}`, `Manage your ${categoryConfig.fallback.toLowerCase()} preferences and options.`)}</p>
-            {preferencesLoading && <p className="settings-preference-status" role="status">{t("settings.loadingPreferences", "Loading your preferences…")}</p>}
-          </header>
+          {category !== "account" && <header className="settings-panel-heading">
+              <h2>{t(`settings.${categoryConfig.headingKey}`, `${categoryConfig.fallback} Settings`)}</h2>
+              <p>{t(`settings.${categoryConfig.introKey}`, `Manage your ${categoryConfig.fallback.toLowerCase()} preferences and options.`)}</p>
+              {preferencesLoading && <p className="settings-preference-status" role="status">{t("settings.loadingPreferences", "Loading your preferences…")}</p>}
+            </header>}
+          {category === "account" && preferencesLoading && <p className="settings-preference-status" role="status">{t("settings.loadingPreferences", "Loading your preferences…")}</p>}
           {category === "account" && <section id="settings-profile" className="settings-card profile-settings-card">
             <div className="settings-card-heading">
               <span className="settings-card-icon"><UserRound size={21} /></span>
@@ -170,8 +182,9 @@ class SettingsPanelErrorBoundary extends Component {
 }
 
 export function AccountSettingsFooter({ onClose }) {
-  const { loaded, saving, saveEditing, cancelEditing, t } = useResidentPreferences();
+  const { dirty, loaded, saving, saveEditing, t } = useResidentPreferences();
   const [saveMessage, setSaveMessage] = useState("");
+  useEffect(() => { if (dirty) setSaveMessage(""); }, [dirty]);
   const save = async () => {
     setSaveMessage("");
     try { await saveEditing(); setSaveMessage(t("settings.saved", "Changes saved.")) } catch { /* The settings panel keeps the draft and shows the provider error. */ }
@@ -180,10 +193,10 @@ export function AccountSettingsFooter({ onClose }) {
     <footer className="settings-modal-footer">
       <span className="settings-save-confirmation" role="status" aria-live="polite">{saveMessage}</span>
       <span>
-        <button type="button" className="portal-action-secondary" onClick={() => { cancelEditing(); onClose() }} disabled={saving}>
+        <button type="button" className="portal-action-secondary" onClick={onClose} disabled={saving}>
           {t("settings.cancel", "Cancel")}
         </button>
-        <button type="button" className="citizen-primary" onClick={save} disabled={saving || !loaded}>
+        <button type="button" className="citizen-primary" onClick={save} disabled={saving || !loaded || !dirty}>
           {saving ? t("settings.saving", "Saving…") : t("settings.save", "Save Changes")}
         </button>
       </span>
@@ -361,8 +374,7 @@ export default function Settings() {
 
 const SettingsRow = forwardRef(function SettingsRow({ icon: Icon, title, description, action, href, onPasswordChange }, ref) {
   const { user } = useAuth();
-  const [mfaOpen, setMfaOpen] = useState(false),
-    [passwordOpen, setPasswordOpen] = useState(false);
+  const [mfaOpen, setMfaOpen] = useState(false);
   const isMfa = title === "Two-factor authentication";
   return (
     <>
@@ -411,7 +423,7 @@ const SettingsRow = forwardRef(function SettingsRow({ icon: Icon, title, descrip
 })
 
 function MfaSetupModal({ onClose }) {
-  const { user, validateSession } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [setup, setSetup] = useState(null),
     [disableOpen, setDisableOpen] = useState(false),
     [code, setCode] = useState(""),
@@ -455,7 +467,7 @@ function MfaSetupModal({ onClose }) {
       if (!response.ok)
         throw new Error(body.error || "Could not activate MFA.");
       setRecoveryCodes(body.recoveryCodes);
-      await validateSession(true);
+      await refreshUser();
     } catch (cause) {
       setError(cause.message);
     } finally {
@@ -550,7 +562,7 @@ function MfaSetupModal({ onClose }) {
                   <DisableMfaModal
                     onClose={() => setDisableOpen(false)}
                     onDisabled={async () => {
-                      await validateSession(true);
+                      await refreshUser();
                       onClose();
                     }}
                   />
@@ -672,126 +684,6 @@ function MfaSetupModal({ onClose }) {
               {error}
             </p>
           )}
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function PasswordChangeModal({ onClose }) {
-  const publicConfig = usePublicConfig();
-  const minimumPasswordLength = Number(publicConfig["authentication.passwordMinLength"] || 12);
-  const [currentPassword, setCurrentPassword] = useState(""),
-    [password, setPassword] = useState(""),
-    [confirm, setConfirm] = useState(""),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
-    [message, setMessage] = useState("");
-  const submit = async (event) => {
-    event.preventDefault();
-    setError("");
-    setMessage("");
-    if (!passwordPassesPolicy(password, minimumPasswordLength)) return setError("Choose a stronger password with uppercase and lowercase letters, a number, and a special character. Avoid common passwords.");
-    if (password !== confirm) return setError("Passwords do not match.");
-    setBusy(true);
-    try {
-      const response = await fetch("/api/auth/change-password", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Requested-With": "GetafeCitizenPortal",
-        },
-        body: JSON.stringify({ currentPassword, password }),
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok)
-        throw new Error(body.error || "Password could not be changed.");
-      setMessage("Your password has been changed.");
-      setCurrentPassword("");
-      setPassword("");
-      setConfirm("");
-    } catch (cause) {
-      setError(cause.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div
-      className="profile-modal-backdrop mfa-modal-backdrop"
-      role="presentation"
-    >
-      <section
-        className="profile-modal-card mfa-setup-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="password-change-title"
-      >
-        <button
-          type="button"
-          className="profile-form-close"
-          aria-label="Close password change dialog"
-          onClick={onClose}
-        >
-          <X size={19} />
-        </button>
-        <div className="mfa-modal-content">
-          <LockKeyhole size={34} aria-hidden="true" />
-          <h2 id="password-change-title">Change your password</h2>
-          <p>Choose a new password to keep your account secure.</p>
-          <form onSubmit={submit}>
-            <label>
-              Current password
-              <input
-                required
-                type="password"
-                autoComplete="current-password"
-                value={currentPassword}
-                onChange={(event) => setCurrentPassword(event.target.value)}
-              />
-            </label>
-            <label>
-              New password
-              <input
-                required
-                minLength={minimumPasswordLength}
-                maxLength="1024"
-                type="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </label>
-            <label>
-              Confirm new password
-              <input
-                required
-                minLength={minimumPasswordLength}
-                maxLength="1024"
-                type="password"
-                autoComplete="new-password"
-                value={confirm}
-                onChange={(event) => setConfirm(event.target.value)}
-              />
-            </label>
-            {error && (
-              <p className="portal-error" role="alert">
-                {error}
-              </p>
-            )}
-            {message && (
-              <p className="reset-message" role="status">
-                {message}
-              </p>
-            )}
-            <button className="citizen-primary" disabled={busy}>
-              {busy ? "Saving…" : "Change password"}
-            </button>
-          </form>
-          <button type="button" className="renewal-cancel" onClick={onClose}>
-            Cancel
-          </button>
         </div>
       </section>
     </div>

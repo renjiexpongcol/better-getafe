@@ -4,7 +4,6 @@ import { AuthProvider } from './context/AuthContext'
 import { ResidentPreferencesProvider } from './context/ResidentPreferencesContext'
 import Header from './components/Header'
 import Footer from './components/Footer'
-import RelatedPages from './components/RelatedPages'
 import PageTitleManager from './components/PageTitleManager'
 import { PublicConfigProvider } from './context/PublicConfig'
 import { usePublicConfig } from './context/PublicConfig'
@@ -56,15 +55,9 @@ function RouteLayout({ children }) {
 }
 
 function ProtectedRoute({ children, admin = false, citizen = false, staff = false }) {
-  const { user, sessionUnavailable, validateSession } = useAuth()
+  const { user, loading, sessionUnavailable } = useAuth()
   const location = useLocation()
-  const [checkedKey, setCheckedKey] = useState(null)
-  useEffect(() => {
-    let active = true
-    validateSession().finally(() => { if (active) setCheckedKey(location.key) })
-    return () => { active = false }
-  }, [location.key, validateSession])
-  if (checkedKey !== location.key) return <PageLoader />
+  if (loading) return <PageLoader />
   if (!user && sessionUnavailable) return <div className="page-loader" role="status" aria-live="polite">Restoring your secure session…</div>
   const requiredRole = admin ? 'admin' : staff ? 'staff' : citizen ? 'citizen' : null
   const access = getProtectedRouteState({ user, requiredRole })
@@ -130,7 +123,7 @@ function AppContent() {
   const isAuthPage = location.pathname.startsWith('/auth') || location.pathname.startsWith('/admin')
   const isCitizenDashboard = location.pathname === '/app' || location.pathname.startsWith('/app/')
   const settings = usePublicConfig()
-  const { user, loading, sessionUnavailable } = useAuth()
+  const { user, loading } = useAuth()
   useEffect(() => {
     speechNarrationService.stop()
   }, [location.pathname])
@@ -186,6 +179,8 @@ function AppContent() {
                 <Route path="/app" element={<ProtectedRoute citizen><CanonicalRoute scope="app">{Dashboard && <Dashboard />}</CanonicalRoute></ProtectedRoute>} />
                 <Route path="/app/staff" element={<ProtectedRoute staff><CanonicalRoute scope="staff">{Staff && <Staff />}</CanonicalRoute></ProtectedRoute>} />
                 <Route path="/app/staff/requests" element={<ProtectedRoute staff>{Staff && <Staff />}</ProtectedRoute>} />
+                <Route path="/app/staff/e-requests" element={<ProtectedRoute staff>{Staff && <Staff />}</ProtectedRoute>} />
+                <Route path="/app/staff/e-requests/:id" element={<ProtectedRoute staff>{Staff && <Staff />}</ProtectedRoute>} />
                 <Route path="/app/staff/requests/:id" element={<ProtectedRoute staff>{Staff && <Staff />}</ProtectedRoute>} />
                 <Route path="/app/staff/notifications" element={<ProtectedRoute staff>{Staff && <Staff />}</ProtectedRoute>} />
                 <Route path="/app/staff/settings" element={<ProtectedRoute staff>{Staff && <Staff />}</ProtectedRoute>} />
@@ -209,7 +204,6 @@ function AppContent() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>}
         </RouteLayout>
-        {!isAuthPage && !isCitizenDashboard && <RelatedPages />}
         {!isAuthPage && !isCitizenDashboard && <BackToTop />}
         {!isAuthPage && !isCitizenDashboard && <Footer />}
         </>}

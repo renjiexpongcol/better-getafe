@@ -48,7 +48,7 @@ export default function EmergencyAlert() {
     }
   }
 
-  return <div className="home-notice-viewport"><section className={`home-notice${isDismissing ? ' home-notice--dismissing' : ''}`} onTransitionEnd={handleTransitionEnd} aria-label={`${noticeType}: ${notice.title}`} aria-live="polite"><div className="container home-notice-inner"><span className="home-notice-icon"><ShieldAlert size={17} aria-hidden="true" /></span><div className="home-notice-copy"><span className="home-notice-label">{noticeType}</span><Link className="home-notice-title" to={`/news/${notice.slug}`}>{notice.title}</Link>{shortSummary && <span className="home-notice-description">{shortSummary}</span>}</div><Link className="home-notice-action" to={`/news/${notice.slug}`}>View details <ArrowRight size={15} aria-hidden="true" /></Link></div></section></div>
+  return <div className="home-notice-viewport"><section className={`home-notice${isDismissing ? ' home-notice--dismissing' : ''}`} onTransitionEnd={handleTransitionEnd} aria-label={`${noticeType}: ${notice.title}`} aria-live="polite"><div className="container home-notice-inner"><span className="home-notice-icon"><ShieldAlert size={17} aria-hidden="true" /></span><div className="home-notice-copy"><span className="home-notice-label home-notice-label--desktop">{noticeType}</span><span className="home-notice-label home-notice-label--mobile">Important announcement</span><Link className="home-notice-title" to={`/news/${notice.slug}`}>{notice.title}</Link>{shortSummary && <span className="home-notice-description">{shortSummary}</span>}</div><Link className="home-notice-action" to={`/news/${notice.slug}`}>View details <ArrowRight size={15} aria-hidden="true" /></Link></div></section></div>
 }
 
 export function NoticePlaceholder() {

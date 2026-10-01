@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowRight, Bell, CheckCircle2, CircleHelp, ClipboardList, Clock3, ChevronDown, LayoutDashboard, LogOut, Menu, RefreshCw, Search, Settings2, X } from 'lucide-react'
+import { ArrowRight, Bell, CheckCircle2, CircleHelp, ClipboardList, Clock3, ChevronDown, LayoutDashboard, LogOut, Menu, RefreshCw, Search, Settings, X } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { resolveModuleAccess } from '../../applicationModuleRegistry'
@@ -9,6 +9,7 @@ import './StaffHeader.css'
 import './StaffRequestModal.css'
 import FulfillmentNoteModal from './FulfillmentNoteModal'
 import StaffRequestModal from './StaffRequestModal'
+import StaffEservices from '../../components/StaffEservices'
 import { ROUTES, staffLocation } from '../../routeRegistry'
 
 const dateLabel = value => value ? new Date(value).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' }) : 'Not available'
@@ -51,7 +52,7 @@ export default function StaffSysparm() {
     } catch (loadError) { setError(loadError.message) } finally { setLoading(false) }
   }
 
-  useEffect(() => { loadDashboard() }, [])
+  useEffect(() => { if (objectId !== 'e-service-requests') loadDashboard() }, [objectId])
 
   const openRequest = async application => {
     if (!routeState?.recordId) {
@@ -149,8 +150,9 @@ export default function StaffSysparm() {
         <nav className="staff-nav" aria-label="Staff workspace">
           {can('staff.dashboard.view') && <Link className={objectId === 'dashboard' ? 'active' : ''} to={ROUTES.staff.root}><LayoutDashboard size={18} />Workspace</Link>}
           {can('requests.view') && <Link className={objectId === 'request-management' ? 'active' : ''} to={ROUTES.staff.requests}><ClipboardList size={18} />Service requests</Link>}
+          {can('requests.department.view') && <Link className={objectId === 'e-service-requests' ? 'active' : ''} to="/app/staff/e-requests"><ClipboardList size={18}/>E-service requests</Link>}
           {can('notifications.view') && <Link className={objectId === 'notifications' ? 'active' : ''} to={ROUTES.staff.notifications}><Bell size={18} />Notifications</Link>}
-          {can('settings.view') && <Link className={objectId === 'system-settings' ? 'active' : ''} to={ROUTES.staff.settings}><Settings2 size={18} />System parameters</Link>}
+          {can('settings.view') && <Link className={objectId === 'system-settings' ? 'active' : ''} to={ROUTES.staff.settings}><Settings size={18} />System parameters</Link>}
         </nav>
       </aside>
 
@@ -165,6 +167,7 @@ export default function StaffSysparm() {
           </div>
         </header>
         <div className="staff-content">
+          {objectId === 'e-service-requests' ? <StaffEservices /> : <>
           {error && <div className="staff-error" role="alert">{error}</div>}
           <section className="staff-stats" aria-label="Service request summary">
             {[[ClipboardList, 'Total requests', dashboard?.counts.total], [Clock3, 'Pending review', dashboard?.counts.pending], [RefreshCw, 'In progress', dashboard?.counts.inProgress], [CheckCircle2, 'Completed', dashboard?.counts.completed]].map(([Icon, label, value]) => <article key={label}><span><Icon size={19}/></span><div><small>{label}</small><strong>{loading ? '—' : value ?? 0}</strong></div></article>)}
@@ -175,6 +178,7 @@ export default function StaffSysparm() {
           </section>
           <StaffRequestModal selectedRequest={selectedRequest} requestLoading={requestLoading} requestStatus={requestStatus} setRequestStatus={setRequestStatus} requestNote={requestNote} setRequestNote={setRequestNote} requestError={requestError} requestNotice={requestNotice} savingRequest={savingRequest} closeRequest={closeRequest} saveRequest={saveRequest} requestFile={requestFile} setRequestFile={setRequestFile} uploadingFile={uploadingFile}/>
           {fulfillmentOpen && selectedRequest && <FulfillmentNoteModal previousStatus={selectedRequest.status || 'submitted'} nextStatus={requestStatus} onClose={() => setFulfillmentOpen(false)} onConfirm={confirmFulfillment} saving={savingRequest} error={fulfillmentError}/>} 
+          </>}
         </div>
       </section>
     </main>

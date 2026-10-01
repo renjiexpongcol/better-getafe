@@ -20,7 +20,7 @@ export default function BarangayOfficialProfile() {
     let active = true
     Promise.all([publicApi('/barangays'), publicApi('/officials/directory?barangay=' + encodeURIComponent(slug(id)))]).then(async ([items, directory]) => {
       const nextBarangay = items.find(item => matches(item, id)) || fallback.find(item => matches(item, id)) || null
-      const fallbackCaptain = nextBarangay && slug(nextBarangay.captain) === slug(officialSlug)
+
       if (!active) return
       setBarangay(nextBarangay)
       setOfficial((directory.items || []).find(item => item.slug === officialSlug) || null)

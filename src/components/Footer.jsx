@@ -182,10 +182,10 @@ export default function Footer() {
       </div>
 
       {/* Footer Bottom Bar */}
-      <div className="container footer-bottom" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', padding: '1.5rem 20px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#9ca3af', fontSize: '0.875rem', flexWrap: 'wrap', gap: '1rem', textAlign: 'center' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center' }}>
-          <span>© {new Date().getFullYear()} Municipality of Getafe, Bohol. All Rights Reserved.</span>
-          <span style={{ fontSize: '0.8rem', opacity: 0.8, fontStyle: 'italic', fontFamily: 'cursive' }}>All content is in the public domain unless otherwise stated.</span>
+      <div className="container footer-bottom footer-legal">
+        <div className="footer-legal-content">
+          <span className="footer-copyright">© {new Date().getFullYear()} Municipality of Getafe, Bohol. All Rights Reserved.</span>
+          <span className="footer-public-domain">All content is in the public domain unless otherwise stated.</span>
         </div>
       </div>
     </footer>

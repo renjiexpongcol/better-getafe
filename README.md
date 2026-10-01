@@ -201,6 +201,7 @@ Before running the project locally, make sure you have:
 * Node.js
 * npm
 * Git
+* Docker Desktop with Docker Compose
 
 Check your installed versions:
 
@@ -232,6 +233,29 @@ Install dependencies:
 
 ```bash
 npm install
+```
+
+Prepare the local development environment:
+
+```bash
+npm run setup
+```
+
+The setup command creates `.env` from `.env.example` only when `.env` does not
+exist, starts the repository's PostgreSQL and Redis services with Docker
+Compose, waits for them to become reachable, and applies the idempotent
+PostgreSQL migrations. It never overwrites `.env`, removes Docker volumes,
+drops tables, resets accounts, or reseeds existing data. It is safe to run
+again when troubleshooting local infrastructure.
+
+For a fresh checkout, the recommended sequence is:
+
+```bash
+git clone <repository-url>
+cd GETAFE_PORTAL
+npm install
+npm run setup
+npm run dev
 ```
 
 ---
@@ -279,6 +303,19 @@ Preview the production build locally:
 ```bash
 npm run preview
 ```
+
+Both `npm run dev` and `npm run preview` start the API when needed, wait for its
+database-backed health check, and then start Vite. They reuse an already healthy
+API without stopping it on shutdown. Preview uses the same `/api` proxy as
+development. Both commands stop their own frontend if the API remains unavailable
+for 30 seconds. Use `BACKEND_PORT` (or `PORT`) consistently for the API port;
+`VITE_BACKEND_URL` is only a tooling proxy target, never a browser API base URL.
+
+For deployment, `npm run build` followed by `npm start` serves the built frontend
+and API together. Frontend requests remain relative `/api/...` requests.
+
+See [API connectivity verification](docs/api-connectivity.md) for health checks,
+safe failure behavior, and the live verification scripts.
 
 ---
 

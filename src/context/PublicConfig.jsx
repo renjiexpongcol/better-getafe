@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { cachedRequest, readCached } from '../services/requestCache'
+import { requestJson } from '../services/apiTransport.js'
 const cacheKey = 'public-config'
 const cacheOptions = { ttl: 300000, persist: true }
 const publicCacheEnabled = () => !document.cookie.split(';').some(item => item.trim() === 'getafe_cache=off')
@@ -13,11 +14,7 @@ export function PublicConfigProvider({ children }) {
   let latestRequest = 0
   const reload = (force = false) => {
    const requestId = ++latestRequest
-   return cachedRequest(cacheKey, async () => {
-    const response = await fetch('/api/public/config', { cache: 'no-store' })
-    if (!response.ok) throw new Error('Configuration unavailable')
-    return response.json()
-   }, { ...cacheOptions, persist: publicCacheEnabled(), force: force || !publicCacheEnabled() })
+   return cachedRequest(cacheKey, () => requestJson('/api/public/config', { cache: 'no-store' }), { ...cacheOptions, persist: publicCacheEnabled(), force: force || !publicCacheEnabled(), coalesce: true })
     .then(body => { if (active && requestId === latestRequest) setValues(current => JSON.stringify(current) === JSON.stringify(body) ? current : body) })
     .catch(() => {})
     .finally(() => { if (active && requestId === latestRequest) setReady(true) })

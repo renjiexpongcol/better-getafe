@@ -6,11 +6,7 @@ import { getGetafeContests } from '../services/betterGov/client.js';
 
 const GROUPS = ['mayor', 'viceMayor', 'abcPresident', 'sbMembers', 'punongBarangays', 'deptHeads'];
 const structuredTables = "to_regclass('public.government_office_assignments') IS NOT NULL";
-const asJson = (value, fallback = null) => {
-  if (value == null) return fallback;
-  if (typeof value !== 'string') return value;
-  try { return JSON.parse(value); } catch { return fallback; }
-};
+
 const iso = value => asIsoDate(value);
 // Keep the pre-existing public URL rule exactly: accented characters become a
 // separator. Name matching uses a different, accent-insensitive normalizer.

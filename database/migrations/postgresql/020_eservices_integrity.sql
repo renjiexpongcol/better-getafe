@@ -1,0 +1,25 @@
+CREATE OR REPLACE FUNCTION eservice_audit_immutable() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.category='eservices' THEN RAISE EXCEPTION 'Audit record is immutable'; END IF; IF TG_OP='DELETE' THEN RETURN OLD; END IF; RETURN NEW; END $$;
+DROP TRIGGER IF EXISTS eservice_audit_immutable ON audit_logs;
+CREATE TRIGGER eservice_audit_immutable BEFORE UPDATE OR DELETE ON audit_logs FOR EACH ROW EXECUTE FUNCTION eservice_audit_immutable();
+DROP TRIGGER IF EXISTS request_notes_immutable ON request_notes;
+CREATE TRIGGER request_notes_immutable BEFORE UPDATE OR DELETE ON request_notes FOR EACH ROW EXECUTE FUNCTION eservice_immutable();
+CREATE TRIGGER order_items_immutable BEFORE UPDATE OR DELETE ON payment_order_items FOR EACH ROW EXECUTE FUNCTION eservice_immutable();
+CREATE TRIGGER receipts_immutable BEFORE UPDATE OR DELETE ON payment_receipts FOR EACH ROW EXECUTE FUNCTION eservice_immutable();
+CREATE TRIGGER billing_statements_immutable BEFORE UPDATE OR DELETE ON billing_statements FOR EACH ROW EXECUTE FUNCTION eservice_immutable();
+CREATE TRIGGER billing_items_immutable BEFORE UPDATE OR DELETE ON billing_statement_items FOR EACH ROW EXECUTE FUNCTION eservice_immutable();
+CREATE TRIGGER form_definitions_immutable BEFORE UPDATE OR DELETE ON service_form_definitions FOR EACH ROW EXECUTE FUNCTION eservice_immutable();
+CREATE TRIGGER form_fields_immutable BEFORE UPDATE OR DELETE ON service_form_fields FOR EACH ROW EXECUTE FUNCTION eservice_immutable();
+CREATE TRIGGER workflows_immutable BEFORE UPDATE OR DELETE ON service_workflows FOR EACH ROW EXECUTE FUNCTION eservice_immutable();
+CREATE TRIGGER workflow_steps_immutable BEFORE UPDATE OR DELETE ON service_workflow_steps FOR EACH ROW EXECUTE FUNCTION eservice_immutable();
+CREATE TRIGGER fees_immutable BEFORE UPDATE OR DELETE ON service_fees FOR EACH ROW EXECUTE FUNCTION eservice_immutable();
+CREATE TRIGGER requirements_immutable BEFORE UPDATE OR DELETE ON service_requirements FOR EACH ROW EXECUTE FUNCTION eservice_immutable();
+CREATE OR REPLACE FUNCTION eservice_order_integrity() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+ IF TG_OP='DELETE' OR (to_jsonb(OLD)-'status') IS DISTINCT FROM (to_jsonb(NEW)-'status') THEN RAISE EXCEPTION 'Issued financial records require adjustment'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER order_integrity BEFORE UPDATE OR DELETE ON payment_orders FOR EACH ROW EXECUTE FUNCTION eservice_order_integrity();
+CREATE UNIQUE INDEX request_document_single_replacement_idx ON request_documents(replaces_id) WHERE replaces_id IS NOT NULL;
+CREATE INDEX eservice_outbox_pending_idx ON eservice_notification_outbox(available_at) WHERE delivered_at IS NULL;
+CREATE INDEX payment_orders_user_idx ON payment_orders(user_id,created_at DESC);
+CREATE INDEX payment_orders_department_idx ON payment_orders(department_id,status);
+CREATE INDEX billing_accounts_user_idx ON billing_accounts(user_id);

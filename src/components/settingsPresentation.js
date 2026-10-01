@@ -1,8 +1,8 @@
-import { Settings2, Building2, Globe2, Database, Cloud, Folder, LockKeyhole, ShieldCheck, Mail, Bell, Plug, CloudSun, Flag, Wrench, FileText, SlidersHorizontal, Activity, History, Users, Image, KeyRound } from 'lucide-react'
+import { Settings, Building2, Globe2, Database, Cloud, Folder, LockKeyhole, ShieldCheck, Mail, Bell, Plug, CloudSun, Flag, Wrench, FileText, SlidersHorizontal, Activity, History, Users, Image, KeyRound } from 'lucide-react'
 
-export const categoryLabels = { general: 'General', database: 'Database', portalDatabase: 'Portal Database', google: 'Google Cloud', storage: 'Storage', authentication: 'Authentication', email: 'Email', security: 'Security', notifications: 'Notifications', integrations: 'Integrations', weather: 'Weather', publicData: 'publicData', features: 'Feature Flags', maintenance: 'Maintenance', legal: 'Legal Policies', advanced: 'Advanced', status: 'System Status', history: 'Audit History' }
-const icons = { general: Settings2, database: Database, portalDatabase: Database, google: Cloud, storage: Folder, authentication: LockKeyhole, security: ShieldCheck, email: Mail, notifications: Bell, integrations: Plug, weather: CloudSun, features: Flag, maintenance: Wrench, legal: FileText, advanced: SlidersHorizontal, status: Activity, history: History }
-export const sectionIcon = category => icons[category] || Settings2
+export const categoryLabels = { general: 'General', database: 'Database', portalDatabase: 'Portal Database', google: 'Google Cloud', storage: 'Storage', authentication: 'Authentication', email: 'Email', security: 'Security', notifications: 'Notifications', integrations: 'Integrations', weather: 'Weather', publicData: 'Public Data', features: 'Feature Flags', maintenance: 'Maintenance', legal: 'Legal Policies', advanced: 'Advanced', status: 'System Status', history: 'Audit History' }
+const icons = { general: Settings, database: Database, portalDatabase: Database, google: Cloud, storage: Folder, authentication: LockKeyhole, security: ShieldCheck, email: Mail, notifications: Bell, integrations: Plug, weather: CloudSun, features: Flag, maintenance: Wrench, legal: FileText, advanced: SlidersHorizontal, status: Activity, history: History }
+export const sectionIcon = category => icons[category] || Settings
 
 // Presentation groups only: setting keys, values, validation and permissions stay server-owned.
 const layouts = {

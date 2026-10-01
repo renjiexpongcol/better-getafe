@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Database, Search, SlidersHorizontal } from 'lucide-react';
-import { publicData, apiData, collection, label } from '../../services/publicDataApi';
+import { publicData, apiData } from '../../services/publicDataApi';
 import './publicData.css';
 import './publicDataPalette.css';
 

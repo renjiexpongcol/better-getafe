@@ -1,7 +1,7 @@
 import { usePublicConfig } from '../context/PublicConfig'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
-import { Accessibility, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, LogOut, Mail, Map, Menu, Newspaper, PhoneCall, Rocket, Siren, Users, WalletCards, ChartNoAxesCombined, X } from 'lucide-react'
+import { Accessibility, ArrowRight, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, LogOut, Mail, Map, Menu, Newspaper, PhoneCall, Rocket, Siren, Users, WalletCards, ChartNoAxesCombined, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import HeaderWeather from './HeaderWeather'
 import { ROUTES } from '../routeRegistry'
@@ -15,6 +15,7 @@ export default function Header() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [time, setTime] = useState('')
   const [isHidden, setIsHidden] = useState(false)
+  const menuInteractionRef = useRef(null)
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -25,8 +26,21 @@ export default function Header() {
 
   useEffect(() => {
     setMobileNavOpen(false)
+    menuInteractionRef.current = null
     setOpenMenu(null)
   }, [location.pathname])
+
+  useEffect(() => {
+    const closeMenusOnEscape = (event) => {
+      if (event.key !== 'Escape') return
+      menuInteractionRef.current = null
+      setOpenMenu(null)
+      setMobileNavOpen(false)
+    }
+
+    document.addEventListener('keydown', closeMenusOnEscape)
+    return () => document.removeEventListener('keydown', closeMenusOnEscape)
+  }, [])
 
   useEffect(() => {
     const closeOnResize = () => {
@@ -77,27 +91,27 @@ export default function Header() {
       label: 'Services',
       key: 'services',
       items: [
-        ['Executive', '/services/directory?department=executive', 'Mayor\'s office and municipal leadership.', Landmark],
-        ['Engineering', '/services/directory?department=engineering', 'Infrastructure and public works support.', Building2],
-        ['Zoning/Planning', '/services/directory?department=zoning-planning', 'Land use and development planning.', Map],
-        ['Treasury', '/services/directory?department=treasury', 'Local payments, taxes, and revenue services.', WalletCards],
-        ['Assessment', '/services/directory?department=assessment', 'Property assessment and tax declarations.', ClipboardCheck],
-        ['Civil Registry', '/services/certificates', 'Birth, marriage, death, and other civil registry records.', FileCheck2],
-        ['Health', '/services/directory?department=health', 'Public health and rural health services.', HeartHandshake],
-        ['Social Welfare', '/services/directory?department=social-welfare', 'Assistance programs for residents and families.', Users],
+        ['Executive', '/departments/executive', 'Mayor\'s office and municipal leadership.', Landmark],
+        ['Engineering', '/departments/engineering', 'Infrastructure and public works support.', Building2],
+        ['Zoning/Planning', '/departments/zoning-planning', 'Land use and development planning.', Map],
+        ['Treasury', '/departments/treasury', 'Local payments, taxes, and revenue services.', WalletCards],
+        ['Assessment', '/departments/assessment', 'Property assessment and tax declarations.', ClipboardCheck],
+        ['Civil Registry', '/departments/civil-registry', 'Birth, marriage, death, and other civil registry records.', FileCheck2],
+        ['Health', '/departments/health', 'Public health and rural health services.', HeartHandshake],
+        ['Social Welfare', '/departments/social-welfare', 'Assistance programs for residents and families.', Users],
       ],
     },
     {
       label: 'Business',
       key: 'business',
       items: [
-        ['Business Services', '/services/business-trade', 'Permits, clearances, and local business requirements.', Building2],
-        ['Business Online Billing and Payment', '/services/business-trade#online-billing', 'Business billing and payment information.', WalletCards],
-        ['New Business Application', '/services/business-trade#new-application', 'Start a new business application.', ClipboardCheck],
-        ['Renew Business Application', '/services/business-trade#renew-application', 'Renew an existing business application.', FileCheck2],
-        ['Realty Tax Online Billing and Payment', '/services/directory?department=assessment#online-billing', 'Real property tax billing and payment information.', Landmark],
-        ['Online Payment Order', '/services/business-trade#payment-order', 'View online payment order guidance.', WalletCards],
-        ['Water Online Billing and Payment', '/services/directory?department=utilities#online-billing', 'Water billing and payment information.', CloudSun],
+        ['Business Services', '/services/e-services/business-services', 'Permits, clearances, and local business requirements.', Building2],
+        ['Business Online Billing and Payment', '/services/e-services/business-billing', 'Business billing and payment information.', WalletCards],
+        ['New Business Application', '/services/e-services/new-business-application', 'Start a new business application.', ClipboardCheck],
+        ['Renew Business Application', '/services/e-services/renew-business-application', 'Renew an existing business application.', FileCheck2],
+        ['Realty Tax Online Billing and Payment', '/services/e-services/realty-billing', 'Real property tax billing and payment information.', Landmark],
+        ['Online Payment Order', '/services/e-services/online-payment-order', 'View online payment order guidance.', WalletCards],
+        ['Water Online Billing and Payment', '/services/e-services/water-billing', 'Water billing and payment information.', CloudSun],
       ],
     },
     {
@@ -161,33 +175,54 @@ export default function Header() {
             <div
               className="nav-dropdown"
               key={menu.key}
-              onMouseEnter={() => setOpenMenu(menu.key)}
-              onMouseLeave={() => setOpenMenu(null)}
-              onFocus={() => setOpenMenu(menu.key)}
+              onMouseEnter={() => {
+                menuInteractionRef.current = { key: menu.key, mode: 'hover' }
+                setOpenMenu(menu.key)
+              }}
+              onMouseLeave={() => {
+                if (menuInteractionRef.current?.key !== menu.key || menuInteractionRef.current.mode === 'click') return
+                menuInteractionRef.current = null
+                setOpenMenu(current => current === menu.key ? null : current)
+              }}
               onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget)) setOpenMenu(null)
+                if (!event.currentTarget.contains(event.relatedTarget)) {
+                  menuInteractionRef.current = null
+                  setOpenMenu(null)
+                }
               }}
             >
               <button
                 type="button"
                 className={openMenu === menu.key ? 'nav-dropdown-trigger active' : 'nav-dropdown-trigger'}
                 aria-expanded={openMenu === menu.key}
+                aria-haspopup="true"
                 aria-controls={`nav-menu-${menu.key}`}
-                onClick={() => setOpenMenu(current => current === menu.key ? null : menu.key)}
+                onClick={(event) => {
+                  const shouldClose = openMenu === menu.key && event.detail === 0
+                  menuInteractionRef.current = { key: menu.key, mode: 'click' }
+                  setOpenMenu(shouldClose ? null : menu.key)
+                }}
               >
                 {menu.label} <ChevronDown size={15} aria-hidden="true" />
               </button>
               <div id={`nav-menu-${menu.key}`} className={openMenu === menu.key ? 'nav-dropdown-menu open' : 'nav-dropdown-menu'}>
                 {menu.items.map(([title, url, description, Icon]) => (
-                  <Link to={url} onClick={() => setOpenMenu(null)} key={title}>
+                  <NavLink to={url} className={({ isActive }) => isActive ? 'active' : undefined} onClick={() => setOpenMenu(null)} key={title}>
                     <span className="nav-dropdown-icon"><Icon size={18} aria-hidden="true" /></span>
                     <span className="nav-dropdown-copy"><strong>{title}</strong><small>{description}</small></span>
-                  </Link>
+                  </NavLink>
                 ))}
               </div>
             </div>
           ))}
           <NavLink to="/news" className={({isActive}) => isActive ? "active" : ""}>News</NavLink>
+          <NavLink
+            to={user ? homePath : '/auth/login'}
+            className={({isActive}) => isActive ? 'mobile-nav-eservices active' : 'mobile-nav-eservices'}
+          >
+            <span>E-Services</span>
+            <ArrowRight size={16} aria-hidden="true" />
+          </NavLink>
         </nav>
 
         <div className="nav-actions">
@@ -217,7 +252,7 @@ export default function Header() {
               </button>
             </div>
           ) : (
-            <Link to="/auth/login" className="login-button">Log in</Link>
+            <Link to="/auth/login" className="login-button">E-Services</Link>
           )}
         </div>
       </div>
@@ -239,4 +274,3 @@ export default function Header() {
     </>
   )
 }
-

@@ -1,27 +1,18 @@
 import { clearPrivateCache } from './requestCache.js'
 import { ROUTES } from '../routeRegistry.js'
 import { formatResidentDate } from './residentPreferences.js'
-
-const API_BASE = '/api'
-
-export class ApiRequestError extends Error {
-  constructor(message, status, body = {}) {
-    super(message)
-    this.name = 'ApiRequestError'
-    this.status = status
-    this.body = body
-  }
-}
+import { requestJson } from './apiTransport.js'
+export { ApiRequestError } from './apiTransport.js'
 
 async function requestApi(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'GetafeCitizenPortal', ...options.headers } })
-  const body = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    if (response.status === 401) window.dispatchEvent(new Event('auth-session-expired'))
-    throw new ApiRequestError(body.error || 'Your information could not be loaded. Please try again.', response.status, body)
+  try {
+    const body = await requestJson(path, { errorContext: 'services', ...options })
+    if (!['GET', 'HEAD'].includes((options.method || 'GET').toUpperCase())) clearPrivateCache()
+    return body
+  } catch (error) {
+    if (error.status === 401 && typeof window !== 'undefined') window.dispatchEvent(new Event('auth-session-expired'))
+    throw error
   }
-  if (!['GET', 'HEAD'].includes((options.method || 'GET').toUpperCase())) clearPrivateCache()
-  return body
 }
 
 export function citizenApi(path, options = {}) {

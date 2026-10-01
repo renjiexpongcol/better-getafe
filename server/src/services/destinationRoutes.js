@@ -40,7 +40,7 @@ export function registerDestinationRoutes(app, { admin, permission }) {
   app.get('/api/discover/legacy/:key', handle(async (req, res) => {
     const item = await findLegacyDestination(req.params.key);
     if (!item) return res.status(404).json({ error: 'Destination not found.' });
-    res.json(await decorate(item));
+    res.json(publicView(await decorate(item)));
   }));
   app.get('/api/discover/:slug', handle(async (req, res) => {
     const item = await findDestination(req.params.slug);

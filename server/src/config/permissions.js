@@ -1,5 +1,5 @@
 import { config } from './index.js';
-export const allPermissions = ['settings.view', 'settings.edit', 'settings.secrets.edit', 'settings.database.edit', 'system.database.view', 'system.database.configure', 'system.database.test', 'settings.storage.edit', 'settings.security.edit', 'settings.audit.view', 'requests.view', 'requests.manage'];
+export const allPermissions = ['settings.view', 'settings.edit', 'settings.secrets.edit', 'settings.database.edit', 'system.database.view', 'system.database.configure', 'system.database.test', 'system.errors.view', 'system.errors.manage', 'settings.storage.edit', 'settings.security.edit', 'settings.audit.view', 'requests.view', 'requests.manage'];
 export const cmsRoles = ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'];
 export const rolePermissions = { staff: ['settings.view', 'requests.view', 'requests.manage'], it_support: ['settings.view', 'settings.edit', 'settings.database.edit', 'system.database.view', 'system.database.configure', 'system.database.test', 'settings.storage.edit', 'requests.view', 'requests.manage'], content_manager: ['settings.view'] };
 export function permissionsFor(user) {

@@ -385,6 +385,7 @@ export class AdaptiveTrafficProtector {
               ? 'anonymous_ip'
               : client.type;
       const logDecision = (action, { remaining = null, retryAfter = 0, reason = null, source = 'none', limit = null } = {}) => {
+        if (req.authDiagnostic) { req.authDiagnostic.rateLimit = action === 'reject' ? 'rejected' : 'accepted'; if (reason && action === 'reject') req.authDiagnostic.rejection_reason = reason; }
         if (action === 'allow' && String(process.env.RATE_LIMIT_DEBUG || '').toLowerCase() !== 'true') return;
         const payload = {
           event: 'traffic_control',
@@ -411,6 +412,7 @@ export class AdaptiveTrafficProtector {
       const configuredPolicy = policies[name];
       if (!configuredPolicy) return next();
       if (process.env.NODE_ENV === 'production' && authPolicy && !isRedisReady()) {
+        logDecision('reject', { reason: 'redis_unavailable', source: 'unavailable' });
         return res.status(503).json({ error: 'Authentication service is temporarily unavailable.' });
       }
       const overloaded = this.getOverloaded();
@@ -436,6 +438,7 @@ export class AdaptiveTrafficProtector {
       }
       const result = await this.consume(client, name, policyToUse, requestPath);
       if (process.env.NODE_ENV === 'production' && authPolicy && result.source !== 'redis') {
+        logDecision('reject', { reason: 'redis_unavailable', source: result.source });
         return res.status(503).json({ error: 'Authentication service is temporarily unavailable.' });
       }
       const retry = Math.max(1, Math.ceil(result.retryMs / 1000));

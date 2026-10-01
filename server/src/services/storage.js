@@ -5,6 +5,7 @@ import {
   DeleteObjectCommand,
   PutObjectCommand,
   GetObjectCommand,
+  GetBucketAclCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
@@ -227,6 +228,8 @@ export function activateStorage(resource) {
   if (previous.client && previous.client !== activeStorage.client) previous.client.destroy();
 }
 export function storageIsLocal() { return activeStorage.provider === 'local'; }
+
+function storageUnavailable() { return Object.assign(new Error('Media storage is temporarily unavailable.'), { code: 'STORAGE_UNAVAILABLE', status: 503 }); }
 export function localObjectExists(objectKey) { return fs.stat(localPath(objectKey)).then(stat => stat.isFile()).catch(error => { if (error.code === 'ENOENT') return false; throw error; }); }
 export function storageProvider() { return activeStorage.provider; }
 export function storageHealth() { return { status: activeStorage.provider && activeStorage.provider !== 'degraded' ? 'healthy' : 'degraded', provider: activeStorage.provider === 'backblaze' ? 'backblaze-b2' : activeStorage.provider || 'unknown' }; }
@@ -240,7 +243,7 @@ export async function createUploadUrl(objectKey, contentType, fileSize) {
     await fs.mkdir(path.dirname(target), { recursive: true });
     return `/uploads/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
   }
-  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  if (!activeStorage.client) throw storageUnavailable();
   const expiresIn = Math.min(900, Math.max(60, Number(config.get('storage.signedUrlMinutes') || 15) * 60));
   return presign(activeStorage.client, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: objectKey, ContentType: contentType }), { expiresIn });
 }
@@ -255,7 +258,7 @@ export async function uploadObject(objectKey, body, contentType) {
     await fs.writeFile(target, body, { flag: 'w' });
     return;
   }
-  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  if (!activeStorage.client) throw storageUnavailable();
   return send('upload', objectKey, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: objectKey, Body: body, ContentType: contentType }));
 }
 
@@ -277,7 +280,7 @@ export async function createDownloadUrl(objectKey, targetBucket = activeStorage.
   if (/^https?:\/\//i.test(objectKey)) return objectKey;
   if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
   if (storageIsLocal()) return `/uploads/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
-  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  if (!activeStorage.client) throw storageUnavailable();
   if (config.get('storage.visibility') === 'public') {
     const baseUrl = config.get('storage.publicBaseUrl');
     if (baseUrl) return `${baseUrl.replace(/\/$/, '')}/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
@@ -291,7 +294,7 @@ export async function getObjectMetadata(objectKey, targetBucket = activeStorage.
   if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
   if (storageIsLocal()) return statLocalObject(objectKey);
   if (!activeStorage.client) {
-    throw new Error('Backblaze storage is not initialized.');
+    throw storageUnavailable();
   }
   try {
     return await send('metadata', objectKey, new HeadObjectCommand({ Bucket: targetBucket || activeStorage.bucket, Key: objectKey }));
@@ -310,14 +313,14 @@ export function isStorageNotFoundError(error) {
 export async function deleteObject(objectKey, targetBucket = activeStorage.bucket) {
   if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
   if (storageIsLocal()) return fs.rm(localPath(objectKey), { force: true });
-  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  if (!activeStorage.client) throw storageUnavailable();
   try { await send('delete', objectKey, new DeleteObjectCommand({ Bucket: targetBucket || activeStorage.bucket, Key: objectKey })); }
   catch (error) { if (!isStorageNotFoundError(error)) throw error; }
 }
 export async function readObject(objectKey, targetBucket = activeStorage.bucket) {
   if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
   if (storageIsLocal()) return fs.readFile(localPath(objectKey));
-  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  if (!activeStorage.client) throw storageUnavailable();
   const result = await send('download', objectKey, new GetObjectCommand({ Bucket: targetBucket || activeStorage.bucket, Key: objectKey }));
   return Buffer.from(await result.Body.transformToByteArray());
 }
@@ -330,26 +333,44 @@ function privateLocalPath(key, suffix) {
 export async function writeCitizenFile(key, bytes, contentType) {
   if (!Buffer.isBuffer(bytes) || !bytes.length) throw new Error('Invalid file content.');
   if (storageIsLocal()) { const target = privateLocalPath(key, '-citizen-private'); await fs.mkdir(path.dirname(target), { recursive: true }); await fs.writeFile(target, bytes); return; }
-  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  if (!activeStorage.client) throw storageUnavailable();
   return send('upload-private', key, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: key, Body: bytes, ContentType: contentType }));
+}
+// Backblaze ACLs are bucket-wide. Random keys alone cannot make a public bucket
+// private. E-service uploads fail closed unless the bucket ACL is private.
+export async function ensureCitizenStoragePrivate() {
+  if (storageIsLocal()) return;
+  if (!activeStorage.client) throw storageUnavailable();
+  const acl = await send('private-bucket-check', null, new GetBucketAclCommand({ Bucket: activeStorage.bucket }));
+  if (!acl.Owner?.ID || !Array.isArray(acl.Grants) || acl.Grants.some(grant => grant.Grantee?.Type === 'Group' || (grant.Grantee?.ID && grant.Grantee.ID !== acl.Owner.ID))) {
+    const error = new Error('Private document storage is unavailable.');
+    error.code = 'PRIVATE_BUCKET_REQUIRED';
+    throw error;
+  }
+}
+export async function writeEserviceFile(key,bytes,contentType) {
+  const resource = activeStorage;
+  await ensureCitizenStoragePrivate();
+  if (resource !== activeStorage) throw storageUnavailable();
+  return writeCitizenFile(key,bytes,contentType);
 }
 export async function deleteCitizenFile(key) { if (storageIsLocal()) return fs.rm(privateLocalPath(key, '-citizen-private'), { force: true }); return deleteObject(key); }
 export async function readCitizenFile(key) {
   if (storageIsLocal()) return fs.readFile(privateLocalPath(key, '-citizen-private'));
-  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  if (!activeStorage.client) throw storageUnavailable();
   const result = await send('download-private', key, new GetObjectCommand({ Bucket: activeStorage.bucket, Key: key }));
   return Buffer.from(await result.Body.transformToByteArray());
 }
 export async function writePrivateFile(key, bytes, contentType) {
   if (!Buffer.isBuffer(bytes) || !bytes.length) throw new Error('Invalid file content.');
   if (storageIsLocal()) { const target = privateLocalPath(key, '-private'); await fs.mkdir(path.dirname(target), { recursive: true }); await fs.writeFile(target, bytes); return; }
-  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  if (!activeStorage.client) throw storageUnavailable();
   return send('upload-private', key, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: key, Body: bytes, ContentType: contentType }));
 }
 export async function deletePrivateFile(key) { if (storageIsLocal()) return fs.rm(privateLocalPath(key, '-private'), { force: true }); return deleteObject(key); }
 export async function readPrivateFile(key) {
   if (storageIsLocal()) return fs.readFile(privateLocalPath(key, '-private'));
-  if (!activeStorage.client) throw new Error('Backblaze storage is not initialized.');
+  if (!activeStorage.client) throw storageUnavailable();
   const result = await send('download-private', key, new GetObjectCommand({ Bucket: activeStorage.bucket, Key: key }));
   return Buffer.from(await result.Body.transformToByteArray());
 }

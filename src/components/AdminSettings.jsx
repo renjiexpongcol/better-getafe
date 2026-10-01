@@ -5,6 +5,7 @@ import SettingsPermissions from './SettingsPermissions'
 import { categoryLabels, categorySections, sectionIcon, fieldDescription } from './settingsPresentation'
 import { ModuleAccessDeniedPage, ModuleNotFoundPage } from './RouteStatusPages'
 import { ROUTES } from '../routeRegistry'
+import { normalizePublicError } from '../services/publicError'
 import './AdminSettings.css'
 
 const sources = { database: 'Saved', 'secret-manager': 'Secure storage', environment: 'Environment', default: 'Default' }
@@ -15,7 +16,7 @@ async function request(path, options = {}) {
   const raw = await response.text()
   let body = null
   if (raw.trim()) { try { body = JSON.parse(raw) } catch { /* Report invalid responses below. */ } }
-  if (!response.ok) throw new Error(body?.error || `Request failed (${response.status}).`)
+  if (!response.ok) throw new Error(normalizePublicError({ status: response.status, body }, 'unknown').message)
   if (!body) throw new Error('The server returned an empty response.')
   return body
 }

@@ -104,4 +104,13 @@ await serviceProtector.middleware()(serviceRequest, serviceResponse, () => { ser
 assert.equal(servicePassed, true, 'verified services bypass normal request buckets');
 if (priorServiceEnvironment.id === undefined) delete process.env.INTERNAL_SERVICE_ID; else process.env.INTERNAL_SERVICE_ID = priorServiceEnvironment.id;
 if (priorServiceEnvironment.secret === undefined) delete process.env.INTERNAL_SERVICE_SECRET; else process.env.INTERNAL_SERVICE_SECRET = priorServiceEnvironment.secret;
+const originalEnvironment = process.env.NODE_ENV;
+try {
+  process.env.NODE_ENV = 'production';
+  const unavailable = await invoke(request('/api/auth/login', '198.51.100.90', 'POST'));
+  assert.equal(unavailable.passed, false, 'production login cannot proceed without Redis');
+  assert.equal(unavailable.res.statusCode, 503, 'Redis outage is a service error rather than an authorization failure');
+} finally {
+  if (originalEnvironment === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = originalEnvironment;
+}
 console.log('Adaptive traffic protection checks passed.');

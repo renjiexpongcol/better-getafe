@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { Bell, CalendarDays, ChevronDown, CircleHelp, CreditCard, FileText, FolderOpen, Home, LayoutGrid, LogOut, Menu, Settings, UserRound, X } from 'lucide-react'
+import { Bell, CalendarDays, ChevronDown, CircleHelp, CreditCard, FileText, FolderOpen, Home, LayoutGrid, LogOut, Menu, Search, Settings, UserRound, X } from 'lucide-react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { CitizenProvider, useCitizen } from '../context/CitizenContext'
@@ -17,7 +17,7 @@ import { DEFAULT_SETTINGS_CATEGORY, normalizeSettingsCategory } from '../pages/a
 
 const groups = [
   ['Overview', [['Dashboard', ROUTES.app.root, Home]]],
-  ['Services', [['Browse Services', ROUTES.app.services, LayoutGrid], ['My Applications', ROUTES.app.requests, FileText], ['Appointments', ROUTES.app.appointments, CalendarDays]]],
+  ['Services', [['Browse Services', ROUTES.app.services, LayoutGrid], ['My Requests', '/app/e-requests', FileText], ['My Applications', ROUTES.app.requests, FileText], ['Appointments', ROUTES.app.appointments, CalendarDays]]],
   ['Records', [['My Documents', ROUTES.app.documents, FolderOpen], ['Payments', ROUTES.app.payments, CreditCard]]],
   ['Support', [['Help & Support', ROUTES.app.help, CircleHelp]]],
 ]
@@ -33,33 +33,36 @@ function CitizenShell({ children }) {
   return <CitizenProvider key={user.id}><LayoutContext.Provider value={true}><Shell>{children}</Shell></LayoutContext.Provider></CitizenProvider>
 }
 function Shell({ children }) {
-  const { user, logout } = useAuth(), { data, loading, error, reload } = useCitizen(), { t, cancelEditing } = useResidentPreferences(), navigate = useNavigate(), location = useLocation()
-  const [drawer, setDrawer] = useState(false), [popover, setPopover] = useState(''), [notice, setNotice] = useState(''), [accountOpen, setAccountOpen] = useState(false), [accountView, setAccountView] = useState('profile'), [accountCategory, setAccountCategory] = useState(DEFAULT_SETTINGS_CATEGORY), [accountReturnView, setAccountReturnView] = useState('profile')
-  const actionsRef = useRef(null), sidebarRef = useRef(null), menuRef = useRef(null), profileTriggerRef = useRef(null), profileFormRef = useRef(null), changePasswordRef = useRef(null), securitySettingsScrollTopRef = useRef(0)
+  const { user, logout } = useAuth(), { data, loading, error, reload } = useCitizen(), { t, dirty, cancelEditing } = useResidentPreferences(), navigate = useNavigate(), location = useLocation()
+  const [drawer, setDrawer] = useState(false), [popover, setPopover] = useState(''), [notice, setNotice] = useState(''), [mobileSearchOpen, setMobileSearchOpen] = useState(false), [accountOpen, setAccountOpen] = useState(false), [accountView, setAccountView] = useState('profile'), [accountCategory, setAccountCategory] = useState(DEFAULT_SETTINGS_CATEGORY), [accountReturnView, setAccountReturnView] = useState('profile')
+  const actionsRef = useRef(null), sidebarRef = useRef(null), menuRef = useRef(null), profileTriggerRef = useRef(null), profileFormRef = useRef(null), changePasswordRef = useRef(null), settingsCloseGuardRef = useRef(null), securitySettingsScrollTopRef = useRef(0)
   const name = data?.profile?.full_name || user.name || 'Citizen', initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase()
   const avatarUrl = data?.profile?.avatar_url || ''
   const notifications = data?.notifications || [], unread = notifications.filter(item => !item.read_at).length
-  useEffect(() => { setDrawer(false); setPopover('') }, [location.pathname, location.search])
+  useEffect(() => { setDrawer(false); setPopover(''); setMobileSearchOpen(false) }, [location.pathname, location.search])
   const openProfile = useCallback(() => { setPopover(''); setAccountView('profile'); setAccountCategory(DEFAULT_SETTINGS_CATEGORY); setAccountOpen(true) }, [])
   const openSettings = useCallback(category => { setPopover(''); setAccountView('settings'); setAccountCategory(normalizeSettingsCategory(category)); setAccountOpen(true) }, [])
   const openPassword = useCallback((returnView = 'profile') => {
-    if (returnView === 'settings') securitySettingsScrollTopRef.current = document.querySelector('.account-settings-modal .settings-panel')?.scrollTop || 0
+    if (returnView === 'settings') securitySettingsScrollTopRef.current = document.querySelector('.account-settings-modal .profile-modal-body')?.scrollTop || 0
     setAccountReturnView(returnView)
     profileFormRef.current?.requestSwitch?.(() => setAccountView('password'))
   }, [])
   const closePassword = useCallback(() => {
     setAccountView(accountReturnView)
     if (accountReturnView === 'settings') window.requestAnimationFrame(() => {
-      const panel = document.querySelector('.account-settings-modal .settings-panel')
-      if (panel) panel.scrollTop = securitySettingsScrollTopRef.current
+      const scrollContainer = document.querySelector('.account-settings-modal .profile-modal-body')
+      if (scrollContainer) scrollContainer.scrollTop = securitySettingsScrollTopRef.current
     })
   }, [accountReturnView])
   const closeAccount = useCallback(() => { cancelEditing(); setAccountOpen(false); setAccountView('profile') }, [cancelEditing])
+  const confirmSettingsDiscard = useCallback(() => !dirty || window.confirm('Discard your unsaved settings changes?'), [dirty])
+  const requestSettingsClose = useCallback(() => { if (confirmSettingsDiscard()) closeAccount() }, [closeAccount, confirmSettingsDiscard])
+  settingsCloseGuardRef.current = { requestClose: requestSettingsClose }
   const closeModal = useCallback(() => {
     if (accountView === 'password') closePassword()
     else if (accountView === 'profile') profileFormRef.current?.requestClose()
-    else closeAccount()
-  }, [accountView, closeAccount, closePassword])
+    else requestSettingsClose()
+  }, [accountView, closePassword, requestSettingsClose])
   useEffect(() => {
     const state = location.state
     if (!state?.openProfileModal && !state?.openSettingsModal) return
@@ -105,7 +108,11 @@ function Shell({ children }) {
     <div className="citizen-main">
       <header className="citizen-topbar"><div className="portal-breadcrumb"><button type="button" ref={menuRef} className="citizen-menu-toggle" data-tooltip="Open navigation" onClick={() => setDrawer(true)} aria-label="Open navigation" aria-expanded={drawer}><Menu size={21}/></button></div>
         <div className="citizen-top-actions" ref={actionsRef}>
-          <ServiceSearch compact/>
+          <ServiceSearch compact inputId="header-service-search"/>
+          <div className="portal-mobile-search">
+            <button type="button" className="portal-icon-button portal-mobile-search-trigger" aria-label={mobileSearchOpen ? 'Close search' : 'Search services, news, and information'} aria-expanded={mobileSearchOpen} aria-controls="mobile-header-search-panel" onClick={() => setMobileSearchOpen(value => !value)}><Search size={19} aria-hidden="true"/></button>
+            {mobileSearchOpen && <div className="portal-mobile-search-panel" id="mobile-header-search-panel"><ServiceSearch compact autoFocus inputId="mobile-header-service-search"/></div>}
+          </div>
           <div className="portal-header-utility"><Link className="portal-icon-button" data-tooltip="Help and support" to={ROUTES.app.help} aria-label="Help and support"><CircleHelp size={19}/></Link>
           <div className="portal-popover-anchor"><button type="button" className="portal-icon-button" data-tooltip="Notifications" aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'} aria-expanded={popover === 'notifications'} aria-haspopup="dialog" onClick={() => setPopover(popover === 'notifications' ? '' : 'notifications')}><Bell size={19}/>{unread > 0 && <span className="portal-unread">{unread}</span>}</button>
             {popover === 'notifications' && <section className="portal-popover portal-notification-popover" aria-label="Notifications"><div className="portal-popover-heading"><strong>Notifications</strong><div className="portal-notification-heading-actions"><span>{unread} unread</span>{unread > 0 && <button type="button" onClick={markAllNotificationsRead}>Mark all as read</button>}</div></div>{loading ? <p>Loading notifications…</p> : error ? <p role="alert">{error}</p> : notifications.length ? notifications.slice(0, 4).map(item => <button type="button" key={item.id} className={!item.read_at ? 'unread' : ''} onClick={() => openNotification(item)}><strong>{item.title}</strong><span>{item.message}</span><small>{dateLabel(item.created_at)}</small></button>) : <p>You’re all caught up. Updates will appear here.</p>}{notice && <p role="alert">{notice}</p>}<Link to={ROUTES.app.notifications}>View all notifications →</Link></section>}
@@ -120,19 +127,20 @@ function Shell({ children }) {
       description={accountView === 'settings' ? t('settings.description') : undefined}
       onClose={closeModal}
       returnFocusRef={profileTriggerRef}
-      closeGuardRef={accountView === 'profile' ? profileFormRef : undefined}
+      closeGuardRef={accountView === 'settings' ? settingsCloseGuardRef : accountView === 'profile' ? profileFormRef : undefined}
       focusKey={accountView}
       showHeader={accountView !== 'password'}
       labelledBy={accountView === 'password' ? 'password-change-title' : undefined}
+      closeLabel={accountView === 'settings' ? 'Close account settings' : undefined}
       className={accountView === 'settings' ? 'account-settings-modal' : ''}
-      footer={accountView === 'settings' ? <AccountSettingsFooter onClose={closeAccount}/> : undefined}
+      footer={accountView === 'settings' ? <AccountSettingsFooter onClose={requestSettingsClose}/> : undefined}
     >
       <div className={accountView === 'profile' ? '' : 'profile-modal-view-hidden'} aria-hidden={accountView === 'profile' ? undefined : 'true'}>
         <ProfileForm ref={profileFormRef} onClose={closeAccount}/>
       </div>
       {accountView === 'password' && <PasswordChangeModal embedded endpoint="/api/auth/change-password" requestMethod="POST" passwordField="password" onClose={closePassword} returnFocusRef={changePasswordRef}/>}
       {accountView === 'settings' && (
-        <AccountSettingsContent activeCategory={accountCategory} onCategoryChange={setAccountCategory} onEditProfile={() => { cancelEditing(); setAccountView('profile') }} onChangePassword={() => openPassword('settings')} changePasswordRef={changePasswordRef}/>
+        <AccountSettingsContent activeCategory={accountCategory} onCategoryChange={setAccountCategory} onEditProfile={() => { if (!confirmSettingsDiscard()) return; cancelEditing(); setAccountView('profile') }} onChangePassword={() => openPassword('settings')} changePasswordRef={changePasswordRef}/>
       )}
     </ProfileModal>}
   </div>

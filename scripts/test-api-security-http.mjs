@@ -66,10 +66,28 @@ const containsKey = (value, key) => {
   if (!value || typeof value !== 'object') return false;
   return Object.hasOwn(value, key) || Object.values(value).some(item => containsKey(item, key));
 };
+const forbiddenPublicKeys = ['password', 'password_hash', 'storage_path', 'featured_image_path', 'person_id', 'assignment_id', 'legacy_source_key', 'verification', 'api_key', 'secret'];
+for (const path of ['/api/categories', '/api/officials', '/api/officials/directory', '/api/barangays']) {
+  const result = await request(path);
+  assert.equal(result.response.status, 200, `${path} should remain publicly readable`);
+  for (const key of forbiddenPublicKeys) assert.equal(containsKey(result.body, key), false, `${path} must not expose ${key}`);
+}
+
 const publicNews = await request('/api/news?limit=1&public=true');
 assert.equal(publicNews.response.status, 200);
-assert.equal(containsKey(publicNews.body?.items?.[0], 'featured_image_path'), false, 'public news must not expose CMS storage paths');
-assert.equal(containsKey(publicNews.body?.items?.[0], 'storage_path'), false, 'public news gallery must not expose storage paths');
+for (const key of forbiddenPublicKeys) assert.equal(containsKey(publicNews.body?.items?.[0], key), false, `public news must not expose ${key}`);
+const invalidNewsLimit = await request('/api/news?limit=1000');
+assertJsonError(invalidNewsLimit, 400);
+const publicDraftQuery = await request('/api/news?status=draft&limit=100&public=true');
+const publicDefaultQuery = await request('/api/news?limit=100&public=true');
+assert.equal(publicDraftQuery.response.status, 200);
+assert.equal(publicDraftQuery.body?.total, publicDefaultQuery.body?.total, 'public status filters must not change the published result set');
+const firstPublicSlug = publicNews.body?.items?.[0]?.slug;
+if (firstPublicSlug) {
+  const publicNewsDetail = await request(`/api/news/${encodeURIComponent(firstPublicSlug)}`);
+  assert.equal(publicNewsDetail.response.status, 200);
+  for (const key of forbiddenPublicKeys) assert.equal(containsKey(publicNewsDetail.body, key), false, `public news detail must not expose ${key}`);
+}
 const publicDestinations = await request('/api/discover?limit=1');
 assert.equal(publicDestinations.response.status, 200);
 assert.equal(containsKey(publicDestinations.body?.items?.[0], 'featuredImage'), false, 'public destinations must not expose CMS storage paths');

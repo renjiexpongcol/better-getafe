@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { cachedJson, cachedRequest, readCached, clearPrivateCache, invalidateCached, invalidateCachedPrefix } from '../src/services/requestCache.js'
+import { publicApi } from '../src/services/apiClient.js'
 
 test('concurrent requests and repeat navigation share a single fetch', async () => {
   let calls = 0
@@ -93,4 +94,40 @@ test('read-only 429 responses are not replayed by the cache layer', async () => 
   } finally {
     globalThis.fetch = originalFetch
   }
+})
+
+test('publicApi returns parsed JSON to content components', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async () => ({
+    status: 200,
+    ok: true,
+    headers: { get: () => null },
+    json: async () => ({ items: [{ id: 'published-update' }] }),
+  })
+  try {
+    assert.deepEqual(await publicApi('/api/test-public-news-contract', { persist: false }), { items: [{ id: 'published-update' }] })
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('network failures stop after three attempts and canceled requests are not replayed', async () => {
+  const original = globalThis.fetch
+  let calls = 0
+  try {
+    globalThis.fetch = async () => { calls++; throw new TypeError('Failed to fetch') }
+    await assert.rejects(cachedJson('/api/network-unavailable-test', { persist: false }), error => error.category === 'NETWORK_UNAVAILABLE')
+    assert.equal(calls, 3)
+    const controller = new AbortController(); controller.abort()
+    calls = 0
+    globalThis.fetch = async () => { calls++; throw new DOMException('Aborted', 'AbortError') }
+    await assert.rejects(cachedJson('/api/canceled-test', { signal: controller.signal, persist: false }), error => error.name === 'AbortError')
+    assert.equal(calls, 1)
+  } finally { globalThis.fetch = original }
+})
+
+test('logout invalidates private CMS data', async () => {
+  await cachedRequest('cms:media:logout-check', async () => ({ private: true }))
+  clearPrivateCache()
+  assert.equal(readCached('cms:media:logout-check'), undefined)
 })

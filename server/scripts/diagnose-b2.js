@@ -22,7 +22,6 @@ const region = String(values['storage.region'] || '').trim();
 const bucket = String(values['storage.bucket'] || '').trim();
 const accessKeyId = values['storage.keyId'];
 const secretAccessKey = values['storage.applicationKey'];
-const safeStatus = (label, result) => console.log(`${label}: ${result}`);
 
 function summarizeProxy(value) {
   if (!value) return 'not configured';

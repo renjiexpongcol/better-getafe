@@ -1,4 +1,10 @@
 const routeOverrides = {
+  './pages/services/Eservice.jsx': '/services/e-services/:slug',
+  './pages/app/Erequests.jsx': '/app/e-requests',
+  './pages/app/Erequest.jsx': '/app/e-requests/:id',
+  './pages/app/Ebilling.jsx': '/app/e-billing/:kind',
+  './pages/app/Epayment.jsx': '/app/e-payment/:id',
+  './pages/departments/Department.jsx': '/departments/:slug',
   './pages/discover/Destination.jsx': '/discover/:slug',
   './pages/admin/Admin.jsx': '/admin',
   './pages/news/Article.jsx': '/news/:slug',

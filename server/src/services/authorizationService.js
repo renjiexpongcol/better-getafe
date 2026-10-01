@@ -3,6 +3,8 @@ import { getPostgresRuntime } from '../repositories/postgresRuntime.js'
 import { id, now } from './identifiers.js'
 
 export const permissionCatalog = [
+  ...['services.catalog.view','services.catalog.manage','requests.department.view','requests.department.assign','requests.department.process','requests.department.approve','assessments.view','assessments.create','assessments.adjust','payments.view','payments.verify','payments.reverse','billing.business.view','billing.realty.view','billing.water.view','billing.manage','eservices.admin'].map(permission => [permission,'E-Services',permission.split('.').join(' '),'Department-scoped e-services access.']),
+  ['departments.manage', 'Content', 'Manage departments and offices', 'Manage published office information and its service relationships.'],
   ['requests.view', 'Requests', 'View service requests', 'View request records and requester details.'],
   ['requests.create', 'Requests', 'Create service requests', 'Create requests on behalf of residents.'],
   ['requests.update', 'Requests', 'Update service requests', 'Change request details and processing status.'],
@@ -35,6 +37,8 @@ export const permissionCatalog = [
   ['system.database.configure', 'System', 'Configure database', 'Change database connection configuration.', true],
   ['system.database.test', 'System', 'Test database connection', 'Test a proposed database connection.', true],
   ['system.infrastructure.view', 'System', 'View infrastructure status', 'View sanitized Redis and worker health metrics.', true],
+  ['system.errors.view', 'System', 'View error logs', 'Inspect grouped, redacted production diagnostics.', true],
+  ['system.errors.manage', 'System', 'Manage error log state', 'Acknowledge, resolve, and annotate system issues.', true],
   ['settings.view', 'System', 'View system settings', 'Open and review system configuration.', true],
   ['staff.dashboard.view', 'Staff Workspace', 'View staff dashboard', 'Open the municipal staff workspace.'],
   ['notifications.view', 'Staff Workspace', 'View staff notifications', 'View staff notifications.'],

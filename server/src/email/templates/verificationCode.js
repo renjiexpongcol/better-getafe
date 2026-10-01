@@ -21,7 +21,7 @@ function isPublicHttpsUrl(value) {
 export function verificationCodeEmail({ code, expiresInMinutes = 10, purpose = 'login', portalName = 'Municipality of Getafe', siteUrl, logoUrl }) {
   const content = purposeContent[purpose] || purposeContent.login;
   const safeCode = escapeHtml(code);
-  const safePortalName = escapeHtml(portalName);
+
   const safeExpires = escapeHtml(expiresInMinutes);
   const displayCode = String(code).length === 6
     ? `${escapeHtml(String(code).slice(0, 3))}<span style="display:inline-block;margin-left:10px">${escapeHtml(String(code).slice(3))}</span>`

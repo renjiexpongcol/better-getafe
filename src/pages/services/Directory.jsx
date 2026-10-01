@@ -58,11 +58,7 @@ export default function Directory() {
     return `/services/${service.category}`
   }
 
-  const officeHref = (service) => service.slug === 'health'
-    ? 'https://www.facebook.com/GetafeRHU'
-    : service.slug === 'civil-registry'
-      ? '/services/certificates'
-      : `/services/offices/${encodeURIComponent(service.slug)}`
+  const officeHref = (service) => `/departments/${encodeURIComponent(service.slug)}`
 
   const chooseDepartment = (value) => {
     setQuery(value)
@@ -103,7 +99,7 @@ export default function Directory() {
               {filteredServices.map((service) => {
                 const Icon = service.Icon || Building2
                 const destination = officeHref(service)
-                const officeLink = <>{service.slug === 'health' ? 'View Health Office on Facebook' : 'View office information'} <ArrowRight size={15} aria-hidden="true" /></>
+                const officeLink = <>View office information <ArrowRight size={15} aria-hidden="true" /></>
                 return <article className="service-directory-card service-directory-office-card" key={service.id || service.slug}>
                   <div className="service-directory-office-identity">
                     <div className="service-directory-icon"><Icon size={20} aria-hidden="true" /></div>
@@ -113,7 +109,7 @@ export default function Directory() {
                     </div>
                   </div>
                   <p>{service.excerpt}</p>
-                  {service.slug === 'health' ? <a href={destination} target="_blank" rel="noopener noreferrer" className="service-directory-link" aria-label="Open Getafe Rural Health Unit on Facebook">{officeLink}</a> : <Link to={destination} className="service-directory-link">{officeLink}</Link>}
+                  <Link to={destination} className="service-directory-link">{officeLink}</Link>
                 </article>
               })}
             </div></section>}

@@ -97,11 +97,16 @@ export async function createNewsArticle(b, author_id) {
   };
 
   if (isGcp()) {
-    const insert = async (connection) => connection.execute(
-      "INSERT INTO news (id, title, slug, excerpt, content, featured_image, gallery_images, category_id, author_id, status, published_at, created_at, updated_at, is_important, content_type, event_start_at, event_end_at, show_in_news, show_in_upcoming, show_in_events, show_on_homepage, autosave_version, last_autosaved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [article.id, article.title, article.slug, article.excerpt, article.content, article.featured_image, JSON.stringify(article.gallery_images), article.category_id, article.author_id, article.status, article.published_at, article.created_at, article.updated_at, article.is_important, article.content_type, article.event_start_at, article.event_end_at, article.show_in_news, article.show_in_upcoming, article.show_in_events, article.show_on_homepage, article.autosave_version, article.last_autosaved_at]
-    );
-    if (connection.beginTransaction) await syncContentMediaWithConnection(connection, 'news', article.id, article);
+    const insert = async (connection) => {
+      await connection.execute(
+        "INSERT INTO news (id, title, slug, excerpt, content, featured_image, gallery_images, category_id, author_id, status, published_at, created_at, updated_at, is_important, content_type, event_start_at, event_end_at, show_in_news, show_in_upcoming, show_in_events, show_on_homepage, autosave_version, last_autosaved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [article.id, article.title, article.slug, article.excerpt, article.content, article.featured_image, JSON.stringify(article.gallery_images), article.category_id, article.author_id, article.status, article.published_at, article.created_at, article.updated_at, article.is_important, article.content_type, article.event_start_at, article.event_end_at, article.show_in_news, article.show_in_upcoming, article.show_in_events, article.show_on_homepage, article.autosave_version, article.last_autosaved_at]
+      );
+      await syncContentMediaWithConnection(connection, 'news', article.id, {
+        featuredImage: article.featured_image,
+        galleryImages: article.gallery_images,
+      });
+    };
     if (article.is_important) {
       await withNewsTransaction(async (connection) => {
         await connection.execute('UPDATE news SET is_important=FALSE WHERE is_important=TRUE');

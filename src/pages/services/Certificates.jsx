@@ -3,7 +3,6 @@ import ServicePageLayout from '../../components/ServicePageLayout'
 export default function Certificates() {
   return (
     <ServicePageLayout
-      kicker="Popular services · Civil registry"
       title="Certificates & IDs"
       subtitle="Official certificates, clearances, and identification documents for residents."
       intro="From barangay clearances to resident certificates, the municipality issues the documents you need for work, school, and personal transactions."

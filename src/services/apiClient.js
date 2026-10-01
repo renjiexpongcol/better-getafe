@@ -1,13 +1,15 @@
-import { cachedJson } from './requestCache'
+import { cachedJson } from './requestCache.js'
+import { errorContextForPath } from './publicError.js'
+import { apiPath } from './apiTransport.js'
+export { apiFetch, requestJson, ApiRequestError } from './apiTransport.js'
 
 const publicHeaders = { Accept: 'application/json', 'X-Requested-With': 'GetafeCitizenPortal' }
 
-const apiPath = path => String(path).startsWith('/api/') ? String(path) : '/api' + (String(path).startsWith('/') ? String(path) : '/' + String(path))
-
 export function apiJson(path, options = {}) {
-  const { headers, ...rest } = options
+  const { headers, errorContext, ...rest } = options
   return cachedJson(apiPath(path), {
     ...rest,
+    errorContext: errorContext || errorContextForPath(path),
     headers: { ...publicHeaders, ...(headers || {}) },
   })
 }

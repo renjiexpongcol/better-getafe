@@ -8,8 +8,10 @@ import { useAuth } from '../../context/AuthContext'
 import { useCitizen } from '../../context/CitizenContext'
 import { citizenApi } from '../../services/citizenData'
 import { ROUTES } from '../../routeRegistry'
+import { esApi, useEservice } from '../../components/EserviceUI'
 
 export default function Services() {
+  const catalog = useEservice(() => esApi('/services'), [])
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -55,6 +57,7 @@ export default function Services() {
   }
 
   return <AppPage title="Browse municipal services">
+    <section className="es-workspace"><Link to="/app/e-requests">My e-service requests</Link><ul className="es-links">{catalog.data?.items.map(service=><li key={service.id}><Link to={`/services/e-services/${service.slug}`}>{service.name}</Link><p>{service.short_description}</p></li>)}</ul>{catalog.error&&<p role="alert">{catalog.error}</p>}</section>
     <ServiceSearch autoFocus={params.has('search')}/>
     <nav className="portal-filters" aria-label="Service categories">
       <Link className={!category ? 'active' : ''} to={ROUTES.app.services}>All services</Link>

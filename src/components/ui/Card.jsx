@@ -1,5 +1,3 @@
-import React from 'react';
-
 export function Card({ title, description, image, footer, onClick }) {
   return (
     <div 

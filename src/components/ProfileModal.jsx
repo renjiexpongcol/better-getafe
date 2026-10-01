@@ -22,6 +22,7 @@ export default function ProfileModal({
   showHeader = true,
   labelledBy,
   description = 'Manage your personal and contact information without leaving this page.',
+  closeLabel,
   footer,
 }) {
   const dialogRef = useRef(null)
@@ -96,7 +97,7 @@ export default function ProfileModal({
               <h1 id="profile-modal-title">{title}</h1>
               <p>{description}</p>
             </div>
-            <button type="button" className="profile-modal-close" aria-label="Close profile editor" onClick={requestClose}>
+            <button type="button" className="profile-modal-close" aria-label={closeLabel || 'Close profile editor'} onClick={requestClose}>
               <X size={20} aria-hidden="true" />
             </button>
           </header>

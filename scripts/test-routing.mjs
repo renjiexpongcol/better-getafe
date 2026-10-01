@@ -6,7 +6,7 @@ import test from 'node:test'
 import { matchRoutes } from 'react-router-dom'
 import { MODULE_REGISTRY, resolveModuleAccess } from '../src/applicationModuleRegistry.js'
 import { buildPageRouteManifest, getProtectedRouteState, LEGACY_REDIRECTS, resolveResourceResponse } from '../src/routeConfig.js'
-import { adminLocation, legacyAdminTarget, legacyAppTarget, legacyStaffTarget, normalizePathname, ownedSearch, ROUTES } from '../src/routeRegistry.js'
+import { adminLocation, getAdminActiveModule, legacyAdminTarget, legacyAppTarget, legacyStaffTarget, normalizePathname, ownedSearch, ROUTES } from '../src/routeRegistry.js'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const pagesRoot = path.join(root, 'src', 'pages')
@@ -117,7 +117,7 @@ test('every Settings category has a canonical route and route-derived active sta
     assert.deepEqual(adminLocation(`/admin/settings/${slug}`), { module: 'settings', category: key })
   }
   assert.match(settingsSource, /navigate\(ROUTES\.admin\.setting\(next\)\)/)
-  assert.match(adminSource, /adminLocation\(location\.pathname\)/)
+  assert.match(adminSource, /getAdminActiveModule\(location\)/)
   assert.doesNotMatch(settingsSource, /window\.location\.(?:href|assign|replace|reload)/)
 })
 
@@ -137,6 +137,20 @@ test('legacy module URLs migrate to one canonical pathname and discard unrelated
   assert.equal(legacyAdminTarget('?sysparm_object_id=media'), ROUTES.admin.media)
   assert.equal(legacyAppTarget('?sysparm_object_id=requests&sysparm_record_id=abc%20123&submitted=1'), '/app/requests/abc%20123?submitted=1')
   assert.equal(legacyStaffTarget('?sysparm_object_id=request-management'), ROUTES.staff.requests)
+})
+
+test('admin navigation active state follows the canonical route and legacy module query', () => {
+  assert.equal(getAdminActiveModule({ pathname: '/admin', search: '' }), 'dashboard')
+  assert.equal(getAdminActiveModule({ pathname: '/admin/news', search: '' }), 'news')
+  assert.equal(getAdminActiveModule({ pathname: '/admin/media', search: '?page=2' }), 'media')
+  assert.equal(getAdminActiveModule({ pathname: '/admin/officials', search: '' }), 'officials')
+  assert.equal(getAdminActiveModule({ pathname: '/admin/barangays', search: '' }), 'barangays')
+  assert.equal(getAdminActiveModule({ pathname: '/admin/access/groups', search: '' }), 'access')
+  assert.equal(getAdminActiveModule({ pathname: '/admin/privacy', search: '' }), 'privacy')
+  assert.equal(getAdminActiveModule({ pathname: '/admin/settings/security', search: '' }), 'settings')
+  assert.equal(getAdminActiveModule({ pathname: '/admin', search: '?sysparm_object_id=media-library' }), 'media')
+  assert.equal(getAdminActiveModule({ pathname: '/admin', search: '?tab=news' }), 'news')
+  assert.equal(getAdminActiveModule({ pathname: '/admin', search: '?sysparm_object_id=unknown-module' }), null)
 })
 
 test('route ownership removes unsupported query parameters and normalizes path garbage', () => {
@@ -210,7 +224,9 @@ test('static internal navigation targets point to registered routes or server fi
     }
   }
   await collectSource(path.join(root, 'src'))
-  const routeIndex = [...manifest.map(route => ({ path: route.path })), ...LEGACY_REDIRECTS.map(([from]) => ({ path: from })), { path: '/app' }]
+  const appSource = await readFile(path.join(root,'src','App.jsx'),'utf8')
+  const explicitRoutes = [...appSource.matchAll(/<Route path="([^"]+)"/g)].map(match => ({path:match[1]})).filter(route=>!route.path.includes('*'))
+  const routeIndex = [...manifest.map(route => ({ path: route.path })), ...LEGACY_REDIRECTS.map(([from]) => ({ path: from })), ...explicitRoutes]
   const brokenTargets = []
   const targetPattern = /\b(?:to|href)\s*=\s*["'](\/[^"']*)["']/g
 

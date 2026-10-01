@@ -10,7 +10,7 @@ const fallback = [
   { name: 'Cary M. Camacho, MPM', role: 'Municipal Mayor', position: { slug: 'municipal-mayor' }, jurisdiction: { type: 'municipal' }, term: { status: 'unknown' } },
   { name: 'Casey Shaun M. Camacho', role: 'Municipal Vice-Mayor', position: { slug: 'municipal-vice-mayor' }, jurisdiction: { type: 'municipal' }, term: { status: 'unknown' } },
 ]
-const officialKey = (official, index = 0) => official?.id || official?.slug || `${officialId(official?.name)}-${official?.position?.slug || official?.role || 'official'}-${index}`
+const officialKey = (official, index = 0) => official?.publicKey || official?.slug || `${officialId(official?.name)}-${official?.position?.slug || official?.role || 'official'}-${index}`
 const formatDate = value => {
   if (!value) return null
   const date = new Date(`${value}T00:00:00Z`)

@@ -12,3 +12,7 @@
 @media(max-width:767px){.news-page .news-grid{grid-template-columns:minmax(0,1fr);gap:16px}}
 @media(max-width:560px){.news-listing-summary{align-items:flex-start;flex-direction:column;gap:10px;padding:14px}.news-listing-summary label{align-self:stretch}}
 .news-page .news-listing.section{padding-bottom:16px}
+.news-page .news-listing-empty .latest-title,
+.news-page .news-listing-empty .news-empty{text-align:center}
+.news-page .news-listing-empty.section{min-height:60dvh;box-sizing:border-box;padding-bottom:64px}
+.news-page .news-listing-empty .latest-title{margin-top:clamp(64px,12dvh,140px)}

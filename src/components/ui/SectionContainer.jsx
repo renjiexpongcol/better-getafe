@@ -1,5 +1,3 @@
-import React from 'react';
-
 export function SectionContainer({ title, subtitle, children, className = "" }) {
   return (
     <section className={`py-16 md:py-24 ${className}`}>

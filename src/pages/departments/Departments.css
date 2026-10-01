@@ -1,0 +1,22 @@
+.department-page{background:var(--surface,#fff);color:var(--text-primary,#102b46)}
+.department-hero{padding:48px 0;background:var(--gov-sand,#f6f7f8);border-bottom:1px solid var(--border,#dfe5eb)}
+.department-hero nav{margin-bottom:32px;font-size:.875rem;line-height:1.7;overflow-wrap:anywhere}
+.department-hero h1{max-width:960px;margin:12px 0;font-size:clamp(2rem,3.5vw,3rem);line-height:1.15}
+.department-hero p{max-width:760px;line-height:1.6}
+.department-hero img{width:100%;max-height:400px;object-fit:cover;border-radius:10px;margin-top:24px}
+.department-content{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:64px;padding-block:48px}
+.department-content>*{min-width:0}.department-section{padding-block:24px;border-bottom:1px solid var(--border,#dfe5eb)}
+.department-section h2,.department-office h2{font-size:1.5rem;margin:0 0 20px}.department-section h3{font-size:1.125rem;font-weight:600;margin:0 0 4px}
+.department-prose{white-space:pre-wrap;line-height:1.75;overflow-wrap:anywhere}
+.department-services,.department-index{list-style:none;padding:0;margin:0}
+.department-services li{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:20px 0;border-top:1px solid var(--border,#dfe5eb)}
+.department-services span,.department-office dt,.department-update time{color:var(--text-secondary,#586a7e);font-size:.875rem}
+.department-services a,.department-link{display:inline-flex;align-items:center;min-height:44px;font-weight:600;line-height:1.5}
+.department-office{border-left:1px solid var(--border,#dfe5eb);padding-left:32px;padding-top:24px;align-self:start}
+.department-office dl{margin:24px 0}.department-office dl div{margin-bottom:20px}.department-office dd{margin:4px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
+.department-official img{width:96px;height:112px;object-fit:cover;border-radius:6px}.department-official h3{font-size:1.125rem;margin-bottom:4px}.department-official p{margin:0;line-height:1.5}
+.department-update{padding:20px 0;border-top:1px solid var(--border,#dfe5eb)}.department-update p{line-height:1.6}
+.department-index{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 40px}.department-index li{border-bottom:1px solid var(--border,#dfe5eb)}.department-index a{display:block;padding:24px 0}.department-index h2{font-size:1.25rem}.department-index p{line-height:1.6;color:var(--text-secondary,#586a7e)}
+.department-page a:focus-visible{outline:3px solid var(--gov-sea,#245788);outline-offset:4px}.department-page a:hover{text-decoration:underline}
+@media(max-width:760px){.department-content{grid-template-columns:minmax(0,1fr);gap:24px;padding-block:24px}.department-office{border-left:0;border-top:1px solid var(--border,#dfe5eb);padding-left:0}.department-services li{align-items:flex-start;flex-direction:column;gap:8px}.department-index{grid-template-columns:minmax(0,1fr)}.department-hero{padding-block:32px}}
+.department-hero .eyebrow { display: flex; align-items: center; gap: 8px; }

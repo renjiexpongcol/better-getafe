@@ -24,9 +24,9 @@ export default function Home() {
       <section className="section home-help-links" aria-labelledby="home-help-links-title"><div className="container"><div className="section-head"><p className="eyebrow">Start with what you need</p><h2 id="home-help-links-title">What can we help you with?</h2></div><CitizenActions /></div></section>
       <MunicipalityUpdatesSection />
       <EventsSection />
+      <DiscoverGetafe />
       <MayorCorner />
       <HomeHelp />
-      <DiscoverGetafe />
     </main>
   )
 }

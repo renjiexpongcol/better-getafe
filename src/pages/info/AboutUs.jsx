@@ -1,12 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  ArrowRight, Landmark, Eye, Target, Users, Goal,
-  MapPin, Ruler, Layers, Wallet, TrendingUp,
-  Home, BarChart3, Navigation, Search, Percent, ArrowUpRight,
-  ArrowDownRight, Mountain, Flag, Compass, Database, Info, Wheat,
-  Sprout, Loader2, Ship, Sun,
-} from 'lucide-react'
+import { Landmark, Eye, Target, Users, Goal, MapPin, Ruler, Layers, Wallet, TrendingUp, Home, BarChart3, Navigation, Search, Percent, ArrowUpRight, ArrowDownRight, Mountain, Flag, Compass, Database, Info, Ship, Sun } from 'lucide-react';
 import {
   overview, barangayStats, barangayTotals, incomeData, householdData,
   ageData, ageGroupSummary, historicalPopulation, nearestTowns, nearestCities,

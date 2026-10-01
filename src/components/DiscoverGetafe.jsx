@@ -15,7 +15,7 @@ export default function DiscoverGetafe() {
   const { data, loading, error } = useDestinations('/api/discover?featured=true')
   if (error || (!loading && !data?.items?.length)) return null
   return <section className="section discover-section" aria-labelledby="discover-getafe-title"><div className="container">
-    <div className="discover-heading"><div><h2 id="discover-getafe-title">Discover Getafe</h2><p>Home to the phenomenal Danajon Double Barrier Reef, rich cultural heritage, and islands waiting to be explored.</p></div>{data?.total > data?.items?.length && <Link className="read-more" to="/discover">View All Destinations <span aria-hidden="true">→</span></Link>}</div>
-    {loading ? <DestinationSkeleton/> : <div className="discover-grid">{data.items.map(destination => <DestinationCard key={destination.id} destination={destination}/>)}</div>}
+    <div className="discover-heading"><div><h2 id="discover-getafe-title">Discover Getafe</h2><p>Explore the places and experiences that make Getafe worth discovering.</p></div><Link className="read-more" to="/discover">View all destinations <span aria-hidden="true">→</span></Link></div>
+    {loading ? <DestinationSkeleton/> : <div className={`discover-grid discover-grid--${Math.min(data.items.length, 4)}${data.items.length === 1 ? ' discover-grid--featured' : ''}`}>{data.items.map(destination => <DestinationCard key={destination.id} destination={destination}/>)}</div>}
   </div></section>
 }

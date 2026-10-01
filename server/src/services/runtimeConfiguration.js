@@ -22,17 +22,18 @@ export async function prepareRuntime(values, previous, context = {}) {
       let storage;
       try { storage = await buildStorage(values); }
       catch (error) {
-        if (context.initializing && values['storage.provider'] === 'backblaze') {
-          console.error('[STARTUP] Backblaze B2 initialization failed; local storage fallback is disabled.');
-          systemStatus.storage = { status: 'degraded', provider: 'backblaze-b2', checkedAt: new Date().toISOString() };
-        }
-        throw error;
+        if (!context.initializing) throw error;
+        console.error('[STARTUP] Storage unavailable; API will start with media storage degraded. No local fallback is enabled.');
+        storage = { provider: 'degraded', client: null };
       }
-      prepared.push({ activate: () => { activateStorage(storage); systemStatus.storage = { status: 'connected', provider: storage.provider, checkedAt: new Date().toISOString(), latencyMs: Date.now() - start }; }, discard: async () => storage.client?.destroy() });
+      prepared.push({ activate: () => { activateStorage(storage); systemStatus.storage = { status: storage.provider === 'degraded' ? 'degraded' : 'connected', provider: storage.provider, checkedAt: new Date().toISOString(), latencyMs: Date.now() - start }; }, discard: async () => storage.client?.destroy() });
     }
     if (!initialized || changed('email', values, previous)) {
-      const start = Date.now(), email = await buildEmail(values);
-      prepared.push({ activate: () => { activateEmail(email); systemStatus.email = { status: email ? 'connected' : 'disabled', checkedAt: new Date().toISOString(), latencyMs: Date.now() - start }; }, discard: async () => email?.close() });
+      const start = Date.now();
+      let email, failed = false;
+      try { email = await buildEmail(values); }
+      catch (error) { if (!context.initializing) throw error; failed = true; console.error('[STARTUP] Email unavailable; email-dependent actions remain unavailable.'); }
+      prepared.push({ activate: () => { activateEmail(email); systemStatus.email = { status: failed ? 'degraded' : email ? 'connected' : 'disabled', checkedAt: new Date().toISOString(), latencyMs: Date.now() - start }; }, discard: async () => email?.close() });
     }
     return { activate: () => { for (const item of prepared) item.activate(); initialized = true; }, discard: async () => { await Promise.allSettled(prepared.map(item => item.discard())); } };
   } catch (error) { await Promise.allSettled(prepared.map(item => item.discard())); throw error; }

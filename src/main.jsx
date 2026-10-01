@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import './index.css'
 import { setupFavicon } from './setupFavicon'
+import { errorContextForPath, normalizePublicError } from './services/publicError'
 
 setupFavicon();
 
@@ -40,6 +41,19 @@ window.fetch = (input, init = {}) => {
         return attempt(count + 1)
       }
       throw error
+    }
+    // Normalize failed API payloads before any feature code can read a raw
+    // backend message. This is a presentation safeguard; the server also
+    // sanitizes its response contract and records the diagnostic reference.
+    if (!response.ok && response.status !== 204) {
+      const body = await response.clone().json().catch(() => ({}))
+      const publicError = normalizePublicError({ status: response.status, body }, errorContextForPath(apiPath))
+      const safeBody = body && typeof body === 'object' ? { ...body, error: publicError.message } : { error: publicError.message }
+      delete safeBody.stack
+      delete safeBody.debug
+      delete safeBody.internalError
+      if (publicError.referenceId) safeBody.referenceId = publicError.referenceId
+      response = new Response(JSON.stringify(safeBody), { status: response.status, statusText: response.statusText, headers: response.headers })
     }
     const protectedApi = (/^\/api\/(?:admin|staff|citizen|media)(?:\/|$)/.test(apiPath)
       && apiPath !== '/api/citizen/privacy-requests/verify-password')

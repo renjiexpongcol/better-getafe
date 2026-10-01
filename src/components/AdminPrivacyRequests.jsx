@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Ban, CheckCircle2, CircleAlert, Clock3, Info, LoaderCircle, ShieldCheck, XCircle } from 'lucide-react'
+import { normalizePublicError } from '../services/publicError'
 
 const statuses = ['submitted', 'identity_verified', 'under_review', 'processing', 'completed', 'additional_information_required', 'partially_completed', 'rejected_unable_to_delete', 'cancelled']
 const label = value => {
@@ -19,7 +20,7 @@ const privacyStatusMeta = {
 }
 const statusMeta = value => privacyStatusMeta[value] || { label: value ? label(value) : 'Unknown', tone: 'default', Icon: Info }
 const dateLabel = value => value ? new Date(value).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date unavailable'
-const api = (url, options = {}) => fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...options }).then(async response => { const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.error || 'Request failed'); return body })
+const api = (url, options = {}) => fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...options }).then(async response => { const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(normalizePublicError({ status: response.status, body }, 'unknown').message); return body })
 
 export default function AdminPrivacyRequests({ onNotice }) {
   const [items, setItems] = useState([]), [selected, setSelected] = useState(null), [status, setStatus] = useState('under_review'), [note, setNote] = useState(''), [loading, setLoading] = useState(true)

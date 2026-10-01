@@ -44,6 +44,7 @@ export const ROUTES = freeze({
     editor: '/admin/editor',
     categories: '/admin/categories',
     discover: '/admin/discover',
+    departments: '/admin/departments',
     media: '/admin/media',
     officials: '/admin/officials',
     barangays: '/admin/barangays',
@@ -53,6 +54,7 @@ export const ROUTES = freeze({
     permissions: '/admin/access/permissions',
     policies: '/admin/access/policies',
     audit: '/admin/audit',
+    errors: '/admin/system/errors',
     privacy: '/admin/privacy',
     settings: '/admin/settings',
     setting: category => `/admin/settings/${settingsCategorySlug(category)}`,
@@ -60,11 +62,13 @@ export const ROUTES = freeze({
 })
 
 export const ADMIN_MODULE_PATHS = freeze({
+  'service-catalog': '/admin/service-catalog',
   dashboard: ROUTES.admin.root,
   news: ROUTES.admin.news,
   editor: ROUTES.admin.editor,
   categories: ROUTES.admin.categories,
   discover: ROUTES.admin.discover,
+  departments: ROUTES.admin.departments,
   media: ROUTES.admin.media,
   officials: ROUTES.admin.officials,
   barangays: ROUTES.admin.barangays,
@@ -74,12 +78,15 @@ export const ADMIN_MODULE_PATHS = freeze({
   permissions: ROUTES.admin.permissions,
   policies: ROUTES.admin.policies,
   audit: ROUTES.admin.audit,
+  errors: ROUTES.admin.errors,
   privacy: ROUTES.admin.privacy,
   settings: '/admin/settings/general',
   'system-settings': '/admin/settings/general',
 })
 
 export const STAFF_MODULE_PATHS = freeze({
+  'e-service-requests': '/app/staff/e-requests',
+  requests: '/app/staff/e-requests',
   dashboard: ROUTES.staff.root,
   'request-management': ROUTES.staff.requests,
   notifications: ROUTES.staff.notifications,
@@ -88,6 +95,7 @@ export const STAFF_MODULE_PATHS = freeze({
 })
 
 export const APP_MODULE_PATHS = freeze({
+  'my-requests': '/app/e-requests',
   dashboard: ROUTES.app.root,
   requests: ROUTES.app.requests,
   appointments: ROUTES.app.appointments,
@@ -144,6 +152,7 @@ export function adminLocation(pathname) {
 }
 
 export function staffLocation(pathname) {
+  if (pathname === '/app/staff/e-requests' || pathname.startsWith('/app/staff/e-requests/')) return { module: 'e-service-requests', recordId: pathname.split('/')[4] || null };
   if (pathname === ROUTES.staff.root) return { module: 'dashboard', recordId: null }
   if (pathname.startsWith(`${ROUTES.staff.requests}/`)) {
     const record = pathname.slice(ROUTES.staff.requests.length + 1)
@@ -155,6 +164,7 @@ export function staffLocation(pathname) {
 }
 
 const QUERY_OWNERS = [
+  [/^\/app\/(staff\/)?e-requests$/, new Set(['page','status','search','assigned','service_id','department_id','from','to'])],
   [/^\/barangays$/, new Set(['brgy'])],
   [/^\/services$/, new Set(['category', 'search', 'page', 'sort'])],
   [/^\/admin\/media$/, new Set(['page', 'limit', 'search', 'usage', 'sort'])],
@@ -195,6 +205,29 @@ export function legacyAdminTarget(search = '') {
     return category ? ROUTES.admin.setting(category) : `/admin/settings/${encodeURIComponent(rawCategory)}`
   }
   return ADMIN_MODULE_PATHS[objectId] || null
+}
+
+const ADMIN_ACCESS_NAV_MODULES = new Set(['access', 'users', 'groups', 'permissions', 'policies', 'audit'])
+
+// The sidebar is a view of the current URL, including legacy module URLs that
+// are still accepted at /admin before CanonicalRoute redirects them.
+export function getAdminActiveModule(location = {}) {
+  const pathname = typeof location === 'string' ? location : location.pathname || ''
+  const search = typeof location === 'string' ? '' : location.search || ''
+  let activePathname = pathname
+
+  if (pathname === ROUTES.admin.root) {
+    const legacyParams = new URLSearchParams(search)
+    if (legacyParams.has('sysparm_object_id') || legacyParams.has('tab')) {
+      const legacyTarget = legacyAdminTarget(search)
+      if (!legacyTarget) return null
+      activePathname = legacyTarget.split('?')[0]
+    }
+  }
+
+  const routeState = adminLocation(activePathname)
+  if (!routeState) return null
+  return ADMIN_ACCESS_NAV_MODULES.has(routeState.module) ? 'access' : routeState.module
 }
 
 export function legacyAppTarget(search = '') {

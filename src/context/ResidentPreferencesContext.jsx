@@ -132,6 +132,7 @@ export function ResidentPreferencesProvider({ children }) {
   }, [loadPreferences])
 
   const effective = draft || preferences
+  const dirty = Boolean(draft && Object.keys(residentPreferencesPatch(preferences, draft)).length)
   useEffect(() => applyResidentDom(effective, inResidentApp, baselineRef.current), [effective, inResidentApp])
 
   const beginEditing = useCallback(() => {
@@ -164,9 +165,9 @@ export function ResidentPreferencesProvider({ children }) {
   }, [draft, residentId])
   const t = useCallback((key, fallback) => translate(effective.locale.language, key, fallback), [effective.locale.language])
   const value = useMemo(() => ({
-    preferences, draft, effective, loading, loaded, saving, error, t,
+    preferences, draft, effective, dirty, loading, loaded, saving, error, t,
     beginEditing, updateDraft, resetDraft, cancelEditing, saveEditing, reload: loadPreferences,
-  }), [preferences, draft, effective, loading, loaded, saving, error, t, beginEditing, updateDraft, resetDraft, cancelEditing, saveEditing, loadPreferences])
+  }), [preferences, draft, effective, dirty, loading, loaded, saving, error, t, beginEditing, updateDraft, resetDraft, cancelEditing, saveEditing, loadPreferences])
 
   return <ResidentPreferencesContext.Provider value={value}>{children}</ResidentPreferencesContext.Provider>
 }

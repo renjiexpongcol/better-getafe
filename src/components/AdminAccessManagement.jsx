@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Archive, Check, ChevronLeft, ChevronRight, KeyRound, Plus, Search, ShieldCheck, Users, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Archive, Check, ChevronLeft, ChevronRight, KeyRound, Plus, Search, X } from 'lucide-react';
 import { usePublicConfig } from '../context/PublicConfig'
 import { passwordPassesPolicy } from '../passwordPolicy'
+import { normalizePublicError } from '../services/publicError'
 import './AdminAccessManagement.css'
 
 const request = async (url, options = {}) => {
   const response = await fetch(url, { ...options, credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'GetafeCitizenPortal', ...options.headers } })
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.error || `Request failed (${response.status})`)
+  if (!response.ok) throw new Error(normalizePublicError({ status: response.status, body }, 'unknown').message)
   return body
 }
 
@@ -21,7 +22,43 @@ function Pager({ page, pages, setPage }) {
 }
 
 function Dialog({ title: heading, subtitle, onClose, wide = false, children }) {
-  return <div className="access-dialog-backdrop" onMouseDown={event => event.target === event.currentTarget && onClose()}><section className={`access-dialog${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby="access-dialog-title"><header><div><h2 id="access-dialog-title">{heading}</h2>{subtitle && <p>{subtitle}</p>}</div><button type="button" className="access-dialog-close" onClick={onClose} aria-label="Close"><X size={19}/></button></header>{children}</section></div>
+  const dialogRef = useRef(null)
+
+  useEffect(() => {
+    const previousFocus = document.activeElement
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const focusable = () => [...(dialogRef.current?.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])') || [])]
+    const focusFirst = () => focusable()[0]?.focus()
+    requestAnimationFrame(focusFirst)
+    const onKeyDown = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const items = focusable()
+      const first = items[0]
+      const last = items.at(-1)
+      if (!first || !last) return
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
+      previousFocus?.focus?.()
+    }
+  }, [onClose])
+
+  return <div className="access-dialog-backdrop" onMouseDown={event => event.target === event.currentTarget && onClose()}><section ref={dialogRef} className={`access-dialog${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby="access-dialog-title" tabIndex="-1"><header><div><h2 id="access-dialog-title">{heading}</h2>{subtitle && <p>{subtitle}</p>}</div><button type="button" className="access-dialog-close" onClick={onClose} aria-label="Close"><X size={19}/></button></header>{children}</section></div>
 }
 
 function CheckboxList({ items, selected, onChange, labelKey = 'name', disabled }) {

@@ -1,3 +1,4 @@
+import { checkRequestOrigin } from './requestOrigin.js';
 const CMS_ROLES = new Set(['admin', 'super_admin', 'staff', 'it_support', 'content_manager']);
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -16,10 +17,18 @@ const route = (id, path, methods, access, options = {}) => ({
 // after the specific public entries so GET and mutation policies do not bleed
 // into one another.
 const definitions = [
+  route('eservices.webhooks', '/api/eservices/payment-webhooks/*', ['POST'], 'PUBLIC'),
+  route('eservices.catalog', '/api/services/*', ['GET'], 'PUBLIC'),
+  route('eservices.requests', '/api/requests/*', ['GET','POST','PATCH'], 'RESIDENT', { body: 'mixed' }),
+  route('eservices.businesses', '/api/businesses', ['GET'], 'RESIDENT'),
+  route('eservices.billing', '/api/billing/*', ['GET'], 'RESIDENT'),
+  route('eservices.payment-orders', '/api/payment-orders/*', ['GET','POST'], 'RESIDENT'),
+  route('eservices.staff', '/api/staff/eservices/*', ['GET','POST'], 'CMS', { body: 'mixed' }),
   route('weather.getafe', '/api/weather/getafe', ['GET'], 'PUBLIC'),
   route('weather.forecast', '/api/weather/forecast', ['GET'], 'PUBLIC'),
   route('weather', '/api/weather', ['GET'], 'PUBLIC'),
   route('feedback.article', '/api/feedback/article', ['POST'], 'PUBLIC'),
+  route('client-errors', '/api/client-errors', ['POST'], 'PUBLIC'),
 
   route('auth.login', '/api/auth/login', ['POST'], 'AUTH_FLOW'),
   route('auth.mfa.verify', '/api/auth/mfa/verify', ['POST'], 'AUTH_FLOW'),
@@ -49,9 +58,12 @@ const definitions = [
   route('news.public.collection', '/api/news', ['GET'], 'PUBLIC'),
   route('news.public.article', '/api/news/:slug', ['GET'], 'PUBLIC'),
   route('categories.public', '/api/categories', ['GET'], 'PUBLIC'),
+  route('popular-services.public', '/api/popular-services', ['GET'], 'PUBLIC'),
   route('officials.directory', '/api/officials/directory', ['GET'], 'PUBLIC'),
   route('officials.public', '/api/officials', ['GET'], 'PUBLIC'),
   route('barangays.public', '/api/barangays', ['GET'], 'PUBLIC'),
+  route('departments.collection', '/api/departments', ['GET'], 'PUBLIC'),
+  route('departments.item', '/api/departments/:slug', ['GET'], 'PUBLIC'),
   route('discover.collection', '/api/discover', ['GET'], 'PUBLIC'),
   route('discover.legacy', '/api/discover/legacy/:key', ['GET'], 'PUBLIC'),
   route('discover.item', '/api/discover/:slug', ['GET'], 'PUBLIC'),
@@ -78,6 +90,7 @@ const definitions = [
   route('storage.upload-url', '/api/storage/upload-url', ['POST'], 'CMS'),
 
   route('staff', '/api/staff/*', ['GET', 'POST', 'PATCH'], 'STAFF', { body: 'mixed' }),
+  route('admin.system-errors', '/api/admin/system/errors/*', ['GET', 'PATCH'], 'CMS', { body: 'mixed' }),
   route('admin', '/api/admin/*', ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], 'CMS', { body: 'mixed' }),
 
   // These endpoints are retained for operator diagnostics, but are never a
@@ -85,6 +98,8 @@ const definitions = [
   route('health.storage', '/api/health/storage', ['GET'], 'CMS'),
   route('health.database', '/api/health/database', ['GET'], 'CMS'),
   route('health', '/api/health', ['GET'], 'CMS'),
+  route('health.live', '/api/health/live', ['GET'], 'PUBLIC'),
+  route('health.ready', '/api/ready', ['GET'], 'PUBLIC'),
 ];
 
 const exact = value => new RegExp(`^${value.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}/?$`);
@@ -131,25 +146,18 @@ export const mutatingMethods = Object.freeze([...MUTATING_METHODS]);
 
 const requestPath = req => String(req.originalUrl || req.url || '').split('?')[0];
 
-const originOf = value => {
-  try { return value ? new URL(value).origin : ''; } catch { return ''; }
-};
-
-export function createApiCorsMiddleware({ configuredOrigin }) {
+export function createApiCorsMiddleware({ configuredOrigin, isTrustedProxy }) {
   return (req, res, next) => {
     const origin = req.get('origin');
     if (!origin) return next();
-    const requestOrigin = originOf(origin);
-    const effectiveOrigin = originOf(`${req.protocol}://${req.get('host') || ''}`);
-    const localDevOrigin = process.env.NODE_ENV !== 'production'
-      && /^https?:\/\/(localhost|127\.0\.0\.1):5173$/.test(requestOrigin);
-    const configured = typeof configuredOrigin === 'function' ? configuredOrigin() : configuredOrigin;
-    const allowed = requestOrigin && [originOf(configured), effectiveOrigin].includes(requestOrigin) || localDevOrigin;
-    if (!allowed) return res.status(403).json({ error: 'Origin not allowed.' });
+    const decision = checkRequestOrigin(req, configuredOrigin, { isTrustedProxy });
+    const requestOrigin = decision.source;
+    if (req.authDiagnostic) { req.authDiagnostic.cors = decision.allowed ? 'accepted' : 'rejected'; if (!decision.allowed) req.authDiagnostic.rejection_reason = 'cors_origin'; }
+    if (!decision.allowed) return res.status(403).json({ error: 'Origin not allowed.' });
 
     const policy = resolveApiRoutePolicy(req.method === 'OPTIONS' ? req.get('access-control-request-method') || 'GET' : req.method, requestPath(req));
+    if (!policy) return res.status(404).json({ error: 'API endpoint not found.' });
     if (req.method === 'OPTIONS') {
-      if (!policy) return res.status(404).json({ error: 'API endpoint not found.' });
       if (!policy.methodAllowed) {
         res.set('Allow', policy.methods.join(', '));
         return res.status(405).json({ error: 'Method not allowed.' });
@@ -157,11 +165,11 @@ export function createApiCorsMiddleware({ configuredOrigin }) {
     }
 
     res.set('Access-Control-Allow-Origin', requestOrigin);
-    res.set('Access-Control-Allow-Credentials', 'true');
+    if (policy.access !== 'PUBLIC') res.set('Access-Control-Allow-Credentials', 'true');
     res.set('Vary', 'Origin, Access-Control-Request-Method, Access-Control-Request-Headers');
     if (req.method === 'OPTIONS') {
       res.set('Access-Control-Allow-Methods', policy.methods.join(', '));
-      res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+      res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Requested-With, Idempotency-Key, X-Filename, X-Requirement-Id, X-Replaces-Id, X-Request-Version');
       return res.status(204).end();
     }
     next();

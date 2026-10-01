@@ -1,21 +1,26 @@
+import { requestJson, apiFetch } from '../../services/apiTransport.js';
+import AdminDepartments from '../../components/AdminDepartments';
+import AdminEservices from '../../components/AdminEservices';
 import AdminDestinations from '../../components/AdminDestinations';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Settings from "../../components/AdminSettings";
 import AdminPrivacyRequests from "../../components/AdminPrivacyRequests";
+import AdminErrorLogs from "../../components/AdminErrorLogs";
 import AdminAccessManagement from "../../components/AdminAccessManagement";
 import PasswordChangeModal from "../../components/PasswordChangeModal";
 import "../../components/ImportantAnnouncement.css";
 import "../../citizen.css";
 import "./AdminDashboard.css";
-import { LayoutDashboard, Newspaper, Tags, Images, Users, MapPin, Settings2, ShieldCheck, LogOut, Menu, X, ChevronDown, UserRound, ArrowRight, Plus, Search, Bell, FileText, Camera, MoreVertical, GripVertical, ExternalLink, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, ImageOff, Check, Copy, Download, Eye, RotateCcw, Info } from "lucide-react";
+import { LayoutDashboard, Newspaper, Tags, Images, Users, MapPin, Settings as SettingsIcon, ShieldCheck, LogOut, Menu, X, ChevronDown, UserRound, ArrowRight, Plus, Search, Bell, FileText, Camera, MoreVertical, GripVertical, ExternalLink, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, ImageOff, Check, Copy, Download, Eye, RotateCcw, Info, AlertTriangle } from "lucide-react";
 import { resolveModule } from "../../applicationModuleRegistry";
 import { ModuleAccessDeniedPage, ModuleNotFoundPage } from "../../components/RouteStatusPages";
 import ImageLightbox from "../../components/ImageLightbox";
 import StableAvatar from "../../components/StableAvatar";
 import { cachedRequest, invalidateCachedPrefix } from "../../services/requestCache";
-import { adminLocation, ADMIN_MODULE_PATHS, ROUTES } from "../../routeRegistry";
+import { adminLocation, ADMIN_MODULE_PATHS, getAdminActiveModule, ROUTES } from "../../routeRegistry";
+import { normalizePublicError } from "../../services/publicError";
 const normalizeAdminTab = value => value === 'system-settings' ? 'settings' : value;
 const toIsoDateTime = value => value ? new Date(value).toISOString() : value;
 const toLocalDateTimeInput = value => {
@@ -25,7 +30,7 @@ const toLocalDateTimeInput = value => {
   const pad = number => String(number).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
-const navigationIcons = { discover: MapPin, dashboard: LayoutDashboard, news: Newspaper, categories: Tags, media: Images, officials: Users, barangays: MapPin, settings: Settings2, privacy: ShieldCheck, users: Users, groups: Users, permissions: ShieldCheck, policies: ShieldCheck, audit: FileText, access: ShieldCheck };
+const navigationIcons = { 'service-catalog': FileText, departments: Users, discover: MapPin, dashboard: LayoutDashboard, news: Newspaper, categories: Tags, media: Images, officials: Users, barangays: MapPin, settings: SettingsIcon, errors: AlertTriangle, privacy: ShieldCheck, users: Users, groups: Users, permissions: ShieldCheck, policies: ShieldCheck, audit: FileText, access: ShieldCheck };
 const blank = {
   title: "",
   slug: "",
@@ -45,26 +50,7 @@ const blank = {
   featured_image: "",
   gallery_images: [],
 };
-const api = (url, _token, options = {}) =>
-  fetch(url, {
-    ...options,
-    credentials: "include",
-    headers: { "Content-Type": "application/json", "X-Requested-With": "GetafeCitizenPortal", ...options.headers },
-  }).then(async (r) => {
-    const contentType = r.headers.get("content-type") || "";
-    const body =
-      r.status === 204
-        ? null
-        : contentType.includes("application/json")
-          ? await r.json().catch(() => null)
-          : null;
-    if (!r.ok) {
-      const error = new Error(body?.error || `Request failed (${r.status})`);
-      if (body && typeof body === "object") Object.assign(error, body);
-      throw error;
-    }
-    return body;
-  });
+const api = (url, _token, options = {}) => requestJson(url, options);
 const putFile = (url, file, onProgress) => {
   const request = new XMLHttpRequest();
   const promise = new Promise((resolve, reject) => {
@@ -113,11 +99,12 @@ const formatMediaType = (value) => {
   return type ? type.toUpperCase() : 'IMAGE';
 };
 export default function Admin() {
-  const { user, loading: authLoading, logout, validateSession } = useAuth();
+  const { user, loading: authLoading, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const routeState = adminLocation(location.pathname);
+  const activeAdminModule = getAdminActiveModule(location);
   const requestedModule = routeState?.module || null;
   const tab = normalizeAdminTab(requestedModule || 'dashboard');
   const requestedModuleAccess = resolveModule('admin', requestedModule === 'settings' ? 'system-settings' : requestedModule);
@@ -130,6 +117,8 @@ export default function Admin() {
   const passwordOpenRef = useRef(false);
   const mediaDeleteTriggerRef = useRef(null);
   const mediaRequestKeyRef = useRef('');
+  const [mediaLoading, setMediaLoading] = useState(true);
+  const [mediaError, setMediaError] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
@@ -154,10 +143,10 @@ export default function Admin() {
     }
     setAvatarBusy(true);
     try {
-      const response = await fetch('/api/account/avatar', { method: 'POST', credentials: 'include', headers: { 'Content-Type': file.type, 'X-Requested-With': 'GetafeCitizenPortal' }, body: file });
+      const response = await apiFetch('/api/account/avatar', { method: 'POST', credentials: 'include', headers: { 'Content-Type': file.type, 'X-Requested-With': 'GetafeCitizenPortal' }, body: file });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error || 'The profile image could not be uploaded.');
-      await validateSession(true);
+      if (!response.ok) throw new Error(normalizePublicError({ status: response.status, body }, 'form').message);
+      await refreshUser();
       setNotice('Profile image updated.');
     } catch (error) {
       setAvatarError(error.message);
@@ -295,6 +284,7 @@ export default function Admin() {
   const noticeTimer = useRef(null);
   const autosaveTimer = useRef(null);
   const autosaveQueue = useRef(Promise.resolve());
+  const draftCreatePromiseRef = useRef(null);
   const autosaveSequence = useRef(0);
   const formRef = useRef(form);
   const editingRef = useRef(editing);
@@ -319,6 +309,7 @@ export default function Admin() {
     Object.entries(query).forEach(([key, value]) => { if (value !== '' && !(key === 'page' && value === 1) && !(key === 'limit' && value === 20) && !(key === 'usage' && value === 'all') && !(key === 'sort' && value === 'newest')) params.set(key, String(value)); });
     const cacheKey = `cms:media:${params.toString() || 'default'}`;
     mediaRequestKeyRef.current = cacheKey;
+    setMediaLoading(true); setMediaError(false);
     try {
       const response = await cachedRequest(cacheKey, () => api(`/api/media${params.toString() ? `?${params.toString()}` : ''}`, token), { ttl: 30_000, force });
       if (mediaRequestKeyRef.current !== cacheKey) return response;
@@ -328,9 +319,9 @@ export default function Admin() {
       setMediaPagination(pagination);
       return response;
     } catch (error) {
-      if (mediaRequestKeyRef.current === cacheKey && error?.name !== 'AbortError') setNotice(`Media library: ${error.message}`);
+      if (mediaRequestKeyRef.current === cacheKey && error?.name !== 'AbortError') setMediaError(true);
       throw error;
-    }
+    } finally { if (mediaRequestKeyRef.current === cacheKey) setMediaLoading(false); }
   }, [token]);
   const load = async (signal) => {
     const results = await Promise.allSettled([
@@ -367,7 +358,7 @@ export default function Admin() {
     return () => controller.abort();
   }, [authLoading, user?.id, user?.role]);
   useEffect(() => {
-    const needsMedia = tab === 'media' || tab === 'discover' || galleryLibraryOpen;
+    const needsMedia = tab === 'media' || tab === 'discover' || tab === 'departments' || galleryLibraryOpen;
     if (!needsMedia) return;
     const routeQuery = tab === 'media' && !galleryLibraryOpen
       ? { page: mediaPage, limit: mediaPageSize, search: mediaSearch, usage: mediaFilter, sort: mediaSort }
@@ -398,22 +389,35 @@ export default function Admin() {
       // Local recovery is best-effort; the server draft remains authoritative.
     }
   };
+  const createDraftOnce = (snapshot) => {
+    if (editingRef.current) return Promise.resolve(null);
+    if (draftCreatePromiseRef.current) return draftCreatePromiseRef.current;
+    const payload = { ...editorDraftPayload(snapshot), status: 'draft' };
+    const promise = api('/api/news/drafts', token, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }).then(saved => {
+      if (saved?.id) {
+        editingRef.current = saved.id;
+        setEditing(saved.id);
+        try { localStorage.setItem(draftStorageKey('last'), saved.id); } catch { /* best effort */ }
+      }
+      return saved;
+    }).finally(() => {
+      if (draftCreatePromiseRef.current === promise) draftCreatePromiseRef.current = null;
+    });
+    draftCreatePromiseRef.current = promise;
+    return promise;
+  };
   const queueDraftAutosave = (snapshot, sequence) => {
     autosaveQueue.current = autosaveQueue.current
       .catch(() => {})
       .then(async () => {
         const currentId = editingRef.current;
         const payload = { ...editorDraftPayload(snapshot), status: 'draft' };
-        const saved = await api(
-          currentId ? `/api/news/${currentId}/draft` : '/api/news/drafts',
-          token,
-          { method: currentId ? 'PATCH' : 'POST', body: JSON.stringify(payload) },
-        );
-        if (saved?.id && !currentId) {
-          editingRef.current = saved.id;
-          setEditing(saved.id);
-          try { localStorage.setItem(draftStorageKey('last'), saved.id); } catch { /* best effort */ }
-        }
+        const saved = currentId
+          ? await api(`/api/news/${currentId}/draft`, token, { method: 'PATCH', body: JSON.stringify(payload) })
+          : await createDraftOnce(snapshot);
         if (saved?.id) {
           const savedPath = saved.featured_image_path || saved.featured_image || '';
           setForm((current) => ({
@@ -432,11 +436,7 @@ export default function Admin() {
       .catch((error) => {
         if (sequence === autosaveSequence.current) {
           if (error.code === 'DRAFT_CONFLICT') setAutosaveState('conflict');
-          else {
-            setAutosaveState('retrying');
-            clearTimeout(autosaveTimer.current);
-            autosaveTimer.current = setTimeout(() => queueDraftAutosave(formRef.current, sequence), 3000);
-          }
+          else setAutosaveState('error');
         }
       });
   };
@@ -524,14 +524,14 @@ export default function Admin() {
       return;
     }
     setSaving(true);
+    clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = null;
+    ++autosaveSequence.current;
     try {
       await autosaveQueue.current.catch(() => {});
       const payload = editorDraftPayload(form);
       const currentEditing = editingRef.current;
-      let draft = currentEditing ? null : await api('/api/news/drafts', token, {
-        method: 'POST',
-        body: JSON.stringify({ ...payload, status: 'draft' }),
-      });
+      let draft = currentEditing ? null : await createDraftOnce(form);
       const articleId = currentEditing || draft?.id;
       const saved = form.status === 'published'
         ? await api(`/api/news/${articleId}`, token, { method: 'PUT', body: JSON.stringify({ ...payload, status: 'published' }) })
@@ -702,7 +702,7 @@ export default function Admin() {
     try {
       const checksumSha256 = await checksumFile(file);
       setNotice("Requesting upload URL...");
-      const urlRes = await fetch("/api/storage/upload-url", {
+      const urlRes = await apiFetch("/api/storage/upload-url", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -716,7 +716,7 @@ export default function Admin() {
       });
       const urlData = await urlRes.json();
       if (!urlRes.ok)
-        throw new Error(urlData?.error || "Failed to get upload URL");
+        throw new Error(normalizePublicError({ status: urlRes.status, body: urlData }, 'form').message);
 
       if (urlData.reused && urlData.media) {
         const existing = urlData.media;
@@ -739,7 +739,7 @@ export default function Admin() {
       uploadRequest.current = null;
 
       setNotice("Finalizing upload...");
-      const completeRes = await fetch("/api/media/complete", {
+      const completeRes = await apiFetch("/api/media/complete", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -754,7 +754,7 @@ export default function Admin() {
       });
       const body = await completeRes.json();
       if (!completeRes.ok)
-        throw new Error(body?.error || "Upload completion failed");
+        throw new Error(normalizePublicError({ status: completeRes.status, body }, 'form').message);
 
       invalidateCachedPrefix('cms:media:');
       setMedia((m) => m.some((item) => item.id === body.id) ? m : [body, ...m]);
@@ -790,17 +790,17 @@ export default function Admin() {
       for (const file of files) {
         const checksumSha256 = await checksumFile(file);
         setNotice(`Uploading ${file.name}…`);
-        const urlResponse = await fetch('/api/storage/upload-url', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: file.name, contentType: file.type, fileSize: file.size, checksumSha256, context: 'media' }) });
+        const urlResponse = await apiFetch('/api/storage/upload-url', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: file.name, contentType: file.type, fileSize: file.size, checksumSha256, context: 'media' }) });
         const urlData = await urlResponse.json();
-        if (!urlResponse.ok) throw new Error(urlData?.error || 'Failed to get upload URL');
+        if (!urlResponse.ok) throw new Error(normalizePublicError({ status: urlResponse.status, body: urlData }, 'form').message);
         let mediaItem = urlData.media;
         if (!urlData.reused) {
           uploadRequest.current = putFile(urlData.uploadUrl, file, progress => setNotice(`Uploading ${file.name}… ${progress}%`));
           await uploadRequest.current.promise;
           uploadRequest.current = null;
-          const completeResponse = await fetch('/api/media/complete', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ storagePath: urlData.storagePath, originalFilename: file.name, contentType: file.type, fileSize: file.size, checksumSha256, name: file.name }) });
+          const completeResponse = await apiFetch('/api/media/complete', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ storagePath: urlData.storagePath, originalFilename: file.name, contentType: file.type, fileSize: file.size, checksumSha256, name: file.name }) });
           mediaItem = await completeResponse.json();
-          if (!completeResponse.ok) throw new Error(mediaItem?.error || 'Upload completion failed');
+          if (!completeResponse.ok) throw new Error(normalizePublicError({ status: completeResponse.status, body: mediaItem }, 'form').message);
           invalidateCachedPrefix('cms:media:');
           setMedia(current => current.some(item => item.id === mediaItem.id) ? current : [mediaItem, ...current]);
         }
@@ -902,6 +902,7 @@ export default function Admin() {
     if (item.preview_status === 'missing') return 'File missing';
     if (item.preview_status === 'invalid') return 'Invalid path';
     if (item.preview_status === 'quota_exceeded') return 'Storage cap reached';
+    if (item.preview_status === 'storage_unavailable') return 'Storage temporarily unavailable';
     return 'Needs review';
   };
   if (authLoading) return null;
@@ -912,12 +913,13 @@ export default function Admin() {
   if (Array.isArray(user.permissions) && !user.permissions.includes(requestedModuleAccess.permission)) return <main className="cms citizen-portal portal-v2 admin-portal"><ModuleAccessDeniedPage /></main>;
   const published = articles.filter((a) => a.status === "published").length;
   const navigationGroups = [
-    ["Main", [["dashboard", "Dashboard"], ["news", "News & Events"], ["discover", "Discover Getafe"], ["media", "Media Library"]]],
+    ["Main", [["dashboard", "Dashboard"], ["news", "News & Events"], ["discover", "Discover Getafe"], ["departments", "Departments & Offices"], ["media", "Media Library"]]],
+    ["E-Services", [["service-catalog", "Service Catalog"]]],
     ["Management", [["officials", "Officials"], ["barangays", "Barangays"]]],
     ["Access & security", [["access", "Access Management"]]],
     ["Governance", [["privacy", "Privacy Requests"]]],
-    ["System", [["settings", "Settings"]]],
-  ].map(([group, items]) => [group, items.filter(([key]) => user.permissions?.includes(resolveModule('admin', key === 'settings' ? 'system-settings' : key)?.permission))]).filter(([, items]) => items.length);
+    ["System", [["settings", "Settings"], ["errors", "Error Center"]]],
+  ].map(([group, items]) => [group, items.filter(([key]) => user.permissions?.includes(resolveModule('admin', key)?.permission))]).filter(([, items]) => items.length);
 
   const selectTab = (key) => {
     setProfileMenuOpen(false);
@@ -929,14 +931,14 @@ export default function Admin() {
       {mobileSidebarOpen && <button className="portal-scrim" aria-label="Close navigation" onClick={() => setMobileSidebarOpen(false)}/>}
       <aside className={`citizen-sidebar ${mobileSidebarOpen ? 'open' : ''}`} aria-label="Admin navigation" id="cms-navigation">
         <div className="citizen-sidebar-brand"><img src="/assets/getafe-seal.png" alt="Municipality of Getafe seal"/><span>ADMIN PORTAL<small>Municipality of Getafe</small></span><button onClick={() => setMobileSidebarOpen(false)} aria-label="Close menu"><X size={20}/></button></div>
-        <nav className="portal-nav">{navigationGroups.map(([group, items]) => <div key={group}><small>{group}</small>{items.map(([key, label]) => { const Icon = navigationIcons[key]; const active = tab === key || (key === 'access' && ['users', 'groups', 'permissions', 'policies', 'audit'].includes(tab)); return <NavLink to={ADMIN_MODULE_PATHS[key]} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined} onClick={() => { setProfileMenuOpen(false); setMobileSidebarOpen(false); }} key={key}><Icon size={17}/>{label}</NavLink>; })}</div>)}</nav>
+        <nav className="portal-nav">{navigationGroups.map(([group, items]) => <div key={group}><small>{group}</small>{items.map(([key, label]) => { const Icon = navigationIcons[key]; const active = activeAdminModule === key; return <NavLink to={ADMIN_MODULE_PATHS[key]} end={key === 'dashboard'} className={() => active ? 'portal-nav-item active' : 'portal-nav-item'} aria-current={active ? 'page' : undefined} onClick={() => { setProfileMenuOpen(false); setMobileSidebarOpen(false); }} key={key}><Icon size={17}/>{label}</NavLink>; })}</div>)}</nav>
       </aside>
       <section className="citizen-main">
         <header className="citizen-topbar"><div className="portal-breadcrumb"><button className="citizen-menu-toggle" onClick={() => setMobileSidebarOpen(true)} aria-label="Open navigation" aria-expanded={mobileSidebarOpen}><Menu size={21}/></button></div>
           <div className="citizen-top-actions">
-            <div className="portal-service-search-compact admin-toolbar-search"><label htmlFor="admin-search">Search admin tools</label><div className="portal-search-input"><input id="admin-search" placeholder="Search admin tools…" value={adminSearch} onChange={event => setAdminSearch(event.target.value)}/><Search size={18}/></div>{adminSearch.trim() && <div className="portal-popover">{navigationGroups.flatMap(([, items]) => items).filter(([, label]) => label.toLowerCase().includes(adminSearch.toLowerCase())).map(([key, label]) => <button key={key} onClick={() => { selectTab(key); setAdminSearch(''); }}>{label}</button>)}{!navigationGroups.flatMap(([, items]) => items).some(([, label]) => label.toLowerCase().includes(adminSearch.toLowerCase())) && <p>No matching tools.</p>}</div>}</div>
+            <div className="portal-service-search-compact admin-toolbar-search"><label htmlFor="admin-search">Search admin tools</label><div className="portal-search-input"><Search size={18} aria-hidden="true"/><input id="admin-search" type="search" placeholder="Search admin tools…" value={adminSearch} onChange={event => setAdminSearch(event.target.value)}/></div>{adminSearch.trim() && <div className="portal-popover">{navigationGroups.flatMap(([, items]) => items).filter(([, label]) => label.toLowerCase().includes(adminSearch.toLowerCase())).map(([key, label]) => <button type="button" key={key} onClick={() => { selectTab(key); setAdminSearch(''); }}>{label}</button>)}{!navigationGroups.flatMap(([, items]) => items).some(([, label]) => label.toLowerCase().includes(adminSearch.toLowerCase())) && <p>No matching tools.</p>}</div>}</div>
             <button type="button" className="portal-icon-button admin-notification-button" aria-label="Notifications" data-tooltip="Notifications"><Bell size={18} strokeWidth={1.8}/></button>
-            <div className="portal-popover-anchor" ref={accountMenuRef} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setProfileMenuOpen(false); }}><button ref={accountButtonRef} type="button" className="citizen-profile-button" aria-label="Open account menu" aria-expanded={profileMenuOpen} aria-haspopup="menu" aria-controls={profileMenuOpen ? 'admin-account-menu' : undefined} onKeyDown={event => { if (event.key === 'ArrowDown') { event.preventDefault(); setProfileMenuOpen(true); requestAnimationFrame(() => accountMenuRef.current?.querySelector('[role="menuitem"]')?.focus()); } }} onClick={() => setProfileMenuOpen(value => !value)}><StableAvatar className="citizen-avatar" src={!avatarBroken ? user.avatar_url : ''} initials={avatarInitials} onFailure={() => setAvatarBroken(true)} /><b>{user.name}</b><ChevronDown size={15}/></button>{profileMenuOpen && <div id="admin-account-menu" className="portal-popover portal-profile-menu" role="menu" aria-label="Account" onKeyDown={event => { const items = [...event.currentTarget.querySelectorAll('[role="menuitem"]')]; const index = items.indexOf(document.activeElement); let next; if (event.key === 'ArrowDown') next = (index + 1) % items.length; else if (event.key === 'ArrowUp') next = (index - 1 + items.length) % items.length; else if (event.key === 'Home') next = 0; else if (event.key === 'End') next = items.length - 1; if (next !== undefined) { event.preventDefault(); items[next].focus(); } }}><button role="menuitem" onClick={() => { setProfileMenuOpen(false); setAccountOpen(true); }}><UserRound size={15}/>My Account</button><button role="menuitem" onClick={() => { setProfileMenuOpen(false); selectTab('settings'); }}><Settings2 size={15}/>Settings</button><button role="menuitem" onClick={async () => { setProfileMenuOpen(false); const result = await logout(); if (result.ok) navigate('/auth/login', { replace: true }); else setNotice(result.error); }}><LogOut size={15}/>Sign out</button></div>}</div>
+            <div className="portal-popover-anchor" ref={accountMenuRef} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setProfileMenuOpen(false); }}><button ref={accountButtonRef} type="button" className="citizen-profile-button" aria-label="Open account menu" aria-expanded={profileMenuOpen} aria-haspopup="menu" aria-controls={profileMenuOpen ? 'admin-account-menu' : undefined} onKeyDown={event => { if (event.key === 'ArrowDown') { event.preventDefault(); setProfileMenuOpen(true); requestAnimationFrame(() => accountMenuRef.current?.querySelector('[role="menuitem"]')?.focus()); } }} onClick={() => setProfileMenuOpen(value => !value)}><StableAvatar className="citizen-avatar" src={!avatarBroken ? user.avatar_url : ''} initials={avatarInitials} onFailure={() => setAvatarBroken(true)} /><b>{user.name}</b><ChevronDown size={15}/></button>{profileMenuOpen && <div id="admin-account-menu" className="portal-popover portal-profile-menu" role="menu" aria-label="Account" onKeyDown={event => { const items = [...event.currentTarget.querySelectorAll('[role="menuitem"]')]; const index = items.indexOf(document.activeElement); let next; if (event.key === 'ArrowDown') next = (index + 1) % items.length; else if (event.key === 'ArrowUp') next = (index - 1 + items.length) % items.length; else if (event.key === 'Home') next = 0; else if (event.key === 'End') next = items.length - 1; if (next !== undefined) { event.preventDefault(); items[next].focus(); } }}><button role="menuitem" onClick={() => { setProfileMenuOpen(false); setAccountOpen(true); }}><UserRound size={15}/>My Account</button><button role="menuitem" onClick={() => { setProfileMenuOpen(false); selectTab('settings'); }}><SettingsIcon size={15}/>Settings</button><button role="menuitem" onClick={async () => { setProfileMenuOpen(false); const result = await logout(); if (result.ok) navigate('/auth/login', { replace: true }); else setNotice(result.error); }}><LogOut size={15}/>Sign out</button></div>}</div>
           </div>
         </header>
         <div className="cms-main citizen-content" id="admin-content">
@@ -973,6 +975,7 @@ export default function Admin() {
         </section></section></div>}
         {passwordOpen && <PasswordChangeModal onClose={() => setPasswordOpen(false)} returnFocusRef={changePasswordButtonRef} />}
         {['users', 'groups', 'permissions', 'policies', 'audit', 'access'].includes(tab) && <AdminAccessManagement key={tab} currentUser={user} initialTab={tab === 'access' ? 'users' : tab}/>}
+        {tab === 'errors' && <AdminErrorLogs canManage={user.permissions?.includes('system.errors.manage')} />}
         {notice && (
           <div
             className={`cms-toast toast-${settings?.values?.["notifications.toastPosition"] || "top-right"}`}
@@ -988,6 +991,8 @@ export default function Admin() {
             </button>
           </div>
         )}
+        {tab === "departments" && <AdminDepartments media={media} />}
+        {tab === "service-catalog" && <AdminEservices />}
         {tab === "discover" && <AdminDestinations media={media} uploadMedia={upload} uploading={uploadingMedia} canManageMedia={user.permissions?.includes("content.media.manage")} />}
         {tab === "dashboard" && (
           <>
@@ -998,7 +1003,7 @@ export default function Admin() {
               ['Categories', Tags, categories.length, 'Organize portal content', 'categories'],
               ['Media files', Images, mediaPagination.total || '—', 'Manage your media library', 'media'],
             ].map(([label, Icon, value, description, key]) => <NavLink to={ADMIN_MODULE_PATHS[key]} className="citizen-stat" key={label} onClick={() => { setProfileMenuOpen(false); setMobileSidebarOpen(false); }}><div><span>{label}</span><Icon size={18}/></div><strong>{value}</strong><small>{description}<ArrowRight size={14}/></small></NavLink>)}</section>
-            <section className="portal-quick"><h2>Quick actions</h2><div>{[['Add Content', Newspaper, 'editor'], ['Upload Media', Images, 'media'], ['Manage Users', Users, 'access'], ['Privacy Requests', ShieldCheck, 'privacy'], ['Settings', Settings2, 'settings']].map(([label, Icon, key]) => <button type="button" key={key} onClick={() => { if (key === 'editor') { skipDraftRestoreRef.current = true; formRef.current = blank; setForm(blank); editingRef.current = null; setEditing(null); setAutosaveState(''); } selectTab(key); }}><Icon size={20}/><span>{label}</span></button>)}</div></section>
+            <section className="portal-quick"><h2>Quick actions</h2><div>{[['Add Content', Newspaper, 'editor'], ['Upload Media', Images, 'media'], ['Manage Users', Users, 'access'], ['Privacy Requests', ShieldCheck, 'privacy'], ['Settings', SettingsIcon, 'settings']].map(([label, Icon, key]) => <button type="button" key={key} onClick={() => { if (key === 'editor') { skipDraftRestoreRef.current = true; formRef.current = blank; setForm(blank); editingRef.current = null; setEditing(null); setAutosaveState(''); } selectTab(key); }}><Icon size={20}/><span>{label}</span></button>)}</div></section>
             <section><div className="citizen-section-head"><h2>Administration</h2></div><div className="citizen-service-grid">{[['Content management', Newspaper, 'Publish news and organize municipal updates.', 'news'], ['Municipal officials', Users, 'Maintain your directory of public officials.', 'officials'], ['Barangays', MapPin, 'Maintain barangay information and profiles.', 'barangays'], ['Access & security', ShieldCheck, 'Manage users, roles and portal permissions.', 'access']].map(([label, Icon, description, key]) => <NavLink className="citizen-service" to={ADMIN_MODULE_PATHS[key]} key={key} onClick={() => { setProfileMenuOpen(false); setMobileSidebarOpen(false); }}><span><Icon size={20}/></span><strong>{label}</strong><p>{description}</p><small>Manage<ArrowRight size={14}/></small></NavLink>)}</div></section>
             <section className="citizen-panel admin-recent"><div className="citizen-panel-head"><h2>Recent content</h2><NavLink to={ROUTES.admin.news}>View all<ArrowRight size={14}/></NavLink></div>
             <ArticleTable
@@ -1057,7 +1062,7 @@ export default function Admin() {
             <div className="cms-title">
               <h1>{editing ? "Edit content" : "Add content"}</h1>
               {autosaveState && <span className={`cms-autosave-status cms-autosave-${autosaveState}`} role="status">
-                {autosaveState === 'saving' || autosaveState === 'unsaved' ? 'Saving draft…' : autosaveState === 'retrying' ? 'Not saved — retrying…' : autosaveState === 'saved' ? 'Draft saved' : autosaveState === 'recovered' ? 'Recovered local draft' : autosaveState === 'conflict' ? 'Draft changed elsewhere' : 'Draft needs attention'}
+                {autosaveState === 'saving' || autosaveState === 'unsaved' ? 'Saving draft…' : autosaveState === 'retrying' ? 'Not saved — retrying…' : autosaveState === 'saved' ? 'Draft saved' : autosaveState === 'recovered' ? 'Recovered local draft' : autosaveState === 'conflict' ? 'Draft changed elsewhere' : autosaveState === 'error' ? 'Not saved — edit or save again' : 'Draft needs attention'}
               </span>}
             </div>
             <fieldset className="cms-form-section">
@@ -1287,6 +1292,8 @@ export default function Admin() {
         )}
         {tab === "media" && (
           <>
+            {mediaLoading && <p role="status">Loading media…</p>}
+            {mediaError && <div role="alert"><p>Media library unavailable. We couldn't load your media. Try again.</p><button onClick={() => loadMedia({ page: mediaPage, limit: mediaPageSize, search: mediaSearch, usage: mediaFilter, sort: mediaSort }, { force: true }).catch(() => {})}>Try again</button></div>}
             <section className="media-library" aria-labelledby="media-library-title">
               <div className="cms-title media-library-header">
                 <div>
@@ -1327,7 +1334,7 @@ export default function Admin() {
                   <label>Show<select value={mediaPageSize} onChange={event => updateMediaRoute({ limit: Number(event.target.value), page: 1 })}><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option></select></label>
                 </div>
               )}
-              {media.length ? filteredMedia.length ? (
+              {mediaLoading || mediaError ? null : media.length ? filteredMedia.length ? (
                 <>
                   <div className="media-grid">
                     {pagedMedia.map(m => {
@@ -1731,7 +1738,7 @@ function BarangaysEditor({ token, value, onSaved }) {
       setUploading(true);
       setError("");
       const checksumSha256 = await checksumFile(file);
-      const response = await fetch("/api/storage/upload-url", {
+      const response = await apiFetch("/api/storage/upload-url", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -1753,7 +1760,7 @@ function BarangaysEditor({ token, value, onSaved }) {
         return;
       }
       await putFile(uploadData.uploadUrl, file, () => {}).promise;
-      const complete = await fetch("/api/media/complete", {
+      const complete = await apiFetch("/api/media/complete", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -2028,7 +2035,7 @@ function OfficialsSelectorEditor({ token, value, onSaved }) {
     election: item.election || null,
   }));
   const buildForm = source => {
-    const directory = Array.isArray(source?.directory?.items) ? source.directory.items : [];
+
     const fromDirectory = predicate => directoryPeople(predicate);
     return {
       ...fallback,
@@ -2134,7 +2141,7 @@ function OfficialsSelectorEditor({ token, value, onSaved }) {
     try {
       setUploading(true);
       const checksumSha256 = await checksumFile(file);
-      const response = await fetch("/api/storage/upload-url", {
+      const response = await apiFetch("/api/storage/upload-url", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -2154,7 +2161,7 @@ function OfficialsSelectorEditor({ token, value, onSaved }) {
         return;
       }
       await putFile(data.uploadUrl, file, () => {}).promise;
-      const complete = await fetch("/api/media/complete", {
+      const complete = await apiFetch("/api/media/complete", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -2416,260 +2423,6 @@ function OfficialsSelectorEditor({ token, value, onSaved }) {
           </div>
         </div>
       )}
-    </form>
-  );
-}
-
-function OfficialsEditor({ token, value, onSaved }) {
-  const fallback = {
-    mayor: { name: "Cary M. Camacho, MPM", role: "Municipal Mayor" },
-    viceMayor: { name: "Casey Shaun M. Camacho", role: "Municipal Vice-Mayor" },
-    sbMembers: [],
-    abcPresident: { name: "Cydon Cariso M. Camacho II", role: "ABC President" },
-    deptHeads: [],
-  };
-  const [form, setForm] = useState(
-    value && Object.keys(value).length ? value : fallback,
-  );
-  const [error, setError] = useState("");
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const update = (key, field, value) =>
-    setForm((current) => ({
-      ...current,
-      [key]: { ...current[key], [field]: value },
-    }));
-  const updateList = (key, index, field, value) =>
-    setForm((current) => ({
-      ...current,
-      [key]: current[key].map((item, i) =>
-        i === index ? { ...item, [field]: value } : item,
-      ),
-    }));
-  const add = (key, item) =>
-    setForm((current) => ({
-      ...current,
-      [key]: [...(current[key] || []), item],
-    }));
-  const remove = (key, index) =>
-    setForm((current) => ({
-      ...current,
-      [key]: current[key].filter((_, i) => i !== index),
-    }));
-  const uploadPhoto = async (event, onChange) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    try {
-      setUploadingPhoto(true);
-      const checksumSha256 = await checksumFile(file);
-      const response = await fetch("/api/storage/upload-url", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filename: file.name,
-          contentType: file.type,
-          fileSize: file.size,
-          checksumSha256,
-          context: "media",
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(data?.error || "Could not prepare image upload.");
-      if (data.reused && data.media) {
-        onChange("photo", data.media.storage_path || data.media.preview_url);
-        return;
-      }
-      await putFile(data.uploadUrl, file, () => {}).promise;
-      const complete = await fetch("/api/media/complete", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          storagePath: data.storagePath,
-          originalFilename: file.name,
-          contentType: file.type,
-          fileSize: file.size,
-          checksumSha256,
-          name: file.name,
-        }),
-      });
-      const uploaded = await complete.json();
-      if (!complete.ok)
-        throw new Error(uploaded?.error || "Could not finish image upload.");
-      onChange("photo", uploaded.storage_path || uploaded.preview_url);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setUploadingPhoto(false);
-      event.target.value = "";
-    }
-  };
-  const save = async (event) => {
-    event.preventDefault();
-    try {
-      const result = await api("/api/officials", token, {
-        method: "PUT",
-        body: JSON.stringify(form),
-      });
-      onSaved(result);
-      setError("");
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-  const personFields = (person, onChange) => (
-    <div className="official-fields">
-      <div className="official-form-row">
-        <label>
-          Name
-          <input
-            required
-            value={person.name || ""}
-            onChange={(e) => onChange("name", e.target.value)}
-          />
-        </label>
-        <label>
-          Role
-          <input
-            required
-            value={person.role || ""}
-            onChange={(e) => onChange("role", e.target.value)}
-          />
-        </label>
-      </div>
-      <div className="official-form-row">
-        <label>
-          Biography
-          <textarea
-            value={person.biography || ""}
-            onChange={(e) => onChange("biography", e.target.value)}
-            placeholder="Biography and public profile information"
-          />
-        </label>
-        <label>
-          Profile image
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(e) => uploadPhoto(e, onChange)}
-            disabled={uploadingPhoto}
-          />
-          <small>
-            {uploadingPhoto
-              ? "Uploading image…"
-              : "Default profile SVG is used when no image is uploaded."}
-          </small>
-          {person.photo && (
-            <img
-              className="official-photo-preview"
-              src={person.photo}
-              alt="Profile preview"
-            />
-          )}
-        </label>
-      </div>
-    </div>
-  );
-  return (
-    <form className="cms-editor officials-editor" onSubmit={save}>
-      <div className="cms-title">
-        <div>
-          <h1>Municipal Officials</h1>
-          <p>
-            Update the officials shown on the public Municipal Officials page.
-          </p>
-        </div>
-        <button>Save Officials</button>
-      </div>
-      <fieldset>
-        <legend>Municipal leadership</legend>
-        {personFields(form.mayor, (field, value) =>
-          update("mayor", field, value),
-        )}
-        {personFields(form.viceMayor, (field, value) =>
-          update("viceMayor", field, value),
-        )}
-      </fieldset>
-      <fieldset>
-        <legend>Sangguniang Bayan</legend>
-        {(form.sbMembers || []).map((person, index) => (
-          <div className="official-repeat-row" key={index}>
-            {personFields(person, (field, value) =>
-              updateList("sbMembers", index, field, value),
-            )}
-            <button
-              type="button"
-              className="danger"
-              onClick={() => remove("sbMembers", index)}
-            >
-              Remove
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          className="outline-button"
-          onClick={() => add("sbMembers", { name: "", role: "SB Member" })}
-        >
-          + Add SB Member
-        </button>
-      </fieldset>
-      <fieldset>
-        <legend>ABC President</legend>
-        {personFields(form.abcPresident, (field, value) =>
-          update("abcPresident", field, value),
-        )}
-      </fieldset>
-      <fieldset>
-        <legend>Punong Barangays</legend>
-        {(form.punongBarangays || []).map((person, index) => (
-          <div className="official-repeat-row" key={index}>
-            {personFields(person, (field, value) =>
-              updateList("punongBarangays", index, field, value),
-            )}
-            <button
-              type="button"
-              className="danger"
-              onClick={() => remove("punongBarangays", index)}
-            >
-              Remove
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          className="outline-button"
-          onClick={() => add("punongBarangays", { name: "", role: "" })}
-        >
-          + Add Punong Barangay
-        </button>
-      </fieldset>
-      <fieldset>
-        <legend>Department heads</legend>
-        {(form.deptHeads || []).map((person, index) => (
-          <div className="official-repeat-row" key={index}>
-            {personFields(person, (field, value) =>
-              updateList("deptHeads", index, field, value),
-            )}
-            <button
-              type="button"
-              className="danger"
-              onClick={() => remove("deptHeads", index)}
-            >
-              Remove
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          className="outline-button"
-          onClick={() => add("deptHeads", { name: "", role: "" })}
-        >
-          + Add department head
-        </button>
-      </fieldset>
-      {error && <p className="cms-notice">{error}</p>}
     </form>
   );
 }

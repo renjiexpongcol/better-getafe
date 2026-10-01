@@ -1,3 +1,7 @@
+import { checkRequestOrigin } from './src/services/requestOrigin.js';
+import { authDiagnostics } from './src/services/authDiagnostics.js';
+import { registerDepartmentRoutes } from './src/services/departmentRoutes.js';
+import { installEserviceRoutes, drainEserviceOutbox } from './src/services/eserviceRoutes.js';
 import { registerDestinationRoutes } from './src/services/destinationRoutes.js';
 import { rememberGoogleProfile, googleOnboarding } from './src/services/googleOnboarding.js';
 import { installCitizenRoutes } from './src/services/citizenRoutes.js';
@@ -5,12 +9,12 @@ import { installCitizenRoutes } from './src/services/citizenRoutes.js';
 // rejection can leave shared state partially updated. Log the fatal error and
 // terminate so the process supervisor can start a clean worker.
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+  console.error(JSON.stringify({ event: 'uncaught_exception', message: redactDiagnostic(error?.message), stack: redactDiagnostic(error?.stack) }));
   process.exit(1);
 });
 
 process.on('unhandledRejection', (error) => {
-  console.error('Unhandled Rejection:', error);
+  console.error(JSON.stringify({ event: 'unhandled_rejection', message: redactDiagnostic(error?.message || error), stack: redactDiagnostic(error?.stack) }));
   process.exit(1);
 });
 
@@ -20,7 +24,7 @@ import { getAggregatedCurrent, getAggregatedForecast, providerKeys } from './src
 import { normalizeWeather } from './src/services/weatherNormalizer.js';
 import { closeCloudSql, databaseHealth, getPortalPool } from './src/services/cloudSql.js';
 import path from "path";
-import fs from "node:fs/promises";
+
 import crypto from "crypto";
 import QRCode from 'qrcode';
 import { config } from './src/config/index.js';
@@ -53,8 +57,9 @@ import { initializeServices, serviceStatus } from "./src/services/initialization
 import { createUploadUrl, uploadObject, createDownloadUrl, deleteObject, getObjectMetadata, readObject, imageSignatureMatches, validateImageUpload, validateObjectKey, storageIsLocal, storageHealth, initializeStorage, writePrivateFile, readPrivateFile, deletePrivateFile, isStorageNotFoundError } from "./src/services/storage.js";
 
 import { getCategories, createCategory, updateCategory, deleteCategory } from "./src/repositories/categoryRepository.js";
+import { getPopularServices } from "./src/repositories/popularServicesRepository.js";
 import { getNewsArticles, getNewsArticleBySlug, createNewsArticle, updateNewsArticle, deleteNewsArticle, bulkUpdateNewsArticles } from "./src/repositories/newsRepository.js";
-import { getMedia, getMediaPage, finalizePendingUpload, createPendingUpload, deletePendingUpload, getMediaByStoragePath, getMediaByChecksum, getPendingUpload } from "./src/repositories/mediaRepository.js";
+import { getMediaPage, finalizePendingUpload, createPendingUpload, deletePendingUpload, getMediaByStoragePath, getMediaByChecksum, getPendingUpload } from "./src/repositories/mediaRepository.js";
 import { getContentMedia } from './src/repositories/contentMediaRepository.js';
 import { cleanupExpiredPendingUploads, deleteMediaAsset, mediaErrorPayload } from './src/services/mediaService.js';
 import { getCmsUsers, getCmsUserById, getCmsUserByEmail, saveCmsAvatar } from "./src/repositories/cmsUserRepository.js";
@@ -69,11 +74,14 @@ import { id as createId, now as dbNow } from './src/services/identifiers.js';
 import { createPkcePair, getGoogleRedirectUri } from './src/services/googleOAuth.js';
 import { isMediaUploadPath } from './src/services/mediaUploadPath.js';
 import { createApiCorsMiddleware, createApiSecurityMiddleware } from './src/services/apiRoutePolicy.js';
+import { toPublicBarangays, toPublicCategory, toPublicNews, toPublicOfficials, toPublicOfficialsDirectory, toPublicPopularService } from './src/services/publicApiDtos.js';
+import { installResponseSanitizer, sendPublicError, recordDiagnosticError, redactDiagnostic } from './src/services/errorHandling.js';
+import { installErrorCenterRoutes } from './src/services/errorCenterRoutes.js';
 
 const invalidatePublicNewsCaches = async () => {
   await Promise.all([
-    cacheService.invalidate('news'),
-    cacheService.invalidate('news-article'),
+    cacheService.invalidate('news-public'),
+    cacheService.invalidate('news-article-public'),
     cacheService.invalidate('notifications'),
   ]);
 };
@@ -81,11 +89,11 @@ const invalidatePublicNewsCaches = async () => {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
+app.disable('x-powered-by');
 const adminAvatarFailures = new Map();
 // Production is behind one trusted proxy. Do not trust forwarded
 // client-IP headers during local development, where they can be forged.
 app.set('trust proxy', address => isTrustedProxyAddress(address));
-const PORT = process.env.PORT || 8080;
 
 // Every request gets a server-generated correlation identifier. It is safe to
 // expose to callers and lets operators connect a rejected API response with a
@@ -95,6 +103,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Request-Id', req.requestId);
   next();
 });
+installResponseSanitizer(app);
 
 async function configuredWeatherProviders() {
   try { await config.load(); } catch { /* Environment defaults remain available when settings storage is unavailable. */ }
@@ -134,6 +143,7 @@ app.use((req, res, next) => {
   }
   next();
 });
+app.use(authDiagnostics({ hasSessionCookie: req => Boolean(readCookies(req.headers.cookie)[SESSION_COOKIE]) }));
 app.use(trafficProtector.middleware());
 // Rate limits run before parsing bodies so large JSON payloads cannot consume
 // parsing capacity after a client has already been rejected.
@@ -147,32 +157,17 @@ app.use(async (req, res, next) => {
   res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
   res.setHeader('X-DNS-Prefetch-Control', 'off');
   if (process.env.NODE_ENV === 'production') {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; child-src 'self' https://www.facebook.com; frame-src 'self' https://www.facebook.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https:; script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; connect-src 'self' https:; font-src 'self' data: https:; form-action 'self'");
+    if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; child-src 'self' https://www.facebook.com https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/; frame-src 'self' https://www.facebook.com https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https:; script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; connect-src 'self' https:; font-src 'self' data: https:; form-action 'self'");
   }
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && req.path.startsWith('/api/')) {
     const hasCookieSession = Boolean(readCookies(req.headers.cookie)[SESSION_COOKIE]);
     const bearer = req.headers.authorization?.startsWith('Bearer ');
 
-    const source = req.get('origin') || (req.get('referer') ? (() => { try { return new URL(req.get('referer')).origin } catch { return '' } })() : '');
-    // The configured URL is the canonical public URL, but deployments may be
-    // reached through a reverse proxy or an alternate host. In those cases a
-    // browser same-origin request must be checked against the effective
-    // request origin as well, otherwise every state-changing citizen action
-    // is incorrectly rejected as cross-site.
-    const effectiveHost = req.get('host') || '';
-    const originFor = value => { try { return value ? new URL(value).origin : '' } catch { return '' } };
-    const effectiveOrigin = originFor(effectiveHost ? `${req.protocol}://${effectiveHost}` : '');
-    const configuredOrigin = originFor(config.get('general.url'));
-    // Vite proxies browser requests to the backend during development, so
-    // req.get('host') is the backend port (for example :8080), while the
-    // browser's same-origin Origin is the frontend port (for example :5173).
-    // The proxy preserves the browser Origin and sends its own Host header.
-    // Accept that origin only for the local Vite dev server; production
-    // requests continue to require the effective or configured site origin.
-    const localDevOrigin = process.env.NODE_ENV !== 'production'
-      && /^https?:\/\/(localhost|127\.0\.0\.1):5173$/.test(source || '');
-    if (hasCookieSession && !bearer && (!source || (!localDevOrigin && ![effectiveOrigin, configuredOrigin].includes(source)))) return res.status(403).json({ error: 'Cross-site request blocked.' });
+    const decision = checkRequestOrigin(req, () => config.get('general.url'), { isTrustedProxy: isTrustedProxyAddress });
+    const blocked = hasCookieSession && !bearer && !decision.allowed;
+    if (req.authDiagnostic) { req.authDiagnostic.csrf = blocked ? 'rejected' : hasCookieSession && !bearer ? 'accepted' : 'not_required'; if (blocked) req.authDiagnostic.rejection_reason = 'csrf_origin'; }
+    if (blocked) return res.status(403).json({ error: 'Cross-site request blocked.' });
   }
   if (config.get('maintenance.enabled') && !req.path.startsWith('/api/auth/') && !req.path.startsWith('/auth/') && !req.path.startsWith('/assets/') && !req.path.startsWith('/admin') && req.path !== '/api/public/config' && !req.path.startsWith('/api/admin/settings') && !['/health', '/healthz', '/ready', '/api/health', '/api/health/storage'].includes(req.path)) {
     const session = authenticated(req);
@@ -201,7 +196,7 @@ app.use(async (req, res, next) => {
 // preflight requests are accepted only for routes in the API policy registry.
 // Keep it after the rate limiter and common security headers so rejected
 // cross-origin traffic is still rate-limited and receives the normal headers.
-app.use('/api', createApiCorsMiddleware({ configuredOrigin: () => config.get('general.url') }));
+app.use('/api', createApiCorsMiddleware({ configuredOrigin: () => config.get('general.url'), isTrustedProxy: isTrustedProxyAddress }));
 app.use('/api/contact', (req, res, next) => {
   const length = Number(req.get('content-length') || 0);
   if (length > 16 * 1024) return res.status(413).json({ error: 'Message payload is too large.' });
@@ -209,6 +204,7 @@ app.use('/api/contact', (req, res, next) => {
 });
 app.use('/api/contact', express.json({ limit: '16kb' }));
 app.use(['/api/auth', '/api/portal-auth'], express.json({ limit: '32kb' }));
+app.use('/api/eservices/payment-webhooks', express.json({ limit: '64kb', verify: (req, _res, bytes) => { req.rawBody = Buffer.from(bytes); } }));
 app.use(express.json({ limit: '8mb' }));
 app.use((req, res, next) => { if (req.body === undefined || req.body === null) req.body = {}; next(); });
 app.use((error, req, res, next) => {
@@ -224,6 +220,18 @@ app.use('/api', createApiSecurityMiddleware({
   authenticate: authenticated,
   isRevoked: (...args) => tokenIsRevoked(...args),
 }));
+
+app.post('/api/client-errors', async (req, res) => {
+  const message = String(req.body?.message || '').slice(0, 2000);
+  const stack = String(req.body?.stack || '').slice(0, 12000);
+  const componentStack = String(req.body?.componentStack || '').slice(0, 12000);
+  if (!message && !stack) return res.status(400).json({ error: 'A client error is required.' });
+  const error = new Error(message || 'Client rendering error');
+  error.code = 'CLIENT_RENDER_ERROR';
+  error.stack = [stack, componentStack].filter(Boolean).join('\n\n');
+  await recordDiagnosticError({ req, error, status: 500, context: 'unknown', service: 'Frontend' });
+  res.status(202).json({ ok: true });
+});
 
 app.get('/api/weather/getafe', async (req, res) => {
   try {
@@ -262,7 +270,6 @@ app.use(['/api/auth', '/api/portal-auth'], (req, res, next) => {
   res.setHeader('Vary', 'Cookie');
   next();
 });
-
 
 // Keep missing-account sign-ins on the same versioned scrypt work path.
 const DUMMY_LOGIN_PASSWORD_HASH = hashPassword(crypto.randomBytes(32).toString('hex'));
@@ -370,6 +377,26 @@ const permission = permissionId => async (req, res, next) => {
 const safeClientError = (error, fallback) => [400, 401, 403, 404, 409, 422].includes(Number(error?.status))
   ? String(error.message || fallback)
   : fallback;
+
+const dependencyUnavailable = error => {
+  const code = String(error?.code || '').toUpperCase();
+  return ['ECONNREFUSED', 'ENOTFOUND', 'EHOSTUNREACH', 'ETIMEDOUT', '57P01', '53300', '3D000'].includes(code)
+    || /PostgreSQL is not connected|database unavailable|connection timed out|database connection failed/i.test(String(error?.message || ''));
+};
+
+const logApiFailure = (req, operation, error, status) => {
+  console.error(JSON.stringify({
+    event: 'api_error',
+    request_id: req.requestId || null,
+    route: req.path,
+    method: req.method,
+    operation,
+    user_id: req.admin?.id || null,
+    status,
+    error: redactDiagnostic(error?.message || 'unknown error'),
+    database_code: error?.code || null,
+  }));
+};
 
 const resident = async (req, res, next) => {
   res.setHeader('Cache-Control', 'no-store, private');
@@ -554,29 +581,57 @@ const decorate = async (article, lookups = null) => {
   };
 };
 
-// Public content receives only presentation fields and signed/served media
-// URLs. CMS storage keys, author IDs, autosave metadata, and relationship
-// internals must not become part of the public API contract.
-const publicArticleView = article => ({
-  id: article.id,
-  title: article.title,
-  slug: article.slug,
-  excerpt: article.excerpt,
-  content: article.content,
-  featured_image: article.featured_image,
-  gallery_images: (Array.isArray(article.gallery_images) ? article.gallery_images : []).map(({ storage_path: _storagePath, media_id: _mediaId, ...image }) => image),
-  category: article.category ? { id: article.category.id, name: article.category.name, slug: article.category.slug } : null,
-  author: article.author ? { name: article.author.name } : null,
-  content_type: article.content_type,
-  event_start_at: article.event_start_at,
-  event_end_at: article.event_end_at,
-  published_at: article.published_at,
-  is_important: article.is_important,
-  show_in_news: article.show_in_news,
-  show_in_upcoming: article.show_in_upcoming,
-  show_in_events: article.show_in_events,
-  show_on_homepage: article.show_on_homepage,
-});
+const NEWS_PUBLIC_LIMIT_DEFAULT = 20;
+const NEWS_PUBLIC_LIMIT_MAX = 100;
+const NEWS_PAGE_MAX = 10_000;
+const NEWS_DISPLAYS = new Set(['news', 'upcoming', 'events', 'homepage']);
+const NEWS_TYPES = new Set(['news', 'event', 'meeting']);
+const NEWS_TEMPORAL = new Set(['upcoming', 'past']);
+
+const queryValue = (value, fallback = '') => Array.isArray(value) ? String(value[0] ?? fallback) : String(value ?? fallback);
+const strictPositiveInteger = (value, fallback, max) => {
+  if (value === undefined || value === '') return fallback;
+  const raw = queryValue(value);
+  if (!/^\d+$/.test(raw)) return null;
+  const parsed = Number(raw);
+  return Number.isSafeInteger(parsed) && parsed > 0 && parsed <= max ? parsed : null;
+};
+
+function parseNewsQuery(query, { admin: isAdmin = false } = {}) {
+  const limit = strictPositiveInteger(query.limit, isAdmin ? NEWS_PUBLIC_LIMIT_MAX : NEWS_PUBLIC_LIMIT_DEFAULT, NEWS_PUBLIC_LIMIT_MAX);
+  const page = strictPositiveInteger(query.page, 1, NEWS_PAGE_MAX);
+  if (limit === null) return { error: `limit must be an integer between 1 and ${NEWS_PUBLIC_LIMIT_MAX}.` };
+  if (page === null) return { error: `page must be an integer between 1 and ${NEWS_PAGE_MAX}.` };
+
+  const normalized = { limit, page };
+  const booleanKeys = ['public', 'important', 'homepage'];
+  for (const key of booleanKeys) {
+    if (query[key] === undefined || query[key] === '') continue;
+    const value = queryValue(query[key]).toLowerCase();
+    if (!['true', 'false'].includes(value)) return { error: `${key} must be true or false.` };
+    normalized[key] = value === 'true';
+  }
+  for (const key of ['display', 'type', 'temporal', 'sort']) {
+    if (query[key] === undefined || query[key] === '') continue;
+    const value = queryValue(query[key]).toLowerCase();
+    const valid = key === 'display' ? NEWS_DISPLAYS.has(value)
+      : key === 'type' ? NEWS_TYPES.has(value)
+        : key === 'temporal' ? NEWS_TEMPORAL.has(value)
+          : ['newest', 'oldest', 'event_soonest', 'title'].includes(value);
+    if (!valid) return { error: `${key} is not valid.` };
+    normalized[key] = value;
+  }
+  for (const key of ['category', 'search', 'status']) {
+    if (query[key] === undefined || query[key] === '') continue;
+    const value = queryValue(query[key]).trim();
+    const max = key === 'search' ? 120 : key === 'status' ? 32 : 160;
+    if (!value || value.length > max) return { error: `${key} is invalid or too long.` };
+    normalized[key] = value;
+  }
+  if (normalized.status && !isAdmin) delete normalized.status;
+  if (normalized.status && !['published', 'draft'].includes(normalized.status)) return { error: 'status is not valid.' };
+  return { value: normalized };
+}
 
 app.get('/rss.xml', async (req, res) => {
   try {
@@ -643,18 +698,22 @@ const logAuthentication = (action, result, details = {}) => console.info(JSON.st
 
 // -- Auth Routes --
 const loginUser = async (req, res) => {
+  const loginDecision = (action, result, details = {}) => {
+    if (req.authDiagnostic) { req.authDiagnostic.authentication = result; if (details.reason) req.authDiagnostic.rejection_reason = details.reason; }
+    logAuthentication(action, result, details);
+  };
   try {
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
-    if (!isValidEmail(email) || email.length > 254) return res.status(422).json({ error: 'Enter a valid email address.' });
-    if (password.length > 1024) return res.status(422).json({ error: 'Password must be 1,024 characters or fewer.' });
+    if (!isValidEmail(email) || email.length > 254) { loginDecision('login', 'invalid_input', { reason: 'invalid_email' }); return res.status(422).json({ error: 'Enter a valid email address.' }); }
+    if (password.length > 1024) { loginDecision('login', 'invalid_input', { reason: 'password_too_long' }); return res.status(422).json({ error: 'Password must be 1,024 characters or fewer.' }); }
     const remember = req.body.remember === true;
     const requestIdentity = resolveClient(req).value;
     const accountIdentity = crypto.createHmac('sha256', secret).update(email).digest('hex');
     const combinationIdentity = crypto.createHmac('sha256', secret).update(`${requestIdentity}:${email}`).digest('hex');
     const throttle = await loginThrottle({ ip: requestIdentity, account: accountIdentity, combination: combinationIdentity });
     if (!throttle.allowed) {
-      logAuthentication('login', 'rate_limited', { client_id: requestIdentity.slice(0, 12), account_id: accountIdentity.slice(0, 12) });
+      loginDecision('login', 'rate_limited', { client_id: requestIdentity.slice(0, 12), account_id: accountIdentity.slice(0, 12) });
       const retryAfter = throttle.retryAfter;
       res.set('Retry-After', String(retryAfter));
       return res.status(429).json({ error: 'Too many attempts. Please try again later.', retryAfter });
@@ -668,7 +727,7 @@ const loginUser = async (req, res) => {
       ? ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(cmsUser.role)
       : portalUser?.role === 'resident';
     if (!user || !eligibleAccount || !passwordMatches) {
-      logAuthentication('login', 'failed', { reason: 'invalid_credentials', client_id: requestIdentity.slice(0, 12), account_id: accountIdentity.slice(0, 12) });
+      loginDecision('login', 'failed', { reason: 'invalid_credentials', client_id: requestIdentity.slice(0, 12), account_id: accountIdentity.slice(0, 12) });
       await loginThrottle({ ip: requestIdentity, account: accountIdentity, combination: combinationIdentity }, true);
       return res.status(401).json({ error: "Invalid email or password." });
     }
@@ -681,13 +740,13 @@ const loginUser = async (req, res) => {
     const age = config.get('authentication.passwordExpiryDays');
     const passwordChanged = await stateTransaction(stateKey('passwordAge', user.id), async value => ({ value, expires: 32503680000000, result: value }));
     if (age && Date.now() - (passwordChanged || Date.parse(user.created_at || '1970-01-01')) > age * 86400000) {
-      logAuthentication('login', 'password_reset_required', { kind, account_id: accountIdentity.slice(0, 12) });
+      loginDecision('login', 'password_reset_required', { kind, account_id: accountIdentity.slice(0, 12) });
       const token = crypto.randomBytes(32).toString('hex');
       await putState(stateKey('passwordReset', token), { id: user.id, kind }, 600000);
       return res.json({ passwordExpired: true, resetToken: token });
     }
     if (kind === 'portal' && (user.mfa_enabled === true || user.mfa_enabled === 1)) {
-      logAuthentication('login', 'mfa_challenge', { kind, account_id: accountIdentity.slice(0, 12) });
+      loginDecision('login', 'mfa_challenge', { kind, account_id: accountIdentity.slice(0, 12) });
       const challengeId = crypto.randomBytes(32).toString('hex');
       await putState(stateKey('mfa-login', challengeId), { id: user.id, updatedAt: sessionUpdatedAt(user), remember, attempts: 0, expiresAt: Date.now() + 5 * 60 * 1000 }, 5 * 60 * 1000);
       return res.json({ mfaRequired: true, mfaChallengeId: challengeId });
@@ -698,7 +757,7 @@ const loginUser = async (req, res) => {
       try {
         const challengeId = await issueCode(user.email, 'login', { id: user.id, kind, updatedAt: sessionUpdatedAt(user), remember });
         const challenge = await readState(stateKey('challenge', challengeId));
-        logAuthentication('login', 'email_challenge', { kind, account_id: accountIdentity.slice(0, 12) });
+        loginDecision('login', 'email_challenge', { kind, account_id: accountIdentity.slice(0, 12) });
         return res.json({ challengeId, verificationRequired: true, nextResendAt: challenge?.nextResendAt, retryAfter: Math.max(1, Math.ceil(((challenge?.nextResendAt || Date.now() + 30000) - Date.now()) / 1000)) });
       } catch (error) {
         console.error('Sign-in verification email failed:', error.message);
@@ -706,10 +765,11 @@ const loginUser = async (req, res) => {
       }
     }
     await setSessionCookie(res, makeToken(user, kind, remember), remember);
-    logAuthentication('login', 'success', { kind, account_id: accountIdentity.slice(0, 12) });
+    loginDecision('login', 'success', { kind, account_id: accountIdentity.slice(0, 12) });
     res.json({ user: safeUser(user), admin: kind === 'cms' });
   } catch (error) {
-    console.error('Authentication lookup failed:', error.message);
+    if (req.authDiagnostic) req.authDiagnostic.authentication = 'service_unavailable';
+    logApiFailure(req, 'authentication_lookup', error, 503);
     res.status(503).json({ error: "The sign-in service is temporarily unavailable." });
   }
 };
@@ -762,7 +822,7 @@ app.post('/api/auth/mfa/verify', async (req, res) => {
     await setSessionCookie(res, makeToken(sessionUser, 'portal', completedChallenge.remember), completedChallenge.remember);
     res.json({ user: safeUser(sessionUser), admin: false, recoveryCodeUsed: recoveryValid });
   } catch (error) {
-    console.error('MFA verification failed:', error.message);
+    console.error('MFA verification failed:', error.code || error.name || 'Error');
     res.status(503).json({ error: 'MFA verification is temporarily unavailable.' });
   }
 });
@@ -1334,23 +1394,26 @@ installSettingsRoutes(app, admin);
 installAdminUsersRoutes(app, admin);
 installStaffRoutes(app, admin);
 installAccessManagementRoutes(app, admin);
+installErrorCenterRoutes(app, admin);
 installCitizenRoutes(app, resident, safeUser);
+installEserviceRoutes(app, { resident, admin, permission });
+let eserviceWorkerBusy = false;
+const eserviceWorker = setInterval(async () => {
+  if (eserviceWorkerBusy) return;
+  eserviceWorkerBusy = true;
+  try { await drainEserviceOutbox(); }
+  catch { /* Durable events remain pending; health monitoring reports database/Redis outages. */ }
+  finally { eserviceWorkerBusy = false; }
+}, 30000);
+eserviceWorker.unref();
 installPublicDataRoutes(app);
 installContactRoutes(app);
 
 app.get('/api/public/config', async (req, res) => {
-  // This endpoint is only an internal bootstrap request. Reject direct browser
-  // navigation and cross-site requests to prevent public hotlinking.
-  const origin = req.get('origin');
-  const referer = req.get('referer');
-  const requestHost = `${req.protocol}://${req.get('host')}`;
-  const sameOrigin = (!origin && !referer)
-    || req.get('sec-fetch-site') === 'same-origin'
-    || origin === requestHost
-    || (referer && referer.startsWith(`${requestHost}/`));
-  if (req.get('sec-fetch-dest') === 'document' || !sameOrigin) {
-    return res.status(404).json({ error: 'Not found.' });
-  }
+  // This response contains only intentionally public bootstrap settings. Do
+  // not treat browser navigation, Referer, Origin, or Fetch Metadata headers
+  // as an authorization mechanism; CORS is applied centrally for callers
+  // that need cross-origin access.
   res.setHeader('Cache-Control', 'no-store');
   try {
     // Settings can be saved by a different application instance. Refresh the
@@ -1433,102 +1496,124 @@ app.get('/api/notifications', async (req, res) => {
 
 // -- CMS News --
 app.get("/api/news", async (req, res) => {
-  res.set('Cache-Control', 'no-store, max-age=0');
+  const debugPublicNews = String(process.env.PUBLIC_CONTENT_DEBUG || '').toLowerCase() === 'true';
+  const logPublicNews = (event, details = {}) => {
+    if (!debugPublicNews) return;
+    console.info(JSON.stringify({ event: 'public_news', request_id: req.requestId || null, route: '/api/news', ...details }));
+  };
+  let failureStage = 'request';
   try {
     const session = authenticated(req);
-    const cmsUser = req.query.public !== 'true' && session?.kind === 'cms' && !(await tokenIsRevoked(session)) ? await getCmsUserById(session.id) : null;
+    const requestedPublic = req.query.public !== undefined && queryValue(req.query.public).toLowerCase() === 'true';
+    const cmsUser = !requestedPublic && session?.kind === 'cms' && !(await tokenIsRevoked(session)) ? await getCmsUserById(session.id) : null;
     const isAdmin = Boolean(cmsUser && await hasAccess(cmsUser, 'content.news.manage'));
-    const safePublicQuery = !isAdmin && !session && !req.query.status && !req.query.search;
-    const cacheKey = JSON.stringify(Object.fromEntries(Object.entries(req.query).sort(([a], [b]) => a.localeCompare(b))));
-    const allNews = safePublicQuery
-      ? await cacheService.getOrSetStale('news', cacheKey, async () => (await getNewsArticles()).filter(item => item.status === 'published'), { ttlSeconds: 300, staleSeconds: 900 })
-      : await getNewsArticles();
-    const now = new Date();
-    let items = allNews.filter((n) => isAdmin || (n.status === "published" && n.published_at && new Date(n.published_at) <= now));
+    const parsed = parseNewsQuery(req.query, { admin: isAdmin });
+    if (parsed.error) return res.status(400).json({ error: parsed.error, request_id: req.requestId });
+    const query = parsed.value;
+    const publicRequest = !isAdmin;
+    const cacheMode = publicRequest ? (isRedisReady() ? 'stale_read_through' : 'database_fallback') : 'database';
+    logPublicNews('request_received', { cache_mode: cacheMode, query });
 
-    // The landing-page feed must only expose live announcements, even to CMS admins.
-    if (req.query.important === 'true') {
-      items = items.filter((n) => (n.is_important === true || n.is_important === 1) && (n.show_on_homepage === true || n.show_on_homepage === 1) && n.status === 'published' && n.published_at && new Date(n.published_at) <= now);
-    }
+    const buildResponse = async () => {
+      failureStage = publicRequest ? 'public_database' : 'database';
+      const allNews = await getNewsArticles();
+      const now = new Date();
+      let items = allNews.filter((n) => publicRequest
+        ? n.status === 'published' && n.published_at && new Date(n.published_at) <= now
+        : true);
 
-    if (req.query.status && isAdmin) items = items.filter((n) => n.status === req.query.status);
-    if (req.query.type) items = items.filter((n) => n.content_type === req.query.type);
+      if (query.important === true) {
+        items = items.filter((n) => (n.is_important === true || n.is_important === 1) && (n.show_on_homepage === true || n.show_on_homepage === 1) && n.status === 'published' && n.published_at && new Date(n.published_at) <= now);
+      }
 
-    const displayField = { news: 'show_in_news', upcoming: 'show_in_upcoming', events: 'show_in_events', homepage: 'show_on_homepage' }[req.query.display];
-    if (displayField) items = items.filter((n) => n[displayField] === true || n[displayField] === 1);
-    if (req.query.homepage === 'true') items = items.filter((n) => n.show_on_homepage === true || n.show_on_homepage === 1);
-    if (req.query.temporal === 'upcoming') {
-      items = items.filter((n) => ['event', 'meeting'].includes(n.content_type) && n.event_start_at && new Date(n.event_end_at || n.event_start_at) >= now);
-    } else if (req.query.temporal === 'past') {
-      items = items.filter((n) => ['event', 'meeting'].includes(n.content_type) && n.event_start_at && new Date(n.event_end_at || n.event_start_at) < now);
-    }
+      if (query.status && isAdmin) items = items.filter((n) => n.status === query.status);
+      if (query.type) items = items.filter((n) => n.content_type === query.type);
 
-    const [categories, users] = await Promise.all([getCategories(), getCmsUsers()]);
-    if (req.query.category)
-      items = items.filter((n) => n.category_id === req.query.category || categories.find((c) => c.id === n.category_id)?.slug === req.query.category);
+      const displayField = { news: 'show_in_news', upcoming: 'show_in_upcoming', events: 'show_in_events', homepage: 'show_on_homepage' }[query.display];
+      if (displayField) items = items.filter((n) => n[displayField] === true || n[displayField] === 1);
+      if (query.homepage === true) items = items.filter((n) => n.show_on_homepage === true || n.show_on_homepage === 1);
+      if (query.temporal === 'upcoming') {
+        items = items.filter((n) => ['event', 'meeting'].includes(n.content_type) && n.event_start_at && new Date(n.event_end_at || n.event_start_at) >= now);
+      } else if (query.temporal === 'past') {
+        items = items.filter((n) => ['event', 'meeting'].includes(n.content_type) && n.event_start_at && new Date(n.event_end_at || n.event_start_at) < now);
+      }
 
-    if (req.query.search) {
-      const q = req.query.search.toLowerCase();
-      items = items.filter((n) => `${n.title} ${n.excerpt} ${n.content}`.toLowerCase().includes(q));
-    }
-    if (req.query.temporal === 'upcoming' || req.query.display === 'upcoming') {
-      items.sort((a, b) => new Date(a.event_start_at || 0) - new Date(b.event_start_at || 0));
-    } else if (req.query.display === 'events') {
-      items.sort((a, b) => new Date(b.event_start_at || 0) - new Date(a.event_start_at || 0));
-    } else {
-      items.sort((a, b) => new Date(b.published_at || 0) - new Date(a.published_at || 0));
-    }
+      const [categories, users] = await Promise.all([getCategories(), getCmsUsers()]);
+      if (query.category) items = items.filter((n) => n.category_id === query.category || categories.find((c) => c.id === n.category_id)?.slug === query.category);
 
-    const allowedPublicLimits = [10, 20, 50, 100];
-    const requestedLimit = Number(req.query.limit || 10);
-    const limit = isAdmin
-      ? Math.min(100, Number.isSafeInteger(requestedLimit) && requestedLimit > 0 ? requestedLimit : 10)
-      : (allowedPublicLimits.includes(requestedLimit) ? requestedLimit : 10);
-    const requestedPage = Number(req.query.page || 1);
-    const requestedPageNumber = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-    const pages = Math.ceil(items.length / limit) || 1;
-    const page = Math.min(requestedPageNumber, pages);
-    const paginated = items.slice((page - 1) * limit, page * limit);
-    const decorated = await Promise.all(paginated.map(n => decorate(n, { categories, users })));
+      if (query.search) {
+        const q = query.search.toLowerCase();
+        items = items.filter((n) => `${n.title} ${n.excerpt} ${n.content}`.toLowerCase().includes(q));
+      }
+      if (query.sort === 'title') items.sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
+      else if (query.sort === 'oldest') items.sort((a, b) => new Date(a.published_at || 0) - new Date(b.published_at || 0));
+      else if (query.sort === 'event_soonest' || query.temporal === 'upcoming' || query.display === 'upcoming') items.sort((a, b) => new Date(a.event_start_at || 0) - new Date(b.event_start_at || 0));
+      else if (query.display === 'events') items.sort((a, b) => new Date(b.event_start_at || 0) - new Date(a.event_start_at || 0));
+      else items.sort((a, b) => new Date(b.published_at || 0) - new Date(a.published_at || 0));
 
-    if (safePublicQuery) res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400');
-    res.json({
-      items: isAdmin ? decorated : decorated.map(publicArticleView),
-      total: items.length,
-      page,
-      pages,
-      limit,
-      hasNext: page < pages,
-      hasPrevious: page > 1,
-    });
+      const pages = Math.ceil(items.length / query.limit) || 1;
+      const page = Math.min(query.page, pages);
+      const paginated = items.slice((page - 1) * query.limit, page * query.limit);
+      failureStage = 'content_decoration';
+      const decorated = await Promise.all(paginated.map(n => decorate(n, { categories, users })));
+      const responseItems = publicRequest ? decorated.map(toPublicNews) : decorated;
+      return {
+        items: responseItems,
+        total: items.length,
+        page,
+        pages,
+        limit: query.limit,
+        hasNext: page < pages,
+        hasPrevious: page > 1,
+      };
+    };
+
+    const result = publicRequest
+      ? await cacheService.getOrSetStale('news-public', JSON.stringify(query), buildResponse, { ttlSeconds: 300, staleSeconds: 900 })
+      : await buildResponse();
+    if (publicRequest) res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400');
+    else res.set('Cache-Control', 'no-store, max-age=0');
+    logPublicNews('response_ready', { cache_mode: cacheMode, total: result.total, returned: result.items.length });
+    res.json(result);
   } catch (error) {
-    console.error('News lookup failed:', error.message);
+    console.error(JSON.stringify({ event: 'public_news', request_id: req.requestId || null, route: '/api/news', action: 'error', stage: failureStage, message: error?.message || 'unknown error' }));
     res.status(503).json({ error: 'News is temporarily unavailable.' });
   }
 });
 
 app.get("/api/news/:slug", async (req, res) => {
-  res.set('Cache-Control', 'no-store, max-age=0');
-  // Public links normally use slugs, but older feeds stored the article UUID
-  // in their URL. Accept both forms so those links do not fall into a
-  // validation/error path after the content model migration.
-  const session = authenticated(req);
-  const safePublicQuery = !session && req.query.public !== 'false';
-  const loadArticle = async () => {
-    const item = await getNewsArticleBySlug(req.params.slug);
-    const found = item || (await getNewsArticles()).find(entry => entry.id === req.params.slug);
-    if (!found) return null;
-    return safePublicQuery && !(found.status === 'published' && found.published_at && new Date(found.published_at) <= new Date()) ? null : found;
-  };
-  const article = safePublicQuery
-    ? await cacheService.getOrSetNegative('news-article', req.params.slug, loadArticle, 600, 45)
-    : await loadArticle();
-  const cmsUser = req.query.public !== 'true' && session?.kind === 'cms' && !(await tokenIsRevoked(session)) ? await getCmsUserById(session.id) : null;
-  const isAdmin = Boolean(cmsUser && await hasAccess(cmsUser, 'content.news.manage'));
-  const isVisible = article && article.status === 'published' && article.published_at && new Date(article.published_at) <= new Date();
-  if (!article || (!isAdmin && !isVisible))
-    return res.status(404).json({ error: "Article not found." });
-  res.json(await decorate(article));
+  const identifier = queryValue(req.params.slug).trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$/.test(identifier)) return res.status(404).json({ error: 'Article not found.' });
+  try {
+    // Public links normally use slugs, but older feeds stored the article UUID
+    // in their URL. Accept both forms without changing the public contract.
+    const session = authenticated(req);
+    const requestedPublic = queryValue(req.query.public).toLowerCase() === 'true';
+    const cmsUser = !requestedPublic && session?.kind === 'cms' && !(await tokenIsRevoked(session)) ? await getCmsUserById(session.id) : null;
+    const isAdmin = Boolean(cmsUser && await hasAccess(cmsUser, 'content.news.manage'));
+    const publicRequest = !isAdmin;
+    const loadArticle = async () => {
+      const item = await getNewsArticleBySlug(identifier);
+      const found = item || (await getNewsArticles()).find(entry => entry.id === identifier);
+      if (!found) return null;
+      const isVisible = found.status === 'published' && found.published_at && new Date(found.published_at) <= new Date();
+      return publicRequest && !isVisible ? null : found;
+    };
+    const loadPublicArticle = async () => {
+      const found = await loadArticle();
+      return found ? toPublicNews(await decorate(found)) : null;
+    };
+    const article = publicRequest
+      ? await cacheService.getOrSetNegative('news-article-public', identifier, loadPublicArticle, 600, 45)
+      : await loadArticle();
+    if (!article) return res.status(404).json({ error: 'Article not found.' });
+    if (publicRequest) res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400');
+    else res.set('Cache-Control', 'no-store, max-age=0');
+    res.json(publicRequest ? article : await decorate(article));
+  } catch (error) {
+    console.error(JSON.stringify({ event: 'public_news_article', request_id: req.requestId || null, message: error?.message || 'unknown error' }));
+    res.status(503).json({ error: 'News is temporarily unavailable.' });
+  }
 });
 
 app.post("/api/news", admin, permission('content.news.manage'), async (req, res) => {
@@ -1545,17 +1630,22 @@ app.post("/api/news", admin, permission('content.news.manage'), async (req, res)
 app.post("/api/news/drafts", admin, permission('content.news.manage'), async (req, res) => {
   const body = { ...req.body, status: 'draft' };
   if (!validateDraft(body, res)) return;
-  const categories = await getCategories();
-  if (body.category_id && !categories.some((category) => category.id === body.category_id)) {
-    return res.status(422).json({ error: "The selected category does not exist." });
-  }
   try {
+    const categories = await getCategories();
+    if (body.category_id && !categories.some((category) => category.id === body.category_id)) {
+      return res.status(422).json({ error: "The selected category does not exist." });
+    }
     const article = await createNewsArticle(body, req.admin.id);
     await invalidatePublicNewsCaches();
     res.status(201).json(await decorate(article));
   } catch (error) {
-    console.error('Draft creation failed:', error.message);
-    res.status(500).json({ error: 'The draft could not be created.' });
+    const status = dependencyUnavailable(error) ? 503 : 500;
+    logApiFailure(req, 'news_draft_create', error, status);
+    res.status(status).json({
+      error: status === 503 ? 'SERVICE_UNAVAILABLE' : 'INTERNAL_SERVER_ERROR',
+      message: status === 503 ? 'The news service is temporarily unavailable.' : 'Unable to create news draft.',
+      request_id: req.requestId || null,
+    });
   }
 });
 
@@ -1568,7 +1658,7 @@ app.put("/api/news/:id", admin, permission('content.news.manage'), async (req, r
   const article = await updateNewsArticle(req.params.id, req.body);
   if (!article) return res.status(404).json({ error: "Article not found." });
   await invalidatePublicNewsCaches();
-  res.json(isAdmin ? await decorate(article) : publicArticleView(await decorate(article)));
+  res.json(await decorate(article));
 });
 
 app.patch("/api/news/:id/draft", admin, permission('content.news.manage'), async (req, res) => {
@@ -1619,11 +1709,30 @@ app.post("/api/news/bulk", admin, permission('content.news.manage'), async (req,
 // -- CMS Categories --
 app.get("/api/categories", async (req, res) => {
   try {
-    const categories = await cacheService.getOrSetStale('categories', 'public', async () => (await getCategories()).map(category => ({ id: category.id, name: category.name, slug: category.slug })), { ttlSeconds: 300, staleSeconds: 900 });
+    const categories = await cacheService.getOrSetStale('categories-public', 'public', async () => (await getCategories()).map(toPublicCategory).filter(Boolean), { ttlSeconds: 300, staleSeconds: 900 });
     res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400').json(categories);
   } catch (error) {
     console.error('Categories lookup failed:', error.message);
     res.status(503).json({ error: 'Categories are temporarily unavailable.' });
+  }
+});
+
+app.get("/api/popular-services", async (req, res) => {
+  const requestedLimit = Number(queryValue(req.query.limit, '3'));
+  if (!Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 6) {
+    return res.status(400).json({ error: 'The limit must be an integer between 1 and 6.' });
+  }
+  try {
+    const services = await cacheService.getOrSetStale(
+      'popular-services-public',
+      String(requestedLimit),
+      async () => (await getPopularServices(requestedLimit)).map(toPublicPopularService).filter(Boolean),
+      { ttlSeconds: 300, staleSeconds: 900 },
+    );
+    res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400').json(services);
+  } catch (error) {
+    console.error('Popular services lookup failed:', error.message);
+    res.status(503).json({ error: 'Popular services are temporarily unavailable.' });
   }
 });
 
@@ -1642,14 +1751,14 @@ app.get('/api/officials/directory', async (req, res) => {
     const status = ['all', 'current', 'previous', 'future', 'unknown'].includes(req.query.status) ? req.query.status : 'all';
     const barangayId = typeof req.query.barangay === 'string' && /^[a-z0-9-]{1,120}$/i.test(req.query.barangay) ? req.query.barangay : null;
     const cacheKey = JSON.stringify({ status, barangayId });
-    const directory = await cacheService.getOrSetStale('officials-directory', cacheKey, async () => getOfficialDirectory(sanitizeOfficials(await getOfficials()) || {}, { status, barangayId }), { ttlSeconds: 300, staleSeconds: 900 });
+    const directory = await cacheService.getOrSetStale('officials-directory-public', cacheKey, async () => toPublicOfficialsDirectory(await getOfficialDirectory(sanitizeOfficials(await getOfficials()) || {}, { status, barangayId })), { ttlSeconds: 300, staleSeconds: 900 });
     res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400').json(directory);
   } catch (error) { console.error('Official directory lookup failed:', error.message); res.status(503).json({ error: 'Officials are temporarily unavailable.' }); }
 });
 
 app.get('/api/officials', async (req, res) => {
   try {
-    const content = await cacheService.getOrSetStale('officials', 'public', async () => {
+    const content = await cacheService.getOrSetStale('officials-public', 'public', async () => {
     const content = await decorateLegacyOfficials(sanitizeOfficials(await getOfficials()) || {});
     const groups = ['mayor', 'viceMayor', 'abcPresident', 'sbMembers', 'punongBarangays', 'deptHeads'];
     const refreshPhoto = async (person) => {
@@ -1672,7 +1781,7 @@ app.get('/api/officials', async (req, res) => {
       else if (content[group]) content[group] = await refreshStoredPhoto(content[group]);
     }
     if (Array.isArray(content.directory?.items)) content.directory.items = await Promise.all(content.directory.items.map(refreshStoredPhoto));
-    return content;
+    return toPublicOfficials(content);
     }, { ttlSeconds: 300, staleSeconds: 900 });
     res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400').json(content);
   } catch (error) { console.error('Officials lookup failed:', error.message); res.status(503).json({ error: 'Officials are temporarily unavailable.' }); }
@@ -1687,8 +1796,8 @@ app.put('/api/officials', admin, permission('directory.manage'), async (req, res
     const saved = await saveOfficials(sanitizeOfficials(submitted));
     await syncLegacyOfficials(saved, req.admin.id);
     await auditDirectoryAction(req, 'OFFICIAL_DIRECTORY_UPDATED', 'officials', previous, saved);
-    await cacheService.invalidate('officials');
-    await cacheService.invalidate('officials-directory');
+    await cacheService.invalidate('officials-public');
+    await cacheService.invalidate('officials-directory-public');
     res.json(await decorateLegacyOfficials(saved));
   }
   catch (error) { console.error('Officials update failed:', error.message); res.status(500).json({ error: 'Officials could not be updated.' }); }
@@ -1754,9 +1863,9 @@ app.post('/api/admin/official-assignments/:id/reject', admin, permission('direct
 });
 app.get('/api/barangays', async (req, res) => {
   try {
-    const decorated = await cacheService.getOrSetStale('barangays', 'public', async () => {
+    const decorated = await cacheService.getOrSetStale('barangays-public', 'public', async () => {
     const records = sanitizeBarangays(await getBarangays());
-    return Promise.all(records.map(async (item) => ({
+    const publicRecords = await Promise.all(records.map(async (item) => ({
       ...item,
       slug: item.slug || item.id,
       more_information: item.more_information || '',
@@ -1767,6 +1876,7 @@ app.get('/api/barangays', async (req, res) => {
         ? await createDownloadUrl(item.cover_image)
         : item.cover_image || '',
     })));
+    return toPublicBarangays(publicRecords);
     }, { ttlSeconds: 300, staleSeconds: 900 });
     res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400').json(decorated);
   } catch (error) { console.error('Barangays lookup failed:', error.message); res.status(503).json({ error: 'Barangays are temporarily unavailable.' }); }
@@ -1778,9 +1888,9 @@ app.put('/api/barangays', admin, permission('directory.manage'), async (req, res
     await saveBarangays(saved);
     await syncBarangayTerms(saved, req.admin.id);
     await auditDirectoryAction(req, 'BARANGAY_OFFICIAL_TERMS_UPDATED', 'barangays', null, saved.map(item => ({ id: item.id, captain: item.captain, termStart: item.termStart || null, termEnd: item.termEnd || null })));
-    await cacheService.invalidate('barangays');
-    await cacheService.invalidate('officials');
-    await cacheService.invalidate('officials-directory');
+    await cacheService.invalidate('barangays-public');
+    await cacheService.invalidate('officials-public');
+    await cacheService.invalidate('officials-directory-public');
     res.set('Cache-Control', 'no-store, max-age=0');
     const decorated = await Promise.all(saved.map(async (item) => ({
       ...item,
@@ -1807,8 +1917,8 @@ app.post("/api/categories", admin, permission('content.categories.manage'), asyn
     return res.status(409).json({ error: "That category already exists." });
 
   const item = await createCategory(name, req.body.slug);
-  await cacheService.invalidate('categories');
-  await cacheService.invalidate('news');
+  await cacheService.invalidate('categories-public');
+  await cacheService.invalidate('news-public');
   res.status(201).json(item);
 });
 
@@ -1818,8 +1928,8 @@ app.put("/api/categories/:id", admin, permission('content.categories.manage'), a
 
   const item = await updateCategory(req.params.id, name, req.body.slug);
   if (!item) return res.status(404).json({ error: "Category not found." });
-  await cacheService.invalidate('categories');
-  await cacheService.invalidate('news');
+  await cacheService.invalidate('categories-public');
+  await cacheService.invalidate('news-public');
   res.json(item);
 });
 
@@ -1829,12 +1939,13 @@ app.delete("/api/categories/:id", admin, permission('content.categories.manage')
     return res.status(409).json({ error: "This category is used by an article." });
 
   await deleteCategory(req.params.id);
-  await cacheService.invalidate('categories');
-  await cacheService.invalidate('news');
+  await cacheService.invalidate('categories-public');
+  await cacheService.invalidate('news-public');
   res.status(204).end();
 });
 
 registerDestinationRoutes(app, { admin, permission });
+registerDepartmentRoutes(app, { admin, permission });
 
 // -- CMS Media --
 app.get("/api/media", admin, permission('content.media.manage'), async (req, res) => {
@@ -1868,7 +1979,7 @@ app.get("/api/media", admin, permission('content.media.manage'), async (req, res
       } catch (error) {
         const message = String(error.message || '');
         const quotaExceeded = /cap exceeded|download bandwidth|class\s+b/i.test(message);
-        result.preview_status = error.message === 'Invalid storage object key.' ? 'invalid' : quotaExceeded ? 'quota_exceeded' : 'unknown';
+        result.preview_status = error.code === 'STORAGE_UNAVAILABLE' ? 'storage_unavailable' : error.message === 'Invalid storage object key.' ? 'invalid' : quotaExceeded ? 'quota_exceeded' : 'unknown';
         result.storage_status = result.preview_status;
         console.warn(`Media preview check failed for ${m.id}:`, message);
       }
@@ -2137,7 +2248,20 @@ app.get("/api/admin/dashboard", admin, permission('admin.dashboard.view'), async
 
 // -- Health Endpoints --
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok", service: "better-getafe" });
+  const services = {
+    express: 'healthy',
+    postgresql: serviceStatus.cmsDatabase,
+    portalPostgresql: serviceStatus.portalDatabase,
+    redis: trafficProtector.health(),
+    storage: serviceStatus.storage,
+  };
+  const databaseReady = ['connected', 'local'].includes(serviceStatus.cmsDatabase)
+    && ['connected', 'local'].includes(serviceStatus.portalDatabase);
+  res.status(databaseReady ? 200 : 503).json({
+    status: databaseReady ? "ok" : "degraded",
+    service: "better-getafe",
+    services,
+  });
 });
 
 app.get("/healthz", (req, res) => {
@@ -2145,10 +2269,14 @@ app.get("/healthz", (req, res) => {
 });
 
 app.get('/health/live', (req, res) => res.status(200).json({ status: 'ok' }));
-app.get('/health/ready', (req, res) => {
-  const ready = Object.values(serviceStatus).every(status => status === 'connected' || status === 'local');
+app.get('/api/health/live', (_req, res) => res.status(200).json({ status: 'ok' }));
+const readiness = async (_req, res) => {
+  const databases = await Promise.all([databaseHealth('database'), databaseHealth('portalDatabase')]);
+  const ready = databases.every(item => item.status === 'healthy') && (process.env.NODE_ENV !== 'production' || isRedisReady());
   res.status(ready ? 200 : 503).json({ status: ready ? 'ready' : 'not_ready' });
-});
+};
+app.get('/health/ready', readiness);
+app.get('/api/ready', readiness);
 
 app.get('/api/admin/infrastructure/redis', admin, permission('system.infrastructure.view'), async (req, res) => {
   let queues = { email: 0, notifications: 0 };
@@ -2185,19 +2313,7 @@ app.get('/api/health/database', admin, permission('system.infrastructure.view'),
   res.status(health.status === 'healthy' || health.status === 'local' ? 200 : 503).json({ status: health.status === 'healthy' ? 'healthy' : health.status });
 });
 
-app.get("/ready", (req, res) => {
-  const redis = trafficProtector.health();
-  const ready = Object.values(serviceStatus).every((status) => status === 'connected' || status === 'local');
-  res.status(ready ? 200 : 503).json({
-    status: ready ? "ready" : "not_ready",
-    services: {
-      cmsDatabase: serviceStatus.cmsDatabase,
-      portalDatabase: serviceStatus.portalDatabase,
-      storage: serviceStatus.storage,
-      redis,
-    }
-  });
-});
+app.get("/ready", readiness);
 
 app.put(/^\/uploads\/(.+)$/, admin, permission('content.media.manage'), express.raw({ type: '*/*', limit: '50mb' }), async (req, res) => {
   const relative = req.params[0];
@@ -2309,30 +2425,17 @@ app.use((req, res) => {
 app.use((error, req, res, next) => {
   if (res.headersSent) return next(error);
   const apiRequest = String(req.originalUrl || req.url || '').split('?')[0].startsWith('/api/');
-  const requestId = req.requestId || null;
   if (error instanceof SyntaxError && error.status === 400 && Object.hasOwn(error, 'body')) {
-    return res.status(400).json({ error: 'Request body must be valid JSON.', request_id: requestId });
+    return res.status(400).json({ error: 'Request body must be valid JSON.' });
   }
-  if (error?.type === 'entity.too.large') return res.status(413).json({ error: 'Request body is too large.', request_id: requestId });
-  console.error(JSON.stringify({ event: 'request_failed', request_id: requestId, path: req.path, method: req.method, message: error?.message || 'unknown error' }));
+  if (error?.type === 'entity.too.large') return res.status(413).json({ error: 'Request body is too large.' });
   if (apiRequest) {
-    const status = Number(error?.status || error?.statusCode);
-    const safeStatus = [400, 401, 403, 404, 405, 409, 413, 415, 422, 429].includes(status) ? status : 503;
-    const safeMessages = {
-      400: 'Request is invalid.',
-      401: 'Authentication required.',
-      403: 'Access denied.',
-      404: 'Resource not found.',
-      405: 'Method not allowed.',
-      409: 'Request conflicts with the current state.',
-      413: 'Request body is too large.',
-      415: 'Unsupported request content type.',
-      422: 'Request validation failed.',
-      429: 'Too many requests. Please try again later.',
-    };
-    return res.status(safeStatus).json({ error: safeMessages[safeStatus] || 'The service is temporarily unavailable.', request_id: requestId });
+    return sendPublicError(res, req, error).catch(failure => {
+      console.error(JSON.stringify({ event: 'public_error_handler_failed', request_id: req.requestId || null, status: 503, message: redactDiagnostic(failure?.message || 'unknown').replace(/\s+/g, ' ').slice(0, 500) }));
+      return res.status(503).json({ error: { type: 'SERVICE_UNAVAILABLE', message: 'The service is temporarily unavailable.', referenceId: `ERR-${crypto.randomBytes(4).toString('hex').toUpperCase()}` } });
+    });
   }
-  res.status(500).type('text/plain').send('The service is temporarily unavailable.');
+  return sendPublicError(res, req, error, { status: 500 }).catch(() => res.status(500).type('text/plain').send('The service is temporarily unavailable.'));
 });
 
 async function startServer() {
@@ -2362,7 +2465,7 @@ async function startServer() {
     });
 
     console.log('[STARTUP 7/8] Starting HTTP server');
-    const PORT = Number(process.env.PORT) || 8080;
+    const PORT = Number(process.env.BACKEND_PORT || process.env.PORT) || 8080;
     const server = app.listen(PORT, "0.0.0.0", () => {
       console.log(`[STARTUP 8/8] Server listening on 0.0.0.0:${PORT}`);
     });
@@ -2399,14 +2502,11 @@ async function startServer() {
   } catch (error) {
     console.error('\n[STARTUP FAILED]');
     console.error('Stage: Service initialization');
-    console.error(`Message: ${error.message || 'Unknown error'}`);
-    console.error(`Stack: ${error.stack}`);
+    console.error(`Message: ${redactDiagnostic(error.message || 'Unknown error')}`);
+    console.error(`Stack: ${redactDiagnostic(error.stack)}`);
     console.error('Local fallback: DISABLED\n');
     process.exit(1);
   }
 }
 
 startServer();
-
-
-

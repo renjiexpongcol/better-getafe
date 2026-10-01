@@ -10,13 +10,28 @@ export default function BarangayModal({ barangay, onClose }) {
   useEffect(() => {
     if (!barangay) return
 
+    const previousFocus = document.activeElement
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    const focusable = () => [...(modalRef.current?.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])') || [])]
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         event.preventDefault()
         onClose()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const items = focusable()
+      const first = items[0]
+      const last = items.at(-1)
+      if (!first || !last) return
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
       }
     }
 
@@ -29,6 +44,7 @@ export default function BarangayModal({ barangay, onClose }) {
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = previousOverflow
+      previousFocus?.focus?.()
     }
   }, [barangay, onClose])
 
@@ -41,27 +57,6 @@ export default function BarangayModal({ barangay, onClose }) {
 
   const lat = hasCoordinates ? Number(barangay.coords.lat) : null
   const lng = hasCoordinates ? Number(barangay.coords.lng) : null
-
-  const mapSrc = hasCoordinates
-    ? (() => {
-        const deltaLng = 0.012
-        const deltaLat = 0.007
-
-        const bbox = [
-          lng - deltaLng,
-          lat - deltaLat,
-          lng + deltaLng,
-          lat + deltaLat,
-        ].join(',')
-
-        return (
-          'https://www.openstreetmap.org/export/embed.html' +
-          `?bbox=${encodeURIComponent(bbox)}` +
-          '&layer=mapnik' +
-          `&marker=${lat}%2C${lng}`
-        )
-      })()
-    : null
 
   const mapLink = hasCoordinates
     ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`

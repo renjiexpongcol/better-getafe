@@ -57,8 +57,30 @@ export async function saveCmsAvatar(userId, avatarStoragePath) {
 }
 
 export async function getCmsUserById(userId) {
+  if (isGcp()) {
+    const [rows] = await (await getCmsPool()).execute('SELECT * FROM users WHERE id=?', [userId]);
+    return rows[0] || null;
+  }
   const users = await getCmsUsers();
   return users.find(u => u.id === userId) || null;
+}
+
+// Disabled accounts use the existing disabled role. There is no separate username
+// column: email is the account login identifier.
+export async function searchDepartmentStaff(query, limit = 10, offset = 0) {
+  const roles = ['staff', 'admin', 'super_admin', 'it_support'];
+  if (isGcp()) {
+    const [rows] = await (await getCmsPool()).execute(
+      "SELECT id,name,email FROM users WHERE role IN ('staff','admin','super_admin','it_support') AND (strpos(lower(name),lower(?))>0 OR strpos(lower(email),lower(?))>0 OR strpos(lower(id),lower(?))>0) ORDER BY lower(name),id LIMIT ? OFFSET ?",
+      [query, query, query, limit + 1, offset],
+    );
+    return { items: rows.slice(0, limit), has_more: rows.length > limit };
+  }
+  const rows = (await getLocalDb()).users
+    .filter(user => roles.includes(user.role) && [user.name, user.email, user.id].some(value => String(value || '').toLowerCase().includes(query.toLowerCase())))
+    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+    .slice(offset, offset + limit + 1);
+  return { items: rows.slice(0, limit).map(({ id, name, email }) => ({ id, name, email })), has_more: rows.length > limit };
 }
 
 export async function getCmsUserByEmail(email) {

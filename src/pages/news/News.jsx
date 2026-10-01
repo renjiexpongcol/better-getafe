@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import './News.css'
 import { publicApi } from '../../services/apiClient'
 
-const PAGE_SIZES = [10, 20, 50]
+const PAGE_SIZES = [9, 20, 50]
 const date = value => new Intl.DateTimeFormat('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(value))
 
 export default function News() {
@@ -12,7 +12,7 @@ export default function News() {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(9)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(0)
@@ -31,7 +31,6 @@ export default function News() {
       if (query) params.set('search', query)
       if (category) params.set('category', category)
       publicApi('/news?' + params)
-        .then(response => response.ok ? response.json() : Promise.reject(new Error('News unavailable')))
         .then(next => setData(next))
         .catch(fetchError => {
           setData({ items: [], pages: 1, page: 1, total: 0 })
@@ -44,13 +43,14 @@ export default function News() {
 
   const important = page === 1 && !query && !category ? data.items.find(item => item.is_important) : null
   const cards = data.items
+  const isEmpty = !loading && !error && cards.length === 0
   const total = Number(data.total) || 0
   const firstItem = total ? (page - 1) * pageSize + 1 : 0
   const lastItem = Math.min(page * pageSize, total)
 
   return <main className="news-page">
     <div className="page-header"><div className="container page-header-inner"><div><h1 className="page-title">News &amp; Updates</h1><p className="page-subtitle">Official announcements and community information from the Municipality of Getafe.</p></div></div></div>
-    <section className="news-listing section"><div className="container">
+    <section className={`news-listing section${isEmpty ? ' news-listing-empty' : ''}`}><div className="container">
       <div className="news-controls"><input type="search" aria-label="Search news" placeholder="Search news and updates" value={query} onChange={event => { setQuery(event.target.value); setPage(1) }} /><select aria-label="Filter by category" value={category} onChange={event => { setCategory(event.target.value); setPage(1) }}><option value="">All categories</option>{categories.map(item => <option key={item.id} value={item.slug}>{item.name}</option>)}</select></div>
       {important && <Link className="featured-story" to={`/news/${important.slug}`}><div className="featured-image">{important.featured_image ? <img src={important.featured_image} alt={important.title} /> : <span>Important news</span>}</div><div><p className="news-category">Important news</p><h2>{important.title}</h2><p>{important.excerpt}</p><small>{date(important.published_at)}</small><span className="read-more">Read full story →</span></div></Link>}
       <h2 className="latest-title">News &amp; updates</h2>

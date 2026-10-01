@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Users, ShieldCheck, Search, Plus, LockKeyhole } from "lucide-react";
-import SettingsPermissions from "./SettingsPermissions";
+
+import { normalizePublicError } from "../services/publicError";
 import "./AdminUsers.css";
 
 async function request(path, options = {}) {
@@ -10,7 +11,7 @@ async function request(path, options = {}) {
     headers: { "Content-Type": "application/json" },
   });
   const body = await response.json();
-  if (!response.ok) throw new Error(body.error || "Request failed.");
+  if (!response.ok) throw new Error(normalizePublicError({ status: response.status, body }, 'unknown').message);
   return body;
 }
 const roleName = (role) =>
@@ -22,23 +23,7 @@ const roleName = (role) =>
     content_manager: "Content manager",
     disabled: "Access disabled",
   })[role] || role;
-const roleHelp = [
-  [
-    ShieldCheck,
-    "Super administrator",
-    "Full settings access and authority to manage other super administrators. Individual settings grants do not restrict this role.",
-  ],
-  [
-    Users,
-    "Administrator",
-    "Manages portal content. Settings access is controlled below. User management requires both settings edit and security permissions.",
-  ],
-  [
-    LockKeyhole,
-    "Access disabled",
-    "Cannot access the admin panel or protected admin APIs. The account is retained and can be reactivated.",
-  ],
-];
+
 const permissionLabels = {
   'settings.view': ['View settings', 'Open and review system configuration.'],
   'settings.edit': ['Edit settings', 'Change non-sensitive portal configuration.'],
@@ -57,15 +42,13 @@ export default function AdminUsers({ currentUser }) {
     [filter, setFilter] = useState("all"),
     [form, setForm] = useState(null),
     [busy, setBusy] = useState(false);
-  const [settings, setSettings] = useState(null),
-    [grants, setGrants] = useState("{}");
+  const [grants, setGrants] = useState("{}");
   const load = async () => {
     setError("");
     try {
       const result = await request("/api/admin/users");
       setData(result);
       const snapshot = await request("/api/admin/settings");
-      setSettings(snapshot);
       setGrants(snapshot.values["security.permissionGrants"]);
     } catch (e) {
       setError(e.message);
@@ -109,25 +92,7 @@ export default function AdminUsers({ currentUser }) {
       setBusy(false);
     }
   };
-  const saveGrants = async () => {
-    setBusy(true);
-    setError("");
-    setMessage("");
-    try {
-      await request("/api/admin/settings/security", {
-        method: "PATCH",
-        body: JSON.stringify({
-          values: { "security.permissionGrants": grants },
-        }),
-      });
-      setMessage("Access permissions saved.");
-      await load();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
-  };
+
   const users = data?.users || [];
   const visible = users.filter(
     (user) =>

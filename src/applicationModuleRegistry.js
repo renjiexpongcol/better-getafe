@@ -4,6 +4,7 @@ import { ROUTES } from './routeRegistry.js'
 
 export const MODULE_REGISTRY = {
   app: {
+    'my-requests': {path:'/app/e-requests',permission:'requests.own.view',title:'My requests'},
     dashboard: { path: ROUTES.app.root, permission: 'portal.dashboard.view', title: 'Dashboard' },
     requests: { path: ROUTES.app.requests, permission: 'requests.own.view', title: 'My applications' },
     appointments: { path: ROUTES.app.appointments, permission: 'appointments.own.view', title: 'Appointments' },
@@ -16,6 +17,7 @@ export const MODULE_REGISTRY = {
     settings: { path: ROUTES.app.settings, permission: 'settings.own.view', title: 'Account settings' },
   },
   staff: {
+    'e-service-requests': { path: '/app/staff/e-requests', permission: 'requests.department.view', title: 'E-service requests' },
     dashboard: { path: ROUTES.staff.root, permission: 'staff.dashboard.view', title: 'Staff dashboard' },
     'request-management': { path: ROUTES.staff.requests, permission: 'requests.view', title: 'Request management' },
     appointments: { path: ROUTES.staff.root, permission: 'appointments.view', title: 'Appointments' },
@@ -26,6 +28,7 @@ export const MODULE_REGISTRY = {
     'system-settings': { path: ROUTES.staff.settings, permission: 'settings.view', title: 'System parameters' },
   },
   admin: {
+    'service-catalog': { permission: 'services.catalog.view', title: 'Service catalog' },
     discover: { permission: 'content.news.manage', title: 'Discover Getafe' },
     dashboard: { permission: 'admin.dashboard.view', title: 'Dashboard' },
     users: { permission: 'users.view', title: 'Users' },
@@ -33,6 +36,7 @@ export const MODULE_REGISTRY = {
     permissions: { permission: 'permissions.manage', title: 'Permissions' },
     policies: { permission: 'policies.manage', title: 'Policies' },
     audit: { permission: 'audit.view', title: 'Audit log' },
+    errors: { permission: 'system.errors.view', title: 'Error Center' },
     'roles-permissions': { permission: 'permissions.manage', title: 'Roles and permissions' },
     departments: { permission: 'departments.manage', title: 'Departments' },
     'audit-logs': { permission: 'audit.view', title: 'Audit logs' },

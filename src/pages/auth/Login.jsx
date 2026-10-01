@@ -267,10 +267,10 @@ export default function Login() {
             </div>
           </div>
           <h1 className="login-aside-title">
-            One secure portal for every <em>Getafeño</em>.
+            Getafe services, made easier for <em>everyone</em>.
           </h1>
           <p className="login-aside-text">
-            Sign in to access municipal services, digital certificates, business permits, and public programs securely from anywhere.
+            Access municipal services, request documents and certificates, apply for permits, and stay connected with local programs—all in one secure place, anytime and anywhere.
           </p>
 
         </div>

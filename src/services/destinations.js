@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import { requestJson } from './apiTransport.js'
 export async function destinationRequest(url, options = {}) {
-  const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'GetafeCitizenPortal', ...options.headers } })
-  const data = response.status === 204 ? null : await response.json().catch(() => null)
-  if (!response.ok) { const error = new Error(data?.error || 'Destination information is unavailable.'); error.status = response.status; throw error }
-  if (response.status !== 204 && (!data || typeof data !== 'object')) throw new Error('Destination information is unavailable.')
-  return data
+  return requestJson(url, options)
 }
 export function useDestinations(url) {
   const [attempt, setAttempt] = useState(0)

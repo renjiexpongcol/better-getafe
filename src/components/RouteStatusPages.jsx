@@ -18,6 +18,7 @@ import {
   WifiOff,
 } from 'lucide-react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { reportClientError } from '../services/publicError'
 
 const homeAction = { label: 'Back to Home', to: '/' }
 const retryAction = { label: 'Try Again', onClick: () => window.location.reload() }
@@ -362,7 +363,8 @@ export class RouteErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('Unhandled route rendering error:', error, info)
+    reportClientError(error, info)
+    if (import.meta.env.DEV) console.error('Unhandled route rendering error:', error, info)
   }
 
   componentDidUpdate(previousProps) {

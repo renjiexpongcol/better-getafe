@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Download, ExternalLink } from 'lucide-react';
 import { publicData, apiData, collection, label } from '../../services/publicDataApi';

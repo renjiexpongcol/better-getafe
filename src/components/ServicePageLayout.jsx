@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import { Phone, MapPin, Clock, ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react'
 
 // Shared layout for LGU service category pages (Business, Certificates,
@@ -25,7 +24,7 @@ export default function ServicePageLayout({
         <div className="container page-header-inner">
           <div>
             {backLabel && <button type="button" className="service-hero-back" onClick={() => window.history.back()}><ArrowLeft size={18} strokeWidth={2.4} aria-hidden="true" /> {backLabel}</button>}
-            <p className="service-detail-kicker">{kicker}</p>
+            {kicker && <p className="service-detail-kicker">{kicker}</p>}
             <h1 className="page-title">{title}</h1>
             {subtitle && <p className="page-subtitle">{subtitle}</p>}
           </div>

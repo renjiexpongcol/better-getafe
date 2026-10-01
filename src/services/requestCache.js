@@ -1,4 +1,8 @@
 // Short-lived page data, never credentials. Private entries stay in memory.
+import { normalizePublicError } from './publicError.js'
+import { apiFetch, ApiRequestError } from './apiTransport.js'
+export { ApiRequestError } from './apiTransport.js'
+
 const entries = new Map()
 const pending = new Map()
 const versions = new Map()
@@ -33,11 +37,12 @@ export function invalidateCachedPrefix(prefix) {
 
 export function clearPrivateCache() {
   for (const key of new Set([...entries.keys(), ...pending.keys()])) {
-    if (key.startsWith('citizen:')) invalidateCached(key)
+    if (key.startsWith('citizen:') || key.startsWith('cms:')) invalidateCached(key)
   }
 }
 
-export function cachedRequest(key, fetcher, { ttl = 60000, force = false, persist = false } = {}) {
+export function cachedRequest(key, fetcher, { ttl = 60000, force = false, persist = false, coalesce = false } = {}) {
+  if (coalesce && pending.has(key)) return pending.get(key)
   if (force) invalidateCached(key, { persist })
   if (pending.has(key)) return pending.get(key)
   const value = readCached(key, { persist })
@@ -58,16 +63,6 @@ export function cachedRequest(key, fetcher, { ttl = 60000, force = false, persis
   return request
 }
 
-export class ApiRequestError extends Error {
-  constructor(message, status, body = {}, retryAfter = 0) {
-    super(message)
-    this.name = 'ApiRequestError'
-    this.status = status
-    this.body = body
-    this.retryAfter = retryAfter
-  }
-}
-
 export function retryAfterMilliseconds(response) {
   const value = response.headers.get('Retry-After')
   if (!value) return 0
@@ -82,16 +77,28 @@ const wait = milliseconds => new Promise(resolve => setTimeout(resolve, millisec
 async function fetchJsonWithBackoff(url, options = {}) {
   const method = String(options.method || 'GET').toUpperCase()
   const readOnly = method === 'GET' || method === 'HEAD'
+  const errorContext = options.errorContext || 'unknown'
   const maxAttempts = readOnly ? 3 : 1
   const requestOptions = { ...options }
   delete requestOptions.cacheTtl
   delete requestOptions.persist
   delete requestOptions.force
+  delete requestOptions.errorContext
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const cooldown = retryCooldowns.get(url) || 0
     if (cooldown > Date.now()) await wait(cooldown - Date.now())
-    const response = await fetch(url, requestOptions)
+    let response
+    try {
+      response = await apiFetch(url, requestOptions)
+    } catch (error) {
+      if (requestOptions.signal?.aborted) throw error
+      if (attempt < maxAttempts - 1) {
+        await wait(Math.min(5_000, 250 * (2 ** attempt)))
+        continue
+      }
+      throw error
+    }
     const retryAfter = retryAfterMilliseconds(response)
     if (response.status === 429) {
       const fallback = Math.min(5000, 250 * (2 ** attempt))
@@ -102,7 +109,10 @@ async function fetchJsonWithBackoff(url, options = {}) {
       // page load must not multiply the traffic the limiter is shedding.
     }
     const body = response.status === 204 ? null : await response.json().catch(() => ({}))
-    if (!response.ok) throw new ApiRequestError(body?.error || body?.message || 'The service is temporarily unavailable.', response.status, body, Math.ceil(retryAfter / 1000))
+    if (!response.ok) {
+      const publicError = normalizePublicError({ status: response.status, body, retryAfter: Math.ceil(retryAfter / 1000) }, errorContext)
+      throw new ApiRequestError(publicError.message, response.status, body, publicError.retryAfter)
+    }
     return body
   }
   throw new ApiRequestError('The service is temporarily unavailable.', 503)

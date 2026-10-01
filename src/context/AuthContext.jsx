@@ -1,11 +1,16 @@
+import { apiFetch } from '../services/apiTransport.js'
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { clearPrivateCache } from '../services/requestCache'
+import { normalizePublicError } from '../services/publicError'
 
 const AuthContext = createContext(null)
 const authError = (response, body, fallback) => {
-  if (response.status !== 429) return { ok: false, error: body.error || fallback }
+  if (response.status === 401) return { ok: false, error: 'Unable to sign in. Check your email and password and try again.' }
+  if (response.status === 403) return { ok: false, error: 'Unable to complete sign-in. Refresh the page and try again.' }
+  const publicError = normalizePublicError({ status: response.status, body }, 'auth')
+  if (response.status !== 429) return { ok: false, error: publicError.message || fallback, referenceId: publicError.referenceId }
   const retryAfter = Number(body.retryAfter || response.headers.get('Retry-After') || 0)
-  return { ok: false, error: body.message || body.error || 'Too many attempts. Please try again shortly.', retryAfter: Number.isFinite(retryAfter) ? Math.max(0, retryAfter) : 0 }
+  return { ok: false, error: publicError.message, referenceId: publicError.referenceId, retryAfter: Number.isFinite(retryAfter) ? Math.max(0, retryAfter) : 0 }
 }
 
 export function AuthProvider({ children }) {
@@ -38,7 +43,7 @@ export function AuthProvider({ children }) {
     if (!force && Date.now() - sessionRef.current.checkedAt < 30000) return Promise.resolve(sessionRef.current.user)
     const requestId = ++requestRef.current
     // Loading is only for the initial session check. Background checks run on
-    // navigation and window focus; hiding the app here unmounts open dialogs.
+    // focus/visibility events; hiding the app here unmounts open dialogs.
     const promise = (async () => { try {
       // A server can briefly be unavailable while its database connection is
       // recovering. Retry those transient checks before treating a session as
@@ -46,9 +51,9 @@ export function AuthProvider({ children }) {
       let response, body
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
-          response = await fetch('/api/auth/me', { credentials: 'include', cache: 'no-store', headers: { 'X-Requested-With': 'GetafeCitizenPortal' } })
+          response = await apiFetch('/api/auth/me', { credentials: 'include', cache: 'no-store', headers: { 'X-Requested-With': 'GetafeCitizenPortal' } })
           body = await response.json().catch(() => ({}))
-          if (response.status < 500 && response.status !== 429) break
+          if (response.status < 500) break
         } catch {
           response = null
         }
@@ -60,6 +65,7 @@ export function AuthProvider({ children }) {
         // shows a recovery state instead of incorrectly sending the user to
         // the sign-in screen while the server is still reachable only later.
         setSessionUnavailable(true)
+        sessionRef.current.checkedAt = Date.now()
         return sessionRef.current.user
       }
       const nextUser = response.ok ? body?.user || null : null
@@ -101,32 +107,30 @@ export function AuthProvider({ children }) {
       setLoading(false)
     }
     const onVisibilityChange = () => { if (document.visibilityState === 'visible') validateSession() }
+    const onPageShow = () => validateSession()
+    const onFocus = () => validateSession()
     window.addEventListener('storage', onRemoteLogout)
     window.addEventListener('auth-session-expired', onSessionExpired)
-    window.addEventListener('pageshow', validateSession)
-    window.addEventListener('focus', validateSession)
+    window.addEventListener('pageshow', onPageShow)
+    window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisibilityChange)
     channel?.addEventListener('message', onRemoteLogout)
     return () => {
       window.removeEventListener('storage', onRemoteLogout)
       window.removeEventListener('auth-session-expired', onSessionExpired)
-      window.removeEventListener('pageshow', validateSession)
-      window.removeEventListener('focus', validateSession)
+      window.removeEventListener('pageshow', onPageShow)
+      window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibilityChange)
       channel?.removeEventListener('message', onRemoteLogout)
       channel?.close()
     }
   }, [clearClientAuthState, validateSession])
 
-  useEffect(() => {
-    if (!sessionUnavailable) return undefined
-    const retry = setTimeout(() => validateSession(true), 2000)
-    return () => clearTimeout(retry)
-  }, [sessionUnavailable, validateSession])
+  const refreshUser = useCallback(() => validateSession(true), [validateSession])
 
   const login = async (email, password, remember = false) => {
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await apiFetch('/api/auth/login', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'GetafeCitizenPortal' },
@@ -135,16 +139,13 @@ export function AuthProvider({ children }) {
       const body = await response.json().catch(() => ({}))
       if (!response.ok) return authError(response, body, 'Invalid email or password.')
       if (body.verificationRequired || body.passwordExpired || body.mfaRequired) return { ok: false, ...body }
-      const session = await fetch('/api/auth/me', { credentials: 'include', cache: 'no-store', headers: { 'X-Requested-With': 'GetafeCitizenPortal' } })
-      const current = await session.json().catch(() => ({}))
-      if (!session?.ok || !current.user) return { ok: false, error: 'The sign-in session could not be established. Please try again.' }
+      // Invalidate any anonymous bootstrap that may still be in flight, then
+      // reuse the provider-owned session check after the cookie is issued.
       ++requestRef.current
       clearClientAuthState()
-      sessionRef.current = { promise: null, checkedAt: Date.now(), user: current.user }
-      setSessionUnavailable(false)
-      setUser(current.user)
-      setLoading(false)
-      return { ok: true, admin: current.admin === true }
+      const current = await refreshUser()
+      if (!current) return { ok: false, error: 'The sign-in session could not be established. Please try again.' }
+      return { ok: true, admin: ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(current.role) }
     } catch {
       return { ok: false, error: 'The sign-in service is temporarily unavailable.' }
     }
@@ -152,7 +153,7 @@ export function AuthProvider({ children }) {
 
   const register = async (name, email, password, captchaToken) => {
     try {
-      const response = await fetch('/api/portal-auth/register', {
+      const response = await apiFetch('/api/portal-auth/register', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -161,27 +162,12 @@ export function AuthProvider({ children }) {
       const body = await response.json().catch(() => ({}))
       if (!response.ok) return authError(response, body, 'The account could not be created.')
       if (body.verificationRequired) return { ok: false, ...body }
-      let session, current = {}
-      // The credential POST may already have set the HttpOnly session cookie.
-      // Retry only the safe session GET if the API is briefly recovering; never
-      // replay the sign-in POST, which could issue duplicate verification codes.
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        try {
-          session = await fetch('/api/auth/me', { credentials: 'include', cache: 'no-store', headers: { 'X-Requested-With': 'GetafeCitizenPortal' } })
-          current = await session.json().catch(() => ({}))
-          if (session.status < 500) break
-        } catch {
-          session = null
-        }
-        if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 200 * (attempt + 1)))
-      }
-      if (!session.ok || !current.user) return { ok: false, error: 'The sign-in session could not be established. Please try again.' }
+      // Registration may also set the session cookie; use the same centralized
+      // bootstrap path instead of issuing an independent /me request.
       ++requestRef.current
       clearClientAuthState()
-      sessionRef.current = { promise: null, checkedAt: Date.now(), user: current.user }
-      setSessionUnavailable(false)
-      setUser(current.user)
-      setLoading(false)
+      const current = await refreshUser()
+      if (!current) return { ok: false, error: 'The sign-in session could not be established. Please try again.' }
       return { ok: true, setup: true }
     } catch {
       return { ok: false, error: 'The account service is temporarily unavailable.' }
@@ -196,7 +182,7 @@ export function AuthProvider({ children }) {
     clearClientAuthState()
     let response
     try {
-      response = await fetch('/api/auth/logout', {
+      response = await apiFetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
         cache: 'no-store',
@@ -232,7 +218,7 @@ export function AuthProvider({ children }) {
 
   const completeMfa = async (challengeId, code) => {
     try {
-      const response = await fetch('/api/auth/mfa/verify', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'GetafeCitizenPortal' }, body: JSON.stringify({ challengeId, code }) })
+      const response = await apiFetch('/api/auth/mfa/verify', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'GetafeCitizenPortal' }, body: JSON.stringify({ challengeId, code }) })
       const body = await response.json().catch(() => ({}))
       if (!response.ok) return authError(response, body, 'MFA verification failed.')
       ++requestRef.current
@@ -245,7 +231,7 @@ export function AuthProvider({ children }) {
     } catch { return { ok: false, error: 'MFA verification is temporarily unavailable.' } }
   }
 
-  return <AuthContext.Provider value={{ user, loading, sessionUnavailable, login, completeMfa, register, logout, validateSession, updateUser }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, sessionUnavailable, login, completeMfa, register, logout, validateSession, refreshUser, updateUser }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

@@ -141,7 +141,7 @@ async function recordDelivery({ db, userId, type, eventKey, status, reason = nul
   return delivery ? { ...delivery, inserted: result.changes === 1 } : delivery;
 }
 
-export async function queueOptionalNotification({ userId, type, data = {}, eventId = '', applicationId = null, documentId = null, notificationId = null }) {
+export async function queueOptionalNotification({ userId, type, data = {}, eventId = '', applicationId = null, documentId = null, notificationId = null, retryFailed = false }) {
   if (!supportedTypes.has(type)) throw new Error(`Unsupported notification type: ${type}`);
   const db = await getPostgresRuntime('portal');
   const eventKey = notificationEventKey(type, data, eventId);
@@ -155,7 +155,11 @@ export async function queueOptionalNotification({ userId, type, data = {}, event
     return { status: 'suppressed', delivery: await recordDelivery({ db, userId, type, eventKey, status: 'suppressed', reason, notificationId }) };
   }
   const template = notificationTemplate({ type, data: { ...data, name: data.name || recipient?.name }, portalName: config.get('general.name') || 'Municipality of Getafe', portalUrl: config.get('general.url') || '' });
-  const delivery = await recordDelivery({ db, userId, type, eventKey, status: 'queued', notificationId });
+  let delivery = await recordDelivery({ db, userId, type, eventKey, status: 'queued', notificationId });
+  if (retryFailed && delivery?.status === 'failed') {
+    const claimed = await db.prepare("UPDATE notification_deliveries SET status='queued',failure_code=NULL,failed_at=NULL,queued_at=? WHERE id=? AND status='failed' RETURNING *").get(timestamp(), delivery.id);
+    if (claimed) delivery = { ...claimed, inserted: true };
+  }
   if (!delivery?.inserted || delivery.status !== 'queued' || delivery.sent_at) return { status: delivery?.status || 'queued', delivery };
   try {
     await enqueueEmail({
