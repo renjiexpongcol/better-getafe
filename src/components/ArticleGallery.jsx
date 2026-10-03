@@ -45,7 +45,7 @@ export default function ArticleGallery({ article }) {
       }}
     >
       <div className="article-gallery-stage">
-        {multi && <button type="button" className="article-gallery-arrow previous" aria-label="Previous image" onClick={() => move(-1)}><ChevronLeft size={24} aria-hidden="true" /></button>}
+        {multi && <button type="button" className="article-gallery-arrow previous" aria-label="Previous image" onClick={() => move(-1)} data-icon-button="ghost"><ChevronLeft size={24} aria-hidden="true" /></button>}
         <button
           ref={openButton}
           type="button"
@@ -57,7 +57,7 @@ export default function ArticleGallery({ article }) {
         >
           <img src={image.url} alt={image.alt} loading={index === 0 ? 'eager' : 'lazy'} decoding="async" />
         </button>
-        {multi && <button type="button" className="article-gallery-arrow next" aria-label="Next image" onClick={() => move(1)}><ChevronRight size={24} aria-hidden="true" /></button>}
+        {multi && <button type="button" className="article-gallery-arrow next" aria-label="Next image" onClick={() => move(1)} data-icon-button="ghost"><ChevronRight size={24} aria-hidden="true" /></button>}
         {multi && <span className="article-gallery-count" aria-live="polite">{index + 1} / {images.length}</span>}
       </div>
       {image.caption && <p className="article-gallery-caption">{image.caption}</p>}

@@ -27,6 +27,7 @@ export default function StaffEservices() {
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(""),
     [order, setOrder] = useState(null);
+  const [feeCodes,setFeeCodes] = useState([]),[billingPeriod,setBillingPeriod] = useState('');
   const state = useEservice(
     () =>
       esApi(
@@ -83,6 +84,7 @@ export default function StaffEservices() {
             <label>
               Search
               <input
+                placeholder="Reference, business, owner or staff EID"
                 value={params.get("search") || ""}
                 onChange={(e) => filter("search", e.target.value)}
               />
@@ -95,7 +97,7 @@ export default function StaffEservices() {
               >
                 <option value="">All requests</option>
                 {REQUEST_STATUSES.filter((s) => s !== "DRAFT").map((s) => (
-                  <option key={s}>{s}</option>
+                  <option key={s} value={s}>{label(s)}</option>
                 ))}
               </select>
             </label>
@@ -229,6 +231,7 @@ export default function StaffEservices() {
             </nav>
             {tab === "Application" && (
               <>
+                {request.business && <section className="es-section"><h2>{request.business.business_name}</h2><p>{request.business.business_reference} · {request.business.ownership_type}</p><p>{Object.values(request.business.address || {}).filter(v=>typeof v==='string').join(', ')}</p></section>}
                 <DynamicFields
                   fields={request.fields}
                   values={request.values}
@@ -250,7 +253,7 @@ export default function StaffEservices() {
                           )
                           .map((m) => (
                             <option key={m.user_id} value={m.user_id}>
-                              {m.user_id}
+                              {m.staff_label || 'Staff member'}
                             </option>
                           ))}
                       </select>
@@ -288,7 +291,7 @@ export default function StaffEservices() {
                             ].includes(s),
                         )
                         .map((s) => (
-                          <option key={s}>{s}</option>
+                          <option key={s} value={s}>{label(s)}</option>
                         ))}
                     </select>
                   </label>
@@ -416,12 +419,16 @@ export default function StaffEservices() {
                   )}
                 {can("assessments.create") &&
                   request.status === "FOR_ASSESSMENT" && (
+                    <div className="es-form"><label>Assessment due date<input type="datetime-local" value={due} onChange={e=>setDue(e.target.value)} /></label>
+                    <label>Billing period<input maxLength={100} value={billingPeriod} onChange={e=>setBillingPeriod(e.target.value)} placeholder="e.g. Q4 2026" /></label>
+                    {request.business && <fieldset><legend>Applicable configured charges</legend>{request.fees?.map(fee=><label key={fee.code}><input type="checkbox" checked={feeCodes.includes(fee.code)} onChange={e=>setFeeCodes(e.target.checked?[...feeCodes,fee.code]:feeCodes.filter(c=>c!==fee.code))} />{fee.description} · ₱{fee.amount}</label>)}</fieldset>}
                     <button
                       disabled={busy}
-                      onClick={() => act("assessment", {})}
+                      onClick={() => act("assessment", {fee_codes:feeCodes,billing_period:billingPeriod,due_at:due?`${due}+08:00`:null})}
                     >
                       Issue assessment and payment order
                     </button>
+                    </div>
                   )}
                 {request.orders.map((o) => (
                   <p key={o.id}>
@@ -489,11 +496,11 @@ export default function StaffEservices() {
             {tab === "Activity" && (
               <>
                 <Activity history={request.history} />
-                <h3>Document reviews</h3>
+                <h3>Processing history</h3>
                 {request.actions?.map((action) => (
                   <p key={action.id}>
-                    {date(action.created_at)} · {label(action.metadata.status)}{" "}
-                    · {action.metadata.reason}
+                    {date(action.created_at)} · {action.staff_label} · {label(action.action.replaceAll('.',' '))} · {label(action.metadata.status)}{' '}
+                    {action.metadata.reason || action.metadata.official_number || action.metadata.reference}
                   </p>
                 ))}
               </>

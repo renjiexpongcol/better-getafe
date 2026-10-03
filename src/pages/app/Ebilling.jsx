@@ -1,6 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useState } from "react";
 import AppPage from "./AppPage";
+import { billingStatus } from "../../data/businessBillingWorkflow";
 import {
   esApi,
   useEservice,
@@ -17,10 +18,12 @@ export default function Ebilling() {
           esApi("/billing/accounts"),
           esApi("/payment-orders"),
           esApi("/businesses"),
-        ]).then(([accounts, orders, businesses]) => ({
+          esApi("/requests?business=true&limit=100"),
+        ]).then(([accounts, orders, businesses, transactions]) => ({
           accounts: accounts.items,
           orders: orders.items,
           businesses: businesses.items,
+          transactions: transactions.items,
         })),
       [kind],
     );
@@ -35,7 +38,13 @@ export default function Ebilling() {
   return (
     <AppPage title="Billing and payment">
       <main className="es-workspace">
-        <h1>{kind === "all" ? "My billing" : label(kind)}</h1>
+        <h1>
+          {kind === "business"
+            ? "My Business Transactions"
+            : kind === "all"
+              ? "My billing"
+              : label(kind)}
+        </h1>
         <nav className="es-toolbar">
           {["all", "business", "real_property", "water", "payment_order"].map(
             (type) => (
@@ -48,6 +57,54 @@ export default function Ebilling() {
         <Feedback error={state.error} loading={state.loading} />
         {state.data && (
           <>
+            {(kind === "business" || kind === "all") && (
+              <section className="es-section">
+                <h2>Business transactions</h2>
+                <Link to="/app/services/business-billing">
+                  Start a business transaction
+                </Link>
+                {state.data.transactions.length ? (
+                  <div className="es-table-wrap">
+                    <table className="es-table">
+                      <thead>
+                        <tr>
+                          <th>Reference</th>
+                          <th>Business</th>
+                          <th>Service</th>
+                          <th>Amount</th>
+                          <th>Submitted</th>
+                          <th>Status</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {state.data.transactions.map((t) => (
+                          <tr key={t.id}>
+                            <td>{t.request_number}</td>
+                            <td>{t.business_name}</td>
+                            <td>{t.service_name}</td>
+                            <td>
+                              {t.amount == null
+                                ? "Awaiting assessment"
+                                : money(t.amount)}
+                            </td>
+                            <td>{date(t.submitted_at)}</td>
+                            <td>{billingStatus(t)}</td>
+                            <td>
+                              <Link to={`/app/e-requests/${t.id}`}>
+                                Open transaction
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p>No business transactions yet.</p>
+                )}
+              </section>
+            )}
             <h2>Accounts</h2>
             {state.data.accounts
               .filter(

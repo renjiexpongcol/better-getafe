@@ -22,8 +22,9 @@ const redis = createClient({
   url: redisConfig.url,
   socket: {
     connectTimeout: redisConfig.connectTimeoutMs,
-    reconnectStrategy: retries => Math.min(redisConfig.reconnectMaxDelayMs, 100 * 2 ** Math.min(retries, 10)),
+    reconnectStrategy: retries => Math.min(redisConfig.reconnectMaxDelayMs, 1000 * 2 ** Math.min(retries, 5) + Math.floor(Math.random() * 250)),
   },
+  disableOfflineQueue: true,
 });
 
 let connectionPromise = null;

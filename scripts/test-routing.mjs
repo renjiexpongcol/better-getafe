@@ -86,6 +86,7 @@ test('resident, staff, and admin canonical paths are registered', () => {
   assert.equal(manifest.some(route => route.path === '/app/profile'), true)
   assert.equal(manifest.some(route => route.path === '/app/settings'), true)
   assert.equal(matchedPath('/app/requests/new'), '/app/requests/new')
+  assert.equal(matchedPath('/app/services/business-billing'), '/app/services/:slug')
   assert.equal(matchedPath('/app/requests/reference-123'), '/app/requests/:id')
   assert.equal(matchedPath('/app/staff-syparm'), '/app/staff-syparm')
   assert.equal(matchedPath('/app/staff-syparm/unrecognized'), '/app/*')

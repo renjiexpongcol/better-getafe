@@ -19,6 +19,12 @@ export function AuthProvider({ children }) {
   const [sessionUnavailable, setSessionUnavailable] = useState(false)
   const requestRef = useRef(0)
   const sessionRef = useRef({ promise: null, checkedAt: 0, user: null })
+  useEffect(() => () => {
+    // Leaving the application drops only its in-memory state, not its cookie.
+    ++requestRef.current
+    sessionRef.current = { promise: null, checkedAt: 0, user: null }
+    clearPrivateCache()
+  }, [])
 
   const clearClientAuthState = useCallback(() => {
     clearPrivateCache()
@@ -45,19 +51,14 @@ export function AuthProvider({ children }) {
     // Loading is only for the initial session check. Background checks run on
     // focus/visibility events; hiding the app here unmounts open dialogs.
     const promise = (async () => { try {
-      // A server can briefly be unavailable while its database connection is
-      // recovering. Retry those transient checks before treating a session as
-      // absent; a 401/403 remains an immediate, definitive sign-out.
+      // Transport owns bounded network retries. An unavailable backend keeps
+      // the session in recovery state; a 401/403 remains definitive sign-out.
       let response, body
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        try {
+      try {
           response = await apiFetch('/api/auth/me', { credentials: 'include', cache: 'no-store', headers: { 'X-Requested-With': 'GetafeCitizenPortal' } })
           body = await response.json().catch(() => ({}))
-          if (response.status < 500) break
-        } catch {
+      } catch {
           response = null
-        }
-        if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 180 * (attempt + 1)))
       }
       if (requestId !== requestRef.current) return null
       if (!response || response.status >= 500 || response.status === 429) {
@@ -128,6 +129,14 @@ export function AuthProvider({ children }) {
 
   const refreshUser = useCallback(() => validateSession(true), [validateSession])
 
+  useEffect(() => {
+    if (!sessionUnavailable) return
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') validateSession(true)
+    }, 10000)
+    return () => window.clearInterval(timer)
+  }, [sessionUnavailable, validateSession])
+
   const login = async (email, password, remember = false) => {
     try {
       const response = await apiFetch('/api/auth/login', {
@@ -175,11 +184,6 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
-    ++requestRef.current
-    setUser(null)
-    setSessionUnavailable(false)
-    setLoading(false)
-    clearClientAuthState()
     let response
     try {
       response = await apiFetch('/api/auth/logout', {
@@ -196,6 +200,11 @@ export function AuthProvider({ children }) {
       await validateSession()
       return { ok: false, error: 'Could not complete sign out. Please try again.' }
     }
+    ++requestRef.current
+    setUser(null)
+    setSessionUnavailable(false)
+    setLoading(false)
+    clearClientAuthState()
     try { window.localStorage.setItem('getafe-auth-logout', String(Date.now())) } catch {}
     try {
       if ('BroadcastChannel' in window) {
@@ -238,4 +247,9 @@ export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within an AuthProvider')
   return ctx
+}
+
+// Published pages intentionally do not bootstrap a private session.
+export function useOptionalAuth() {
+  return useContext(AuthContext) || { user: null, loading: false }
 }

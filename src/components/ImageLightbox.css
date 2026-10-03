@@ -59,8 +59,6 @@
 }
 
 .article-gallery-lightbox .article-gallery-close:hover { background: rgba(255, 255, 255, .16); color: #fff; }
-.article-gallery-lightbox .article-gallery-close:focus-visible,
-.article-gallery-lightbox .article-gallery-arrow:focus-visible { outline: 3px solid #9dd7ff; outline-offset: 3px; }
 
 .article-gallery-lightbox-figure {
   display: grid;

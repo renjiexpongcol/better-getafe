@@ -1,0 +1,63 @@
+/* Explicit opt-in: text buttons, menu rows, cards and selection tiles keep
+   their own surfaces. Important declarations in this layer also cover lazy
+   stylesheets and legacy inline/important button resets. */
+@layer ghost-icon-controls {
+  [data-icon-button="ghost"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    flex-shrink: 0;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    cursor: pointer;
+  }
+
+  [data-icon-button="ghost"]:is(:hover, :active, :focus, :focus-visible) {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  [data-icon-button="ghost"]:is(:hover, :focus-visible):not(:disabled):not([aria-disabled="true"]) {
+    color: var(--icon-button-hover-color, var(--navy-600, #24639A)) !important;
+  }
+
+  [data-icon-button="ghost"]:active:not(:disabled):not([aria-disabled="true"]) {
+    color: var(--icon-button-active-color, var(--navy-900, #0B2345)) !important;
+  }
+
+  [data-icon-button="ghost"]:is(:disabled, [aria-disabled="true"]) {
+    color: var(--icon-button-disabled-color, var(--text-secondary, #5F6B7A)) !important;
+    opacity: .45 !important;
+    cursor: not-allowed;
+  }
+}
+
+/* The shared focus.css policy supplies the keyboard ring. Surface-specific
+   tokens keep icons readable when their utility buttons sit on dark surfaces. */
+:is(.citizen-sidebar, .staff-sidebar, .footer-socials, .article-gallery-lightbox) {
+  --icon-button-hover-color: var(--blue-100, #EAF4FC);
+  --icon-button-active-color: #fff;
+  --icon-button-disabled-color: #b0c2d5;
+}
+
+.password-input-with-toggle input { padding-right: 56px !important; }
+.password-input-with-toggle [data-icon-button="ghost"] { right: 2px; }
+
+/* Uploaded brand icons do not inherit color, so give only those images a
+   small hover emphasis change instead of tinting or boxing their button. */
+[data-icon-button="ghost"]:hover:not(:disabled):not([aria-disabled="true"]) > img { opacity: .8; }
+
+/* Gallery arrows stay legible over both dark and light poster imagery without
+   adding a tile behind the control. The halo follows only the icon strokes. */
+.article-gallery-arrow[data-icon-button="ghost"] svg { filter: drop-shadow(0 0 1px #fff); }
+.article-gallery-lightbox .article-gallery-arrow[data-icon-button="ghost"] svg { filter: drop-shadow(0 0 1px #071A33); }
+
+@media (forced-colors: active) {
+  [data-icon-button="ghost"] { color: ButtonText !important; }
+  [data-icon-button="ghost"]:is(:disabled, [aria-disabled="true"]) { color: GrayText !important; }
+}

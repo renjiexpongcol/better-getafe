@@ -112,15 +112,13 @@ export default function ImportantAnnouncement() {
         }
       }}
     >
-      <header className="important-announcement-header">
-        <div className="important-announcement-heading">
-          <span className="important-announcement-header-icon" aria-hidden="true"><Bell size={18} strokeWidth={2.2} /></span>
-          <h2 id="important-announcement-heading">Important Announcement</h2>
-        </div>
-        <button ref={closeRef} type="button" className="important-announcement-close" aria-label="Close important announcement" onClick={dismiss}>
-          <X size={20} aria-hidden="true" />
-        </button>
-      </header>
+      <button ref={closeRef} type="button" className="important-announcement-close" aria-label="Close announcement" onClick={dismiss} data-icon-button="ghost">
+        <X size={20} aria-hidden="true" />
+      </button>
+      <div className="important-announcement-heading">
+        <Bell size={16} strokeWidth={2} aria-hidden="true" />
+        <h2 id="important-announcement-heading">Important Announcement</h2>
+      </div>
 
       <div className={`important-announcement-body${image ? ' has-image' : ' no-image'}`}>
         {image && (
@@ -152,7 +150,6 @@ export default function ImportantAnnouncement() {
             <Link className="important-announcement-primary" to={`/news/${notice.slug}`} onClick={dismiss}>
               Read full announcement <ArrowRight size={16} aria-hidden="true" />
             </Link>
-            <button type="button" className="important-announcement-secondary" onClick={dismiss}>Close</button>
           </div>
         </div>
       </div>

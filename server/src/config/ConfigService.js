@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { definitions, validate } from './defaults.js';
 import { environmentValue } from './EnvironmentProvider.js';
+import { isDependencyFailure } from '../services/dependencyFailures.js';
 export class ConfigService {
   constructor({ provider, secrets, env = process.env, prepare = async () => ({ activate() {}, discard() {} }) }) {
     this.provider = provider; this.secrets = secrets; this.env = env; this.prepare = prepare;
@@ -37,11 +38,17 @@ export class ConfigService {
       if (!force && Date.now() - this.attemptedAt < 30000) return;
       this.attemptedAt = Date.now();
       try {
-        const stored = await this.provider.read();
+        let stored, unavailable = false;
+        try { stored = await this.provider.read(); }
+        catch (error) {
+          if (this.loadedAt || !isDependencyFailure(error)) throw error;
+          stored = {}; unavailable = true;
+          console.error(JSON.stringify({ event: 'settings_startup_degraded', code: error.code || error.name }));
+        }
         const snapshot = await this.resolve(stored);
         const resources = await this.prepare(snapshot.values, this.values, { initializing: !this.loadedAt });
         resources.activate();
-        this.values = snapshot.values; this.sources = snapshot.sources; this.stored = stored; this.available = true; this.loadedAt = Date.now();
+        this.values = snapshot.values; this.sources = snapshot.sources; this.stored = stored; this.available = !unavailable; this.loadedAt = Date.now();
       } catch (error) { this.available = false; throw error; }
     });
   }

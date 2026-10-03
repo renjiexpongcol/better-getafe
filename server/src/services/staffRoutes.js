@@ -65,6 +65,19 @@ const readApplication = async (db, application) => {
 
 export function installStaffRoutes(app, admin) {
   const queueNotification = options => { void queueOptionalNotification(options).catch(error => console.error('Optional notification queue failed:', error.message)) }
+  app.get('/api/staff/notifications', admin, async (req, res) => {
+    res.set('Cache-Control', 'no-store')
+    try {
+      await ensureStaffPermission(req.admin, 'notifications.view')
+      const db = await getLocalSqlite()
+      const items = await db.prepare('SELECT id,title,message,application_id,document_id,created_at,read_at FROM notifications WHERE user_id = ? AND archived_at IS NULL ORDER BY created_at DESC LIMIT 100').all(req.admin.id)
+      res.json({ items })
+    } catch (error) {
+      if (Number(error?.status) === 403) return res.status(403).json({ error: 'You do not have permission to view staff notifications.' })
+      console.error('Staff notifications lookup failed:', error.message)
+      res.status(503).json({ error: 'Notifications are temporarily unavailable. Try again.' })
+    }
+  })
   app.get('/api/staff/dashboard', admin, async (req, res) => {
     try { await withReadRetry(() => ensureStaffPermission(req.admin)) } catch (error) { return res.status(403).json({ error: safeStaffError(error, 'Municipal staff access required.') }) }
     try {

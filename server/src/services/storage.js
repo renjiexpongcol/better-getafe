@@ -16,6 +16,7 @@ import path from 'node:path';
 import tls from 'node:tls';
 import { config } from '../config/index.js';
 import { createBackblazeHttpsAgent } from './b2HttpAgent.js';
+import { isDependencyFailure } from './dependencyFailures.js';
 
 const MAX_ATTEMPTS = 3;
 const CONNECTION_TIMEOUT_MS = 8_000;
@@ -39,21 +40,25 @@ function storageError(operation, key, error) {
 function retryable(error) {
   const status = Number(error?.$metadata?.httpStatusCode || error?.statusCode || 0);
   const name = errorCode(error);
-  return RETRYABLE_STATUS.has(status) || ['TimeoutError', 'RequestTimeout', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE', 'NetworkingError', 'InternalError', 'SlowDown'].includes(name) || name.startsWith('NetworkingError:');
+  return isDependencyFailure(error) || RETRYABLE_STATUS.has(status) || ['TimeoutError', 'RequestTimeout', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE', 'NetworkingError', 'InternalError', 'SlowDown'].includes(name) || name.startsWith('NetworkingError:');
 }
 
 async function send(operation, key, command) {
   for (let attempt = 1; ; attempt++) {
     try {
       const result = await activeStorage.client.send(command);
+      activeStorage.degraded = false;
       console.info(JSON.stringify({ event: 'storage_operation', provider: 'backblaze-b2', operation, key: key || null, result: 'ok', attempt }));
       return result;
     } catch (error) {
+      // Commands here use a fixed key and upload bytes. Replaying PutObject
+      // overwrites that same key; it never creates a second application record.
       if (attempt < MAX_ATTEMPTS && retryable(error)) {
-        await new Promise(resolve => setTimeout(resolve, 100 * (2 ** (attempt - 1))));
+        await new Promise(resolve => setTimeout(resolve, 1000 * (2 ** (attempt - 1)) + Math.floor(Math.random() * 250)));
         continue;
       }
       storageError(operation, key, error);
+      if (isDependencyFailure(error) || Number(error?.$metadata?.httpStatusCode) >= 500) activeStorage.degraded = true;
       throw error;
     }
   }
@@ -170,7 +175,7 @@ async function diagnoseEndpoint(endpoint, region, bucket, credentialsConfigured)
   if (!tlsResult?.ok) throw Object.assign(new Error('Backblaze B2 TLS connection failed.'), { code: tlsResult?.code || 'ETIMEDOUT' });
 }
 
-export async function buildStorage(values) {
+export async function buildStorage(values, { allowUnavailable = false, deferHealth = false } = {}) {
   const provider = values['storage.provider'];
   if (provider === 'local') return buildLocalStorage(values);
   if (provider !== 'backblaze') throw new Error(`Unsupported storage provider: ${provider || '(empty)'}.`);
@@ -185,7 +190,7 @@ export async function buildStorage(values) {
   const missing = Object.entries(candidate).filter(([, value]) => !String(value || '').trim()).map(([name]) => ({ endpoint: 'B2_ENDPOINT', region: 'B2_REGION', bucket: 'B2_BUCKET_NAME', keyId: 'B2_KEY_ID', applicationKey: 'B2_APPLICATION_KEY' })[name]);
   if (missing.length) throw new Error(`Backblaze B2 storage configuration is incomplete. Missing: ${missing.join(', ')}`);
   const endpoint = explainConfiguration(candidate);
-  if (clientFactory === defaultClientFactory) {
+  if (clientFactory === defaultClientFactory && !allowUnavailable) {
     try { await diagnoseEndpoint(endpoint, candidate.region, candidate.bucket, Boolean(candidate.keyId && candidate.applicationKey)); }
     catch (error) { throw new Error(classifyInitializationError(error), { cause: error }); }
   }
@@ -195,9 +200,24 @@ export async function buildStorage(values) {
     region: candidate.region,
     forcePathStyle: true,
     credentials: { accessKeyId: candidate.keyId, secretAccessKey: candidate.applicationKey },
-    maxAttempts: MAX_ATTEMPTS,
+    // send() owns the bounded retries; avoid multiplying SDK and app retries.
+    maxAttempts: 1,
     requestHandler: new NodeHttpHandler({ connectionTimeout: CONNECTION_TIMEOUT_MS, requestTimeout: REQUEST_TIMEOUT_MS, httpsAgent: createBackblazeHttpsAgent() }),
   });
+  if (deferHealth) {
+    const candidateResource = { provider: 'backblaze', client: resource, bucket: candidate.bucket, endpoint, region: candidate.region, degraded: true };
+    candidateResource.checkHealth = async () => {
+      try {
+        await resource.send(new HeadBucketCommand({ Bucket: candidate.bucket }));
+        candidateResource.degraded = false;
+        console.info(JSON.stringify({ event: 'storage_health', status: 'healthy', provider: 'backblaze-b2' }));
+      } catch (error) {
+        candidateResource.degraded = true;
+        console.error(JSON.stringify({ event: 'storage_health', status: 'degraded', code: errorCode(error) }));
+      }
+    };
+    return candidateResource;
+  }
   try {
     // Use HeadBucket for the startup check. A bucket-scoped B2 key can be
     // allowed to read existing objects while lacking list permission; in
@@ -215,6 +235,10 @@ export async function buildStorage(values) {
     console.info(JSON.stringify({ event: 'storage_health', provider: 'backblaze-b2', status: 'healthy', bucket: candidate.bucket, region: candidate.region }));
     return { provider: 'backblaze', client: resource, bucket: candidate.bucket, endpoint, region: candidate.region };
   } catch (error) {
+    if (allowUnavailable && (isDependencyFailure(error) || Number(error?.$metadata?.httpStatusCode) >= 500)) {
+      console.error(JSON.stringify({ event: 'storage_startup_degraded', code: errorCode(error) }));
+      return { provider: 'backblaze', client: resource, bucket: candidate.bucket, endpoint, region: candidate.region, degraded: true };
+    }
     resource.destroy();
     console.error(`[Storage] S3 request: FAILED (${errorCode(error)}${error?.$metadata?.httpStatusCode ? `, HTTP ${error.$metadata.httpStatusCode}` : ''})`);
     console.error(JSON.stringify({ event: 'storage_health', provider: 'backblaze-b2', status: 'degraded', bucket: candidate.bucket, region: candidate.region, errorCode: errorCode(error), httpStatus: error?.$metadata?.httpStatusCode || null }));
@@ -226,13 +250,14 @@ export function activateStorage(resource) {
   const previous = activeStorage;
   activeStorage = resource || { provider: null, client: null, bucket: null, root: null, endpoint: null, region: null };
   if (previous.client && previous.client !== activeStorage.client) previous.client.destroy();
+  if (resource?.checkHealth) void resource.checkHealth();
 }
 export function storageIsLocal() { return activeStorage.provider === 'local'; }
 
 function storageUnavailable() { return Object.assign(new Error('Media storage is temporarily unavailable.'), { code: 'STORAGE_UNAVAILABLE', status: 503 }); }
 export function localObjectExists(objectKey) { return fs.stat(localPath(objectKey)).then(stat => stat.isFile()).catch(error => { if (error.code === 'ENOENT') return false; throw error; }); }
 export function storageProvider() { return activeStorage.provider; }
-export function storageHealth() { return { status: activeStorage.provider && activeStorage.provider !== 'degraded' ? 'healthy' : 'degraded', provider: activeStorage.provider === 'backblaze' ? 'backblaze-b2' : activeStorage.provider || 'unknown' }; }
+export function storageHealth() { return { status: activeStorage.provider && activeStorage.provider !== 'degraded' && !activeStorage.degraded ? 'healthy' : 'degraded', provider: activeStorage.provider === 'backblaze' ? 'backblaze-b2' : activeStorage.provider || 'unknown' }; }
 export async function initializeStorage() { const resource = await buildStorage(config.values); activateStorage(resource); return resource; }
 
 export async function createUploadUrl(objectKey, contentType, fileSize) {
@@ -241,7 +266,7 @@ export async function createUploadUrl(objectKey, contentType, fileSize) {
   if (storageIsLocal()) {
     const target = localPath(objectKey);
     await fs.mkdir(path.dirname(target), { recursive: true });
-    return `/uploads/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
+    return `/api/storage/local-upload/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
   }
   if (!activeStorage.client) throw storageUnavailable();
   const expiresIn = Math.min(900, Math.max(60, Number(config.get('storage.signedUrlMinutes') || 15) * 60));
@@ -334,6 +359,9 @@ export async function writeCitizenFile(key, bytes, contentType) {
   if (!Buffer.isBuffer(bytes) || !bytes.length) throw new Error('Invalid file content.');
   if (storageIsLocal()) { const target = privateLocalPath(key, '-citizen-private'); await fs.mkdir(path.dirname(target), { recursive: true }); await fs.writeFile(target, bytes); return; }
   if (!activeStorage.client) throw storageUnavailable();
+  // The legacy resident/staff upload routes also use this boundary. A private
+  // object key does not protect a file when the bucket itself is public.
+  await ensureCitizenStoragePrivate();
   return send('upload-private', key, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: key, Body: bytes, ContentType: contentType }));
 }
 // Backblaze ACLs are bucket-wide. Random keys alone cannot make a public bucket

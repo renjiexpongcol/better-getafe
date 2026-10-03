@@ -27,15 +27,14 @@ export async function getPostgresRuntime(category = 'portal') {
       const normalized = postgresSql(sql).trim().toUpperCase();
       if (normalized === 'BEGIN') {
         runtime.connection = await pool.getConnection();
-        await runtime.connection.beginTransaction();
+        try { await runtime.connection.beginTransaction(); }
+        catch (error) { runtime.connection.release(); runtime.connection = null; throw error; }
       } else if (normalized === 'COMMIT' && runtime.connection) {
-        await runtime.connection.commit();
-        runtime.connection.release();
-        runtime.connection = null;
+        try { await runtime.connection.commit(); }
+        finally { runtime.connection.release(); runtime.connection = null; }
       } else if (normalized === 'ROLLBACK' && runtime.connection) {
-        await runtime.connection.rollback();
-        runtime.connection.release();
-        runtime.connection = null;
+        try { await runtime.connection.rollback(); }
+        finally { runtime.connection.release(); runtime.connection = null; }
       } else {
         await (runtime.connection || pool).execute(postgresSql(sql));
       }
@@ -43,7 +42,7 @@ export async function getPostgresRuntime(category = 'portal') {
     async transaction(work) {
       const connection = await pool.getConnection();
       try { await connection.beginTransaction(); const result = await work(connection); await connection.commit(); return result; }
-      catch (error) { await connection.rollback(); throw error; }
+      catch (error) { await connection.rollback().catch(() => {}); throw error; }
       finally { connection.release(); }
     },
   };

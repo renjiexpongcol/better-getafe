@@ -124,7 +124,7 @@ export default function Footer() {
               <span>Follow Getafe</span>
               <div>
                 {SOCIAL_LINKS.map(({ name, url, icon: Icon, iconPath }) => (
-                  <a href={url} target="_blank" rel="noreferrer" aria-label={name} title={name} key={name}>
+                  <a href={url} target="_blank" rel="noreferrer" aria-label={name} title={name} key={name} data-icon-button="ghost">
                     {iconPath ? <img src={iconPath} alt="" aria-hidden="true" /> : <Icon size={18} aria-hidden="true" />}
                   </a>
                 ))}

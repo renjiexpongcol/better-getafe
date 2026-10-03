@@ -45,10 +45,16 @@ export function notificationPreferencesError(error, action = 'load') {
 }
 
 export const statusKey = value => String(value || 'draft').toLowerCase().replace(/[\s-]+/g, '_')
-export const needsAction = item => ['action_required', 'additional_information_required', 'additional_documents_required', 'requires_action'].includes(statusKey(item.status))
+export const needsAction = item => ['needs_information', 'action_required', 'additional_information_required', 'additional_documents_required', 'requires_action'].includes(statusKey(item.status))
 export const isActive = item => !['completed', 'rejected', 'cancelled', 'released', 'draft'].includes(statusKey(item.status))
 export const paymentDue = item => ['pending', 'unpaid', 'due', 'required', 'overdue'].includes(statusKey(item.status))
-export const parseDate = value => value ? new Date(/Z$|[+-]\d\d:\d\d$/.test(value) ? value : `${value.replace(' ', 'T')}Z`) : null
+export const parseDate = value => {
+  if (!value) return null
+  if (value instanceof Date || typeof value === 'number') return new Date(value)
+  const text = String(value)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return new Date(`${text}T12:00:00+08:00`)
+  return new Date(/Z$|[+-]\d\d:?\d\d$/i.test(text) ? text : `${text.replace(' ', 'T')}Z`)
+}
 export function dateLabel(value, options = {}) {
   const date = parseDate(value)
   if (!date || Number.isNaN(date.getTime())) return 'Date unavailable'

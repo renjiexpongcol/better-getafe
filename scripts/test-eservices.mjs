@@ -1,3 +1,5 @@
+import { installAdminUsersRoutes } from '../server/src/services/adminUsersRoutes.js';
+import { businessBillingCases } from './business-billing-cases.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
@@ -164,6 +166,7 @@ test("PostgreSQL and HTTP e-services lifecycle, privacy, permissions, concurrenc
     },
   };
   const permissions = [
+    "users.view","users.manage","groups.manage","audit.view",
     "services.catalog.manage",
     "requests.department.view",
     "requests.department.assign",
@@ -327,6 +330,8 @@ test("PostgreSQL and HTTP e-services lifecycle, privacy, permissions, concurrenc
         id: "TEST_GATEWAY",
         online: true,
         verifierUserId: cashier.id,
+        checkoutHosts: ['checkout.example.invalid'],
+        checkout: async ({idempotencyKey}) => ({url:`https://checkout.example.invalid/pay/${idempotencyKey}`,reference:`CHECKOUT-${idempotencyKey}`}),
         verifyWebhook: async (raw, headers) => {
           if (
             !verifyTimestampedHmac(raw, {
@@ -359,6 +364,7 @@ test("PostgreSQL and HTTP e-services lifecycle, privacy, permissions, concurrenc
       },
       throttleUpload: async () => ({ allowed: true }),
     });
+    installAdminUsersRoutes(app,auth("admin"));
     server = app.listen(0, "127.0.0.1");
     await new Promise((resolve) => server.once("listening", resolve));
     const base = `http://127.0.0.1:${server.address().port}`;
@@ -380,12 +386,62 @@ test("PostgreSQL and HTTP e-services lifecycle, privacy, permissions, concurrenc
       });
       return { status: response.status, body: await response.json() };
     };
+    await t.test('resident profile businesses persist, bind ownership, and protect municipal records', async () => {
+      const payload = { business_name: 'Profile enterprise', trade_name: '', ownership_type: 'Sole proprietorship', address: { street: 'Purok 2', barangay: 'Alumar' } };
+      const key = crypto.randomUUID();
+      const added = await call(resident, '/api/businesses', 'POST', payload, key);
+      assert.equal(added.status, 201);
+      assert.equal(added.body.status, 'UNVERIFIED');
+      assert.equal((await call(resident, '/api/businesses', 'POST', payload, key)).body.id, added.body.id);
+      assert.ok((await call(resident, '/api/businesses')).body.items.some(b => b.id === added.body.id));
+      assert.ok(!(await call(other, '/api/businesses')).body.items.some(b => b.id === added.body.id));
+      assert.equal((await call(other, `/api/businesses/${added.body.id}`, 'PUT', payload)).status, 404);
+      assert.equal((await call(resident, '/api/businesses', 'POST', { ...payload, user_id: other.id })).status, 422);
+      assert.equal((await call(resident, '/api/businesses', 'POST', { ...payload, status: 'ACTIVE' })).status, 422);
+      const edited = await call(resident, `/api/businesses/${added.body.id}`, 'PUT', { ...payload, business_name: 'Updated profile enterprise' });
+      assert.equal(edited.status, 200);
+      assert.equal(edited.body.business_name, 'Updated profile enterprise');
+      const renewal = await engine.saveService(processor, { ...service, id: undefined, name: 'Profile business renewal', slug: `profile-business-${resident.id}`, kind: 'BUSINESS_RENEWAL', declaration: service.definition.declaration }, null);
+      const draft = await engine.createDraft(resident, { service_id: renewal.id, business_id: added.body.id }, crypto.randomUUID());
+      assert.equal((await engine.detail(resident, draft.id)).values.business_name, 'Updated profile enterprise');
+      const matches = await call(resident, `/api/requests?service_id=${renewal.id}&business_id=${added.body.id}`);
+      assert.equal(matches.body.items.length, 1);
+      assert.equal(matches.body.items[0].business_id, added.body.id);
+      assert.equal((await call(other, `/api/requests?business_id=${added.body.id}`)).body.items.length, 0);
+      await engine.transaction(db => db("UPDATE service_requests SET status='SUBMITTED' WHERE id=?", [draft.id]));
+      assert.equal((await call(resident, `/api/businesses/${added.body.id}`, 'PUT', payload)).status, 409);
+      assert.equal((await call(resident, '/api/businesses')).body.items.find(b => b.id === added.body.id).profile_editable, false);
+
+      await engine.transaction(db => db("UPDATE businesses SET status='ACTIVE' WHERE id=?", [added.body.id]));
+      assert.equal((await call(resident, `/api/businesses/${added.body.id}`, 'PUT', payload)).status, 409);
+    });
+    await t.test('employee API provisions profile and group access together and protects system fields', async () => {
+      const account = { name:'API employee',email:'api-employee@example.invalid',department:'Finance',position:'Officer',role:'staff',group_ids:[group] };
+      const created = await call(processor,'/api/admin/users','POST',account);
+      assert.equal(created.status,201); assert.match(created.body.eid,/^[0-9]{6}$/);
+      const employeeId = created.body.id;
+      const profile = await call(processor,`/api/admin/users/${employeeId}/profile`);
+      assert.equal(profile.status,200); assert.equal(profile.body.eid,created.body.eid);
+      assert.equal(profile.body.created_by,processor.id); assert.equal(profile.body.password_status,'Password Setup Required');
+      assert.equal(profile.body.mfa_status,'Not Enrolled'); assert.equal(profile.body.last_login_at,null);
+      assert.equal(profile.body.department,'Finance'); assert.equal(profile.body.groups[0].id,group);
+      assert.equal((await call(processor,`/api/admin/users/${employeeId}/profile`,'PATCH',{ eid:'999999' })).status,422);
+      assert.equal((await call(processor,`/api/admin/users/${employeeId}/profile`,'PATCH',{ phone:'09123456789',employment_status:'On Leave' })).status,200);
+      assert.equal((await call(processor,`/api/admin/users/${employeeId}`,'PATCH',{ ...account,name:'Renamed API employee',email:'renamed@example.invalid',department:'Records',position:'Director' })).status,200);
+      const updated = await call(processor,`/api/admin/users/${employeeId}/profile`);
+      assert.equal(updated.body.eid,created.body.eid); assert.equal(updated.body.email,'renamed@example.invalid');
+      assert.equal(updated.body.employment_status,'On Leave');
+      const forbidden = await call(processor,'/api/admin/users','POST',{ ...account,email:'invalid-grant@example.invalid',group_ids:['missing'] });
+      assert.equal(forbidden.status,422);
+      assert.equal((await pool.query("SELECT count(*)::int AS count FROM users WHERE email='invalid-grant@example.invalid'")).rows[0].count,0);
+      assert.equal((await call(resident,`/api/admin/users/${employeeId}/profile`)).status,403);
+    });
     await t.test("staff lookup, catalog pagination, department grants and immediate revocation", async () => {
       const lookup = await call(processor, "/api/admin/eservices/staff-search?q=Test&limit=2");
       assert.equal(lookup.status, 200);
       assert.equal(lookup.body.items.length, 2);
       assert.equal(lookup.body.has_more, true);
-      assert.deepEqual(Object.keys(lookup.body.items[0]).sort(), ["email", "id", "name"]);
+      assert.deepEqual(Object.keys(lookup.body.items[0]).sort(), ["department", "eid", "email", "id", "name", "position"]);
       assert.equal((await call(processor, `/api/admin/eservices/staff-search?q=${outsider.id}`)).body.items[0].id, outsider.id);
       assert.equal((await call(processor, `/api/admin/eservices/staff-search?q=${outsider.id}@example.invalid`)).body.items[0].id, outsider.id);
       assert.equal((await call(processor, "/api/admin/eservices/staff-search?q=nobody")).body.items.length, 0);
@@ -417,6 +473,47 @@ test("PostgreSQL and HTTP e-services lifecycle, privacy, permissions, concurrenc
       assert.equal((await call(processor, "/api/admin/eservices/department-members/revoke", "POST", grant)).status, 404);
     });
     let request;
+    await t.test('CMS applications reuse profile data, lock account identity, preserve progress and hide routing', async () => {
+      const configured = await engine.saveService(processor, {
+        name: 'Test configurable certification', slug: `profile-${resident.id}`, kind: 'BUSINESS',
+        department_id: 'treasury', published: true, online_available: true,
+        settings: { workflow_type: 'APPLICATION' }, declaration: 'I confirm the information.',
+        fields: [
+          { key: 'identity', label: 'Resident ID', type: 'text', profile_source: 'user_id', profile_readonly: true, section: 'Applicant information' },
+          { key: 'applicant', label: 'Applicant', type: 'text', profile_source: 'full_name', profile_readonly: true, section: 'Applicant information' },
+          { key: 'contact', label: 'Contact email', type: 'email', profile_source: 'email', section: 'Applicant information' },
+          { key: 'purpose', label: 'Certification purpose', type: 'text', required: true, section: 'Certification details' },
+        ], requirements: [], fees: [],
+      }, null);
+      const draft = await engine.createDraft(resident, { service_id: configured.id }, crypto.randomUUID());
+      const detail = await engine.detail(resident, draft.id);
+      assert.equal(detail.values.identity, resident.id);
+      assert.equal(detail.values.applicant, 'Test resident');
+      assert.equal(detail.values.contact, detail.applicant_snapshot.email);
+      assert.equal(detail.fields.find(field => field.key === 'purpose').section, 'Certification details');
+      assert.equal(detail.workflow_id, undefined);
+      const saved = await engine.saveDraft(resident, draft.id, { version: draft.version, values: { ...detail.values, identity: other.id, applicant: 'Tampered name', purpose: 'Test purpose' }, draft_step: 3, appointment: { date: '2026-10-03', time: '09:00', reason: 'Test', contact: '09123456789' } });
+      const resumed = await engine.detail(resident, draft.id);
+      assert.equal(resumed.values.identity, resident.id);
+      assert.equal(resumed.values.applicant, 'Test resident');
+      assert.equal(resumed.draft_step, 3);
+      assert.equal(resumed.draft_context.appointment.time, '09:00');
+      const published = await call(resident, `/api/services/${configured.slug}`);
+      assert.equal(published.body.steps, undefined);
+      assert.equal(published.body.workflow, undefined);
+      assert.equal(published.body.settings.notification_templates, undefined);
+      await engine.submit(resident, draft.id, { version: saved.version, declaration: true }, crypto.randomUUID());
+      const matching = await engine.list(resident, { status: 'Under Review' });
+      assert.equal(matching.items.length, 0);
+      await engine.process(processor, draft.id, 'status', { version: (await engine.detail(resident, draft.id)).version, status: 'RECEIVED' }, crypto.randomUUID());
+      const reviewed = await engine.list(resident, { status: 'Under Review' });
+      assert(reviewed.items.some(item => item.id === draft.id && item.public_status === 'Under Review'));
+      const correction = await engine.process(processor, draft.id, 'information', { version: (await engine.detail(resident, draft.id)).version, message: 'Please confirm your certification purpose.' }, crypto.randomUUID());
+      assert.equal((await engine.detail(resident, draft.id)).public_status, 'Additional Information Required');
+      const responded = await engine.submit(resident, draft.id, { version: correction.version, declaration: true }, crypto.randomUUID(), undefined, true);
+      assert.equal(responded.status, 'RECEIVED');
+      await assert.rejects(() => engine.detail(other, draft.id), { status: 404 });
+    });
     const version = async () =>
       (
         await engine.read("SELECT version FROM service_requests WHERE id=?", [
@@ -526,7 +623,8 @@ test("PostgreSQL and HTTP e-services lifecycle, privacy, permissions, concurrenc
         assert.equal(
           (
             await pool.query(
-              "SELECT count(*)::integer AS count FROM business_applications",
+              "SELECT count(*)::integer AS count FROM business_applications WHERE request_id=$1",
+              [request.id],
             )
           ).rows[0].count,
           1,
@@ -830,7 +928,11 @@ test("PostgreSQL and HTTP e-services lifecycle, privacy, permissions, concurrenc
         const detail = await engine.detail(resident, request.id);
         assert.equal(detail.status, "COMPLETED");
         assert(detail.completed_at);
-        assert(detail.history.some((e) => e.to_status === "NEEDS_INFORMATION"));
+        assert(detail.history.some((e) => e.to_status === "Additional Information Required"));
+        assert.equal(detail.public_status, 'Completed');
+        const staffDetail = await engine.detail(processor, request.id, true);
+        assert(staffDetail.history.some(event => event.to_status === 'NEEDS_INFORMATION'));
+        assert(staffDetail.steps.length);
         assert(
           (
             await engine.read(
@@ -851,7 +953,8 @@ test("PostgreSQL and HTTP e-services lifecycle, privacy, permissions, concurrenc
     await t.test(
       "renewal retains business and reuses permitted values in a new transaction",
       async () => {
-        const business = (await engine.read("SELECT id FROM businesses"))[0];
+        const business = (await engine.read("SELECT business_id AS id FROM business_applications WHERE request_id=?", [request.id]))[0];
+        const countBefore = (await engine.read("SELECT count(*)::integer AS count FROM businesses"))[0].count;
         const renewal = await engine.saveService(
           processor,
           {
@@ -877,7 +980,7 @@ test("PostgreSQL and HTTP e-services lifecycle, privacy, permissions, concurrenc
               "SELECT count(*)::integer AS count FROM businesses",
             )
           )[0].count,
-          1,
+          countBefore,
         );
         assert.equal(
           (await engine.detail(resident, request.id)).status,
@@ -1044,6 +1147,11 @@ test("PostgreSQL and HTTP e-services lifecycle, privacy, permissions, concurrenc
         );
       },
     );
+    await businessBillingCases({t,engine,processor,cashier,resident,other,business:(await engine.read('SELECT * FROM businesses ORDER BY created_at LIMIT 1'))[0],call,base,gatewaySecret});
+    if (process.env.TEST_BILLING_BROWSER === '1') await t.test('business billing browser: resident to staff to Treasury to completion, desktop/mobile and reload persistence',async()=>{
+      const {billingBrowser}=await import('./business-billing-browser.mjs');
+      await billingBrowser({engine,call,resident,processor,cashier});
+    });
   } finally {
     if (server) await new Promise((resolve) => server.close(resolve));
     await pool.end();

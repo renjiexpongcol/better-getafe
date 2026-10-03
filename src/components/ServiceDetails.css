@@ -1,0 +1,67 @@
+.es-workspace.es-service-detail {
+  max-width: 1240px;
+  padding: 24px 20px 32px;
+  color: #20344b;
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.es-service-detail .es-service-header { padding: 0 0 26px; border: 0; }
+.es-service-detail .es-service-header h1 { margin: 0 0 10px; font-size: 32px; line-height: 1.25; font-weight: 750; letter-spacing: -.025em; color: #153652; }
+.es-service-detail .es-service-header p { margin: 0; max-width: 940px; font-size: 16px; line-height: 1.65; color: #526479; }
+.es-service-detail .es-detail-layout { grid-template-columns: minmax(0, 2fr) minmax(310px, 1fr); grid-template-areas: "information request"; gap: 32px; align-items: start; }
+.portal-v2 .es-workspace.es-service-detail { padding: 4px 0 32px; }
+.es-service-detail .sd-information { min-width: 0; grid-area: information; }
+.es-service-detail h2 { margin: 0 0 10px; font-size: 20px; line-height: 1.4; color: #153652; }
+.es-service-detail p { margin: 0 0 12px; }
+.es-service-detail p:last-child { margin-bottom: 0; }
+.es-service-detail .sd-section { padding: 20px 0; }
+.es-service-detail .sd-section:first-child { padding-top: 0; }
+.es-service-detail .sd-section + .sd-section { border-top: 1px solid #e4e9ef; }
+.es-service-detail .sd-requirements { list-style: none; padding: 0; margin: 0; }
+.es-service-detail .sd-requirements li { padding: 8px 0; }
+.es-service-detail .sd-requirements li:first-child { padding-top: 0; }
+.es-service-detail .sd-requirements li > div { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; }
+.es-service-detail .sd-requirements p { color: #526479; margin-top: 4px; }
+.es-service-detail .sd-required { color: #526479; font-size: 13px; flex-shrink: 0; }
+.es-service-detail .sd-fees { margin: 0; }
+.es-service-detail .sd-fees > div { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; padding: 10px 0; }
+.es-service-detail .sd-fees dt { font-weight: 500; }
+.es-service-detail .sd-fees dd { margin: 0; font-size: 20px; font-weight: 700; color: #153652; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.es-service-detail .sd-fee-note { color: #526479; font-size: 14px; margin-top: 10px; }
+.es-service-detail .es-service-aside { grid-area: request; position: sticky; top: 88px; padding: 24px; margin: 0; border: 1px solid var(--portal-border, #cfdbe6); border-radius: 6px; background: var(--portal-surface, #f8fafc); min-width: 0; box-shadow: none; }
+.es-service-detail .es-service-aside h2 { margin-bottom: 22px; }
+.es-service-detail .sd-request-meta { margin: 0; }
+.es-service-detail .sd-request-meta > div { margin-bottom: 20px; }
+.es-service-detail .sd-request-meta dt, .es-service-detail .sd-business-field > label { color: #526479; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .065em; margin-bottom: 5px; }
+.es-service-detail .sd-request-meta dd { margin: 0; font-size: 15px; line-height: 1.6; }
+.es-service-detail .sd-business-field select { font-size: 16px; min-height: 48px; margin-top: 0; border-color: #94a8bd; }
+.es-service-detail .sd-helper { color: #526479; font-size: 14px; line-height: 1.55; margin-top: 8px; }
+.es-service-detail .sd-business-summary { display: grid; gap: 2px; padding: 12px 0 4px; font-size: 14px; }
+.es-service-detail .sd-business-summary span { color: #526479; }
+.es-service-detail a { color: #155a96; text-underline-offset: 3px; }
+.es-service-detail .sd-profile-link, .es-service-detail .sd-contact a { display: flex; align-items: center; min-height: 44px; font-size: 14px; }
+.es-service-detail .sd-primary { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; margin: 20px 0 0; padding: 11px 16px; background: var(--portal-blue, #175d45); color: #fff; border-color: var(--portal-blue, #175d45); font-size: 16px; font-weight: 650; line-height: 1.5; }
+.es-service-detail .sd-primary:not(:disabled):hover { filter: brightness(.92); }
+.es-service-detail button:disabled { opacity: 1; background: #e0e7ee; border-color: #cbd5e0; color: #53677b; cursor: not-allowed; }
+.es-service-detail select:disabled { background: #edf1f5; color: #526479; cursor: not-allowed; }
+.es-service-detail .sd-inline-error { margin: 14px 0; color: #922e30; font-size: 14px; }
+.es-service-detail .sd-inline-error button { margin-top: 8px; color: #155a96; }
+.es-service-detail .sd-existing { border-left: 3px solid #1878cc; padding: 10px 0 10px 14px; margin-top: 18px; font-size: 14px; }
+.es-service-detail .sd-existing p { margin: 5px 0; }
+.es-service-detail .sd-existing a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 650; }
+.sd-placeholder { height: 18px; background: #e4e9ef; width: 85%; margin: 16px 0; border-radius: 3px; }
+.sd-placeholder-title { width: 65%; height: 36px; }
+.sd-loading-columns { display: grid; grid-template-columns: 2fr 1fr; gap: 32px; margin-top: 32px; }
+.sd-loading-columns > div { background: #edf1f5; height: 220px; border-radius: 4px; }
+.sd-unavailable button { min-height: 48px; }
+@media(min-width:901px) { .es-service-detail .sd-primary { scroll-margin-top: 90px; } }
+@media(max-width:1100px) { .es-service-detail .es-detail-layout { gap: 24px; grid-template-columns: minmax(0, 1.8fr) minmax(290px, 1fr); } .es-service-detail .es-service-aside { padding: 20px; } }
+@media(max-width:800px) {
+  .es-service-detail .es-detail-layout { grid-template-columns: minmax(0,1fr); grid-template-areas: "request" "information"; gap: 24px; }
+  .es-service-detail .es-service-aside { position: static; order: -1; }
+  .es-service-detail .es-service-header h1 { font-size: 28px; }
+  .es-service-detail .es-service-header { padding-bottom: 22px; }
+  .sd-loading-columns { grid-template-columns: 1fr; }
+}
+@media(max-width:450px) { .es-service-detail .es-service-aside { padding: 20px 18px; } .es-service-detail .sd-fees dd { font-size: 18px; } }

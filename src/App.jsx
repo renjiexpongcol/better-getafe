@@ -16,6 +16,7 @@ import { AccessDeniedPage, ErrorBoundaryPreview, ErrorPage, ErrorStatusPreview, 
 import { getProtectedRouteState, LEGACY_REDIRECTS } from './routeConfig'
 import { legacyAdminTarget, legacyAppTarget, legacyStaffTarget, normalizePathname, ownedSearch, ROUTES, settingsCategoryKey } from './routeRegistry'
 import speechNarrationService from './services/speechNarrationService'
+import { isAuthenticatedSurface } from './services/securitySurfaces'
 
 // ============================================================
 // ScrollToTop: whenever the route changes, instantly jump back to
@@ -44,13 +45,23 @@ function PageLoader() {
 }
 
 function App() {
-  return <PublicConfigProvider><AuthProvider><ResidentPreferencesProvider><AppContent /></ResidentPreferencesProvider></AuthProvider></PublicConfigProvider>
+  const { pathname } = useLocation()
+  return <PublicConfigProvider>{isAuthenticatedSurface(pathname)
+    ? <AuthProvider><AuthenticatedSurface /></AuthProvider>
+    : <AppContent />}</PublicConfigProvider>
+}
+
+function AuthenticatedSurface() {
+  const auth = useAuth()
+  const { pathname } = useLocation()
+  const content = <AppContent auth={auth} />
+  return pathname === '/app' || pathname.startsWith('/app/')
+    ? <ResidentPreferencesProvider>{content}</ResidentPreferencesProvider>
+    : content
 }
 
 function RouteLayout({ children }) {
   const { pathname } = useLocation()
-  const { user } = useAuth()
-  if ((pathname === '/app' || pathname.startsWith('/app/')) && pathname !== '/app/setup' && user?.role === 'resident' && user.setupRequired) return <Navigate to="/app/setup" replace />
   return <RouteErrorBoundary resetKey={pathname}><Suspense fallback={<PageLoader />}>{children}</Suspense></RouteErrorBoundary>
 }
 
@@ -72,7 +83,15 @@ function ProtectedRoute({ children, admin = false, citizen = false, staff = fals
           : '/'
     return <AccessDeniedPage dashboardTo={dashboardTo} />
   }
+  if (citizen && location.pathname !== '/app/setup' && user.setupRequired) return <Navigate to="/app/setup" replace />
   return children
+}
+
+function AppEntry({ children }) {
+  const { user } = useAuth()
+  if (['admin', 'super_admin'].includes(user.role)) return <Navigate to="/admin" replace />
+  if (['staff', 'it_support', 'content_manager'].includes(user.role)) return <Navigate to={ROUTES.staff.root} replace />
+  return <ProtectedRoute citizen>{children}</ProtectedRoute>
 }
 
 function LegacyRedirect({ to }) {
@@ -115,7 +134,7 @@ function CanonicalRoute({ scope, children }) {
   return children
 }
 
-function AppContent() {
+function AppContent({ auth = { user: null, loading: false } }) {
   const location = useLocation()
   const normalizedPathname = normalizePathname(location.pathname)
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
@@ -123,7 +142,7 @@ function AppContent() {
   const isAuthPage = location.pathname.startsWith('/auth') || location.pathname.startsWith('/admin')
   const isCitizenDashboard = location.pathname === '/app' || location.pathname.startsWith('/app/')
   const settings = usePublicConfig()
-  const { user, loading } = useAuth()
+  const { user, loading } = auth
   useEffect(() => {
     speechNarrationService.stop()
   }, [location.pathname])
@@ -154,7 +173,8 @@ function AppContent() {
     }
   }, [isCitizenDashboard, location.pathname])
   if (normalizedPathname !== location.pathname) return <Navigate to={`${normalizedPathname}${location.search}${location.hash}`} replace />
-  if (!settings.ready) return <div className="configuration-loader" aria-busy="true" />
+  if (!settings.ready) return <div className="configuration-loader" role="status" aria-label="Loading the website" aria-busy="true" />
+  if (settings.unavailable) return <ErrorPage code="503" primaryAction={{ label: 'Try again', onClick: () => window.dispatchEvent(new Event('configuration-changed')) }} />
   const maintenance = !isAuthPage && !loading && settings['maintenance.enabled'] === true && !(user && ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role))
 
   return (
@@ -176,7 +196,7 @@ function AppContent() {
               const Staff = pageRoutes.find(({ path }) => path === '/app/staff')?.Component
               const Admin = pageRoutes.find(({ path }) => path === '/admin')?.Component
               return <>
-                <Route path="/app" element={<ProtectedRoute citizen><CanonicalRoute scope="app">{Dashboard && <Dashboard />}</CanonicalRoute></ProtectedRoute>} />
+                <Route path="/app" element={<ProtectedRoute><AppEntry><CanonicalRoute scope="app">{Dashboard && <Dashboard />}</CanonicalRoute></AppEntry></ProtectedRoute>} />
                 <Route path="/app/staff" element={<ProtectedRoute staff><CanonicalRoute scope="staff">{Staff && <Staff />}</CanonicalRoute></ProtectedRoute>} />
                 <Route path="/app/staff/requests" element={<ProtectedRoute staff>{Staff && <Staff />}</ProtectedRoute>} />
                 <Route path="/app/staff/e-requests" element={<ProtectedRoute staff>{Staff && <Staff />}</ProtectedRoute>} />

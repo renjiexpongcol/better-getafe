@@ -25,7 +25,7 @@ function PasswordField({ id, label, value, onChange, autoComplete, visible, onTo
           className="password-visibility-toggle"
           aria-label={`${visible ? "Hide" : "Show"} ${label.toLowerCase()}`}
           onClick={onToggle}
-        >
+         data-icon-button="ghost">
           {visible ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
         </button>
       </span>
@@ -256,7 +256,7 @@ export default function PasswordChangeModal({ onClose, returnFocusRef, endpoint 
           aria-label="Close change password dialog"
           onClick={onClose}
           disabled={busy}
-        >
+         data-icon-button="ghost">
           <X size={19} aria-hidden="true" />
         </button>
         {content}

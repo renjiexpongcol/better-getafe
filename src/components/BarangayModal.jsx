@@ -121,7 +121,7 @@ export default function BarangayModal({ barangay, onClose }) {
             className="modal-close"
             onClick={onClose}
             aria-label={`Close Barangay ${barangay.name} information`}
-          >
+           data-icon-button="ghost">
             <X size={22} strokeWidth={2} />
           </button>
         </div>

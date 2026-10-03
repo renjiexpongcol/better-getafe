@@ -16,7 +16,6 @@
 .department-office dl{margin:24px 0}.department-office dl div{margin-bottom:20px}.department-office dd{margin:4px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
 .department-official img{width:96px;height:112px;object-fit:cover;border-radius:6px}.department-official h3{font-size:1.125rem;margin-bottom:4px}.department-official p{margin:0;line-height:1.5}
 .department-update{padding:20px 0;border-top:1px solid var(--border,#dfe5eb)}.department-update p{line-height:1.6}
-.department-index{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 40px}.department-index li{border-bottom:1px solid var(--border,#dfe5eb)}.department-index a{display:block;padding:24px 0}.department-index h2{font-size:1.25rem}.department-index p{line-height:1.6;color:var(--text-secondary,#586a7e)}
-.department-page a:focus-visible{outline:3px solid var(--gov-sea,#245788);outline-offset:4px}.department-page a:hover{text-decoration:underline}
+.department-index{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 40px}.department-index li{border-bottom:1px solid var(--border,#dfe5eb)}.department-index a{display:block;padding:24px 0}.department-index h2{font-size:1.25rem}.department-index p{line-height:1.6;color:var(--text-secondary,#586a7e)}.department-page a:hover{text-decoration:underline}
 @media(max-width:760px){.department-content{grid-template-columns:minmax(0,1fr);gap:24px;padding-block:24px}.department-office{border-left:0;border-top:1px solid var(--border,#dfe5eb);padding-left:0}.department-services li{align-items:flex-start;flex-direction:column;gap:8px}.department-index{grid-template-columns:minmax(0,1fr)}.department-hero{padding-block:32px}}
 .department-hero .eyebrow { display: flex; align-items: center; gap: 8px; }

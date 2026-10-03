@@ -7,6 +7,7 @@ import { citizenApi } from '../../services/citizenData'
 import { barangays } from '../../data/barangays'
 import { ROUTES } from '../../routeRegistry'
 import StableAvatar from '../../components/StableAvatar'
+import ResidentBusinesses from '../../components/ResidentBusinesses'
 
 // Kept as a route component for old bookmarks and legacy links. Resident
 // profile is now owned by CitizenLayout and opens as a modal on the current
@@ -32,6 +33,8 @@ export const ProfileForm = forwardRef(function ProfileForm({ onClose }, ref) {
   const [busy, setBusy] = useState(false)
   const [avatarBusy, setAvatarBusy] = useState(false)
   const [avatarError, setAvatarError] = useState('')
+  const [businessDirty, setBusinessDirty] = useState(false)
+  const [businessBusy, setBusinessBusy] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const pendingActionRef = useRef(null)
 
@@ -44,16 +47,16 @@ export const ProfileForm = forwardRef(function ProfileForm({ onClose }, ref) {
     setConfirmDiscard(false)
   }, [data, user.name])
 
-  const dirty = formKeys.some(key => form[key] !== initialFormRef.current[key])
+  const dirty = businessDirty || formKeys.some(key => form[key] !== initialFormRef.current[key])
   const guardAction = useCallback(action => {
-    if (busy || avatarBusy) return
+    if (busy || avatarBusy || businessBusy) return
     if (dirty) {
       pendingActionRef.current = action
       setConfirmDiscard(true)
       return
     }
     action?.()
-  }, [avatarBusy, busy, dirty])
+  }, [avatarBusy, businessBusy, busy, dirty])
   const requestClose = useCallback(() => guardAction(onClose), [guardAction, onClose])
 
   useImperativeHandle(ref, () => ({ requestClose, requestSwitch: guardAction }), [guardAction, requestClose])
@@ -139,6 +142,7 @@ export const ProfileForm = forwardRef(function ProfileForm({ onClose }, ref) {
           <button type="submit" className="citizen-primary" disabled={busy || avatarBusy}><Save size={16} aria-hidden="true" />{busy ? 'Saving…' : 'Save changes'}</button>
         </div>
       </form>
+      <ResidentBusinesses onDirtyChange={setBusinessDirty} onBusyChange={setBusinessBusy} />
       {confirmDiscard && <div className="profile-discard-confirmation" role="alertdialog" aria-labelledby="discard-profile-title" aria-describedby="discard-profile-description"><div><h3 id="discard-profile-title">Discard unsaved changes?</h3><p id="discard-profile-description">Your edits will be lost if you close your account profile now.</p></div><div><button type="button" className="citizen-secondary" onClick={() => { pendingActionRef.current = null; setConfirmDiscard(false) }}>Keep editing</button><button type="button" className="citizen-primary" onClick={() => { const action = pendingActionRef.current || onClose; pendingActionRef.current = null; setConfirmDiscard(false); action?.() }}>Discard changes</button></div></div>}
     </section>
   )

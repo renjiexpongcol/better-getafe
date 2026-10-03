@@ -529,7 +529,7 @@ function MfaSetupModal({ onClose }) {
           className="profile-form-close"
           aria-label="Close MFA setup"
           onClick={close}
-        >
+         data-icon-button="ghost">
           <X size={19} />
         </button>
         <div className="mfa-modal-content">
@@ -648,10 +648,6 @@ function MfaSetupModal({ onClose }) {
                 <div>
                   <strong>Scan the QR code</strong>
                   <p>Open the authentication app and scan the image to the left using your phone's camera.</p>
-                  <div className="mfa-flow-manual">
-                    <strong>2FA Key (Manual entry)</strong>
-                    <code className="mfa-secret">{setup.secret}</code>
-                  </div>
                 </div>
               </div>
               <div className="mfa-flow-step mfa-flow-code-step">
@@ -756,7 +752,7 @@ function DisableMfaModal({ onClose, onDisabled }) {
           className="profile-form-close"
           aria-label="Close disable MFA dialog"
           onClick={onClose}
-        >
+         data-icon-button="ghost">
           <X size={19} />
         </button>
         <div className="mfa-modal-content">
@@ -874,7 +870,7 @@ function PrivacyWorkflow({ onClose }) {
           className="profile-form-close"
           aria-label="Close privacy request"
           onClick={onClose}
-        >
+         data-icon-button="ghost">
           <X size={19} />
         </button>
         {success ? (

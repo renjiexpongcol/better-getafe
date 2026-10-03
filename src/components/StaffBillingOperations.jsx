@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { esApi, useEservice, Feedback } from "./EserviceUI";
 export default function StaffBillingOperations() {
   const options = useEservice(() => esApi("/staff/eservices/options"), []),
@@ -19,6 +19,25 @@ export default function StaffBillingOperations() {
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false);
+  const [partySearch, setPartySearch] = useState(""),
+    [partyQuery, setPartyQuery] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setPartyQuery(partySearch), 300);
+    return () => clearTimeout(timer);
+  }, [partySearch]);
+  const parties = useEservice(
+    (signal) =>
+      partyQuery.length >= 2
+        ? esApi(
+            `/staff/eservices/billing-parties?q=${encodeURIComponent(partyQuery)}`,
+            "GET",
+            undefined,
+            undefined,
+            { signal },
+          )
+        : Promise.resolve({ items: [] }),
+    [partyQuery],
+  );
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
@@ -51,6 +70,46 @@ export default function StaffBillingOperations() {
       <form onSubmit={submit}>
         <div className="es-form">
           <label>
+            Find resident or business
+            <input
+              value={partySearch}
+              onChange={(e) => setPartySearch(e.target.value)}
+              placeholder="Name, email or business account"
+            />
+          </label>
+          <label>
+            Account holder
+            <select
+              required
+              value={`${data.user_id}:${data.business_id}`}
+              onChange={(e) => {
+                const selected = parties.data?.items.find(
+                  (p) => `${p.id}:${p.business_id || ""}` === e.target.value,
+                );
+                if (selected)
+                  setData({
+                    ...data,
+                    user_id: selected.id,
+                    business_id: selected.business_id || "",
+                  });
+              }}
+            >
+              <option value=":">Choose a matching account</option>
+              {parties.data?.items.map((p) => (
+                <option
+                  key={`${p.id}:${p.business_id || ""}`}
+                  value={`${p.id}:${p.business_id || ""}`}
+                >
+                  {p.name} · {p.email}
+                  {p.business_name
+                    ? ` · ${p.business_name} (${p.business_reference})`
+                    : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Feedback error={parties.error} loading={parties.loading} />
+          <label>
             Account type
             <select
               value={data.account_type}
@@ -82,9 +141,7 @@ export default function StaffBillingOperations() {
           </label>
           {[
             ["account_number", "Account number"],
-            ["user_id", "Resident user ID"],
             ["property_identifier", "Property identifier"],
-            ["business_id", "Business ID"],
             ["source", "Authorized source"],
             ["source_reference", "Source transaction reference"],
             ["period", "Billing period"],
@@ -192,7 +249,11 @@ export default function StaffBillingOperations() {
             <tbody>
               {report.items.map((row) => (
                 <tr key={`${row.department_id}:${row.status}`}>
-                  <td>{row.department_id}</td>
+                  <td>
+                    {options.data?.departments.find(
+                      (d) => d.id === row.department_id,
+                    )?.name || "Municipal office"}
+                  </td>
                   <td>{row.status}</td>
                   <td>{row.count}</td>
                 </tr>

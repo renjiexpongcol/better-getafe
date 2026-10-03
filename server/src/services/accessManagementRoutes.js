@@ -45,8 +45,8 @@ export function installAccessManagementRoutes(app, admin) {
       const permissions = await db.prepare('SELECT * FROM auth_permissions ORDER BY category,label').all()
       const policies = (await db.prepare('SELECT * FROM auth_policies ORDER BY name').all()).map(item => ({ ...item, condition: parseJson(item.condition_json) }))
       const memberships = await db.prepare('SELECT ug.user_id,g.id,g.name FROM auth_user_groups ug JOIN auth_groups g ON g.id=ug.group_id WHERE g.archived_at IS NULL ORDER BY g.name').all()
-      const directory = users.map(user => ({ id: user.id, name: user.name, email: user.email, role: user.role, groups: memberships.filter(item => item.user_id === user.id).map(item => ({ id: item.id, name: item.name })) }))
-      const activity = await db.prepare('SELECT * FROM auth_audit_logs ORDER BY created_at DESC LIMIT 100').all()
+      const directory = users.map(user => ({ id: user.id, name: user.name, email: user.email, role: user.role, eid:user.eid, department:user.department, position:user.position, groups: memberships.filter(item => item.user_id === user.id).map(item => ({ id: item.id, name: item.name })) }))
+      const activity = await db.prepare("SELECT a.*,COALESCE(actor.name || ' · EID ' || ap.eid,'System') AS actor_label,COALESCE(target.name || ' · EID ' || tp.eid,g.name,policy.name,a.target_type) AS target_label FROM auth_audit_logs a LEFT JOIN users actor ON actor.id=a.actor_id LEFT JOIN employee_profiles ap ON ap.user_id=actor.id LEFT JOIN users target ON target.id=a.target_id LEFT JOIN employee_profiles tp ON tp.user_id=target.id LEFT JOIN auth_groups g ON g.id=a.target_id LEFT JOIN auth_policies policy ON policy.id=a.target_id ORDER BY a.created_at DESC LIMIT 100").all()
       res.json({ users: directory, groups, permissions, policies, activity })
     } catch (error) { console.error('Access management load failed:', error.message); res.status(503).json({ error: 'Access management is temporarily unavailable.' }) }
   })
@@ -71,7 +71,9 @@ export function installAccessManagementRoutes(app, admin) {
       // entire group-details view. Membership audit entries store the group
       // identifier as a top-level property, so query that property directly.
       const activity = await db.prepare("SELECT * FROM auth_audit_logs WHERE target_id=? OR (target_type='membership' AND new_value->>'group_id' = ?) ORDER BY created_at DESC LIMIT 100").all(group.id, group.id)
-      res.json({ group, members, permissions, policies, activity })
+      const directory = await getCmsUsers();
+      const employeeLabel = userId => { const user = directory.find(user => user.id === userId); return user ? `${user.name} · EID ${user.eid}` : null; };
+      res.json({ group, members, permissions, policies, activity:activity.map(entry => ({ ...entry,actor_label:employeeLabel(entry.actor_id) || 'System',target_label:employeeLabel(entry.target_id) || (entry.target_id === group.id ? group.name : entry.target_type) })) })
     } catch { res.status(503).json({ error: 'Group details are temporarily unavailable.' }) }
   })
 

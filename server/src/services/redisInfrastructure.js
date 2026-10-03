@@ -13,7 +13,7 @@ export async function incrementCounter(name, id, ttlSeconds = 86400) {
 }
 
 export async function withRedisLock(resource, ttlMs, work) {
-  if (!isRedisReady()) throw new Error('Redis lock unavailable; operation was not started.');
+  if (!isRedisReady()) throw Object.assign(new Error('Redis lock unavailable; operation was not started.'), { code: 'DEPENDENCY_UNAVAILABLE', status: 503 });
   const key = redisKeys.lock(resource);
   const token = crypto.randomUUID();
   if (await redis.set(key, token, { NX: true, PX: ttlMs }) !== 'OK') return { acquired: false };
@@ -24,12 +24,12 @@ export async function withRedisLock(resource, ttlMs, work) {
 }
 
 export async function claimIdempotency(id, ttlSeconds = 86400) {
-  if (!isRedisReady()) throw new Error('Redis idempotency store unavailable; operation was not started.');
+  if (!isRedisReady()) throw Object.assign(new Error('Redis idempotency store unavailable; operation was not started.'), { code: 'DEPENDENCY_UNAVAILABLE', status: 503 });
   return (await redis.set(redisKeys.idempotency(id), 'processing', { NX: true, EX: ttlSeconds })) === 'OK';
 }
 
 export async function enqueueEmail(message, { priority = message?.priority || 'normal' } = {}) {
-  if (!isRedisReady()) throw new Error('Email queue unavailable.');
+  if (!isRedisReady()) throw Object.assign(new Error('Email queue unavailable.'), { code: 'DEPENDENCY_UNAVAILABLE', status: 503 });
   const queueName = priority === 'high' ? 'email:high' : priority === 'low' ? 'email:low' : 'email';
   const queueKey = redisKeys.queue(queueName);
   const job = { id: crypto.randomUUID(), attempts: 0, message };
@@ -49,6 +49,7 @@ const retryKey = () => redisKeys.queue('email:retry');
 const queueKeysByPriority = () => [redisKeys.queue('email:high'), redisKeys.queue('email'), redisKeys.queue('email:low')];
 export function startEmailWorker(send, onFailure = undefined) {
   if (emailWorkerTimer) return;
+  globalThis.getafeMetrics ||= Object.create(null);
   emailWorkerStopping = false;
   emailWorkerTimer = setInterval(() => {
     if (emailWorkerTask || emailWorkerStopping) return;
@@ -83,13 +84,16 @@ export function startEmailWorker(send, onFailure = undefined) {
       job.attempts = (job.attempts || 0) + 1;
       globalThis.getafeMetrics.job_failed = (globalThis.getafeMetrics.job_failed || 0) + 1;
       await redis.lRem(processingKey(), 1, raw).catch(() => {});
-      if (job.attempts < 5) await redis.zAdd(retryKey(), [{ score: Date.now() + Math.min(300_000, 1000 * 2 ** job.attempts), value: JSON.stringify(job) }]).catch(() => {});
+      if (job.attempts < 5) await redis.zAdd(retryKey(), [{ score: Date.now() + Math.min(300_000, 1000 * 2 ** job.attempts + Math.floor(Math.random() * 500)), value: JSON.stringify(job) }]).catch(() => {});
       else {
         await onFailure?.(job.message, job, error);
         console.error(JSON.stringify({ event: 'email_job_dead_letter', job_id: job.id, attempts: job.attempts, error: error?.message || 'delivery failed' }));
       }
     }
-    })().finally(() => { emailWorkerTask = null; });
+    })().catch(error => {
+      // Includes delivery callbacks and queue bookkeeping, not only SMTP.
+      console.error(JSON.stringify({ event: 'email_worker_failed', code: error?.code || error?.name, message: error?.message }));
+    }).finally(() => { emailWorkerTask = null; });
   }, 500);
   emailWorkerTimer.unref?.();
 }

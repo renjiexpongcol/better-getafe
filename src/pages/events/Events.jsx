@@ -54,7 +54,7 @@ export default function Events() {
         <div className="container">
           <div className="events-heading">
             <div><h2>Moments we remember.</h2></div>
-            <label className="events-search"><Search size={17} aria-hidden="true" /><span className="sr-only">Search events</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search events" />{query && <button type="button" onClick={() => setQuery('')} aria-label="Clear event search"><X size={15} /></button>}</label>
+            <label className="events-search"><Search size={17} aria-hidden="true" /><span className="sr-only">Search events</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search events" />{query && <button type="button" onClick={() => setQuery('')} aria-label="Clear event search" data-icon-button="ghost"><X size={15} /></button>}</label>
           </div>
 
           {query && !loading && <p className="events-result-count" role="status">Showing {filteredEvents.length} {filteredEvents.length === 1 ? 'event' : 'events'}</p>}

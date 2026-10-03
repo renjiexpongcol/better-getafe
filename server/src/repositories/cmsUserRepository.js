@@ -1,12 +1,12 @@
+import { provisionEmployee } from '../services/employeeProvisioning.js';
 import { getCmsPool } from '../services/cloudSql.js';
-import { getLocalDb, saveLocalDb, isGcp, now, id } from './postgresCompatibility.js';
-import { hashPassword } from '../services/passwordHashing.js';
+import { getLocalDb, saveLocalDb, isGcp } from './postgresCompatibility.js';
 
 export async function getCmsUsers() {
   if (isGcp()) {
     try {
       const pool = await getCmsPool();
-      const [rows] = await pool.execute('SELECT * FROM users');
+      const [rows] = await pool.execute('SELECT u.*,p.eid,p.department,p.position FROM users u LEFT JOIN employee_profiles p ON p.user_id=u.id');
       return rows;
     } catch (error) {
       if (process.env.NODE_ENV === 'production' || process.env.AUTH_LOCAL_FALLBACK !== 'true') throw error;
@@ -19,34 +19,14 @@ export async function getCmsUsers() {
   }
 }
 
-export async function saveCmsAccount(values, userId) {
-  const updated = now();
-  if (isGcp()) {
-    const pool = await getCmsPool();
-    if (userId) await pool.execute('UPDATE users SET name=?, role=?, updated_at=? WHERE id=?', [values.name, values.role, updated, userId]);
-    else {
-      userId = id();
-      await pool.execute('INSERT INTO users (id,name,email,password,role,created_at,updated_at) VALUES (?,?,?,?,?,?,?)', [userId, values.name, values.email, await hashPassword(values.password), values.role, updated, updated]);
-    }
-  } else {
-    const db = await getLocalDb();
-    if (userId) {
-      const user = db.users.find(item => item.id === userId);
-      if (!user) throw new Error('Account unavailable.');
-      Object.assign(user, { name: values.name, role: values.role, updated_at: updated });
-    } else {
-      userId = id();
-      db.users.push({ id: userId, name: values.name, email: values.email, password: await hashPassword(values.password), role: values.role, created_at: updated, updated_at: updated });
-    }
-    await saveLocalDb(db);
-  }
-  return userId;
+export async function saveCmsAccount(values,userId,actor = { id:'system' }) {
+  return (await provisionEmployee(values,userId,actor)).id;
 }
 
 export async function saveCmsAvatar(userId, avatarStoragePath) {
   if (isGcp()) {
     const pool = await getCmsPool();
-    await pool.execute('UPDATE users SET avatar_storage_path=? WHERE id=?', [avatarStoragePath, userId]);
+    await pool.execute('WITH changed AS (UPDATE users SET avatar_storage_path=? WHERE id=? RETURNING id) UPDATE employee_profiles SET updated_at=CURRENT_TIMESTAMP WHERE user_id IN (SELECT id FROM changed)', [avatarStoragePath, userId]);
   } else {
     const db = await getLocalDb();
     const user = db.users.find(item => item.id === userId);
@@ -58,7 +38,7 @@ export async function saveCmsAvatar(userId, avatarStoragePath) {
 
 export async function getCmsUserById(userId) {
   if (isGcp()) {
-    const [rows] = await (await getCmsPool()).execute('SELECT * FROM users WHERE id=?', [userId]);
+    const [rows] = await (await getCmsPool()).execute('SELECT u.*,p.eid,p.department,p.position FROM users u LEFT JOIN employee_profiles p ON p.user_id=u.id WHERE u.id=?', [userId]);
     return rows[0] || null;
   }
   const users = await getCmsUsers();
@@ -68,19 +48,10 @@ export async function getCmsUserById(userId) {
 // Disabled accounts use the existing disabled role. There is no separate username
 // column: email is the account login identifier.
 export async function searchDepartmentStaff(query, limit = 10, offset = 0) {
-  const roles = ['staff', 'admin', 'super_admin', 'it_support'];
-  if (isGcp()) {
-    const [rows] = await (await getCmsPool()).execute(
-      "SELECT id,name,email FROM users WHERE role IN ('staff','admin','super_admin','it_support') AND (strpos(lower(name),lower(?))>0 OR strpos(lower(email),lower(?))>0 OR strpos(lower(id),lower(?))>0) ORDER BY lower(name),id LIMIT ? OFFSET ?",
-      [query, query, query, limit + 1, offset],
-    );
-    return { items: rows.slice(0, limit), has_more: rows.length > limit };
-  }
-  const rows = (await getLocalDb()).users
-    .filter(user => roles.includes(user.role) && [user.name, user.email, user.id].some(value => String(value || '').toLowerCase().includes(query.toLowerCase())))
-    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
-    .slice(offset, offset + limit + 1);
-  return { items: rows.slice(0, limit).map(({ id, name, email }) => ({ id, name, email })), has_more: rows.length > limit };
+  const [rows] = await (await getCmsPool()).execute(
+    "SELECT u.id,u.name,u.email,p.eid,p.department,p.position FROM users u JOIN employee_profiles p ON p.user_id=u.id WHERE u.role IN ('staff','admin','super_admin','it_support','content_manager') AND (strpos(lower(u.name),lower(?))>0 OR strpos(lower(u.email),lower(?))>0 OR strpos(p.eid,?)>0 OR strpos(lower(p.department),lower(?))>0 OR strpos(lower(p.position),lower(?))>0) ORDER BY lower(u.name),u.id LIMIT ? OFFSET ?",
+    [query,query,query.replace(/^EID\s*/i,''),query,query,limit+1,offset]);
+  return { items:rows.slice(0,limit),has_more:rows.length > limit };
 }
 
 export async function getCmsUserByEmail(email) {

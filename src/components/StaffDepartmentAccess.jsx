@@ -51,11 +51,11 @@ export function CatalogCombobox({ label, placeholder, value, onChange, search, d
         }} />
       {(query || value) && <button type="button" className="es-secondary" disabled={disabled} aria-label={`Clear ${label.toLowerCase()}`} onClick={() => { onChange(null); setQuery(""); setOpen(false); document.getElementById(id)?.focus(); }}>Clear</button>}
     </div>
-    <div id={`${id}-status`} role="status" className="es-selector-status">{open && !value ? error || (loading ? "Searching…" : !query && label === "Staff member" ? "Enter a name, email or staff ID." : !items.length ? "No matches found." : `${items.length} matches`) : value ? `Selected: ${value.name}` : ""}</div>
+    <div id={`${id}-status`} role="status" className="es-selector-status">{open && !value ? error || (loading ? "Searching…" : !query && label === "Staff member" ? "Enter a name, email, EID, department or position." : !items.length ? "No matches found." : `${items.length} matches`) : value ? `Selected: ${value.name}` : ""}</div>
     {open && !value && <ul id={`${id}-list`} role="listbox" aria-label={`${label} matches`} className="es-combobox-list">
       {items.map((item, index) => <li key={item.id} id={`${id}-${index}`} role="option" aria-selected={active === index} aria-disabled={item.disabled || undefined}
         onMouseDown={e => e.preventDefault()} onClick={() => { if (!item.disabled) choose(item); }}>
-        <strong>{item.name}</strong>{item.email && <small>{item.email} · Staff ID: {item.id}</small>}{item.disabled && <small>Already assigned</small>}
+        <strong>{item.name}</strong>{item.email && <small>{item.email} · EID {item.eid}</small>}{item.disabled && <small>Already assigned</small>}
       </li>)}
     </ul>}
   </div>;
@@ -104,11 +104,11 @@ export default function StaffDepartmentAccess({ departments = [] }) {
     <Feedback error={error} notice={notice} loading={loading} />
     {staff && error && !loaded && <button className="es-secondary" onClick={() => setRetry(count => count + 1)}>Retry loading access</button>}
     <form className="es-access-form" onSubmit={e => { e.preventDefault(); if (staff && office && loaded && !busy) setConfirmation({ office }); }}>
-      <CatalogCombobox label="Staff member" placeholder="Search staff by name, email, or ID…" value={staff} onChange={setStaff} search={searchStaff} disabled={busy} />
+      <CatalogCombobox label="Staff member" placeholder="Search name, email, EID, department or position…" value={staff} onChange={setStaff} search={searchStaff} disabled={busy} />
       <CatalogCombobox label="Office" placeholder="Search municipal offices…" value={office} onChange={setOffice} search={stableOfficeSearch} disabled={!staff || !loaded || busy} />
       <button disabled={!staff || !office || !loaded || busy || memberships.some(m => m.department_id === office.id)}>Grant department access</button>
     </form>
-    {staff && <div className="es-access-existing"><h3>{staff.name}</h3><small>Staff ID: {staff.id}</small><h3>Existing access</h3>
+    {staff && <div className="es-access-existing"><h3>{staff.name}</h3><small>EID {staff.eid}</small><h3>Existing access</h3>
       {loaded && !memberships.length && <p>No department access assigned.</p>}
       <ul>{memberships.map(m => <li key={m.department_id}><span>{m.department_name}</span><button className="es-secondary" disabled={busy} onClick={() => setConfirmation({ remove: true, office: { id: m.department_id, name: m.department_name } })}>Remove<span className="es-sr-only"> access to {m.department_name}</span></button></li>)}</ul>
     </div>}

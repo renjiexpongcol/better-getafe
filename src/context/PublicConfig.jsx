@@ -9,21 +9,25 @@ const PublicConfig = createContext({ values: {}, ready: false })
 export function PublicConfigProvider({ children }) {
  const [values, setValues] = useState(() => initialConfig() || {})
  const [ready, setReady] = useState(() => initialConfig() !== undefined)
+ const [unavailable, setUnavailable] = useState(false)
  useEffect(() => {
   let active = true
   let latestRequest = 0
+  let lastAttempt = 0
+  let startupFailed = false
   const reload = (force = false) => {
+   lastAttempt = Date.now()
    const requestId = ++latestRequest
-   return cachedRequest(cacheKey, () => requestJson('/api/public/config', { cache: 'no-store' }), { ...cacheOptions, persist: publicCacheEnabled(), force: force || !publicCacheEnabled(), coalesce: true })
-    .then(body => { if (active && requestId === latestRequest) setValues(current => JSON.stringify(current) === JSON.stringify(body) ? current : body) })
-    .catch(() => {})
+   return cachedRequest(cacheKey, () => requestJson('/api/public/config', { cache: 'no-store', startupSensitive: true }), { ...cacheOptions, persist: publicCacheEnabled(), force: force || !publicCacheEnabled(), coalesce: true })
+    .then(body => { if (active && requestId === latestRequest) { setUnavailable(false); setValues(current => JSON.stringify(current) === JSON.stringify(body) ? current : body) } })
+    .catch(() => { if (active && requestId === latestRequest) { startupFailed = initialConfig() === undefined; setUnavailable(startupFailed) } })
     .finally(() => { if (active && requestId === latestRequest) setReady(true) })
   }
   // Public settings can change in another tab or on another application
   // instance, so do not let a persisted browser cache mask the latest value.
   reload(true)
-  const refresh = () => { if (document.visibilityState === 'visible') reload(true) }
-  const changed = () => reload(true)
+  const refresh = () => { if (!startupFailed && document.visibilityState === 'visible' && Date.now() - lastAttempt >= cacheOptions.ttl) reload(true) }
+  const changed = () => { startupFailed = false; setUnavailable(false); setReady(initialConfig() !== undefined); reload(true) }
   const timer = setInterval(refresh, cacheOptions.ttl)
   window.addEventListener('focus', refresh)
   window.addEventListener('configuration-changed', changed)
@@ -33,6 +37,6 @@ export function PublicConfigProvider({ children }) {
   if (values['general.language']) document.documentElement.lang = values['general.language']
   if (values['general.favicon']) { let icon = document.querySelector('link[rel="icon"]'); if (!icon) { icon = document.createElement('link'); icon.rel = 'icon'; document.head.appendChild(icon) } icon.href = values['general.favicon'] }
  }, [values])
- return <PublicConfig.Provider value={{ ...values, ready }}>{children}</PublicConfig.Provider>
+ return <PublicConfig.Provider value={{ ...values, ready, unavailable }}>{children}</PublicConfig.Provider>
 }
 export const usePublicConfig = () => useContext(PublicConfig)

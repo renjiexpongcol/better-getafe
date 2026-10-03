@@ -148,10 +148,10 @@ export default function BackToTop() {
           <span className="accessibility-option-label">Close</span>
         </button>
       </div>}
-      <button ref={triggerRef} type="button" className="floating-action-button accessibility-trigger" aria-label={collapsed ? 'Show accessibility options' : 'Close accessibility options'} aria-expanded={!collapsed} aria-controls="accessibility-options" title={collapsed ? 'Show accessibility options' : 'Close accessibility options'} onClick={() => collapsed ? setCollapsed(false) : closeAccessibilityMenu()}><Accessibility size={21} aria-hidden="true" /></button>
+      <button ref={triggerRef} type="button" className="floating-action-button accessibility-trigger" aria-label={collapsed ? 'Show accessibility options' : 'Close accessibility options'} aria-expanded={!collapsed} aria-controls="accessibility-options" title={collapsed ? 'Show accessibility options' : 'Close accessibility options'} onClick={() => collapsed ? setCollapsed(false) : closeAccessibilityMenu()} data-icon-button="ghost"><Accessibility size={21} aria-hidden="true" /></button>
     </div>
     <span className={`back-to-top-slot${visible ? ' is-visible' : ''}`} aria-hidden={!visible}>
-      <button type="button" className={`floating-action-button back-to-top${visible ? ' is-visible' : ''}`} tabIndex={visible ? 0 : -1} aria-label="Back to top" title="Back to top" onClick={() => window.scrollTo({ top: 0, left: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}><ArrowUp size={21} aria-hidden="true" /></button>
+      <button type="button" className={`floating-action-button back-to-top${visible ? ' is-visible' : ''}`} tabIndex={visible ? 0 : -1} aria-label="Back to top" title="Back to top" onClick={() => window.scrollTo({ top: 0, left: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })} data-icon-button="ghost"><ArrowUp size={21} aria-hidden="true" /></button>
     </span>
   </div>
 }

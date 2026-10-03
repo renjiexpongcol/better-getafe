@@ -11,15 +11,15 @@
 .admin-portal .admin-notification-button { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; flex:0 0 44px; padding:0; border:0; border-radius:8px; line-height:1; }
 .admin-portal .admin-notification-button > svg { display:block; width:19px; height:19px; flex:none; }
 .admin-portal .admin-notification-button:hover { background:#f1f6fb; color:#1769ad; }
-.admin-portal .admin-notification-button:focus-visible { background:#f1f6fb; color:#1769ad; outline:2px solid #6eafe7; outline-offset:2px; }
+.admin-portal .admin-notification-button:focus-visible { background:#f1f6fb; color:#1769ad; }
 .admin-portal .portal-popover button { background:transparent; color:#3d526c; border-radius:0; font-weight:500; }
 .admin-portal .portal-popover button:hover { background:#f4f7fb; }
 .admin-toolbar-search { position:relative; }
 .admin-portal .admin-toolbar-search .portal-search-input { width:100%; height:40px; padding:0 12px; gap:10px; border:1px solid #d8e0e8; border-radius:9px; background:#f8fafc; transition:border-color .15s,box-shadow .15s; }
-.admin-portal .admin-toolbar-search .portal-search-input:focus-within { border-color:#1677d2; box-shadow:0 0 0 3px #1677d214; background:#fff; }
+.admin-portal .admin-toolbar-search .portal-search-input:focus-within { background:#fff; }
 .admin-portal .profile-form-close { position:absolute; top:-4px; right:-5px; display:grid; place-items:center; width:38px; height:38px; padding:0; border:0; border-radius:8px; background:transparent; box-shadow:none; color:#55748f; appearance:none; cursor:pointer; }
 .admin-portal .profile-form-close:hover { background:#f1f6fb; color:#1677d2; }
-.admin-portal .profile-form-close:focus-visible { background:#f1f6fb; outline:2px solid #74a9d8; outline-offset:2px; }
+.admin-portal .profile-form-close:focus-visible { background:#f1f6fb; }
 .admin-portal .profile-modal-card.admin-account-modal { width:min(760px,100%); max-height:calc(100vh - 48px); height:auto; overflow:auto; }
 .admin-portal .admin-account-modal > .portal-form { box-sizing:border-box; padding:24px; }
 .admin-portal .admin-account-header { position:relative; display:grid; grid-template-columns:76px minmax(0,1fr); gap:16px; align-items:start; min-width:0; padding:0 44px 24px 0; border-bottom:1px solid #e4ebf2; }
@@ -30,7 +30,6 @@
 .admin-portal .admin-account-header-copy .profile-photo-button { margin-top:14px!important; }
 .admin-portal .admin-account-header-copy .profile-photo-button { box-sizing:border-box; min-height:36px; margin-bottom:3px!important; padding:8px 11px; border:1px solid #b8cce1; border-radius:6px; background:#fff; color:#21659e; font:inherit; appearance:none; }
 .admin-portal .admin-account-header-copy .profile-photo-button:hover:not(:disabled) { background:#f3f8fc; border-color:#7ea8cf; }
-.admin-portal .admin-account-header-copy .profile-photo-button:focus-visible { outline:2px solid #74a9d8; outline-offset:2px; }
 .admin-portal .admin-account-header-copy .profile-photo-button:disabled { cursor:progress; opacity:.7; }
 .admin-portal .admin-account-photo-input { display:none; }
 .admin-portal .admin-account-section { padding:24px 0; border-bottom:1px solid #e4ebf2; }
@@ -69,10 +68,6 @@
   background: #f5f2ea;
 }
 .admin-portal.portal-v2 .citizen-main { background: #f5f2ea; }
-.admin-portal.portal-v2 :is(a, button, input, select, textarea):focus-visible {
-  outline: 3px solid rgba(23, 108, 114, .28);
-  outline-offset: 3px;
-}
 .admin-portal.portal-v2 .cms button,
 .admin-portal.portal-v2 .upload-btn,
 .admin-portal.portal-v2 .cms-content-filters input,
@@ -187,8 +182,7 @@
 .admin-portal .media-controls select { padding:0 27px 0 10px; font:inherit; font-size:12px; }
 .admin-portal .media-search-field { display:flex; align-items:center; flex:1 1 240px; gap:8px; padding:0 11px; color:#7890a5; }
 .admin-portal .media-search-field input { min-width:0; width:100%; border:0; outline:0; background:transparent; color:#173b64; font:inherit; font-size:12px; }
-.admin-portal .media-search-field:focus-within { border-color:var(--input-border-focus); box-shadow:0 0 0 3px var(--input-focus-ring); }
-.admin-portal .media-search-field input:focus,.admin-portal .media-search-field input:focus-visible { border:0; outline:0; box-shadow:none; }
+.admin-portal .media-search-field input:focus,.admin-portal .media-search-field input:focus-visible { border:0; }
 
 /* Referenced media dialog: only the dependency list scrolls. */
 .media-reference-backdrop { overscroll-behavior: contain; }
@@ -199,7 +193,6 @@
 .media-reference-dialog-header p { max-width:570px; margin:0; color:#64748b; font-size:.875rem; line-height:1.5; }
 .cms .media-reference-dialog button.media-reference-dialog-close { display:grid; place-items:center; flex:0 0 36px; width:36px; height:36px; margin:-4px -5px 0 0; padding:0; border:0; border-radius:7px; background:transparent; color:#64748b; cursor:pointer; }
 .cms .media-reference-dialog button.media-reference-dialog-close:hover { background:#edf4fa; color:#176bad; }
-.cms .media-reference-dialog button.media-reference-dialog-close:focus-visible { outline:2px solid var(--input-border-focus); outline-offset:2px; }
 .media-reference-dialog-body { min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:18px 24px 22px; background:#f8fafc; scrollbar-color:#b7cadb transparent; scrollbar-width:thin; }
 .media-reference-dialog-body::-webkit-scrollbar { width:10px; }
 .media-reference-dialog-body::-webkit-scrollbar-thumb { border:3px solid #f8fafc; border-radius:999px; background:#b7cadb; }
@@ -209,7 +202,7 @@
 .media-reference-group:has(.media-reference-items) { border-color:#b9d7f0; box-shadow:0 0 0 2px rgba(22,119,210,.06); }
 .cms .media-reference-dialog button.media-reference-group-toggle { display:grid; grid-template-columns:40px minmax(0,1fr) 22px; align-items:center; gap:11px; width:100%; min-height:62px; padding:10px 12px; border:0; background:#fff; color:#1e293b; font:inherit; text-align:left; cursor:pointer; }
 .cms .media-reference-dialog button.media-reference-group-toggle:hover { background:#f8fafc; }
-.cms .media-reference-dialog button.media-reference-group-toggle:focus-visible { position:relative; z-index:1; outline:2px solid var(--input-border-focus); outline-offset:-2px; }
+.cms .media-reference-dialog button.media-reference-group-toggle:focus-visible { position:relative; z-index:1; }
 .media-reference-thumbnail { display:grid; place-items:center; width:40px; height:40px; overflow:hidden; border:1px solid #e2e8f0; border-radius:6px; background:#f1f5f9; color:#64748b; }
 .media-reference-thumbnail img { width:100%; height:100%; object-fit:cover; }
 .media-reference-group-copy { display:grid; min-width:0; gap:1px; }
@@ -225,13 +218,12 @@
 .media-reference-item > strong, .media-reference-content-link { min-width:0; color:#1e293b; font:inherit; font-size:.84rem; font-weight:600; line-height:1.45; overflow-wrap:anywhere; text-align:left; }
 .cms .media-reference-dialog button.media-reference-content-link { display:inline-flex; align-items:flex-start; gap:5px; width:max-content; max-width:100%; padding:0; border:0; border-radius:0; background:transparent; color:#176bad; cursor:pointer; }
 .cms .media-reference-dialog button.media-reference-content-link:hover { color:#0e528b; text-decoration:underline; }
-.cms .media-reference-dialog button.media-reference-content-link:focus-visible { outline:2px solid var(--input-border-focus); outline-offset:3px; border-radius:2px; }
+.cms .media-reference-dialog button.media-reference-content-link:focus-visible { border-radius:2px; }
 .media-reference-content-link svg { flex:0 0 auto; margin-top:3px; }
 .media-reference-item > span { color:#64748b; font-size:.74rem; line-height:1.4; }
 .media-reference-dialog-footer { display:flex; flex:0 0 auto; justify-content:flex-end; padding:14px 24px; border-top:1px solid #e2eaf2; background:#fff; }
 .media-reference-dialog-footer button { min-width:88px; min-height:38px; padding:8px 14px; border:1px solid #b9cfe2; border-radius:7px; background:#fff; color:#1a5f99; font:inherit; font-size:.82rem; font-weight:750; cursor:pointer; }
 .media-reference-dialog-footer button:hover { border-color:#7eacd0; background:#f3f9fe; }
-.media-reference-dialog-footer button:focus-visible { outline:2px solid var(--input-border-focus); outline-offset:2px; }
 @media(max-width:600px) { .media-reference-dialog { width:calc(100vw - 24px); max-height:calc(100dvh - 24px); }.media-reference-dialog-header { padding:18px 16px 15px; }.media-reference-dialog-body { padding:15px 16px 18px; }.media-reference-dialog-footer { padding:12px 16px; }.media-reference-dialog-footer button { width:100%; } }
 
 /* Admin working surface: compact, calm, and scannable. */
@@ -291,13 +283,6 @@
   background: rgba(255, 255, 255, .09);
   color: #fffdf8;
   transform: none;
-}
-.admin-portal.portal-v2 .portal-nav a.portal-nav-item:focus {
-  outline: none;
-}
-.admin-portal.portal-v2 .portal-nav a.portal-nav-item:focus-visible {
-  outline: 2px solid #f3c77c;
-  outline-offset: 2px;
 }
 .admin-portal.portal-v2 .portal-nav a.portal-nav-item.active {
   background: #f1e5ca;
@@ -405,7 +390,6 @@
 .cms-gallery-add-wrap { position:relative; flex:0 0 auto; }
 .admin-portal .cms-gallery-add-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 15px; border:1px solid #176fb2; border-radius:8px; background:#176fb2; color:#fff; font:inherit; font-size:.84rem; font-weight:750; line-height:22px; cursor:pointer; }
 .cms-gallery-add-button:hover { background:#125e98; border-color:#125e98; }
-.cms-gallery-add-button:focus-visible, .cms-gallery-card button:focus-visible, .cms-gallery-library-dialog button:focus-visible, .cms-gallery-library-dialog label:focus-visible { outline:3px solid #64a6dc66; outline-offset:2px; }
 .cms-gallery-add-menu { position:absolute; z-index:10; top:calc(100% + 8px); right:0; display:grid; min-width:235px; padding:6px; border:1px solid #d7e2ec; border-radius:8px; background:#fff; box-shadow:0 12px 30px rgba(20,54,95,.15); }
 .cms-gallery-add-menu button, .cms-gallery-add-menu label { display:flex; align-items:center; gap:9px; width:100%; min-height:44px; margin:0; padding:10px 11px; border:0; border-radius:5px; background:#fff; color:#274c70; font-size:.82rem; font-weight:650; text-align:left; cursor:pointer; }
 .cms-gallery-add-menu button:hover, .cms-gallery-add-menu label:hover { background:#f1f7fc; }
@@ -432,7 +416,6 @@
 .cms-gallery-card-body input, .cms-gallery-card-body textarea { width:100%; min-width:0; margin-top:6px; border:1px solid #cfdbe7; border-radius:6px; background:#fff; color:#203d5e; font:inherit; font-size:.82rem; line-height:1.4; }
 .cms-gallery-card-body input { height:40px; padding:8px 10px; }
 .cms-gallery-card-body textarea { min-height:72px; padding:9px 10px; resize:vertical; }
-.cms-gallery-card-body input:focus, .cms-gallery-card-body textarea:focus { border-color:#4c93ca; box-shadow:0 0 0 3px #4c93ca1c; outline:0; }
 .cms-gallery-help { display:block; margin-top:5px; color:#71869b; font-size:.69rem; font-weight:400; line-height:1.4; }
 .cms-gallery-actions { display:flex; align-items:center; gap:8px; margin-top:15px; padding-top:13px; border-top:1px solid #e6edf3; }
 .cms-gallery-actions > button:first-child { display:inline-flex; align-items:center; justify-content:center; gap:5px; flex:1; min-height:44px; padding:9px 10px; border:1px solid #397eaf; border-radius:7px; background:#fff; color:#17639d; font-size:.77rem; font-weight:750; }

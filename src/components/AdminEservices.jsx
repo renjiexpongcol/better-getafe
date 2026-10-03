@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { esApi, useEservice, Feedback, label, money } from "./EserviceUI";
 import { cachedRequest, invalidateCached } from "../services/requestCache";
 import StaffDepartmentAccess from "./StaffDepartmentAccess";
-import { REQUEST_STATUSES } from "../data/eserviceWorkflow";
+import { APPLICATION_STEPS, REQUEST_STATUSES } from "../data/eserviceWorkflow";
+import { PROFILE_SOURCES } from '../data/serviceApplication';
+import { BILLING_STEPS,WORKFLOW_TYPES,PAYMENT_METHODS } from '../data/businessBillingWorkflow';
+import { useAuth } from "../context/AuthContext";
 const blank = {
   name: "",
   slug: "",
@@ -15,9 +18,13 @@ const blank = {
   definition: { declaration: "" },
   published: false,
   online_available: false,
+  settings: { workflow_type: 'APPLICATION' },
 };
 const statuses = REQUEST_STATUSES;
 export default function AdminEservices() {
+  const { user } = useAuth();
+  const canManage = user?.permissions?.includes("services.catalog.manage");
+  const canManageAccess = user?.permissions?.includes("eservices.admin");
   const [audit, setAudit] = useState(null);
   const [edit, setEdit] = useState(null),
     [tab, setTab] = useState("General"),
@@ -120,6 +127,7 @@ export default function AdminEservices() {
       <h1>E-Services · Service catalog</h1>
       <button
         className="es-secondary"
+        disabled={!canManageAccess || !user?.permissions?.includes("audit.view")}
         onClick={async () => {
           try {
             setAudit(await esApi("/admin/eservices/audit"));
@@ -146,8 +154,8 @@ export default function AdminEservices() {
               {audit.items.map((event) => (
                 <tr key={event.id}>
                   <td>{event.action}</td>
-                  <td>{event.setting_key}</td>
-                  <td>{event.user_id}</td>
+                  <td>{event.record_label || event.setting_key}</td>
+                  <td>{event.staff_label || 'System'}</td>
                   <td>
                     {new Date(event.created_at).toLocaleString("en-PH", {
                       timeZone: "Asia/Manila",
@@ -164,6 +172,7 @@ export default function AdminEservices() {
         </div>
       )}
       <Feedback error={state.error || options.error} notice={notice} loading={state.loading || options.loading} />
+      {(state.error || options.error) && <button className="es-secondary" disabled={state.loading || options.loading} onClick={() => { if (options.error) options.refresh(); if (state.error) state.refresh(); }}>Retry loading catalog</button>}
       {!edit ? (
         <>
           <div className="es-toolbar">
@@ -200,6 +209,7 @@ export default function AdminEservices() {
               </select>
             </label>
             <button
+              disabled={!canManage || options.loading || !!options.error}
               onClick={() => {
                 setEdit(structuredClone(blank));
                 setSavedPublished(false);
@@ -286,10 +296,10 @@ export default function AdminEservices() {
                   required
                 />
               </label>
-              <button disabled={categoryBusy}>{categoryBusy ? "Saving…" : "Create category"}</button>
+              <button disabled={!canManage || categoryBusy}>{categoryBusy ? "Saving…" : "Create category"}</button>
             </form>
           </section>
-          <StaffDepartmentAccess departments={options.data?.departments || []} />
+          {canManageAccess && <StaffDepartmentAccess departments={options.data?.departments || []} />}
         </>
       ) : (
         <>
@@ -297,13 +307,15 @@ export default function AdminEservices() {
             <button className="es-secondary" onClick={() => { if (window.confirm("Leave the service editor? Unsaved changes will be lost.")) setEdit(null); }}>
               Back to catalog
             </button>
-            <button disabled={busy} onClick={save}>
+            <button disabled={!canManage || busy} onClick={save}>
               Save service
             </button>
             {edit.id && (
               <button
                 className="es-secondary"
-                onClick={() =>
+                disabled={!canManage || busy}
+                onClick={() => {
+                  setSavedPublished(false);
                   setEdit({
                     ...edit,
                     id: undefined,
@@ -311,8 +323,8 @@ export default function AdminEservices() {
                     name: `${edit.name} (copy)`,
                     published: false,
                     version: 1,
-                  })
-                }
+                  });
+                }}
               >
                 Duplicate
               </button>
@@ -350,6 +362,7 @@ export default function AdminEservices() {
                 options.data?.departments || [],
               )}
               {select("category_id", "Category", options.data?.categories || [])}
+              {edit.kind === 'DIRECTORY' && <label>Catalog category<select value={edit.settings?.directory_category_id || ''} onChange={event => patch('settings', { ...edit.settings, directory_category_id: event.target.value })}><option value="">All categories</option>{options.data?.categories?.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
               <label>
                 Service type
                 <select
@@ -445,6 +458,9 @@ export default function AdminEservices() {
                       }
                     />
                   </label>
+                  <label>Application section<input value={f.section || ''} placeholder="Applicant information, Business information…" maxLength={100} onChange={e => row('fields', i, 'section', e.target.value)} /></label>
+                  <label>Use account information<select value={f.profile_source || ''} onChange={e => row('fields', i, 'profile_source', e.target.value)}><option value="">Automatic for standard field names</option>{PROFILE_SOURCES.map(source => <option key={source} value={source}>{label(source)}</option>)}</select></label>
+                  <label><input type="checkbox" checked={f.profile_readonly === true} onChange={e => row('fields', i, 'profile_readonly', e.target.checked)} />Keep account information read-only</label>
                   <label>
                     <input
                       type="checkbox"
@@ -686,6 +702,7 @@ export default function AdminEservices() {
             <>
               {edit.fees.map((f, i) => (
                 <div key={i} className="es-config-row">
+                  <label>Charge type<select value={f.fee_type || 'CHARGE'} onChange={e=>row('fees',i,'fee_type',e.target.value)}>{['CHARGE','TAX','REGULATORY','PENALTY','CREDIT','PROCESSING'].map(type=><option key={type} value={type}>{label(type)}</option>)}</select></label>
                   {["code", "description", "amount", "source"].map((key) => (
                     <label key={key}>
                       {label(key)}
@@ -813,10 +830,16 @@ export default function AdminEservices() {
               >
                 Add workflow step
               </button>
+              <button className="es-secondary" onClick={() => patch('steps', APPLICATION_STEPS.map(step => ({ ...step, next_statuses: [...step.next_statuses] })))}>Use municipal application workflow</button>
             </>
           )}
           {tab === "Payments" && (
             <>
+              <label>Online payment provider<select value={edit.settings?.payment_provider || ''} onChange={e=>patch('settings',{...edit.settings,payment_provider:e.target.value})}><option value="">No online gateway</option>{options.data?.payment_providers?.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+              <label>Workflow type<select value={edit.settings?.workflow_type || (edit.kind==='BUSINESS'?'ASSESSMENT_PAYMENT':'APPLICATION')} onChange={e=>setEdit({...edit,settings:{...edit.settings,workflow_type:e.target.value},...(e.target.value==='ASSESSMENT_PAYMENT'?{payment_required:true,steps:edit.steps.length?edit.steps:BILLING_STEPS}:{})})}>{WORKFLOW_TYPES.map(type=><option key={type} value={type}>{label(type)}</option>)}</select></label>
+              <fieldset><legend>Enabled payment methods</legend>{Object.entries(PAYMENT_METHODS).map(([method,title])=><label key={method}><input type="checkbox" checked={(edit.settings?.payment_methods || ['TREASURY']).includes(method)} onChange={e=>patch('settings',{...edit.settings,payment_methods:e.target.checked?[...(edit.settings?.payment_methods || ['TREASURY']),method]:(edit.settings?.payment_methods || ['TREASURY']).filter(m=>m!==method)})} />{title}</label>)}</fieldset>
+              <label>Payment instructions<textarea value={edit.settings?.payment_instructions || ''} maxLength={4000} onChange={e=>patch('settings',{...edit.settings,payment_instructions:e.target.value})} /></label>
+              <label><input type="checkbox" checked={edit.settings?.allow_partial_payment === true} onChange={e=>patch('settings',{...edit.settings,allow_partial_payment:e.target.checked})} />Allow partial payments</label>
               <label>
                 <input
                   type="checkbox"
@@ -838,15 +861,15 @@ export default function AdminEservices() {
                 />
                 Assessment and payment verification require different employees
               </label>
-              <p>Online payment is currently unavailable.</p>
+              {!options.data?.payment_providers?.length && <p>No online payment provider is connected. Enabled manual methods require Treasury verification.</p>}
             </>
           )}
           {tab === "Notifications" && (
-            <p>
+            <><p>
               Application changes create resident notifications. Optional email
               delivery follows the resident’s notification preferences and the
               portal’s email configuration.
-            </p>
+            </p><p>Use {'{reference}'} for the transaction reference and {'{status}'} for its current status. Leave blank to use the standard message.</p>{['request.status_changed','payment.requires_attention'].map(event=><fieldset key={event}><legend>{event==='request.status_changed'?'Transaction updates':'Payment updates'}</legend>{['title','message'].map(field=><label key={field}>{label(field)}<textarea maxLength={field==='title'?160:2000} value={edit.settings?.notification_templates?.[event]?.[field] || ''} onChange={e=>patch('settings',{...edit.settings,notification_templates:{...edit.settings?.notification_templates,[event]:{...edit.settings?.notification_templates?.[event],[field]:e.target.value}}})} /></label>)}</fieldset>)}</>
           )}
           {tab === "Publishing" && (
             <div className="es-form">

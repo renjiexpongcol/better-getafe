@@ -59,7 +59,6 @@
 .article-gallery-arrow.previous { left: 10px; }
 .article-gallery-arrow.next { right: 10px; }
 .article-gallery-arrow:hover { background: #fff; border-color: #1677bd; }
-.article-gallery button:focus-visible { outline: 3px solid #1677bd; outline-offset: 3px; }
 
 .article-gallery-count {
   position: absolute;

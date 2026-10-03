@@ -325,14 +325,17 @@ export default function Admin() {
   }, [token]);
   const load = async (signal) => {
     const results = await Promise.allSettled([
-      api("/api/news?limit=100", token, { signal }),
+      api("/api/admin/news?limit=100", token, { signal }),
       api("/api/categories", token, { signal }),
       api("/api/officials", token, { signal }),
       api("/api/barangays", token, { signal }),
     ]);
     if (signal?.aborted) return;
     const setters = [
-      (news) => setArticles(news.items),
+      (news) => {
+        if (!Array.isArray(news?.items)) throw new Error('News could not be loaded. Try again.')
+        setArticles(news.items)
+      },
       setCategories,
       setOfficials,
       setBarangayRecords,
@@ -345,7 +348,7 @@ export default function Admin() {
     ];
     const errors = [];
     results.forEach((result, index) => {
-      if (result.status === "fulfilled") setters[index](result.value);
+      if (result.status === "fulfilled") { try { setters[index](result.value) } catch (error) { errors.push(`${labels[index]}: ${error.message}`) } }
       else errors.push(`${labels[index]}: ${result.reason.message}`);
     });
     if (errors.length)
@@ -930,14 +933,14 @@ export default function Admin() {
     <main className={`cms citizen-portal portal-v2 admin-portal${tab === "settings" ? " cms-settings" : ""}`}>
       {mobileSidebarOpen && <button className="portal-scrim" aria-label="Close navigation" onClick={() => setMobileSidebarOpen(false)}/>}
       <aside className={`citizen-sidebar ${mobileSidebarOpen ? 'open' : ''}`} aria-label="Admin navigation" id="cms-navigation">
-        <div className="citizen-sidebar-brand"><img src="/assets/getafe-seal.png" alt="Municipality of Getafe seal"/><span>ADMIN PORTAL<small>Municipality of Getafe</small></span><button onClick={() => setMobileSidebarOpen(false)} aria-label="Close menu"><X size={20}/></button></div>
-        <nav className="portal-nav">{navigationGroups.map(([group, items]) => <div key={group}><small>{group}</small>{items.map(([key, label]) => { const Icon = navigationIcons[key]; const active = activeAdminModule === key; return <NavLink to={ADMIN_MODULE_PATHS[key]} end={key === 'dashboard'} className={() => active ? 'portal-nav-item active' : 'portal-nav-item'} aria-current={active ? 'page' : undefined} onClick={() => { setProfileMenuOpen(false); setMobileSidebarOpen(false); }} key={key}><Icon size={17}/>{label}</NavLink>; })}</div>)}</nav>
+        <div className="citizen-sidebar-brand"><img src="/assets/getafe-seal.png" alt="Municipality of Getafe seal"/><span>ADMIN PORTAL<small>Municipality of Getafe</small></span><button onClick={() => setMobileSidebarOpen(false)} aria-label="Close menu" data-icon-button="ghost"><X size={20}/></button></div>
+        <nav className="portal-nav">{navigationGroups.map(([group, items]) => <div key={group}><small>{group}</small>{items.map(([key, label]) => { const Icon = navigationIcons[key] || FileText; const active = activeAdminModule === key; return <NavLink to={ADMIN_MODULE_PATHS[key]} end={key === 'dashboard'} className={() => active ? 'portal-nav-item active' : 'portal-nav-item'} aria-current={active ? 'page' : undefined} onClick={() => { setProfileMenuOpen(false); setMobileSidebarOpen(false); }} key={key}><Icon size={17}/>{label}</NavLink>; })}</div>)}</nav>
       </aside>
       <section className="citizen-main">
-        <header className="citizen-topbar"><div className="portal-breadcrumb"><button className="citizen-menu-toggle" onClick={() => setMobileSidebarOpen(true)} aria-label="Open navigation" aria-expanded={mobileSidebarOpen}><Menu size={21}/></button></div>
+        <header className="citizen-topbar"><div className="portal-breadcrumb"><button className="citizen-menu-toggle" onClick={() => setMobileSidebarOpen(true)} aria-label="Open navigation" aria-expanded={mobileSidebarOpen} data-icon-button="ghost"><Menu size={21}/></button></div>
           <div className="citizen-top-actions">
             <div className="portal-service-search-compact admin-toolbar-search"><label htmlFor="admin-search">Search admin tools</label><div className="portal-search-input"><Search size={18} aria-hidden="true"/><input id="admin-search" type="search" placeholder="Search admin tools…" value={adminSearch} onChange={event => setAdminSearch(event.target.value)}/></div>{adminSearch.trim() && <div className="portal-popover">{navigationGroups.flatMap(([, items]) => items).filter(([, label]) => label.toLowerCase().includes(adminSearch.toLowerCase())).map(([key, label]) => <button type="button" key={key} onClick={() => { selectTab(key); setAdminSearch(''); }}>{label}</button>)}{!navigationGroups.flatMap(([, items]) => items).some(([, label]) => label.toLowerCase().includes(adminSearch.toLowerCase())) && <p>No matching tools.</p>}</div>}</div>
-            <button type="button" className="portal-icon-button admin-notification-button" aria-label="Notifications" data-tooltip="Notifications"><Bell size={18} strokeWidth={1.8}/></button>
+            <button type="button" className="portal-icon-button admin-notification-button" aria-label="Notifications" data-tooltip="Notifications" data-icon-button="ghost"><Bell size={18} strokeWidth={1.8}/></button>
             <div className="portal-popover-anchor" ref={accountMenuRef} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setProfileMenuOpen(false); }}><button ref={accountButtonRef} type="button" className="citizen-profile-button" aria-label="Open account menu" aria-expanded={profileMenuOpen} aria-haspopup="menu" aria-controls={profileMenuOpen ? 'admin-account-menu' : undefined} onKeyDown={event => { if (event.key === 'ArrowDown') { event.preventDefault(); setProfileMenuOpen(true); requestAnimationFrame(() => accountMenuRef.current?.querySelector('[role="menuitem"]')?.focus()); } }} onClick={() => setProfileMenuOpen(value => !value)}><StableAvatar className="citizen-avatar" src={!avatarBroken ? user.avatar_url : ''} initials={avatarInitials} onFailure={() => setAvatarBroken(true)} /><b>{user.name}</b><ChevronDown size={15}/></button>{profileMenuOpen && <div id="admin-account-menu" className="portal-popover portal-profile-menu" role="menu" aria-label="Account" onKeyDown={event => { const items = [...event.currentTarget.querySelectorAll('[role="menuitem"]')]; const index = items.indexOf(document.activeElement); let next; if (event.key === 'ArrowDown') next = (index + 1) % items.length; else if (event.key === 'ArrowUp') next = (index - 1 + items.length) % items.length; else if (event.key === 'Home') next = 0; else if (event.key === 'End') next = items.length - 1; if (next !== undefined) { event.preventDefault(); items[next].focus(); } }}><button role="menuitem" onClick={() => { setProfileMenuOpen(false); setAccountOpen(true); }}><UserRound size={15}/>My Account</button><button role="menuitem" onClick={() => { setProfileMenuOpen(false); selectTab('settings'); }}><SettingsIcon size={15}/>Settings</button><button role="menuitem" onClick={async () => { setProfileMenuOpen(false); const result = await logout(); if (result.ok) navigate('/auth/login', { replace: true }); else setNotice(result.error); }}><LogOut size={15}/>Sign out</button></div>}</div>
           </div>
         </header>
@@ -953,12 +956,13 @@ export default function Admin() {
               <small className="profile-photo-help">JPG, PNG or WebP · up to 5 MB</small>
               {avatarError && <p className="portal-error" role="alert">{avatarError}</p>}
             </div>
-            <button type="button" className="profile-form-close" aria-label="Close" onClick={() => setAccountOpen(false)}><X size={19} aria-hidden="true"/></button>
+            <button type="button" className="profile-form-close" aria-label="Close" onClick={() => setAccountOpen(false)} data-icon-button="ghost"><X size={19} aria-hidden="true"/></button>
           </header>
 
           <section className="admin-account-section" aria-labelledby="admin-account-information-title">
             <h3 id="admin-account-information-title">Account information</h3>
             <dl className="admin-account-grid">
+              <div><dt>Employee ID</dt><dd>{user.eid ? `EID ${user.eid}` : 'Not assigned'}</dd></div>
               <div><dt>Full name</dt><dd>{user.name || 'Not available'}</dd></div>
               <div><dt>Email address</dt><dd>{user.email || 'Not available'}<small>Used for sign-in and account notifications.</small></dd></div>
               <div className="admin-account-grid-wide"><dt>Role</dt><dd>{user.role === 'super_admin' ? 'Super administrator' : 'Administrator'}</dd></div>
@@ -986,7 +990,7 @@ export default function Admin() {
               type="button"
               aria-label="Dismiss notification"
               onClick={() => setNotice("")}
-            >
+             data-icon-button="ghost">
               ×
             </button>
           </div>
@@ -1253,7 +1257,7 @@ export default function Admin() {
                       <div className="cms-gallery-actions">
                         <button type="button" className={isFeatured ? 'is-featured-action' : ''} disabled={isFeatured || !image.storage_path} onClick={() => setFeaturedGalleryImage(index)}>{isFeatured ? <><Check size={16} aria-hidden="true" /> Featured image</> : 'Set as featured'}</button>
                         <div className="cms-gallery-menu-wrap" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setGalleryMenuOpen(null); }}>
-                          <button type="button" className="cms-gallery-more" aria-label={`More actions for Image ${index + 1}`} aria-expanded={galleryMenuOpen === index} aria-haspopup="menu" onClick={() => setGalleryMenuOpen(current => current === index ? null : index)}><MoreVertical size={19} aria-hidden="true" /></button>
+                          <button type="button" className="cms-gallery-more" aria-label={`More actions for Image ${index + 1}`} aria-expanded={galleryMenuOpen === index} aria-haspopup="menu" onClick={() => setGalleryMenuOpen(current => current === index ? null : index)} data-icon-button="ghost"><MoreVertical size={19} aria-hidden="true" /></button>
                           {galleryMenuOpen === index && <div className="cms-gallery-action-menu" role="menu">
                             <button type="button" role="menuitem" disabled={isBroken} onClick={() => { setGalleryPreviewIndex(index); setGalleryMenuOpen(null); }}><ExternalLink size={15} aria-hidden="true" /> View full image</button>
                             <button type="button" role="menuitem" disabled={index === 0} onClick={() => { reorderGalleryImage(index, -1); setGalleryMenuOpen(null); }}><ArrowUp size={15} aria-hidden="true" /> Move up</button>
@@ -1272,7 +1276,7 @@ export default function Admin() {
             </div>
             {galleryLibraryOpen && <div className="cms-gallery-library-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) { setGalleryLibraryOpen(false); setGalleryLibrarySelection([]); } }}>
               <section className="cms-gallery-library-dialog" role="dialog" aria-modal="true" aria-labelledby="gallery-library-title">
-                <div className="cms-gallery-library-heading"><div><p className="cms-gallery-eyebrow">Media Library</p><h2 id="gallery-library-title">Select images</h2><p>Choose existing media to add to this article gallery.</p></div><button type="button" className="cms-gallery-dialog-close" aria-label="Close media library" onClick={() => { setGalleryLibraryOpen(false); setGalleryLibrarySelection([]); }}><X size={20} aria-hidden="true" /></button></div>
+                <div className="cms-gallery-library-heading"><div><p className="cms-gallery-eyebrow">Media Library</p><h2 id="gallery-library-title">Select images</h2><p>Choose existing media to add to this article gallery.</p></div><button type="button" className="cms-gallery-dialog-close" aria-label="Close media library" onClick={() => { setGalleryLibraryOpen(false); setGalleryLibrarySelection([]); }} data-icon-button="ghost"><X size={20} aria-hidden="true" /></button></div>
                 {media.filter(item => !item.content_type || item.content_type.startsWith('image/')).length ? <div className="cms-gallery-library-grid">{media.filter(item => !item.content_type || item.content_type.startsWith('image/')).map(item => { const selected = galleryLibrarySelection.includes(item.id); const alreadyAdded = (form.gallery_images || []).some(image => image.storage_path === item.storage_path); return <button type="button" className={`cms-gallery-library-item${selected ? ' is-selected' : ''}${alreadyAdded ? ' is-added' : ''}`} key={item.id} disabled={alreadyAdded} onClick={() => toggleGalleryLibrarySelection(item.id)}><span className="cms-gallery-library-thumb">{item.preview_url ? <img src={item.preview_url} alt="" /> : <ImageOff size={22} aria-hidden="true" />}</span><span>{item.name || item.original_filename || 'Untitled image'}</span>{alreadyAdded && <small>Already added</small>}{selected && <Check size={18} aria-hidden="true" />}</button>; })}</div> : <div className="cms-gallery-library-empty"><ImageOff size={26} aria-hidden="true" /><p>No images are available in the Media Library yet.</p><label className="cms-gallery-add-button">Upload new image<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={event => { setGalleryLibraryOpen(false); uploadGalleryImages(event); }} /></label></div>}
                 <div className="cms-gallery-library-actions"><button type="button" onClick={() => { setGalleryLibraryOpen(false); setGalleryLibrarySelection([]); }}>Cancel</button><button type="button" className="primary-button" disabled={!galleryLibrarySelection.length} onClick={addSelectedMediaToGallery}>Add selected{galleryLibrarySelection.length ? ` (${galleryLibrarySelection.length})` : ''}</button></div>
               </section>
@@ -1348,7 +1352,7 @@ export default function Admin() {
                           {previewState === 'loading' && <div className="media-preview-state is-loading"><span className="media-spinner" aria-hidden="true" /><span>Loading preview</span></div>}
                           {previewState === 'broken' && <div className="media-preview-state is-broken"><ImageOff size={22} aria-hidden="true" /><span>Preview unavailable</span><small>{mediaStatusLabel(m)}</small></div>}
                           <div className="media-card-menu">
-                            <button type="button" className="media-menu-trigger" aria-label={`Actions for ${filename}`} aria-expanded={mediaMenuOpen === m.id} onClick={event => { event.stopPropagation(); setMediaMenuOpen(current => current === m.id ? null : m.id); }}><MoreVertical size={18} aria-hidden="true" /></button>
+                            <button type="button" className="media-menu-trigger" aria-label={`Actions for ${filename}`} aria-expanded={mediaMenuOpen === m.id} onClick={event => { event.stopPropagation(); setMediaMenuOpen(current => current === m.id ? null : m.id); }} data-icon-button="ghost"><MoreVertical size={18} aria-hidden="true" /></button>
                             {mediaMenuOpen === m.id && <div className="media-card-menu-popover" role="menu">
                               <button type="button" role="menuitem" disabled={!m.preview_url} onClick={() => { setMediaDetails(m); setMediaMenuOpen(null); }}><Eye size={15} aria-hidden="true" /> View</button>
                               <button type="button" role="menuitem" onClick={() => copyMediaUrl(m)}><Copy size={15} aria-hidden="true" /> Copy URL</button>
@@ -1372,7 +1376,7 @@ export default function Admin() {
               ) : <div className="media-empty"><strong>No media matches these filters</strong><span>Try a different filename, filter, or sort option.</span><button type="button" onClick={() => updateMediaRoute({ search: '', usage: 'all', page: 1 })}>Clear filters</button></div> : (
                 <div className="media-empty"><Images size={30} aria-hidden="true" /><strong>Your media library is empty</strong><span>Upload JPG, PNG, or WEBP images to use them in news articles.</span></div>
               )}
-              {mediaDetails && <div className="app-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setMediaDetails(null); }}><section className="app-modal media-details-modal" role="dialog" aria-modal="true" aria-labelledby="media-details-title"><div className="media-details-heading"><div><p className="media-eyebrow">Media details</p><h2 id="media-details-title">{mediaDetails.original_filename || mediaDetails.name || 'Untitled image'}</h2></div><button type="button" className="media-details-close" aria-label="Close media details" onClick={() => setMediaDetails(null)}><X size={19} aria-hidden="true" /></button></div><div className="media-details-preview">{mediaDetails.preview_url && mediaLoadState[mediaDetails.id] !== 'broken' ? <img src={mediaDetails.preview_url} alt="" /> : <div className="media-preview-state is-broken"><ImageOff size={24} aria-hidden="true" /><span>Preview unavailable</span></div>}</div><dl className="media-details-list"><div><dt>Type</dt><dd>{formatMediaType(mediaDetails.content_type)}</dd></div><div><dt>File size</dt><dd>{formatFileSize(mediaDetails.file_size) || 'Unknown'}</dd></div><div><dt>Usage</dt><dd>{Number(mediaDetails.usage_count) > 0 ? `Used in ${mediaDetails.usage_count} item${Number(mediaDetails.usage_count) === 1 ? '' : 's'}` : 'Not currently used'}</dd></div><div><dt>Storage</dt><dd>{mediaStatusLabel(mediaDetails)}</dd></div></dl><div className="app-modal-actions"><button type="button" onClick={() => setMediaDetails(null)}>Close</button>{mediaDetails.preview_url && <a className="media-open-link" href={mediaDetails.preview_url} target="_blank" rel="noreferrer"><ExternalLink size={15} aria-hidden="true" /> Open preview</a>}</div></section></div>}
+              {mediaDetails && <div className="app-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setMediaDetails(null); }}><section className="app-modal media-details-modal" role="dialog" aria-modal="true" aria-labelledby="media-details-title"><div className="media-details-heading"><div><p className="media-eyebrow">Media details</p><h2 id="media-details-title">{mediaDetails.original_filename || mediaDetails.name || 'Untitled image'}</h2></div><button type="button" className="media-details-close" aria-label="Close media details" onClick={() => setMediaDetails(null)} data-icon-button="ghost"><X size={19} aria-hidden="true" /></button></div><div className="media-details-preview">{mediaDetails.preview_url && mediaLoadState[mediaDetails.id] !== 'broken' ? <img src={mediaDetails.preview_url} alt="" /> : <div className="media-preview-state is-broken"><ImageOff size={24} aria-hidden="true" /><span>Preview unavailable</span></div>}</div><dl className="media-details-list"><div><dt>Type</dt><dd>{formatMediaType(mediaDetails.content_type)}</dd></div><div><dt>File size</dt><dd>{formatFileSize(mediaDetails.file_size) || 'Unknown'}</dd></div><div><dt>Usage</dt><dd>{Number(mediaDetails.usage_count) > 0 ? `Used in ${mediaDetails.usage_count} item${Number(mediaDetails.usage_count) === 1 ? '' : 's'}` : 'Not currently used'}</dd></div><div><dt>Storage</dt><dd>{mediaStatusLabel(mediaDetails)}</dd></div></dl><div className="app-modal-actions"><button type="button" onClick={() => setMediaDetails(null)}>Close</button>{mediaDetails.preview_url && <a className="media-open-link" href={mediaDetails.preview_url} target="_blank" rel="noreferrer"><ExternalLink size={15} aria-hidden="true" /> Open preview</a>}</div></section></div>}
             </section>
           </>
         )}
@@ -1550,7 +1554,7 @@ function MediaReferencesDialog({ dialog, onClose, onOpenReference }) {
           <h2 id="media-reference-dialog-title">{dialog.title}</h2>
           <p id="media-reference-dialog-description">{dialog.message}</p>
         </div>
-        <button ref={closeButtonRef} type="button" className="media-reference-dialog-close" aria-label="Close" onClick={close}><X size={20} aria-hidden="true" /></button>
+        <button ref={closeButtonRef} type="button" className="media-reference-dialog-close" aria-label="Close" onClick={close} data-icon-button="ghost"><X size={20} aria-hidden="true" /></button>
       </header>
       <div className="media-reference-dialog-body">
         <p className="media-reference-summary" role="status">{summary}</p>
@@ -1962,7 +1966,7 @@ function BarangaysEditor({ token, value, onSaved }) {
                 type="button"
                 onClick={cancelEditor}
                 aria-label="Close"
-              >
+               data-icon-button="ghost">
                 ×
               </button>
             </div>
@@ -2338,7 +2342,7 @@ function OfficialsSelectorEditor({ token, value, onSaved }) {
                 type="button"
                 onClick={() => setSelected(null)}
                 aria-label="Close editor"
-              >
+               data-icon-button="ghost">
                 <X size={20} strokeWidth={2.4} aria-hidden="true" />
               </button>
             </div>

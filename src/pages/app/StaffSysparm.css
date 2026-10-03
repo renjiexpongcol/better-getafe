@@ -14,5 +14,33 @@
 .staff-stats strong,
 .staff-panel-heading h2 { color: var(--navy-950, #071A33); }
 .staff-panel-heading a { color: var(--navy-700, #194A78); }
-.staff-search:focus-within { border-color: var(--blue-500, #2F80C9); box-shadow: 0 0 0 3px rgb(47 128 201 / 16%); }
 .staff-menu-toggle { border-color: var(--border, #D9E2EC); color: var(--navy-700, #194A78); }
+
+.staff-navigation-scrim{position:fixed;inset:0;z-index:19;border:0;background:#0b234566;cursor:pointer}
+.staff-sidebar{box-sizing:border-box;max-width:calc(100vw - 24px);height:100dvh;overflow-y:auto}
+.staff-request-detail p{white-space:pre-wrap}
+
+.staff-settings-list>div{display:grid;grid-template-columns:minmax(120px,1fr) 2fr;gap:16px;padding:10px 0;border-bottom:1px solid var(--border,#dce6f0)}
+.staff-settings-list dd{margin:0;overflow-wrap:anywhere}
+.staff-panel details{padding:12px 0;border-bottom:1px solid var(--border,#dce6f0)}
+.staff-panel summary{cursor:pointer;font-weight:600;text-transform:capitalize}
+@media(max-width:1024px){
+  .staff-sidebar{position:fixed;z-index:20;left:-280px;transition:left .2s ease;box-shadow:14px 0 35px #08274633}
+  .staff-sidebar.open{left:0}
+  .staff-menu-close,.staff-menu-toggle{display:grid;place-items:center}
+  .staff-menu-close{margin-left:auto;background:transparent;color:#c9deed}
+  .staff-header{justify-content:flex-start;padding:16px 20px;gap:12px}
+  .staff-content{padding:24px 20px}
+}
+@media(max-width:650px){
+  .staff-header{align-items:flex-start;padding:12px}
+  .staff-top-actions{min-width:0;flex:1;flex-wrap:wrap;justify-content:flex-end}
+  .staff-search{order:2;flex-basis:100%;width:100%;height:40px;box-sizing:border-box;padding:0 10px;border:1px solid var(--border,#d9e2ec)}
+  .staff-search input{position:static;width:100%;height:auto;padding:0;border:0;box-shadow:none;background:transparent}
+  .staff-stats{gap:10px}
+  .staff-stats article{padding:12px;gap:8px}
+  .staff-content{padding:20px 12px}
+  .staff-panel{padding:18px}
+}
+
+.staff-request-pager{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:16px;font-size:13px;color:var(--text-secondary,#526e8c)}

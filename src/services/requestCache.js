@@ -1,13 +1,21 @@
 // Short-lived page data, never credentials. Private entries stay in memory.
 import { normalizePublicError } from './publicError.js'
 import { apiFetch, ApiRequestError } from './apiTransport.js'
+import { isPublicApiRequest } from './securitySurfaces.js'
 export { ApiRequestError } from './apiTransport.js'
 
 const entries = new Map()
 const pending = new Map()
 const versions = new Map()
 const retryCooldowns = new Map()
-const storagePrefix = 'getafe-public-cache:'
+const storagePrefix = 'getafe-public-cache:v2:'
+// The previous cache namespace allowed authenticated GET responses. Remove it
+// without hydrating its values into the public application.
+try {
+  for (const key of Object.keys(sessionStorage)) {
+    if (key.startsWith('getafe-public-cache:') && !key.startsWith(storagePrefix)) sessionStorage.removeItem(key)
+  }
+} catch { /* Storage may be unavailable. */ }
 
 export function readCached(key, { persist = false } = {}) {
   let entry = entries.get(key)
@@ -75,10 +83,8 @@ export function retryAfterMilliseconds(response) {
 const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
 
 async function fetchJsonWithBackoff(url, options = {}) {
-  const method = String(options.method || 'GET').toUpperCase()
-  const readOnly = method === 'GET' || method === 'HEAD'
   const errorContext = options.errorContext || 'unknown'
-  const maxAttempts = readOnly ? 3 : 1
+  const maxAttempts = 1 // apiTransport owns bounded retries.
   const requestOptions = { ...options }
   delete requestOptions.cacheTtl
   delete requestOptions.persist
@@ -88,17 +94,7 @@ async function fetchJsonWithBackoff(url, options = {}) {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const cooldown = retryCooldowns.get(url) || 0
     if (cooldown > Date.now()) await wait(cooldown - Date.now())
-    let response
-    try {
-      response = await apiFetch(url, requestOptions)
-    } catch (error) {
-      if (requestOptions.signal?.aborted) throw error
-      if (attempt < maxAttempts - 1) {
-        await wait(Math.min(5_000, 250 * (2 ** attempt)))
-        continue
-      }
-      throw error
-    }
+    const response = await apiFetch(url, requestOptions)
     const retryAfter = retryAfterMilliseconds(response)
     if (response.status === 429) {
       const fallback = Math.min(5000, 250 * (2 ** attempt))
@@ -120,7 +116,7 @@ async function fetchJsonWithBackoff(url, options = {}) {
 
 export function cachedJson(url, options = {}) {
   const method = String(options.method || 'GET').toUpperCase()
-  const cacheable = method === 'GET' || method === 'HEAD'
+  const cacheable = ['GET', 'HEAD'].includes(method) && isPublicApiRequest(url, method)
   const key = 'http:' + method + ':' + url
   const { cacheTtl = 300000, persist = true, force = false } = options
   if (!cacheable) return fetchJsonWithBackoff(url, options)

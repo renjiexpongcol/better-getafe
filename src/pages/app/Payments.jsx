@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CreditCard, FileCheck2, WalletCards } from 'lucide-react'
 import AppPage from './AppPage'
@@ -16,18 +16,19 @@ const settlementTypes = [
 export default function Payments() { return <AppPage title="Payments & settlements"><SettlementCenter/><PaymentRecords/></AppPage> }
 
 function SettlementCenter() {
+  const submitRef = useRef(false)
   const { reload } = useCitizen(), [params] = useSearchParams()
   const requestedType = params.get('settlement') || ''
   const [form, setForm] = useState({ category: settlementTypes.some(([name]) => name === requestedType) ? requestedType : '', reference_number: '', amount: '', payment_method: '', notes: '' })
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [success, setSuccess] = useState('')
   const update = event => setForm(current => ({ ...current, [event.target.name]: event.target.value }))
   const submit = async event => {
-    event.preventDefault(); setBusy(true); setError(''); setSuccess('')
+    event.preventDefault(); if (submitRef.current) return; submitRef.current = true; setBusy(true); setError(''); setSuccess('')
     try {
       const result = await citizenApi('/settlements', { method: 'POST', body: JSON.stringify({ ...form, amount: Number(form.amount) }) })
       setSuccess(`Request ${result.tracking_number} received. The Municipal Treasurer’s Office will verify your settlement and update its status here.`)
       setForm({ category: '', reference_number: '', amount: '', payment_method: '', notes: '' }); await reload()
-    } catch (submissionError) { setError(submissionError.message) } finally { setBusy(false) }
+    } catch (submissionError) { setError(submissionError.message) } finally { submitRef.current = false; setBusy(false) }
   }
   return <section className="citizen-panel settlement-center">
     <div className="citizen-panel-head"><div><h2>Settle a municipal obligation</h2><p>Submit the details of an assessed fee or notice for Treasurer verification.</p></div><WalletCards size={22}/></div>

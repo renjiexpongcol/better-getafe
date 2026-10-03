@@ -1,4 +1,4 @@
-import { createPortal } from 'react-dom'
+import ModalDialog from './ModalDialog'
 import { useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 
@@ -28,64 +28,22 @@ export default function ProfileModal({
   const dialogRef = useRef(null)
 
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    const focusFirstControl = () => {
-      const first = dialogRef.current?.querySelector(focusableSelector)
-      first?.focus()
-    }
-    const frame = window.requestAnimationFrame(focusFirstControl)
-    const onKeyDown = event => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        if (closeGuardRef?.current?.requestClose) closeGuardRef.current.requestClose()
-        else onClose()
-        return
-      }
-      if (event.key !== 'Tab') return
-      const controls = [...(dialogRef.current?.querySelectorAll(focusableSelector) || [])]
-        .filter(control => control.getClientRects().length)
-      const first = controls[0]
-      const last = controls.at(-1)
-      if (!first || !last) return
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      window.cancelAnimationFrame(frame)
-      document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [closeGuardRef, focusKey, onClose, returnFocusRef])
-
-  useEffect(() => () => {
-    window.requestAnimationFrame(() => returnFocusRef?.current?.focus())
-  }, [returnFocusRef])
+    const frame = window.requestAnimationFrame(() => {
+      const control = [...(dialogRef.current?.querySelectorAll(focusableSelector) || [])].find(node => node.getClientRects().length)
+      control?.focus()
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [focusKey])
 
   const requestClose = () => {
     if (closeGuardRef?.current?.requestClose) closeGuardRef.current.requestClose()
     else onClose()
   }
 
-  return createPortal(
-    <div
-      className="profile-modal-backdrop"
-      role="presentation"
-      onMouseDown={event => {
-        if (event.target === event.currentTarget) requestClose()
-      }}
-    >
+  return <ModalDialog backdropClass="profile-modal-backdrop" labelledBy={labelledBy || (showHeader ? 'profile-modal-title' : undefined)} label={title} onClose={requestClose} returnFocusRef={returnFocusRef}>
       <section
         ref={dialogRef}
         className={`profile-modal-card ${className}`.trim()}
-        role="dialog"
-        aria-modal="true"
         aria-labelledby={labelledBy || (showHeader ? 'profile-modal-title' : undefined)}
         aria-label={!showHeader ? title : undefined}
         tabIndex="-1"
@@ -97,16 +55,14 @@ export default function ProfileModal({
               <h1 id="profile-modal-title">{title}</h1>
               <p>{description}</p>
             </div>
-            <button type="button" className="profile-modal-close" aria-label={closeLabel || 'Close profile editor'} onClick={requestClose}>
+            <button type="button" className="profile-modal-close" aria-label={closeLabel || 'Close profile editor'} onClick={requestClose} data-icon-button="ghost">
               <X size={20} aria-hidden="true" />
             </button>
           </header>
         )}
-        {!showHeader && <button type="button" className="profile-modal-close" aria-label="Close change password dialog" onClick={requestClose}><X size={20} aria-hidden="true" /></button>}
+        {!showHeader && <button type="button" className="profile-modal-close" aria-label="Close change password dialog" onClick={requestClose} data-icon-button="ghost"><X size={20} aria-hidden="true" /></button>}
         <div className="profile-modal-body">{children}</div>
         {footer}
       </section>
-    </div>,
-    document.body,
-  )
+    </ModalDialog>
 }

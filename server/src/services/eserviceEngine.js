@@ -1,13 +1,19 @@
 import crypto from "node:crypto";
-import { WORKFLOW_PERMISSIONS } from "../../../src/data/eserviceWorkflow.js";
+import { barangays } from "../../../src/data/barangays.js";
+import { PUBLIC_STATUS, publicStatus, PROFILE_SOURCES, fieldProfileSource, profileValues } from '../../../src/data/serviceApplication.js';
+import { businessBillingMethods } from './businessBilling.js';
+import { BILLING_STEPS, WORKFLOW_TYPES, PAYMENT_METHODS } from '../../../src/data/businessBillingWorkflow.js';
+import { APPLICATION_STEPS, WORKFLOW_PERMISSIONS } from "../../../src/data/eserviceWorkflow.js";
 import { getPortalPool, getCmsPool } from "./cloudSql.js";
 import { requireAccess } from "./authorizationService.js";
+import { appointmentAvailability, appointmentSlotLockValues, isExactAppointmentMinute } from "./appointmentScheduling.js";
 import {
   fail,
   uuid,
   text,
   cents,
   decimal,
+  totalFees,
   validateValues,
   validateWorkflow,
 } from "./eserviceValidation.js";
@@ -23,14 +29,46 @@ export class EserviceEngine {
     const [rows] = await (await this.pool()).execute(sql, values);
     return rows;
   }
+  async saveProfileBusiness(actor, id, data, key, correlation) {
+    if (actor.kind !== 'resident') fail('Resident access required.', 403);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) fail('Enter business information.');
+    const allowed = ['business_name', 'trade_name', 'ownership_type', 'address'];
+    if (Object.keys(data).some(name => !allowed.includes(name))) fail('Unknown business field.');
+    const name = text(data.business_name, 160);
+    if (!name) fail('Enter your business name.');
+    const tradeName = text(data.trade_name || '', 160);
+    const ownership = text(data.ownership_type || '', 80);
+    if (!['Sole proprietorship', 'Partnership', 'Corporation', 'Cooperative'].includes(ownership)) fail('Choose a business ownership type.');
+    const address = data.address;
+    if (!address || typeof address !== 'object' || Array.isArray(address) || Object.keys(address).some(k => !['street', 'barangay'].includes(k))) fail('Enter a business address.');
+    const cleanAddress = { street: text(address.street, 240), barangay: text(address.barangay, 120), municipality: 'Getafe', province: 'Bohol' };
+    if (!cleanAddress.street || !barangays.some(item => item.name === cleanAddress.barangay)) fail('Enter the business address and choose a Getafe barangay.');
+    if (id) uuid(id);
+    return this.idempotent(actor, `profile-business:${id || 'new'}`, key, data, async db => {
+      let business;
+      if (id) {
+        [business] = await db('SELECT b.* FROM businesses b JOIN business_owners o ON o.business_id=b.id WHERE b.id=? AND o.user_id=? AND o.effective_until IS NULL FOR UPDATE OF b', [id, actor.id]);
+        if (!business) fail('Business not found.', 404);
+        if (business.status !== 'UNVERIFIED') fail('Contact the business permits office to update a verified business record.', 409);
+        const [submitted] = await db("SELECT 1 FROM service_requests r WHERE r.status NOT IN ('DRAFT','CANCELLED','REJECTED') AND (EXISTS(SELECT 1 FROM request_business_billing x WHERE x.request_id=r.id AND x.business_id=?) OR EXISTS(SELECT 1 FROM business_applications a WHERE a.request_id=r.id AND a.business_id=?)) LIMIT 1", [id, id]);
+        if (submitted) fail('Contact the business permits office to update business information already used in a submitted application.', 409);
+        [business] = await db('UPDATE businesses SET business_name=?,trade_name=?,ownership_type=?,address=?::jsonb,updated_at=now() WHERE id=? RETURNING *', [name, tradeName, ownership, JSON.stringify(cleanAddress), id]);
+      } else {
+        [business] = await db("INSERT INTO businesses(business_reference,business_name,trade_name,ownership_type,address,status) VALUES(?,?,?,?,?::jsonb,'UNVERIFIED') RETURNING *", [`PROFILE-${crypto.randomUUID()}`, name, tradeName, ownership, JSON.stringify(cleanAddress)]);
+        await db('INSERT INTO business_owners(business_id,user_id) VALUES(?,?)', [business.id, actor.id]);
+      }
+      await this.audit(db, actor, id ? 'business.profile_updated' : 'business.profile_added', business.id, {}, correlation);
+      return business;
+    });
+  }
   async staffIdentities(ids) {
     const [rows] = await (
       await getCmsPool()
     ).execute(
-      "SELECT id,name FROM users WHERE id=ANY(?::text[]) AND role IN ('staff','admin','super_admin','it_support')",
+      "SELECT u.id,u.name,p.eid FROM users u LEFT JOIN employee_profiles p ON p.user_id=u.id WHERE u.id=ANY(?::text[]) AND u.role IN ('staff','admin','super_admin','it_support','content_manager','disabled')",
       [[...new Set(ids.filter(Boolean))]],
     );
-    return new Map(rows.map((user) => [user.id, user.name]));
+    return new Map(rows.map((user) => [user.id, `${user.name} · EID ${user.eid}`]));
   }
   async syncDepartment(db, id) {
     const [rows] = await (
@@ -74,6 +112,10 @@ export class EserviceEngine {
     metadata = {},
     correlation = crypto.randomUUID(),
   ) {
+    if (actor.kind !== 'resident' && actor.role) {
+      const [rows] = await (await getCmsPool()).execute('SELECT eid FROM employee_profiles WHERE user_id=?',[actor.id]);
+      metadata = { ...metadata, actor_eid: rows[0]?.eid || actor.eid || null };
+    }
     await db(
       "INSERT INTO audit_logs(id,user_id,action,category,setting_key,new_value,correlation_id) VALUES(?,?,?,?,?,?,?)",
       [
@@ -88,6 +130,12 @@ export class EserviceEngine {
     );
   }
   async notify(db, request, title, message, event = "request.status_changed") {
+    const template=request.settings_snapshot?.notification_templates?.[event];
+    if(template) {
+      const render=value=>value.replace(/\{(reference|status)\}/g,(_,key)=>key==='reference'?request.request_number:publicStatus(request.status));
+      if(template.title) title=render(template.title);
+      if(template.message) message=render(template.message);
+    }
     await db(
       "INSERT INTO eservice_notification_outbox(user_id,request_id,title,message,event_type) VALUES(?,?,?,?,?)",
       [request.applicant_user_id, request.id, title, message, event],
@@ -119,7 +167,10 @@ export class EserviceEngine {
   }
   async catalog(includePrivate = false) {
     return this.read(
-      `SELECT s.*,d.name AS department_name,c.name AS category_name FROM services s LEFT JOIN departments d ON d.id=s.department_id LEFT JOIN service_categories c ON c.id=s.category_id ${includePrivate ? "" : "WHERE s.published AND (s.effective_from IS NULL OR s.effective_from<=now()) AND (s.effective_until IS NULL OR s.effective_until>now())"} ORDER BY s.display_order,s.name`,
+      `SELECT s.*,d.name AS department_name,c.name AS category_name,c.slug AS category_slug,
+        (SELECT COALESCE(jsonb_agg(jsonb_build_object('id',r.id,'label',r.label,'required',r.required,'help_text',r.help_text) ORDER BY r.display_order),'[]'::jsonb) FROM service_requirements r WHERE r.service_id=s.id AND r.revision=s.version) AS requirements,
+        (SELECT COALESCE(jsonb_agg(jsonb_build_object('code',f.code,'description',f.description,'amount',f.amount,'fee_type',f.fee_type) ORDER BY f.code),'[]'::jsonb) FROM service_fees f WHERE f.service_id=s.id AND f.revision=s.version) AS fees
+        FROM services s LEFT JOIN departments d ON d.id=s.department_id LEFT JOIN service_categories c ON c.id=s.category_id ${includePrivate ? "" : "WHERE s.published AND (s.effective_from IS NULL OR s.effective_from<=now()) AND (s.effective_until IS NULL OR s.effective_until>now())"} ORDER BY s.display_order,s.name`,
     );
   }
   async catalogPage(query = {}) {
@@ -188,6 +239,8 @@ export class EserviceEngine {
       slug = text(data.slug, 120);
     if (!name || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug))
       fail("Enter a name and URL slug.");
+    if (data.department_id) text(data.department_id, 200);
+    if (data.category_id) uuid(data.category_id);
     if (
       ![
         "APPLICATION",
@@ -226,7 +279,23 @@ export class EserviceEngine {
       fail("The end date must follow the start date.");
     const settings = {
       separation_of_duties: data.settings?.separation_of_duties !== false,
+      workflow_type: data.settings?.workflow_type || (data.kind === 'BUSINESS' ? 'ASSESSMENT_PAYMENT' : data.kind === 'DIRECTORY' ? 'INFORMATION' : 'APPLICATION'),
+      payment_methods: data.settings?.payment_methods || ['TREASURY'],
+      payment_instructions: text(data.settings?.payment_instructions || '',4000),
+      allow_partial_payment: data.settings?.allow_partial_payment === true,
+      payment_provider: text(data.settings?.payment_provider || '',100),
+      notification_templates: {},
+      directory_category_id: data.settings?.directory_category_id ? uuid(data.settings.directory_category_id) : '',
     };
+    for(const event of ['request.status_changed','payment.requires_attention']) {
+      const template=data.settings?.notification_templates?.[event];
+      if(template) settings.notification_templates[event]={title:text(template.title || '',160),message:text(template.message || '',2000)};
+    }
+    if (!WORKFLOW_TYPES.includes(settings.workflow_type)) fail('Choose a supported workflow type.');
+    if (!Array.isArray(settings.payment_methods) || settings.payment_methods.some(method => !Object.hasOwn(PAYMENT_METHODS,method))) fail('Choose supported payment methods.');
+    const billing = settings.workflow_type === 'ASSESSMENT_PAYMENT';
+    if (settings.workflow_type === 'APPOINTMENT') data={...data,appointment_required:true};
+    if (billing) data = { ...data, payment_required:true, declaration:data.declaration || 'I confirm that I am authorized to transact for this business and that the submitted information is correct.' };
     if (data.hero_image) {
       const [media] = await (
         await getCmsPool()
@@ -241,7 +310,7 @@ export class EserviceEngine {
         fail("Choose an active image from the Media Library.");
     }
     const fields = data.fields || [],
-      steps = data.steps || [],
+      steps = data.steps?.length ? data.steps : billing ? BILLING_STEPS : APPLICATION_STEPS,
       requirements = data.requirements || [],
       fees = data.fees || [];
     const allowedPermissions = WORKFLOW_PERMISSIONS;
@@ -253,10 +322,6 @@ export class EserviceEngine {
       !fields.some((field) => field.key === "business_name" && field.required)
     )
       fail("New business applications require a business_name field.");
-    if (data.published && data.appointment_required)
-      fail(
-        "Appointment scheduling is not yet connected to this service engine.",
-      );
     if (
       ![fields, steps, requirements, fees].every(
         (value) => Array.isArray(value) && value.length <= 100,
@@ -283,6 +348,11 @@ export class EserviceEngine {
       "file",
     ];
     for (const field of fields) {
+      if (field.profile_source && !PROFILE_SOURCES.includes(field.profile_source)) fail('Choose a supported profile source.');
+      if (field.profile_readonly && !fieldProfileSource(field)) fail('Read-only fields require a profile source.');
+      if (fieldProfileSource(field) === 'address' && field.type !== 'address') fail('Use an address field for the profile address.');
+      text(field.section || '', 100);
+      if (['Documents', 'Review', 'Appointment'].includes(field.section)) fail('Use a service-specific section name; Documents, Appointment and Review are reserved.');
       if (!types.includes(field.type)) fail("Choose a supported field type.");
       if (!text(field.label, 200)) fail("Enter a field label.");
       if (field.validation?.pattern)
@@ -323,6 +393,7 @@ export class EserviceEngine {
         fail("Enter requirement codes and labels.");
     for (const fee of fees) {
       cents(fee.amount);
+      if (fee.fee_type && !['CHARGE','TAX','REGULATORY','PENALTY','CREDIT','PROCESSING'].includes(fee.fee_type)) fail('Choose a supported charge type.');
       if (
         !text(fee.code, 100) ||
         !text(fee.description, 300) ||
@@ -335,11 +406,11 @@ export class EserviceEngine {
       data.published &&
       (!data.department_id ||
         !steps.length ||
-        !fields.length ||
+        (!fields.length && !billing) ||
         !text(data.declaration || "", 4000))
     ) {
       if (
-        ["APPLICATION", "BUSINESS_NEW", "BUSINESS_RENEWAL"].includes(
+        ["APPLICATION", "BUSINESS_NEW", "BUSINESS_RENEWAL", "BUSINESS"].includes(
           data.kind || "APPLICATION",
         )
       )
@@ -349,6 +420,7 @@ export class EserviceEngine {
     }
     return this.transaction(async (db) => {
       if (data.department_id) await this.syncDepartment(db, data.department_id);
+      if (data.category_id && !(await db("SELECT 1 FROM service_categories WHERE id=?", [data.category_id])).length) fail("Choose an existing service category.");
       if (data.published && data.department_id && !(await db("SELECT 1 FROM departments WHERE id=? AND published=TRUE", [data.department_id])).length) fail("Choose an active office before publishing.");
       let service;
       if (id) {
@@ -400,7 +472,7 @@ export class EserviceEngine {
       );
       for (const [index, field] of fields.entries())
         await db(
-          "INSERT INTO service_form_fields(definition_id,key,label,type,required,help_text,validation,options,visibility,display_order) VALUES(?,?,?,?,?,?,?::jsonb,?::jsonb,?::jsonb,?)",
+          "INSERT INTO service_form_fields(definition_id,key,label,type,required,help_text,validation,options,visibility,display_order,section,profile_source,profile_readonly) VALUES(?,?,?,?,?,?,?::jsonb,?::jsonb,?::jsonb,?,?,?,?)",
           [
             definition.id,
             field.key,
@@ -412,6 +484,9 @@ export class EserviceEngine {
             JSON.stringify(field.options || []),
             JSON.stringify(field.visibility || null),
             index,
+            text(field.section || '', 100),
+            field.profile_source || '',
+            field.profile_readonly === true,
           ],
         );
       const [workflow] = await db(
@@ -446,7 +521,7 @@ export class EserviceEngine {
         );
       for (const fee of fees)
         await db(
-          "INSERT INTO service_fees(service_id,revision,code,description,amount,source) VALUES(?,?,?,?,?,?)",
+          "INSERT INTO service_fees(service_id,revision,code,description,amount,source,fee_type) VALUES(?,?,?,?,?,?,?)",
           [
             service.id,
             revision,
@@ -454,6 +529,7 @@ export class EserviceEngine {
             fee.description,
             String(fee.amount),
             fee.source,
+            fee.fee_type || 'CHARGE',
           ],
         );
       await this.audit(
@@ -527,18 +603,30 @@ export class EserviceEngine {
       fail("That workflow transition is not allowed.", 409);
     if (["AWAITING_PAYMENT", "PAID"].includes(target) && !payment)
       fail("Use assessment or verified payment processing.", 409);
+    if (['CANCELLED','REJECTED'].includes(target)) {
+      const orders=await db("SELECT * FROM payment_orders WHERE (request_id=? OR id IN (SELECT selected_order_id FROM request_business_billing WHERE request_id=?)) AND status NOT IN ('CANCELLED','EXPIRED') FOR UPDATE",[request.id,request.id]);
+      for (const order of orders) {
+        const [financial]=await db("SELECT 1 WHERE EXISTS(SELECT 1 FROM payments p WHERE p.payment_order_id=? AND p.status='CONFIRMED' AND NOT EXISTS(SELECT 1 FROM payment_adjustments a WHERE a.payment_id=p.id)) OR EXISTS(SELECT 1 FROM payment_attempts WHERE payment_order_id=? AND status='PENDING') OR EXISTS(SELECT 1 FROM payment_gateway_checkouts WHERE payment_order_id=? AND status='PENDING')",[order.id,order.id,order.id]);
+        if (financial) fail('Reconcile recorded or pending payments before closing this transaction.',409);
+        if (order.request_id) await db("UPDATE payment_orders SET status='CANCELLED' WHERE id=?",[order.id]);
+        else {
+          await db("INSERT INTO request_actions(request_id,actor_user_id,action,metadata) VALUES(?,?,'assessment.unlinked',?::jsonb)",[request.id,actor.id,JSON.stringify({order_number:order.order_number,reason:target})]);
+          await db('UPDATE request_business_billing SET selected_order_id=NULL,reviewed_order_id=NULL,reviewed_at=NULL WHERE request_id=?',[request.id]);
+        }
+      }
+    }
     if (["AWAITING_PAYMENT", "PAID"].includes(target)) {
       const [order] = await db(
-        "SELECT status FROM payment_orders WHERE request_id=? AND status NOT IN ('CANCELLED','EXPIRED')",
-        [request.id],
+        "SELECT status FROM payment_orders WHERE (request_id=? OR id IN (SELECT selected_order_id FROM request_business_billing WHERE request_id=?)) AND status NOT IN ('CANCELLED','EXPIRED')",
+        [request.id, request.id],
       );
       if (!order || (target === "PAID" && order.status !== "PAID"))
         fail("A valid verified financial record is required.", 409);
     }
     if (["APPROVED", "FOR_RELEASE", "COMPLETED"].includes(target)) {
       const [order] = await db(
-        "SELECT status FROM payment_orders WHERE request_id=? AND status NOT IN ('CANCELLED','EXPIRED')",
-        [request.id],
+        "SELECT status FROM payment_orders WHERE (request_id=? OR id IN (SELECT selected_order_id FROM request_business_billing WHERE request_id=?)) AND status NOT IN ('CANCELLED','EXPIRED')",
+        [request.id, request.id],
       );
       if (request.payment_required && order?.status !== "PAID")
         fail(
@@ -550,6 +638,10 @@ export class EserviceEngine {
         [request.service_id, request.configuration_revision, request.id],
       );
       if (invalid) fail("Accept the required documents before approval.", 409);
+      if (target === 'COMPLETED' && (await db('SELECT 1 FROM request_business_billing WHERE request_id=?',[request.id])).length) {
+        const [missingReceipt] = await db("SELECT 1 FROM payments p JOIN payment_orders o ON o.id=p.payment_order_id WHERE (o.request_id=? OR o.id IN (SELECT selected_order_id FROM request_business_billing WHERE request_id=?)) AND p.status='CONFIRMED' AND NOT EXISTS(SELECT 1 FROM payment_adjustments a WHERE a.payment_id=p.id) AND NOT EXISTS(SELECT 1 FROM payment_receipts r WHERE r.payment_id=p.id AND r.kind='OFFICIAL')",[request.id,request.id]);
+        if (missingReceipt) fail('Record the official receipt for each verified payment before completion.',409);
+      }
     }
     if (actor.kind !== "resident")
       await this.authorize(actor, next.permission, request);
@@ -593,9 +685,9 @@ export class EserviceEngine {
     );
     await this.notify(
       db,
-      request,
+      updated,
       "Application update",
-      `${request.request_number}: ${target.replaceAll("_", " ").toLowerCase()}`,
+      `${request.request_number}: ${publicStatus(target)}`,
     );
     return updated;
   }
@@ -609,10 +701,11 @@ export class EserviceEngine {
       );
       if (
         !service.online_available ||
+        ['INFORMATION','PAYMENT'].includes(service.settings?.workflow_type) ||
         !service.department_id ||
         !service.definition ||
         !service.workflow ||
-        !["APPLICATION", "BUSINESS_NEW", "BUSINESS_RENEWAL"].includes(
+        !["APPLICATION", "BUSINESS_NEW", "BUSINESS_RENEWAL", "BUSINESS"].includes(
           service.kind,
         )
       )
@@ -628,16 +721,32 @@ export class EserviceEngine {
           service.version,
           service.steps.find((s) => s.status === "DRAFT")?.id || null,
           service.payment_required,
-          JSON.stringify(service.settings),
+          JSON.stringify({ ...service.settings, appointment_required: service.appointment_required }),
         ],
       );
-      if (service.kind === "BUSINESS_RENEWAL") {
+      const [user] = await db('SELECT id,name,email FROM portal_users WHERE id=?', [actor.id]);
+      const [profile] = await db('SELECT * FROM resident_profiles WHERE user_id=?', [actor.id]);
+      const applicant = profileValues(user, profile);
+      await db('UPDATE service_requests SET applicant_snapshot=?::jsonb WHERE id=?', [JSON.stringify(applicant), request.id]);
+      for (const field of service.fields) {
+        const value = applicant[fieldProfileSource(field)];
+        if (value !== undefined && value !== '') await db('INSERT INTO request_form_values(request_id,field_id,value) VALUES(?,?,?::jsonb)', [request.id, field.id, JSON.stringify(value)]);
+      }
+      if (service.settings?.workflow_type === 'ASSESSMENT_PAYMENT') {
+        const [owned] = await db('SELECT 1 FROM business_owners WHERE business_id=? AND user_id=? AND effective_until IS NULL',[uuid(data.business_id),actor.id]);
+        if (!owned) fail('Choose a business that you own.',404);
+        await db('INSERT INTO request_business_billing(request_id,business_id) VALUES(?,?)',[request.id,data.business_id]);
+        const [reference] = await db("SELECT 'BILL-'||to_char(now() AT TIME ZONE 'Asia/Manila','YYYY')||'-'||lpad(nextval('eservice_bill_reference')::text,6,'0') AS value");
+        await db('UPDATE service_requests SET request_number=? WHERE id=?',[reference.value,request.id]);
+        request.request_number = reference.value;
+      }
+      if (service.kind === "BUSINESS_RENEWAL" || service.settings?.workflow_type === 'ASSESSMENT_PAYMENT') {
         const [business] = await db(
           "SELECT b.* FROM businesses b JOIN business_owners o ON o.business_id=b.id WHERE b.id=? AND o.user_id=? AND o.effective_until IS NULL",
           [uuid(data.business_id), actor.id],
         );
         if (!business) fail("Choose a business that you own.", 404);
-        await db(
+        if (service.kind === 'BUSINESS_RENEWAL') await db(
           "INSERT INTO business_applications(request_id,business_id,application_type) VALUES(?,?,'RENEWAL')",
           [request.id, business.id],
         );
@@ -650,7 +759,7 @@ export class EserviceEngine {
         for (const field of service.fields)
           if (Object.hasOwn(reusable, field.key))
             await db(
-              "INSERT INTO request_form_values(request_id,field_id,value) VALUES(?,?,?::jsonb)",
+              "INSERT INTO request_form_values(request_id,field_id,value) VALUES(?,?,?::jsonb) ON CONFLICT(request_id,field_id) DO UPDATE SET value=EXCLUDED.value",
               [request.id, field.id, JSON.stringify(reusable[field.key])],
             );
       }
@@ -679,7 +788,23 @@ export class EserviceEngine {
         "SELECT * FROM service_form_fields WHERE definition_id=?",
         [request.definition_id],
       );
-      const values = validateValues(fields, data.values || {});
+      const submitted = { ...(data.values || {}) };
+      for (const field of fields) {
+        if (field.profile_readonly || fieldProfileSource(field) === 'user_id') {
+          const source = request.applicant_snapshot?.[fieldProfileSource(field)];
+          if (source !== undefined) submitted[field.key] = source;
+        }
+      }
+      const values = validateValues(fields, submitted);
+      if (data.appointment !== undefined) {
+        if (!data.appointment || typeof data.appointment !== 'object' || Array.isArray(data.appointment)) fail('Enter valid appointment details.');
+        const appointment = Object.fromEntries(['date', 'time', 'reason', 'contact'].map(key => [key, text(data.appointment[key] || '', key === 'reason' ? 1000 : 40)]));
+        await db('UPDATE service_requests SET draft_context=?::jsonb WHERE id=?', [JSON.stringify({ appointment }), id]);
+      }
+      if (data.draft_step !== undefined) {
+        if (!Number.isInteger(data.draft_step) || data.draft_step < 0 || data.draft_step > 102) fail('Invalid application step.');
+        await db('UPDATE service_requests SET draft_step=? WHERE id=?', [data.draft_step, id]);
+      }
       await db("DELETE FROM request_form_values WHERE request_id=?", [id]);
       for (const value of values)
         await db(
@@ -730,6 +855,22 @@ export class EserviceEngine {
           [request.service_id, request.configuration_revision, id],
         );
         if (missing) fail("Upload the required documents.");
+        if (!response && request.settings_snapshot?.appointment_required) {
+          const at = new Date(data.appointment_at);
+          const contact = String(data.contact_number || "").replace(/\s+/g, "");
+          if (!isExactAppointmentMinute(at)) fail("Choose an available appointment slot.");
+          if (!/^09\d{9}$/.test(contact)) fail("Enter a valid Philippine mobile number.");
+          const [profile] = await db("SELECT barangay FROM resident_profiles WHERE user_id=?", [actor.id]);
+          if (!profile?.barangay) fail("Add your barangay to your resident profile before booking.");
+          await db("SELECT pg_advisory_xact_lock(hashtext(?), hashtext(?))", appointmentSlotLockValues(at));
+          const availability = await appointmentAvailability(db, request.service_id);
+          const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
+          const time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(at);
+          if (!availability.dates.find(item => item.date === day)?.slots.some(slot => slot.time === time)) fail("That slot is no longer available. Choose another time.", 409);
+          const [department] = await db("SELECT name FROM departments WHERE id=?", [request.department_id]);
+          const [serviceName] = await db("SELECT name FROM services WHERE id=?", [request.service_id]);
+          await db("INSERT INTO appointments(id,user_id,department,service,service_id,appointment_at,reason,contact_number,barangay,status,created_at,service_request_id) VALUES(?,?,?,?,?,?,?,?,?,'requested',now(),?)", [crypto.randomUUID(), actor.id, department.name, serviceName.name, request.service_id, at.toISOString(), text(data.appointment_reason || '', 1000), contact, profile.barangay, id]);
+        }
         const [service] = await db("SELECT * FROM services WHERE id=?", [
           request.service_id,
         ]);
@@ -739,7 +880,7 @@ export class EserviceEngine {
           const [business] = await db(
             "INSERT INTO businesses(business_reference,business_name,trade_name,ownership_type,address) VALUES(?,?,?,?,?::jsonb) RETURNING *",
             [
-              `BUS-${crypto.randomUUID()}`,
+              (await db("SELECT 'BUS-'||to_char(now() AT TIME ZONE 'Asia/Manila','YYYY')||'-'||lpad(nextval('eservice_business_reference')::text,6,'0') AS reference"))[0].reference,
               String(values.business_name),
               String(values.trade_name || ""),
               String(values.ownership_type || ""),
@@ -795,8 +936,13 @@ export class EserviceEngine {
       department_id: "department_id",
     }))
       if (query[key]) {
-        conditions.push(`r.${column}=?`);
-        values.push(query[key]);
+        if (!staff && key === 'status' && Object.values(PUBLIC_STATUS).includes(query[key])) {
+          conditions.push('r.status=ANY(?::text[])');
+          values.push(Object.keys(PUBLIC_STATUS).filter(status => PUBLIC_STATUS[status] === query[key]));
+        } else {
+          conditions.push(`r.${column}=?`);
+          values.push(query[key]);
+        }
       }
     if (query.assigned === "me") {
       conditions.push("r.assigned_user_id=?");
@@ -804,9 +950,18 @@ export class EserviceEngine {
     }
     if (query.assigned === "unassigned")
       conditions.push("r.assigned_user_id IS NULL");
+    if (query.business === 'true') conditions.push('EXISTS(SELECT 1 FROM request_business_billing x WHERE x.request_id=r.id)');
+    if (query.business_id) {
+      const businessId = uuid(query.business_id);
+      conditions.push('(EXISTS(SELECT 1 FROM request_business_billing x WHERE x.request_id=r.id AND x.business_id=?) OR EXISTS(SELECT 1 FROM business_applications a WHERE a.request_id=r.id AND a.business_id=?))');
+      values.push(businessId, businessId);
+    }
     if (query.search) {
-      conditions.push("(r.request_number ILIKE ? OR s.name ILIKE ?)");
-      values.push(`%${text(query.search, 100)}%`, `%${query.search}%`);
+      let staffMatches = [];
+      if (staff) { const [matches] = await (await getCmsPool()).execute('SELECT u.id FROM users u JOIN employee_profiles p ON p.user_id=u.id WHERE p.eid=? OR u.name ILIKE ? OR u.email ILIKE ?',[text(query.search,100),`%${query.search}%`,`%${query.search}%`]); staffMatches=matches.map(m=>m.id); }
+      conditions.push("(r.request_number ILIKE ? OR s.name ILIKE ? OR u.name ILIKE ? OR u.email ILIKE ? OR EXISTS(SELECT 1 FROM request_business_billing x JOIN businesses b ON b.id=x.business_id LEFT JOIN billing_accounts a ON a.business_id=b.id WHERE x.request_id=r.id AND (b.business_name ILIKE ? OR b.business_reference ILIKE ? OR a.account_number ILIKE ?)) OR r.assigned_user_id=ANY(?::text[]))");
+      values.push(...Array(7).fill(`%${text(query.search, 100)}%`));
+      values.push(staffMatches);
     }
     for (const [key, op] of [
       ["from", ">="],
@@ -819,7 +974,12 @@ export class EserviceEngine {
         values.push(query[key]);
       }
     const rows = await this.read(
-      `SELECT r.*,s.name AS service_name,u.name AS applicant_name,count(*) OVER()::integer AS total FROM service_requests r JOIN services s ON s.id=r.service_id JOIN portal_users u ON u.id=r.applicant_user_id WHERE ${conditions.join(" AND ")} ORDER BY r.created_at DESC LIMIT ? OFFSET ?`,
+      `SELECT r.*,s.name AS service_name,u.name AS applicant_name,
+        COALESCE((SELECT x.business_id FROM request_business_billing x WHERE x.request_id=r.id),(SELECT a.business_id FROM business_applications a WHERE a.request_id=r.id)) AS business_id,
+        (SELECT b.business_name FROM request_business_billing x JOIN businesses b ON b.id=x.business_id WHERE x.request_id=r.id) AS business_name,
+        (SELECT o.amount FROM payment_orders o WHERE (o.request_id=r.id OR o.id IN (SELECT selected_order_id FROM request_business_billing WHERE request_id=r.id)) AND o.status NOT IN ('CANCELLED','EXPIRED') LIMIT 1) AS amount,
+        EXISTS(SELECT 1 FROM payment_attempts p JOIN payment_orders o ON o.id=p.payment_order_id WHERE p.status='PENDING' AND (o.request_id=r.id OR o.id IN (SELECT selected_order_id FROM request_business_billing WHERE request_id=r.id))) AS payment_pending,
+        count(*) OVER()::integer AS total FROM service_requests r JOIN services s ON s.id=r.service_id JOIN portal_users u ON u.id=r.applicant_user_id WHERE ${conditions.join(" AND ")} ORDER BY r.created_at DESC LIMIT ? OFFSET ?`,
       [...values, limit, (page - 1) * limit],
     );
     if (staff)
@@ -840,9 +1000,12 @@ export class EserviceEngine {
             assigned_user_id,
             resume_status,
             settings_snapshot,
+            workflow_id,
+            current_workflow_step_id,
+            department_id,
             ...safe
           } = row;
-          return safe;
+          return { ...safe, public_status: publicStatus(row.status) };
         });
     return { items, total: rows[0]?.total || 0, page, limit };
   }
@@ -872,6 +1035,7 @@ export class EserviceEngine {
           "SELECT * FROM service_requirements WHERE service_id=? AND revision=? ORDER BY display_order",
           [request.service_id, request.configuration_revision],
         ),
+        fees: await db('SELECT code,description,amount,fee_type FROM service_fees WHERE service_id=? AND revision=? ORDER BY code', [request.service_id, request.configuration_revision]),
         documents: await db(
           "SELECT id,requirement_id,original_filename,mime_type,size_bytes,status,uploaded_at,reviewed_at,review_reason,replaces_id,scan_status FROM request_documents WHERE request_id=? ORDER BY uploaded_at",
           [id],
@@ -885,11 +1049,15 @@ export class EserviceEngine {
           [id],
         ),
         orders: await db(
-          "SELECT * FROM payment_orders WHERE request_id=? ORDER BY created_at",
-          [id],
+          "SELECT * FROM payment_orders WHERE request_id=? OR id IN (SELECT selected_order_id FROM request_business_billing WHERE request_id=?) ORDER BY created_at",
+          [id,id],
         ),
+        business: (await db('SELECT b.* FROM businesses b JOIN request_business_billing x ON x.business_id=b.id WHERE x.request_id=?',[id]))[0] || null,
+        billing_actions: await db("SELECT id,action,metadata,created_at FROM request_actions WHERE request_id=? AND action IN ('payment.submitted','receipt.issued') ORDER BY created_at",[id]),
+        appointment: (await db("SELECT id,appointment_at,status,reason,contact_number FROM appointments WHERE service_request_id=?", [id]))[0] || null,
       };
       if (staff) {
+        result.fees = await db('SELECT code,description,amount,source,fee_type FROM service_fees WHERE service_id=? AND revision=? ORDER BY code',[request.service_id,request.configuration_revision]);
         const names = await this.staffIdentities([request.assigned_user_id]);
         result.assigned_user_name = names.get(request.assigned_user_id) || null;
         const [applicant] = await db(
@@ -909,17 +1077,26 @@ export class EserviceEngine {
           "SELECT * FROM request_assignments WHERE request_id=? ORDER BY created_at",
           [id],
         );
+        const actors=await this.staffIdentities([...result.history.map(event=>event.actor_user_id),...result.actions.map(event=>event.actor_user_id)]);
+        result.history.forEach(event=>{event.staff_label=actors.get(event.actor_user_id) || 'Applicant';});
+        result.actions.forEach(event=>{event.staff_label=actors.get(event.actor_user_id) || 'Applicant';});
         await this.audit(db, actor, "request.viewed", id, {}, correlation);
       } else {
         delete result.assigned_user_id;
         delete result.resume_status;
-        delete result.settings_snapshot;
+        result.settings_snapshot = { appointment_required: request.settings_snapshot?.appointment_required === true };
+        result.public_status = publicStatus(request.status);
+        delete result.current_workflow_step_id;
+        delete result.workflow_id;
+        delete result.department_id;
+        result.definition = { declaration: definition.declaration };
+        result.history = result.history.filter((event, index, events) => index === 0 || publicStatus(event.to_status) !== publicStatus(events[index - 1].to_status));
         result.notes = result.notes.map(({ actor_user_id, ...note }) => note);
         result.history = result.history.map(
           ({ id, from_status, to_status, created_at }) => ({
             id,
-            from_status,
-            to_status,
+            from_status: from_status ? publicStatus(from_status) : null,
+            to_status: publicStatus(to_status),
             created_at,
           }),
         );
@@ -945,6 +1122,7 @@ export class EserviceEngine {
       async (db) => {
         const request = await this.staff(db, actor, id, permission, true);
         this.stale(request, data.version);
+        if (operation === 'status' && data.status === 'NEEDS_INFORMATION') fail('Use Request information to send instructions to the applicant.');
         if (
           ["DRAFT", "COMPLETED", "CANCELLED", "REJECTED"].includes(
             request.status,
@@ -1049,30 +1227,34 @@ export class EserviceEngine {
         if (operation === "assessment") {
           if (request.status !== "FOR_ASSESSMENT")
             fail("Send the request for assessment first.", 409);
-          const fees = await db(
+          let fees = await db(
             "SELECT * FROM service_fees WHERE service_id=? AND revision=?",
             [request.service_id, request.configuration_revision],
           );
+          if ((await db('SELECT 1 FROM request_business_billing WHERE request_id=?',[id])).length) {
+            if (!Array.isArray(data.fee_codes) || !data.fee_codes.length || data.fee_codes.some(code=>!fees.some(fee=>fee.code===code))) fail('Select the configured charges that apply to this business.');
+            fees=fees.filter(fee=>data.fee_codes.includes(fee.code));
+          }
           if (!fees.length) fail("No authorized fees are configured.");
-          const total = decimal(
-            fees.reduce((sum, fee) => sum + cents(fee.amount), 0n),
-          );
+          const total = totalFees(fees);
           if (cents(total) === 0n)
             fail("A payment order must have a positive amount.");
           const [order] = await db(
-            "INSERT INTO payment_orders(order_number,request_id,user_id,department_id,amount,assessed_by) VALUES('PO-'||to_char(now() AT TIME ZONE 'Asia/Manila','YYYY')||'-'||lpad(nextval('eservice_order_reference')::text,6,'0'),?,?,?,?,?) RETURNING *",
+            "INSERT INTO payment_orders(order_number,request_id,user_id,department_id,amount,assessed_by,expires_at,billing_period) VALUES('PO-'||to_char(now() AT TIME ZONE 'Asia/Manila','YYYY')||'-'||lpad(nextval('eservice_order_reference')::text,6,'0'),?,?,?,?,?,?,?) RETURNING *",
             [
               id,
               request.applicant_user_id,
               request.department_id,
               total,
               actor.id,
+              data.due_at ? (() => { if (!Number.isFinite(Date.parse(data.due_at)) || Date.parse(data.due_at)<=Date.now()) fail('Choose a future assessment due date.'); return data.due_at; })() : null,
+              text(data.billing_period || '',100),
             ],
           );
           for (const fee of fees)
             await db(
-              "INSERT INTO payment_order_items(payment_order_id,fee_code,description,amount,source) VALUES(?,?,?,?,?)",
-              [order.id, fee.code, fee.description, fee.amount, fee.source],
+              "INSERT INTO payment_order_items(payment_order_id,fee_code,description,amount,source,fee_type) VALUES(?,?,?,?,?,?)",
+              [order.id, fee.code, fee.description, fee.amount, fee.source,fee.fee_type],
             );
           await this.audit(
             db,
@@ -1117,7 +1299,7 @@ export class EserviceEngine {
   }
   async order(actor, id, staff = false) {
     uuid(id);
-    const [order] = await this.read("SELECT * FROM payment_orders WHERE id=?", [
+    const [order] = await this.read("SELECT o.*,COALESCE(NULLIF(o.billing_period,''),s.period) AS billing_period,COALESCE(o.expires_at,s.due_at) AS expires_at FROM payment_orders o LEFT JOIN billing_statements s ON s.id=o.statement_id WHERE o.id=?", [
       id,
     ]);
     if (!order) fail("Payment order not found.", 404);
@@ -1141,9 +1323,11 @@ export class EserviceEngine {
         [id],
       ),
       payments: await this.read(
-        "SELECT id,amount,method,status,provider_reference,paid_at,verified_at FROM payments WHERE payment_order_id=?",
+        "SELECT id,payment_reference,amount,method,status,provider_reference,paid_at,verified_at FROM payments WHERE payment_order_id=?",
         [id],
       ),
+      attempts: await this.read('SELECT id,reference,method,payer_reference,amount,status,payment_id,created_at,resolved_at,reason FROM payment_attempts WHERE payment_order_id=? ORDER BY created_at DESC',[id]),
+      gateway_pending: (await this.read("SELECT 1 FROM payment_gateway_checkouts WHERE payment_order_id=? AND status='PENDING'",[id])).length>0,
       receipts: await this.read(
         "SELECT r.* FROM payment_receipts r JOIN payments p ON p.id=r.payment_id WHERE p.payment_order_id=?",
         [id],
@@ -1184,12 +1368,8 @@ export class EserviceEngine {
           ).length
         )
           fail("Department access required.", 403);
-        const [requestConfig] = order.request_id
-          ? await db(
-              "SELECT settings_snapshot FROM service_requests WHERE id=?",
-              [order.request_id],
-            )
-          : [];
+        const [requestConfig] = await db('SELECT r.* FROM service_requests r LEFT JOIN request_business_billing x ON x.request_id=r.id WHERE r.id=? OR x.selected_order_id=?',[order.request_id,id]);
+        if (requestConfig && requestConfig.status!=='AWAITING_PAYMENT') fail('This transaction is not awaiting payment.',409);
         if (
           requestConfig?.settings_snapshot?.separation_of_duties !== false &&
           order.assessed_by === actor.id
@@ -1216,6 +1396,12 @@ export class EserviceEngine {
         if (!reference)
           fail("Enter the authorized cashier transaction reference.");
         const paymentId = crypto.randomUUID();
+        const [attempt] = await db("SELECT * FROM payment_attempts WHERE payment_order_id=? AND status='PENDING' FOR UPDATE",[id]);
+        const [checkout] = await db("SELECT * FROM payment_gateway_checkouts WHERE payment_order_id=? AND status='PENDING' FOR UPDATE",[id]);
+        if (checkout && (!verifiedProvider || checkout.provider!==verifiedProvider || cents(checkout.amount)!==amount)) fail('Reconcile the pending gateway checkout before recording a different payment.',409);
+        if (verifiedProvider && requestConfig && (await db('SELECT 1 FROM request_business_billing WHERE request_id=?',[requestConfig.id])).length && !checkout) fail('A matching gateway checkout is required.',409);
+        if (attempt && (!data.attempt_id || data.attempt_id !== attempt.id || cents(attempt.amount) !== amount || attempt.payer_reference !== reference)) fail('Verify the pending payment submission using its exact amount and reference.',409);
+        if (data.attempt_id && !attempt) fail('Payment submission was already processed.',409);
         await db(
           "INSERT INTO payments(id,user_id,payment_order_id,amount,method,status,provider,provider_reference,currency,paid_at,verified_at,verified_by,created_at) VALUES(?,?,?,?,?,'CONFIRMED',?,?,'PHP',now(),now(),?,now())",
           [
@@ -1223,12 +1409,14 @@ export class EserviceEngine {
             order.user_id,
             id,
             decimal(amount),
-            verifiedProvider ? "ONLINE" : "CASH",
+            verifiedProvider ? "ONLINE" : attempt?.method || "CASH",
             verifiedProvider || "MANUAL",
             reference,
             actor.id,
           ],
         );
+        if (attempt) await db("UPDATE payment_attempts SET status='VERIFIED',payment_id=?,resolved_at=now(),resolved_by=? WHERE id=?",[paymentId,actor.id,attempt.id]);
+        if (checkout) await db("UPDATE payment_gateway_checkouts SET status='CONFIRMED',payment_id=? WHERE id=?",[paymentId,checkout.id]);
         await db(
           "INSERT INTO payment_allocations(payment_id,payment_order_id,amount) VALUES(?,?,?)",
           [paymentId, id, decimal(amount)],
@@ -1239,10 +1427,10 @@ export class EserviceEngine {
         );
         const status = paid === cents(order.amount) ? "PAID" : "PARTIALLY_PAID";
         await db("UPDATE payment_orders SET status=? WHERE id=?", [status, id]);
-        if (order.request_id && status === "PAID") {
+        if (requestConfig && status === "PAID") {
           const [request] = await db(
             "SELECT * FROM service_requests WHERE id=? FOR UPDATE",
-            [order.request_id],
+            [requestConfig.id],
           );
           await this.change(
             db,
@@ -1299,11 +1487,9 @@ export class EserviceEngine {
           );
         const reason = text(data.reason);
         if (!reason) fail("Enter a reversal reason.");
-        if (order.request_id) {
-          const [request] = await db(
-            "SELECT * FROM service_requests WHERE id=? FOR UPDATE",
-            [order.request_id],
-          );
+        const [linkedRequest] = await db('SELECT r.* FROM service_requests r LEFT JOIN request_business_billing x ON x.request_id=r.id WHERE r.id=? OR x.selected_order_id=? FOR UPDATE OF r',[order.request_id,order.id]);
+        if (linkedRequest) {
+          const request = linkedRequest;
           if (!["AWAITING_PAYMENT", "PAID"].includes(request.status))
             fail(
               "Resolve the approved application before reversing its payment.",
@@ -1371,6 +1557,8 @@ export class EserviceEngine {
           "SELECT * FROM payment_orders WHERE request_id=? AND status NOT IN ('CANCELLED','EXPIRED') FOR UPDATE",
           [id],
         );
+        if (old && (await db("SELECT 1 FROM payment_attempts WHERE payment_order_id=? AND status='PENDING'",[old.id])).length) fail('Resolve pending payment verification before replacing the assessment.',409);
+        if (old && (await db("SELECT 1 FROM payment_gateway_checkouts WHERE payment_order_id=? AND status='PENDING'",[old.id])).length) fail('Reconcile the online checkout before replacing the assessment.',409);
         if (
           !old ||
           (
@@ -1391,9 +1579,7 @@ export class EserviceEngine {
           [request.service_id, service.version],
         );
         if (!fees.length) fail("No current authorized fees are configured.");
-        const total = decimal(
-          fees.reduce((sum, fee) => sum + cents(fee.amount), 0n),
-        );
+        const total = totalFees(fees);
         if (cents(total) <= 0n) fail("Configure a positive assessment.");
         await db("UPDATE payment_orders SET status='CANCELLED' WHERE id=?", [
           old.id,
@@ -1410,8 +1596,8 @@ export class EserviceEngine {
         );
         for (const fee of fees)
           await db(
-            "INSERT INTO payment_order_items(payment_order_id,fee_code,description,amount,source) VALUES(?,?,?,?,?)",
-            [order.id, fee.code, fee.description, fee.amount, fee.source],
+            "INSERT INTO payment_order_items(payment_order_id,fee_code,description,amount,source,fee_type) VALUES(?,?,?,?,?,?)",
+            [order.id, fee.code, fee.description, fee.amount, fee.source,fee.fee_type],
           );
         await db(
           "INSERT INTO request_actions(request_id,actor_user_id,action,metadata) VALUES(?,?,?,?::jsonb)",
@@ -1457,3 +1643,4 @@ export class EserviceEngine {
     );
   }
 }
+Object.assign(EserviceEngine.prototype, businessBillingMethods);

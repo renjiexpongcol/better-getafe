@@ -20,7 +20,8 @@ const definitions = [
   route('eservices.webhooks', '/api/eservices/payment-webhooks/*', ['POST'], 'PUBLIC'),
   route('eservices.catalog', '/api/services/*', ['GET'], 'PUBLIC'),
   route('eservices.requests', '/api/requests/*', ['GET','POST','PATCH'], 'RESIDENT', { body: 'mixed' }),
-  route('eservices.businesses', '/api/businesses', ['GET'], 'RESIDENT'),
+  route('eservices.businesses', '/api/businesses', ['GET', 'POST'], 'RESIDENT'),
+  route('eservices.business', '/api/businesses/:id', ['PUT'], 'RESIDENT'),
   route('eservices.billing', '/api/billing/*', ['GET'], 'RESIDENT'),
   route('eservices.payment-orders', '/api/payment-orders/*', ['GET','POST'], 'RESIDENT'),
   route('eservices.staff', '/api/staff/eservices/*', ['GET','POST'], 'CMS', { body: 'mixed' }),
@@ -88,6 +89,7 @@ const definitions = [
   route('media.upload-proxy', '/api/media/upload-proxy', ['PUT'], 'CMS', { body: 'raw-image' }),
   route('media.complete', '/api/media/complete', ['POST'], 'CMS'),
   route('storage.upload-url', '/api/storage/upload-url', ['POST'], 'CMS'),
+  route('storage.local-upload', '/api/storage/local-upload/*', ['PUT'], 'CMS', { body: 'raw-image' }),
 
   route('staff', '/api/staff/*', ['GET', 'POST', 'PATCH'], 'STAFF', { body: 'mixed' }),
   route('admin.system-errors', '/api/admin/system/errors/*', ['GET', 'PATCH'], 'CMS', { body: 'mixed' }),

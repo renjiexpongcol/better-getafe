@@ -52,7 +52,7 @@ function Calendar({ activeMonth, eventsByDate, onMonthChange, onSelectDate, sele
   const cells = Array.from({ length: firstDay + daysInMonth }, (_, index) => index < firstDay ? null : index - firstDay + 1)
 
   return <section className="home-calendar" aria-label={`${monthLabel(activeMonth)} calendar`}>
-    <div className="home-calendar-head"><h3>{monthLabel(activeMonth)}</h3><div className="home-calendar-actions"><button type="button" onClick={() => onMonthChange(-1)} aria-label="Previous month"><ChevronLeft size={17} /></button><button type="button" onClick={() => onMonthChange(1)} aria-label="Next month"><ChevronRight size={17} /></button></div></div>
+    <div className="home-calendar-head"><h3>{monthLabel(activeMonth)}</h3><div className="home-calendar-actions"><button type="button" onClick={() => onMonthChange(-1)} aria-label="Previous month" data-icon-button="ghost"><ChevronLeft size={17} /></button><button type="button" onClick={() => onMonthChange(1)} aria-label="Next month" data-icon-button="ghost"><ChevronRight size={17} /></button></div></div>
     <div className="home-calendar-weekdays" aria-hidden="true">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <span key={day}>{day}</span>)}</div>
     <div className="home-calendar-days">{cells.map((day, index) => {
       if (!day) return <span className="home-calendar-blank" key={`blank-${index}`} />

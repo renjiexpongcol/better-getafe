@@ -161,7 +161,7 @@ export default function AdminSettings({ category = 'general', settings, settings
   const categoryContent = <div className="settings-content" id={`settings-panel-${activeTab}`} role="tabpanel" aria-labelledby={`settings-tab-${activeTab}`}>
     {message && <div className={`settings-message ${message.error ? 'is-error' : ''} ${message.type ? `is-${message.type}` : ''}`} role={message.error ? 'alert' : 'status'} aria-live={message.error ? 'assertive' : 'polite'}>
       <span className="settings-message-icon">{message.error ? <Info size={18} /> : message.type === 'success' ? <CheckCircle2 size={19} /> : <Info size={18} />}</span><span className="settings-message-copy"><strong>{message.error ? message.type === 'connection-error' ? 'Connection test failed' : 'Unable to save changes' : message.type === 'success' ? 'Changes saved' : 'Configuration priority'}</strong><span>{message.text}</span></span>
-      <button type="button" aria-label="Dismiss message" onClick={() => setMessage(null)}><X size={14} /></button>
+      <button type="button" aria-label="Dismiss message" onClick={() => setMessage(null)} data-icon-button="ghost"><X size={14} /></button>
     </div>}
     {activeTab === 'status' ? <SettingsSection title="System status" description="Service health and the latest connection checks." icon={sectionIcon('status')}>
       {loading ? <p className="settings-empty" role="status">Loading service status…</p> : <div className="settings-status">{Object.entries(status).map(([name, service]) =>
@@ -219,7 +219,7 @@ function EmailTemplateModal({ onClose }) {
   }, [onClose])
   return <div className="settings-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
     <div className="settings-modal settings-template-modal" role="dialog" aria-modal="true" aria-labelledby="email-template-title" aria-describedby="email-template-description" ref={dialog}>
-      <header className="settings-modal-header"><span className="settings-section-icon"><Mail size={18} aria-hidden="true" /></span><div><h2 id="email-template-title">Email templates</h2><p id="email-template-description">Preview the automated contact acknowledgement email.</p></div><button type="button" className="settings-modal-close" aria-label="Close email templates" onClick={onClose}><X size={19} strokeWidth={1.8} /></button></header>
+      <header className="settings-modal-header"><span className="settings-section-icon"><Mail size={18} aria-hidden="true" /></span><div><h2 id="email-template-title">Email templates</h2><p id="email-template-description">Preview the automated contact acknowledgement email.</p></div><button type="button" className="settings-modal-close" aria-label="Close email templates" onClick={onClose} data-icon-button="ghost"><X size={19} strokeWidth={1.8} /></button></header>
       <div className="settings-template-body">
         <div className="settings-template-toolbar"><div><span className="settings-template-kicker">Available template</span><h3>Contact acknowledgement</h3></div><SettingSourceBadge source="Application template" /></div>
         <div className="settings-template-details"><div><span>Subject</span><strong>We received your message · Municipality of Getafe</strong></div><div><span>Sent when</span><strong>A public contact message is successfully received</strong></div><div><span>Includes</span><strong>Reference number, category, subject, and submission date</strong></div></div>
@@ -267,7 +267,7 @@ function SettingsModal({ section, settings, patch, busy, testable, writable, onC
   }, [])
   return <div className="settings-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
     <div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} ref={dialog}>
-      <header className="settings-modal-header"><span className="settings-section-icon"><section.icon size={18} aria-hidden="true" /></span><div><h2 id={titleId}>{section.title}</h2><p id={descriptionId}>{section.description}</p></div><button type="button" className="settings-modal-close" aria-label="Close configuration" onClick={onClose}><X size={19} strokeWidth={1.8} /></button></header>
+      <header className="settings-modal-header"><span className="settings-section-icon"><section.icon size={18} aria-hidden="true" /></span><div><h2 id={titleId}>{section.title}</h2><p id={descriptionId}>{section.description}</p></div><button type="button" className="settings-modal-close" aria-label="Close configuration" onClick={onClose} data-icon-button="ghost"><X size={19} strokeWidth={1.8} /></button></header>
       <form id="settings-modal-form" className="settings-modal-body" onSubmit={onSave}>
         <div className="settings-fields">{section.fields.map(([key, definition]) => <SettingsField key={key} settingKey={key} definition={definition}
           value={Object.hasOwn(patch, key) && patch[key] !== null ? patch[key] : settings.values[key]}
@@ -313,7 +313,7 @@ function SettingsTabs({ tabs, activeTab, onSelect, disabled, search, settings })
   })
   const scrollTabs = direction => list.current?.scrollBy({ left: direction * Math.max(200, list.current.clientWidth * 0.65), behavior: 'smooth' })
   return <nav className="settings-tabs-wrap" aria-label="Settings category navigation">
-    {overflow.left && <button className="settings-tabs-control previous" type="button" aria-label="Scroll categories left" onClick={() => scrollTabs(-1)}><ChevronLeft size={17} aria-hidden="true" /></button>}
+    {overflow.left && <button className="settings-tabs-control previous" type="button" aria-label="Scroll categories left" onClick={() => scrollTabs(-1)} data-icon-button="ghost"><ChevronLeft size={17} aria-hidden="true" /></button>}
     <div className="settings-tabs" role="tablist" aria-label="Settings categories" ref={list} onScroll={updateOverflow} onWheel={event => {
       const element = list.current
       if (!element || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
@@ -332,7 +332,7 @@ function SettingsTabs({ tabs, activeTab, onSelect, disabled, search, settings })
           if (next !== undefined) { event.preventDefault(); const target = list.current.querySelectorAll('[role="tab"]')[next]; target?.focus(); target?.click() }
         }}>{categoryLabels[key] || key}</button>) : <p className="settings-nav-empty">No settings found.<small>Try another search term.</small></p>}
     </div>
-    {overflow.right && <button className="settings-tabs-control next" type="button" aria-label="Scroll categories right" onClick={() => scrollTabs(1)}><ChevronRight size={17} aria-hidden="true" /></button>}
+    {overflow.right && <button className="settings-tabs-control next" type="button" aria-label="Scroll categories right" onClick={() => scrollTabs(1)} data-icon-button="ghost"><ChevronRight size={17} aria-hidden="true" /></button>}
   </nav>
 }
 
@@ -373,6 +373,6 @@ function AuditHistory({ history, loading }) {
   const rows = history.filter(entry => JSON.stringify(entry).toLowerCase().includes(filter.toLowerCase()))
   return <SettingsSection title="Audit history" description="Review configuration changes. Secret values remain protected." icon={sectionIcon('history')}>
     <label className="settings-search settings-audit-search"><Search size={14} aria-hidden="true" /><input type="search" aria-label="Search audit history" placeholder="Search activity…" value={filter} onChange={event => setFilter(event.target.value)} /></label>
-    {loading ? <p className="settings-empty" role="status">Loading audit history…</p> : <>{rows.map(entry => <article className="settings-history-row" key={entry.id}><strong>{entry.setting_key}</strong><span>{String(entry.old_value ?? 'Default')} → {String(entry.new_value ?? 'Credential updated')}</span><small>{entry.created_at} · {entry.user_id} · {entry.ip_address}</small></article>)}{!rows.length && <p className="settings-empty">{filter ? 'No matching activity.' : 'No settings changes recorded.'}</p>}</>}
+    {loading ? <p className="settings-empty" role="status">Loading audit history…</p> : <>{rows.map(entry => <article className="settings-history-row" key={entry.id}><strong>{entry.setting_key}</strong><span>{String(entry.old_value ?? 'Default')} → {String(entry.new_value ?? 'Credential updated')}</span><small>{entry.created_at} · {entry.employee_label || 'System'} · {entry.ip_address}</small></article>)}{!rows.length && <p className="settings-empty">{filter ? 'No matching activity.' : 'No settings changes recorded.'}</p>}</>}
   </SettingsSection>
 }

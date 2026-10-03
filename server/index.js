@@ -22,7 +22,7 @@ import express from "express";
 import { getGetafeWeather } from './src/services/getafeWeather.js';
 import { getAggregatedCurrent, getAggregatedForecast, providerKeys } from './src/services/weatherAggregator.js';
 import { normalizeWeather } from './src/services/weatherNormalizer.js';
-import { closeCloudSql, databaseHealth, getPortalPool } from './src/services/cloudSql.js';
+import { closeCloudSql, databaseHealth, getPortalPool, getCmsPool } from './src/services/cloudSql.js';
 import path from "path";
 
 import crypto from "crypto";
@@ -73,7 +73,7 @@ import { sanitizeRichText, sanitizeOfficials, sanitizeBarangays } from './src/se
 import { id as createId, now as dbNow } from './src/services/identifiers.js';
 import { createPkcePair, getGoogleRedirectUri } from './src/services/googleOAuth.js';
 import { isMediaUploadPath } from './src/services/mediaUploadPath.js';
-import { createApiCorsMiddleware, createApiSecurityMiddleware } from './src/services/apiRoutePolicy.js';
+import { createApiCorsMiddleware, createApiSecurityMiddleware, resolveApiRoutePolicy } from './src/services/apiRoutePolicy.js';
 import { toPublicBarangays, toPublicCategory, toPublicNews, toPublicOfficials, toPublicOfficialsDirectory, toPublicPopularService } from './src/services/publicApiDtos.js';
 import { installResponseSanitizer, sendPublicError, recordDiagnosticError, redactDiagnostic } from './src/services/errorHandling.js';
 import { installErrorCenterRoutes } from './src/services/errorCenterRoutes.js';
@@ -89,6 +89,8 @@ const invalidatePublicNewsCaches = async () => {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
+let lifecycle = 'STARTING', initialized = false, coreReady = false;
+let lifecycleTimer, lifecycleCheck;
 app.disable('x-powered-by');
 const adminAvatarFailures = new Map();
 // Production is behind one trusted proxy. Do not trust forwarded
@@ -104,6 +106,43 @@ app.use((req, res, next) => {
   next();
 });
 installResponseSanitizer(app);
+app.use((req, res, next) => {
+  const pathname = String(req.originalUrl || req.url || '').split('?')[0];
+  const policy = pathname.startsWith('/api/') ? resolveApiRoutePolicy(req.method, pathname) : null;
+  req.publicSurface = !pathname.startsWith('/api/') || policy?.access === 'PUBLIC';
+  if (policy && policy.access !== 'PUBLIC') {
+    res.set('Cache-Control', 'no-store, private');
+    res.vary('Cookie'); res.vary('Authorization');
+  }
+  next();
+});
+// Liveness must not wait on configuration, rate limiting, or a dependency.
+app.get(['/health', '/healthz', '/health/live', '/api/health/live'], (_req, res) => {
+  res.status(200).json({ status: 'ok', service: 'better-getafe', lifecycle });
+});
+const checkLifecycle = () => {
+  if (lifecycleCheck) return lifecycleCheck;
+  lifecycleCheck = (async () => {
+  if (!initialized || lifecycle === 'SHUTTING_DOWN') return;
+  await config.load();
+  const databases = await Promise.all([databaseHealth('database'), databaseHealth('portalDatabase')]);
+  coreReady = config.available && databases.every(item => item.status === 'healthy') && (process.env.NODE_ENV !== 'production' || isRedisReady());
+  if (lifecycle !== 'SHUTTING_DOWN') lifecycle = coreReady && storageHealth().status === 'healthy' && isRedisReady() ? 'READY' : 'DEGRADED';
+  })().catch(error => { coreReady = false; if (lifecycle !== 'SHUTTING_DOWN') lifecycle = 'DEGRADED'; console.error(JSON.stringify({ event: 'readiness_failed', code: error.code || error.name })); }).finally(() => { lifecycleCheck = null; });
+  return lifecycleCheck;
+};
+const readiness = async (_req, res) => {
+  await checkLifecycle();
+  if (!coreReady) res.set('Retry-After', '2');
+  res.set('Cache-Control', 'no-store').status(coreReady && lifecycle !== 'SHUTTING_DOWN' ? 200 : 503).json({ status: coreReady ? 'ready' : 'not_ready', lifecycle });
+};
+app.get(['/ready', '/health/ready', '/api/ready'], readiness);
+// No application handler can run until the initial security/configuration
+// snapshot has been activated. Liveness and readiness bypass this gate.
+app.use((req, res, next) => {
+  if (initialized && coreReady && config.available && lifecycle !== 'SHUTTING_DOWN') return next();
+  res.set({ 'Retry-After': '2', 'Cache-Control': 'no-store' }).status(503).json({ code: lifecycle === 'STARTING' ? 'APPLICATION_STARTING' : 'SERVICE_UNAVAILABLE', error: 'The service is temporarily unavailable. Please try again shortly.' });
+});
 
 async function configuredWeatherProviders() {
   try { await config.load(); } catch { /* Environment defaults remain available when settings storage is unavailable. */ }
@@ -161,7 +200,8 @@ app.use(async (req, res, next) => {
     res.setHeader('Content-Security-Policy', "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; child-src 'self' https://www.facebook.com https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/; frame-src 'self' https://www.facebook.com https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https:; script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; connect-src 'self' https:; font-src 'self' data: https:; form-action 'self'");
   }
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && req.path.startsWith('/api/')) {
-    const hasCookieSession = Boolean(readCookies(req.headers.cookie)[SESSION_COOKIE]);
+    const cookies = readCookies(req.headers.cookie);
+    const hasCookieSession = !req.publicSurface && Boolean(cookies[SESSION_COOKIE] || cookies.getafe_password_reset);
     const bearer = req.headers.authorization?.startsWith('Bearer ');
 
     const decision = checkRequestOrigin(req, () => config.get('general.url'), { isTrustedProxy: isTrustedProxyAddress });
@@ -301,6 +341,9 @@ const readCookies = (header = '') => Object.fromEntries(header.split(';').map(pa
 }).filter(pair => pair.length));
 
 function authenticated(req) {
+  // Public documents and public APIs never consume an account credential,
+  // even when a legacy root cookie or an Authorization header is supplied.
+  if (req.publicSurface) return null;
   try {
     const authorization = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '';
     const token = authorization || readCookies(req.headers.cookie)[SESSION_COOKIE] || '';
@@ -414,7 +457,7 @@ const resident = async (req, res, next) => {
   }
 };
 
-const setSessionCookie = async (res, token, remember) => {
+const setSessionCookie = async (res, token, remember, recordLogin = false) => {
   const [encodedPayload] = token.split('.');
   const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString());
   const registryReady = isRedisReady();
@@ -435,18 +478,25 @@ const setSessionCookie = async (res, token, remember) => {
       throw new Error('Session registry is unavailable.');
     }
   }
-  const attributes = ['HttpOnly', 'Path=/', 'SameSite=Lax'];
+  if (recordLogin && payload.kind === 'cms') await (await getCmsPool()).execute('UPDATE users SET last_login_at=CURRENT_TIMESTAMP WHERE id=?', [payload.id]);
+  const attributes = ['HttpOnly', 'Path=/api', 'SameSite=Lax'];
   if (process.env.NODE_ENV === 'production') attributes.push('Secure');
   if (remember) attributes.push(`Max-Age=${config.get('authentication.rememberDays') * 86400}`);
-  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=${encodeURIComponent(token)}; ${attributes.join('; ')}`);
+  // Migrate the previous root cookie without destroying a valid session on a
+  // public visit. New login/renewal replaces it with the API-scoped cookie.
+  res.append('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+  res.append('Set-Cookie', `${SESSION_COOKIE}=${encodeURIComponent(token)}; ${attributes.join('; ')}`);
 };
 
 const clearSessionCookie = (res) => {
-  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+  for (const cookiePath of ['/', '/api']) res.append('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; Path=${cookiePath}; SameSite=Lax; Max-Age=0${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
 };
 
 const setGoogleOAuthStateCookie = (res, value, secure) => {
   res.append('Set-Cookie', `google_oauth_state=${encodeURIComponent(value)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=600${secure ? '; Secure' : ''}`);
+};
+const setPasswordResetCookie = (res, token, maxAge = 600) => {
+  res.append('Set-Cookie', `getafe_password_reset=${encodeURIComponent(token)}; HttpOnly; Path=/api/auth/renew-password; SameSite=Strict; Max-Age=${maxAge}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
 };
 
 const clearGoogleOAuthStateCookie = (res, secure) => {
@@ -743,7 +793,8 @@ const loginUser = async (req, res) => {
       loginDecision('login', 'password_reset_required', { kind, account_id: accountIdentity.slice(0, 12) });
       const token = crypto.randomBytes(32).toString('hex');
       await putState(stateKey('passwordReset', token), { id: user.id, kind }, 600000);
-      return res.json({ passwordExpired: true, resetToken: token });
+      setPasswordResetCookie(res, token);
+      return res.json({ passwordExpired: true });
     }
     if (kind === 'portal' && (user.mfa_enabled === true || user.mfa_enabled === 1)) {
       loginDecision('login', 'mfa_challenge', { kind, account_id: accountIdentity.slice(0, 12) });
@@ -764,7 +815,7 @@ const loginUser = async (req, res) => {
         return res.status(503).json({ error: 'We could not send the sign-in code. Please check the email service configuration and try again.' });
       }
     }
-    await setSessionCookie(res, makeToken(user, kind, remember), remember);
+    await setSessionCookie(res, makeToken(user, kind, remember), remember, true);
     loginDecision('login', 'success', { kind, account_id: accountIdentity.slice(0, 12) });
     res.json({ user: safeUser(user), admin: kind === 'cms' });
   } catch (error) {
@@ -880,7 +931,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
     if (cmsUser) {
       if (intent === 'signup') return res.redirect('/auth/login?google=existing');
       if (!['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(cmsUser.role)) return res.redirect('/auth/login?google=unavailable');
-      await setSessionCookie(res, makeToken(cmsUser, 'cms', true), true);
+      await setSessionCookie(res, makeToken(cmsUser, 'cms', true), true, true);
       return res.redirect('/admin');
     }
     let user = await getPortalUserByEmail(profile.email);
@@ -1002,7 +1053,7 @@ app.post('/api/account/avatar', admin, express.raw({ type: ['image/jpeg', 'image
     }
     if (previousPath && previousPath !== storagePath) await deletePrivateFile(previousPath).catch(error => console.warn('Previous admin avatar cleanup failed:', error.message));
     adminAvatarFailures.delete(account.id);
-    res.status(201).json({ ok: true, avatar_url: `/api/account/avatar?v=${encodeURIComponent(storagePath)}` });
+    res.status(201).json({ ok: true, avatar_url: `/api/account/avatar?v=${crypto.randomUUID()}` });
   } catch (error) {
     console.error('Admin avatar upload failed:', error?.message || error);
     res.status(503).json({ error: 'The profile image could not be uploaded right now.' });
@@ -1013,27 +1064,27 @@ app.get('/api/account/avatar', admin, async (req, res) => {
   try {
     const account = await getCmsUserById(req.admin.id);
     if (!account?.avatar_storage_path) {
-      res.set('Cache-Control', 'private, max-age=60');
+      res.set('Cache-Control', 'no-store, private');
       return res.sendStatus(404);
     }
     const blockedUntil = adminAvatarFailures.get(account.id) || 0;
     if (blockedUntil > Date.now()) {
       const retryAfter = Math.max(1, Math.ceil((blockedUntil - Date.now()) / 1000));
-      res.set({ 'Retry-After': String(retryAfter), 'Cache-Control': 'private, max-age=0, must-revalidate' });
+      res.set({ 'Retry-After': String(retryAfter), 'Cache-Control': 'no-store, private' });
       return res.status(503).json({ error: 'Profile image storage is temporarily unavailable.', retryAfter });
     }
     const bytes = await readPrivateFile(account.avatar_storage_path);
     const contentType = account.avatar_storage_path.endsWith('.png') ? 'image/png' : account.avatar_storage_path.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
     adminAvatarFailures.delete(account.id);
-    res.set({ 'Cache-Control': 'private, max-age=300', 'Content-Type': contentType }).send(bytes);
+    res.set({ 'Cache-Control': 'no-store, private', 'Content-Type': contentType }).send(bytes);
   } catch (error) {
     if (isStorageNotFoundError(error)) {
       await saveCmsAvatar(req.admin.id, null).catch(() => {});
-      res.set('Cache-Control', 'private, max-age=60');
+      res.set('Cache-Control', 'no-store, private');
       return res.sendStatus(404);
     }
     adminAvatarFailures.set(req.admin.id, Date.now() + 30_000);
-    res.set({ 'Retry-After': '30', 'Cache-Control': 'private, max-age=0, must-revalidate' });
+    res.set({ 'Retry-After': '30', 'Cache-Control': 'no-store, private' });
     console.error('Administrator avatar retrieval failed:', error?.name || 'StorageError');
     res.status(503).json({ error: 'Profile image storage is temporarily unavailable.', retryAfter: 30 });
   }
@@ -1075,7 +1126,7 @@ app.post('/api/auth/mfa/setup', resident, async (req, res) => {
     const issuer = config.get('general.name') || 'Municipality of Getafe';
     const uri = `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(req.resident.email)}?secret=${secretValue}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
     const qrCode = await QRCode.toDataURL(uri, { errorCorrectionLevel: 'M', margin: 1, width: 240 });
-    res.json({ enrollmentId, secret: secretValue, qrCode, expiresIn: 600 });
+    res.json({ enrollmentId, qrCode, expiresIn: 600 });
   } catch (error) { console.error('MFA setup failed:', error.message); res.status(503).json({ error: 'MFA setup is temporarily unavailable.' }); }
 });
 
@@ -1249,7 +1300,7 @@ app.post('/api/auth/verify-code', async (req, res) => {
     if (!user || !eligible || (payload.updatedAt && payload.updatedAt !== sessionUpdatedAt(user))) return res.status(401).json({ error: 'Invalid or expired verification code.' });
     await putState(stateKey('verified', user.id), true, 3153600000000);
     if (payload.kind === 'portal') await (await getPortalPool()).execute('UPDATE portal_users SET email_verified_at = COALESCE(email_verified_at, CURRENT_TIMESTAMP) WHERE id = ?', [user.id]);
-    await setSessionCookie(res, makeToken(user, payload.kind, payload.remember), payload.remember);
+    await setSessionCookie(res, makeToken(user, payload.kind, payload.remember), payload.remember, true);
     res.json({ user: safeUser(user), admin: payload.kind === 'cms' });
   } catch { res.status(503).json({ error: 'Verification is temporarily unavailable.' }); }
 });
@@ -1325,14 +1376,16 @@ app.post('/api/auth/forgot-password/verify', async (req, res) => {
     if (!payload) return res.status(401).json({ error: 'Invalid or expired verification code.' });
     const token = crypto.randomBytes(32).toString('hex');
     await putState(stateKey('passwordReset', token), payload, 600000);
-    res.json({ resetToken: token });
+    setPasswordResetCookie(res, token);
+    res.json({ verified: true });
   } catch { res.status(503).json({ error: 'Verification is temporarily unavailable.' }); }
 });
 app.post('/api/auth/renew-password', async (req, res) => {
   try {
     const password = String(req.body.password || '');
     if (!passwordIsStrong(password) || password.length < config.get('authentication.passwordMinLength')) return res.status(422).json({ error: 'Choose a stronger password with uppercase and lowercase letters, a number, and a special character.' });
-    const payload = await consumeState(stateKey('passwordReset', String(req.body.resetToken || '')));
+    const payload = await consumeState(stateKey('passwordReset', readCookies(req.headers.cookie).getafe_password_reset || ''));
+    setPasswordResetCookie(res, '', 0);
     if (!payload) return res.status(401).json({ error: 'Password renewal expired. Sign in again.' });
     await replacePassword(payload.id, payload.kind, password);
     await putState(stateKey('passwordAge', payload.id), Date.now(), 3153600000000);
@@ -1495,7 +1548,8 @@ app.get('/api/notifications', async (req, res) => {
 });
 
 // -- CMS News --
-app.get("/api/news", async (req, res) => {
+app.use('/api/admin/news', admin, permission('content.news.manage'));
+app.get(['/api/news', '/api/admin/news'], async (req, res) => {
   const debugPublicNews = String(process.env.PUBLIC_CONTENT_DEBUG || '').toLowerCase() === 'true';
   const logPublicNews = (event, details = {}) => {
     if (!debugPublicNews) return;
@@ -1581,7 +1635,7 @@ app.get("/api/news", async (req, res) => {
   }
 });
 
-app.get("/api/news/:slug", async (req, res) => {
+app.get(['/api/news/:slug', '/api/admin/news/:slug'], async (req, res) => {
   const identifier = queryValue(req.params.slug).trim();
   if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$/.test(identifier)) return res.status(404).json({ error: 'Article not found.' });
   try {
@@ -2246,37 +2300,7 @@ app.get("/api/admin/dashboard", admin, permission('admin.dashboard.view'), async
   });
 });
 
-// -- Health Endpoints --
-app.get("/health", (req, res) => {
-  const services = {
-    express: 'healthy',
-    postgresql: serviceStatus.cmsDatabase,
-    portalPostgresql: serviceStatus.portalDatabase,
-    redis: trafficProtector.health(),
-    storage: serviceStatus.storage,
-  };
-  const databaseReady = ['connected', 'local'].includes(serviceStatus.cmsDatabase)
-    && ['connected', 'local'].includes(serviceStatus.portalDatabase);
-  res.status(databaseReady ? 200 : 503).json({
-    status: databaseReady ? "ok" : "degraded",
-    service: "better-getafe",
-    services,
-  });
-});
-
-app.get("/healthz", (req, res) => {
-  res.status(200).json({ status: "ok" });
-});
-
-app.get('/health/live', (req, res) => res.status(200).json({ status: 'ok' }));
-app.get('/api/health/live', (_req, res) => res.status(200).json({ status: 'ok' }));
-const readiness = async (_req, res) => {
-  const databases = await Promise.all([databaseHealth('database'), databaseHealth('portalDatabase')]);
-  const ready = databases.every(item => item.status === 'healthy') && (process.env.NODE_ENV !== 'production' || isRedisReady());
-  res.status(ready ? 200 : 503).json({ status: ready ? 'ready' : 'not_ready' });
-};
-app.get('/health/ready', readiness);
-app.get('/api/ready', readiness);
+// -- Administrative Health Endpoints --
 
 app.get('/api/admin/infrastructure/redis', admin, permission('system.infrastructure.view'), async (req, res) => {
   let queues = { email: 0, notifications: 0 };
@@ -2313,9 +2337,7 @@ app.get('/api/health/database', admin, permission('system.infrastructure.view'),
   res.status(health.status === 'healthy' || health.status === 'local' ? 200 : 503).json({ status: health.status === 'healthy' ? 'healthy' : health.status });
 });
 
-app.get("/ready", readiness);
-
-app.put(/^\/uploads\/(.+)$/, admin, permission('content.media.manage'), express.raw({ type: '*/*', limit: '50mb' }), async (req, res) => {
+app.put(/^\/api\/storage\/local-upload\/(.+)$/, admin, permission('content.media.manage'), express.raw({ type: '*/*', limit: '50mb' }), async (req, res) => {
   const relative = req.params[0];
   if (!relative || relative.includes('..') || relative.includes('\\') || !/^[a-zA-Z0-9_\/-]+\.(jpg|png|webp)$/.test(relative)) return res.status(400).json({ error: 'Invalid upload path.' });
   const contentType = relative.endsWith('.jpg') ? 'image/jpeg' : relative.endsWith('.png') ? 'image/png' : 'image/webp';
@@ -2446,15 +2468,43 @@ async function startServer() {
 
     console.log('[STARTUP 3/8] Validating production configuration');
     if (isProd && (!secret || /^(change-this-|replace-with-|your-)/.test(secret))) throw new Error('A bootstrap session signing secret is required.');
+    const PORT = Number(process.env.BACKEND_PORT || process.env.PORT || 8080);
+    if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) throw new Error('Backend port must be an integer between 1 and 65535.');
+    const server = app.listen(PORT, '0.0.0.0');
+    await new Promise((resolve, reject) => { server.once('listening', resolve); server.once('error', reject); });
+    console.log(`[SERVER] Listening on 0.0.0.0:${PORT}`);
+    console.log('[STARTUP] Application initializing');
+    server.requestTimeout = 30_000;
+    server.headersTimeout = 15_000;
+    server.keepAliveTimeout = 5_000;
+    server.maxRequestsPerSocket = 100;
+    let stopping = false, orphanCleanupTimer;
+    const shutdown = () => {
+      if (stopping) return;
+      stopping = true; lifecycle = 'SHUTTING_DOWN'; coreReady = false;
+      clearInterval(lifecycleTimer); clearInterval(orphanCleanupTimer);
+      const deadline = setTimeout(() => process.exit(1), 25000);
+      server.close(async () => {
+        try { await initialization; await stopEmailWorker(); await trafficProtector.stop(); await closeCloudSql(); await closeConfigStore(); }
+        catch { process.exitCode = 1; }
+        finally { clearTimeout(deadline); }
+      });
+    };
+    process.once('SIGTERM', shutdown); process.once('SIGINT', shutdown);
 
     console.log('[STARTUP 4/8] Initializing CMS database (and User database)');
     console.log('[STARTUP 5/8] Initializing user database');
     console.log('[STARTUP 6/8] Initializing Backblaze B2 storage');
 
     // We already do timeouts internally in initializeServices
-    await initializeServices();
-    console.log('[STARTUP] Connecting to Redis');
-    await trafficProtector.start();
+    const initialization = Promise.all([initializeServices(), trafficProtector.start()]);
+    await initialization;
+    if (stopping) return;
+    initialized = true;
+    await checkLifecycle();
+    console.log(`[STARTUP] Application ${lifecycle.toLowerCase()}`);
+    lifecycleTimer = setInterval(() => { void checkLifecycle(); }, 5000);
+    lifecycleTimer.unref?.();
     if (isRedisReady()) await recoverEmailJobs().catch(error => console.error('[EMAIL] Queue recovery failed:', error.message));
     startEmailWorker(async ({ to, subject, text, html, attachments, deliveryId }) => {
       if (deliveryId && !await validateQueuedNotification(deliveryId)) return;
@@ -2464,41 +2514,10 @@ async function startServer() {
       await markNotificationDeliveryFailed(deliveryId, error).catch(() => {});
     });
 
-    console.log('[STARTUP 7/8] Starting HTTP server');
-    const PORT = Number(process.env.BACKEND_PORT || process.env.PORT) || 8080;
-    const server = app.listen(PORT, "0.0.0.0", () => {
-      console.log(`[STARTUP 8/8] Server listening on 0.0.0.0:${PORT}`);
-    });
-    const orphanCleanupTimer = setInterval(() => {
+    orphanCleanupTimer = setInterval(() => {
       cleanupExpiredPendingUploads({ limit: 100 }).catch(error => console.error(JSON.stringify({ event: 'storage_orphan_cleanup', result: 'failed', errorCode: error.name || error.code || 'UnknownError' })));
     }, 60 * 60 * 1000);
     orphanCleanupTimer.unref?.();
-    // Release slow or incomplete connections instead of allowing them to
-    // exhaust the Node worker during a slowloris-style flood.
-    server.requestTimeout = 30_000;
-    server.headersTimeout = 15_000;
-    server.keepAliveTimeout = 5_000;
-    server.maxRequestsPerSocket = 100;
-    let stopping = false;
-      const shutdown = () => {
-      if (stopping) return;
-      stopping = true;
-      const deadline = setTimeout(() => process.exit(1), 25000);
-      server.close(async (error) => {
-        try {
-          clearInterval(orphanCleanupTimer);
-          await stopEmailWorker(); await trafficProtector.stop(); await closeCloudSql(); await closeConfigStore();
-          process.exitCode = error ? 1 : 0;
-        } catch {
-          console.error('Database shutdown failed');
-          process.exitCode = 1;
-        } finally {
-          clearTimeout(deadline);
-        }
-      });
-    };
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
   } catch (error) {
     console.error('\n[STARTUP FAILED]');
     console.error('Stage: Service initialization');

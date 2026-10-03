@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 // Browser fixtures only. No applications, bills or balances enter the database.
-const output = path.resolve("artifacts/eservices");
+const output = path.resolve(process.env.ESERVICES_UI_OUTPUT || "artifacts/unified-eservices");
 await fs.mkdir(output, { recursive: true });
 const service = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -74,6 +74,7 @@ let record = {
   ],
   notes: [],
   orders: [],
+  applicant_snapshot: { user_id: 'test-user', full_name: 'Test Resident', email: 'resident@example.invalid', mobile: '09123456789' },
   steps: [{ status: "SUBMITTED", next_statuses: ["RECEIVED"] }],
   submitted_at: null,
 };
@@ -82,14 +83,17 @@ try {
   for (const viewport of [
     { width: 1440, height: 1050 },
     { width: 390, height: 844 },
+    { width: 768, height: 1024 },
   ]) {
-    record = { ...record, status: "DRAFT", version: 1, submitted_at: null };
+    record = { ...record, status: "DRAFT", version: 1, draft_step: 0, documents: [], submitted_at: null };
     const context = await browser.newContext({ viewport }),
       page = await context.newPage();
     let role = "resident";
     const errors = [];
     let memberships = [];
     let staffSearches = 0;
+    let profileBusinesses = [];
+    let selectedBusiness = null;
     page.on("pageerror", (e) => {
       errors.push(e.message);
       console.error(e.stack);
@@ -140,8 +144,17 @@ try {
       else if (p === "/api/users/me/preferences") body = { preferences: {} };
       else if (p === "/api/services/new-business-application") body = service;
       else if (p === "/api/services") body = { items: [service] };
-      else if (p === "/api/businesses") body = { items: [] };
-      else if (p === "/api/requests" && req.method() === "POST") body = record;
+      else if (p === '/api/services/profile-business') body = { ...service, kind: 'BUSINESS', slug: 'profile-business', settings: { workflow_type: 'ASSESSMENT_PAYMENT' } };
+      else if (p === '/api/businesses' && req.method() === 'POST') {
+        body = { ...req.postDataJSON(), id: '33333333-3333-4333-8333-333333333333', status: 'UNVERIFIED', business_reference: 'PROFILE-test' };
+        profileBusinesses.push(body);
+      }
+      else if (p.startsWith('/api/businesses/') && req.method() === 'PUT') {
+        body = { ...profileBusinesses[0], ...req.postDataJSON() }; profileBusinesses = [body];
+      }
+      else if (p === '/api/businesses') body = { items: profileBusinesses };
+      else if (p === "/api/requests" && req.method() === "POST") { selectedBusiness = req.postDataJSON().business_id; body = record; }
+      else if (p === "/api/requests" && url.searchParams.has("service_id")) body = { items: [] };
       else if (p === "/api/requests")
         body = {
           items: [
@@ -158,9 +171,13 @@ try {
         record = {
           ...record,
           values: data.values,
+          draft_step: data.draft_step,
           version: record.version + 1,
         };
         body = record;
+      } else if (p.endsWith('/documents') && req.method() === 'POST') {
+        record = { ...record, version: record.version + 1, documents: [{ id: 'document-1', requirement_id: 'doc', original_filename: 'support.pdf', status: 'PENDING' }] };
+        body = { id: 'document-1' };
       } else if (p.endsWith("/submit")) {
         record = {
           ...record,
@@ -227,7 +244,47 @@ try {
       });
     });
     const base = process.env.UI_TEST_URL || "http://127.0.0.1:5173";
-    await page.goto(base + "/services/e-services/new-business-application");
+    await page.goto(base + '/app/services/profile-business');
+    await page.getByRole('link', { name: 'Manage business information' }).click();
+    const profile = page.getByRole('dialog');
+    await profile.getByRole('heading', { name: 'Business information', exact: true }).waitFor();
+    await profile.getByRole('button', { name: 'Add business', exact: true }).click();
+    await profile.getByLabel('Business name', { exact: true }).fill('Resident enterprise');
+    await profile.getByLabel('Ownership type', { exact: true }).selectOption('Sole proprietorship');
+    await profile.getByLabel('Business barangay', { exact: true }).selectOption('Alumar');
+    await profile.getByLabel('Business street, building or purok').fill('Purok 2');
+    await profile.getByRole('button', { name: 'Save business', exact: true }).click();
+    await profile.getByText('Business information saved. You can now choose it in your application.', { exact: true }).waitFor();
+    await profile.locator('.profile-businesses').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.join(output, `profile-business-${viewport.width}.png`) });
+    await profile.getByRole('button', { name: 'Close profile editor', exact: true }).click();
+    assert.equal(await page.getByLabel('Registered business').inputValue(), '33333333-3333-4333-8333-333333333333');
+    await page.reload();
+    await page.getByRole('link', { name: 'Manage business information' }).click();
+    await profile.getByRole('heading', { name: 'Resident enterprise', exact: true }).waitFor();
+    await profile.getByRole('button', { name: 'Edit business', exact: true }).click();
+    await profile.getByLabel('Business name', { exact: true }).fill('Updated resident enterprise');
+    await profile.getByRole('button', { name: 'Close profile editor', exact: true }).click();
+    await profile.getByRole('alertdialog').waitFor();
+    await profile.getByRole('button', { name: 'Keep editing', exact: true }).click();
+    await profile.getByRole('button', { name: 'Save business', exact: true }).click();
+    await profile.getByText('Business information saved. You can now choose it in your application.', { exact: true }).waitFor();
+    await profile.getByRole('button', { name: 'Close profile editor', exact: true }).click();
+    await page.getByRole('button', { name: 'Start application', exact: true }).click();
+    await page.waitForURL('**/app/e-requests/' + record.id);
+    assert.equal(selectedBusiness, profileBusinesses[0].id);
+    await page.goto(base + '/app/services');
+    await page.getByRole('link', { name: 'Apply', exact: true }).waitFor();
+    assert.equal(await page.getByRole('link', { name: 'Apply', exact: true }).getAttribute('href'), '/app/services/new-business-application');
+    await page.getByText('Eligibility, requirements and fees', { exact: true }).click();
+    await page.getByText('Configured assessment fee: ₱30.30', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), false, `Catalog overflow at ${viewport.width}`);
+    await page.screenshot({ path: path.join(output, `catalog-${viewport.width}.png`), fullPage: true });
+    await page.getByRole('link', { name: 'Apply', exact: true }).click();
+    await page.waitForURL('**/app/services/new-business-application');
+    await page.getByRole('complementary', { name: 'Citizen navigation' }).waitFor({ state: 'attached' });
+    assert.equal(await page.locator('.topbar').count(), 0, 'Public website header must not appear in app service details');
+    await page.reload();
     await page
       .getByRole("button", { name: "Start application", exact: true })
       .waitFor();
@@ -238,17 +295,40 @@ try {
     await page
       .getByRole("button", { name: "Start application", exact: true })
       .click();
+    await page.getByRole('heading', { name: 'Applicant information', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.getByRole('heading', { name: 'Supporting document' }).waitFor();
+    await page.getByLabel('Upload document').setInputFiles({ name: 'support.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\nfixture') });
+    await page.getByText('Document uploaded.', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await page.getByLabel("Business name").waitFor();
     await page.getByLabel("Business name").fill("Updated Test Enterprise");
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
-    await page.getByText("Draft saved.", { exact: true }).waitFor();
+    await page.getByText("Progress saved.", { exact: true }).waitFor();
+    await page.getByLabel('Business name').fill('Saved before leaving');
+    await page.getByRole('link', { name: 'My requests', exact: true }).click();
+    await page.waitForURL('**/app/e-requests');
+    await page.getByRole('link', { name: record.request_number, exact: true }).click();
+    await page.getByLabel('Business name').waitFor();
+    assert.equal(await page.getByLabel('Business name').inputValue(), 'Saved before leaving');
+    await page.getByLabel('Business name').fill('Updated Test Enterprise');
+    await page.getByRole('button', { name: 'Save draft', exact: true }).click();
+    await page.getByText('Progress saved.', { exact: true }).waitFor();
     await page.screenshot({
       path: path.join(output, `resident-${viewport.width}.png`),
       fullPage: true,
     });
-    await page.getByRole("button", { name: "Documents", exact: true }).click();
-    await page.getByRole("heading", { name: "Supporting document" }).waitFor();
-    await page.getByRole("button", { name: "Activity", exact: true }).click();
+    await page.reload();
+    await page.getByLabel('Business name').waitFor();
+    assert.equal(await page.getByLabel('Business name').inputValue(), 'Updated Test Enterprise');
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.getByRole('heading', { name: 'Review', exact: true }).waitFor();
+    await page.screenshot({ path: path.join(output, `review-${viewport.width}.png`), fullPage: true });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), false, `Review overflow at ${viewport.width}`);
+    await page.getByLabel('I confirm the information is accurate.').check();
+    await page.getByRole('button', { name: 'Submit application', exact: true }).click();
+    await page.getByRole('heading', { name: 'Application submitted', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Track request', exact: true }).click();
     await page.locator(".es-timeline").waitFor();
     await page.goto(base + "/app/e-billing/real_property");
     await page

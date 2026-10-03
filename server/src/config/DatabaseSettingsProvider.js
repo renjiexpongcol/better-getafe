@@ -1,13 +1,16 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import pg from 'pg';
+import { installPoolErrorHandler } from '../services/dependencyFailures.js';
 let pool;
 function postgresPool() {
   const pool = new pg.Pool({
     ...(process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL } : { host: process.env.DB_HOST || '127.0.0.1', port: Number(process.env.DB_PORT || 5432), database: process.env.DB_NAME || 'getafe_portal', user: process.env.DB_USER || 'getafe_app', password: process.env.DB_PASSWORD }),
     ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
     max: Number(process.env.DB_CONNECTION_LIMIT || 5), connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS || 10000), idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS || 60000),
+    query_timeout: Number(process.env.DB_QUERY_TIMEOUT_MS || 10000),
   });
+  installPoolErrorHandler(pool, 'settings');
   const adapt = sql => { let i = 0; return String(sql).replace(/\?/g, () => `$${++i}`); };
   pool.driver = 'postgresql';
   pool.execute = async (sql, params = []) => { const result = await pool.query(adapt(sql), params); return [result.rows, result]; };
@@ -91,7 +94,7 @@ export class DatabaseSettingsProvider {
         }
         await connection.commit();
         result.activate?.();
-      } catch (error) { await connection.rollback(); await result?.discard?.(); throw error; }
+      } catch (error) { await connection.rollback().catch(() => {}); await result?.discard?.(); throw error; }
       finally { connection.release(); }
     });
     this.pending = run.catch(() => {});

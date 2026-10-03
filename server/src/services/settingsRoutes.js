@@ -24,7 +24,7 @@ export function installSettingsRoutes(app, admin) {
     catch { res.status(503).json({ error: 'Administrator list unavailable.' }); }
   });
   app.get('/api/admin/settings/history', permission('settings.audit.view'), async (req, res) => {
-    try { res.json(await config.provider.history()); } catch { res.status(503).json({ error: 'Settings history is unavailable.' }); }
+    try { const history = await config.provider.history(); const users = await getCmsUsers(); res.json(history.map(entry => { const user = users.find(user => user.id === entry.user_id); return { ...entry, employee_label:user ? `${user.name} · EID ${user.eid}` : 'System' }; })); } catch { res.status(503).json({ error: 'Settings history is unavailable.' }); }
   });
   app.get('/api/admin/settings/status', permission('settings.view'), async (req, res) => {
     const status = Object.fromEntries(Object.entries(systemStatus).map(([key, value]) => [key, { ...value, source: config.sources[`${key}.provider`] || config.sources['email.enabled'] }]));

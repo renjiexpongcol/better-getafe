@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { installPoolErrorHandler } from './dependencyFailures.js';
 
 const { Pool } = pg;
 
@@ -41,7 +42,9 @@ export function createPostgresResource(values, category, actor) {
     idleTimeoutMillis: get('idleTimeout'),
     allowExitOnIdle: false,
     application_name: 'getafe-portal',
+    query_timeout: Math.max(1000, Number(get('connectTimeout')) || 10000),
   });
+  installPoolErrorHandler(pool, category);
   const execute = async (sql, params = []) => {
     try {
       const result = await pool.query(toPostgresQuery(sql, params));
@@ -80,7 +83,6 @@ export function createPostgresResource(values, category, actor) {
       } else await pool.query('SELECT 1 FROM portal_users LIMIT 0');
       return { database: result.rows[0].database, version: result.rows[0].version };
     } catch (error) {
-      await pool.end().catch(() => {});
       throw error;
     }
   };

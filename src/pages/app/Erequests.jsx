@@ -7,7 +7,7 @@ import {
   RequestTable,
 } from "../../components/EserviceUI";
 import { useState } from "react";
-import { REQUEST_STATUSES } from "../../data/eserviceWorkflow";
+import { PUBLIC_STATUS } from "../../data/serviceApplication";
 export default function Erequests() {
   const [page, setPage] = useState(1),
     [status, setStatus] = useState("");
@@ -30,7 +30,7 @@ export default function Erequests() {
               }}
             >
               <option value="">All requests</option>
-              {REQUEST_STATUSES.map((s) => (
+              {[...new Set(Object.values(PUBLIC_STATUS))].map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>

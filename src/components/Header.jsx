@@ -1,10 +1,8 @@
 import { usePublicConfig } from '../context/PublicConfig'
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
-import { Accessibility, ArrowRight, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, LogOut, Mail, Map, Menu, Newspaper, PhoneCall, Rocket, Siren, Users, WalletCards, ChartNoAxesCombined, X } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { NavLink, Link, useLocation } from 'react-router-dom'
+import { Accessibility, ArrowRight, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, Mail, Map, Menu, Newspaper, PhoneCall, Rocket, Siren, Users, WalletCards, ChartNoAxesCombined, X } from 'lucide-react'
 import HeaderWeather from './HeaderWeather'
-import { ROUTES } from '../routeRegistry'
 
 const DEFAULT_HEADER_HIDE_THRESHOLD = 90
 const LANDING_HEADER_HIDE_THRESHOLD = 220
@@ -16,13 +14,9 @@ export default function Header() {
   const [time, setTime] = useState('')
   const [isHidden, setIsHidden] = useState(false)
   const menuInteractionRef = useRef(null)
-  const { user, logout } = useAuth()
   const location = useLocation()
-  const navigate = useNavigate()
   const isLandingPage = location.pathname === '/'
   const hideThreshold = isLandingPage ? LANDING_HEADER_HIDE_THRESHOLD : DEFAULT_HEADER_HIDE_THRESHOLD
-  const cmsRoles = ['admin', 'super_admin', 'staff', 'it_support', 'content_manager']
-  const homePath = user ? (['admin', 'super_admin'].includes(user.role) ? ROUTES.admin.root : ['staff', 'it_support', 'content_manager'].includes(user.role) ? ROUTES.staff.root : ROUTES.app.root) : '/'
 
   useEffect(() => {
     setMobileNavOpen(false)
@@ -50,9 +44,6 @@ export default function Header() {
     return () => window.removeEventListener('resize', closeOnResize)
   }, [])
 
-  const initials = user
-    ? user.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()
-    : ''
 
 
   useEffect(() => {
@@ -119,6 +110,7 @@ export default function Header() {
       key: 'residents',
       items: [
         ['Citizen Services', '/services', 'Common requests for Getafe residents.', Users],
+        ['Other Services', '/services/e-services/other-services', 'Requirements and applications for other municipal services.', ClipboardCheck],
         ['Emergency Hotlines', '/services/hotlines', 'Fast access to urgent public numbers.', Siren],
         ['Accessibility', '/accessibility', 'Inclusive access information.', Accessibility],
       ],
@@ -146,7 +138,7 @@ export default function Header() {
       <header className={isHidden ? 'topbar topbar-hidden' : 'topbar'}>
       <div className="container topbar-inner">
         <Link
-          to={homePath}
+          to="/"
           className="brand-wrap"
           aria-label="Municipality of Getafe — go to homepage"
           onClick={() => setOpenMenu(null)}
@@ -165,12 +157,12 @@ export default function Header() {
           aria-expanded={mobileNavOpen}
           aria-controls="site-navigation"
           onClick={() => { setMobileNavOpen(value => !value); setOpenMenu(null) }}
-        >
+         data-icon-button="ghost">
           {mobileNavOpen ? <X size={21} aria-hidden="true" /> : <Menu size={21} aria-hidden="true" />}
         </button>
 
         <nav id="site-navigation" className={`main-nav${mobileNavOpen ? ' is-open' : ''}`} aria-label="Main navigation">
-          <NavLink to={homePath} className={({isActive}) => isActive ? "active" : ""}>Home</NavLink>
+          <NavLink to="/" className={({isActive}) => isActive ? "active" : ""}>Home</NavLink>
           {menuItems.map((menu) => (
             <div
               className="nav-dropdown"
@@ -217,10 +209,10 @@ export default function Header() {
           ))}
           <NavLink to="/news" className={({isActive}) => isActive ? "active" : ""}>News</NavLink>
           <NavLink
-            to={user ? homePath : '/auth/login'}
+            to="/app"
             className={({isActive}) => isActive ? 'mobile-nav-eservices active' : 'mobile-nav-eservices'}
           >
-            <span>E-Services</span>
+            <span>E-Getafe</span>
             <ArrowRight size={16} aria-hidden="true" />
           </NavLink>
         </nav>
@@ -233,27 +225,7 @@ export default function Header() {
               <span className="philippine-time">{time}</span>
             </div>
           </div>
-          {user ? (
-            <div className="user-chip">
-              <span className="user-avatar" aria-hidden="true">{initials}</span>
-              <span className="user-meta">
-                <span className="user-name">{user.name}</span>
-                <span className="user-role">{user.role}</span>
-              </span>
-              {cmsRoles.includes(user.role) && <Link to={homePath} className="login-button">{['staff', 'it_support', 'content_manager'].includes(user.role) ? 'Staff workspace' : 'CMS'}</Link>}
-              <button
-                type="button"
-                className="logout-button"
-                onClick={async () => { const result = await logout(); if (result.ok) navigate('/auth/login', { replace: true }); else window.alert(result.error) }}
-                aria-label="Sign out of your account"
-                title="Sign out"
-              >
-                <LogOut size={15} />
-              </button>
-            </div>
-          ) : (
-            <Link to="/auth/login" className="login-button">E-Services</Link>
-          )}
+          <Link to="/app" className="login-button">E-Getafe</Link>
         </div>
       </div>
       </header>

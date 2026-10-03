@@ -93,7 +93,7 @@ export default function EmergencyHotlines() {
       <section id="directory" className="directory-section">
         <div className="hotline-container">
           <div className="directory-head"><div><p className="section-label">Find the right service</p><h2>Hotline directory</h2></div><p>{filtered.length} service{filtered.length !== 1 ? 's' : ''} shown</p></div>
-          <div className="search-wrap"><Search size={20}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search a hotline, agency, or service..." aria-label="Search hotlines"/>{query && <button onClick={() => setQuery('')} aria-label="Clear search"><X size={18}/></button>}</div>
+          <div className="search-wrap"><Search size={20}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search a hotline, agency, or service..." aria-label="Search hotlines"/>{query && <button onClick={() => setQuery('')} aria-label="Clear search" data-icon-button="ghost"><X size={18}/></button>}</div>
           <div className="filter-row" role="tablist">{categories.map(({id, icon: Icon}) => <button key={id} onClick={() => setActive(id)} className={active === id ? 'filter active' : 'filter'}><Icon size={16}/>{id}</button>)}</div>
           <div className="hotline-grid">{filtered.map((item) => { const Icon = item.icon; return <article className={`hotline-card ${item.urgent ? 'urgent' : ''}`} key={item.name}>
             <div className="card-top"><span className="category-icon"><Icon size={21}/></span><span className="category-tag">{item.category}</span></div>

@@ -41,25 +41,29 @@ try {
   if (!await reachable()) {
     if (!frontendOnly) {
       if (new URL(target).hostname !== '127.0.0.1' || Number(new URL(target).port || 80) !== port) throw new Error('Start the configured remote API before launching the frontend.')
-      start(['--watch', 'server.js'])
+      start(['scripts/backend-watch.mjs'])
     }
-    const deadline = Date.now() + 90000
-    while (!stopping && !await reachable()) {
-      if (Date.now() > deadline) throw new Error('API startup failed. Review backend startup messages; the frontend was not started.')
-      await new Promise(resolve => setTimeout(resolve, 400))
+    if (!frontendOnly) {
+      const deadline = Date.now() + 90000
+      while (!stopping && !await reachable()) {
+        if (Date.now() > deadline) throw new Error('API startup failed. Review backend startup messages; the frontend was not started.')
+        await new Promise(resolve => setTimeout(resolve, 400))
+      }
     }
   } else console.info('[Portal] Using the already running, healthy API.')
   if (!stopping) {
-    console.info('[Portal] API ready at ' + target + '; starting ' + (preview ? 'built preview' : 'frontend') + '.')
+    console.info('[Portal] Starting ' + (preview ? 'built preview' : 'frontend') + '; API target ' + target + '.')
     start(['node_modules/vite/bin/vite.js', ...(preview ? ['preview'] : []), '--strictPort', ...forwarded])
-    // The watcher survives a failed API worker; monitor actual health instead.
-    let failures = 0, checking = false
+    // A temporary health-check failure must never kill the frontend/backend.
+    let unavailable = false, checking = false
     monitor = setInterval(async () => {
       if (checking || stopping) return
       checking = true
       try {
-        failures = await reachable() ? 0 : failures + 1
-        if (failures >= 6) { console.error('[Portal] API unavailable for 30 seconds. Review backend diagnostics and restart the portal.'); stop(1) }
+        const healthy = await reachable()
+        if (!healthy && !unavailable) console.error('[Portal] API temporarily unavailable; keeping development processes running.')
+        if (healthy && unavailable) console.info('[Portal] API recovered.')
+        unavailable = !healthy
       } finally { checking = false }
     }, 5000)
   }

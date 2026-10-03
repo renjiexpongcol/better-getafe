@@ -240,7 +240,7 @@ function HourlyForecast({ hours = [], timezone, panelRef, requestedChart, onChar
           {hasValue(point.temperature) && <strong>{compactNumber(point.temperature, 0)}°</strong>}
         </button>)}
       </div>
-      {selectedHour && <div className="weather-hour-details"><div><strong>{localDateTime(selectedHour.time, timezone, { weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</strong><button type="button" onClick={() => setSelectedHour(null)} aria-label="Close hourly details"><X size={15} /></button></div><MetricList rows={selectedRows} className="weather-hour-detail-grid" /></div>}
+      {selectedHour && <div className="weather-hour-details"><div><strong>{localDateTime(selectedHour.time, timezone, { weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</strong><button type="button" onClick={() => setSelectedHour(null)} aria-label="Close hourly details" data-icon-button="ghost"><X size={15} /></button></div><MetricList rows={selectedRows} className="weather-hour-detail-grid" /></div>}
     </> : <p className="weather-hourly-empty">Hourly forecast is not available in the cached weather response.</p>}
   </section>
 }
@@ -374,7 +374,7 @@ function FiveDayOutlook({ days = [], location }) {
 }
 
 function AlertDetails({ alerts, onClose, timezone }) {
-  return <div className="weather-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}><section className="weather-modal weather-alert-modal" role="dialog" aria-modal="true" aria-labelledby="weather-alert-modal-title"><button type="button" className="weather-modal-close" onClick={onClose} aria-label="Close weather alerts"><X size={19} /></button><p className="eyebrow">Official weather advisories</p><h2 id="weather-alert-modal-title">Weather alerts ({alerts.length})</h2><div className="weather-alert-list">{alerts.map((alert, index) => <article className={`weather-alert-detail ${alert.severity ? `severity-${String(alert.severity).toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : ''}`} key={`${alert.type || alert.headline || 'alert'}-${alert.effective || index}`}>
+  return <div className="weather-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}><section className="weather-modal weather-alert-modal" role="dialog" aria-modal="true" aria-labelledby="weather-alert-modal-title"><button type="button" className="weather-modal-close" onClick={onClose} aria-label="Close weather alerts" data-icon-button="ghost"><X size={19} /></button><p className="eyebrow">Official weather advisories</p><h2 id="weather-alert-modal-title">Weather alerts ({alerts.length})</h2><div className="weather-alert-list">{alerts.map((alert, index) => <article className={`weather-alert-detail ${alert.severity ? `severity-${String(alert.severity).toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : ''}`} key={`${alert.type || alert.headline || 'alert'}-${alert.effective || index}`}>
     <div className="weather-alert-detail-heading"><div>{alert.type && <span className="weather-alert-type">{alert.type}</span>}<h3>{alert.headline || alert.type || 'Weather alert'}</h3></div>{alert.severity && <b>{alert.severity}</b>}</div>
     <MetricList rows={[
       ['Urgency', alert.urgency], ['Certainty', alert.certainty], ['Effective', localDateTime(alert.effective, timezone, { dateStyle: 'medium', timeStyle: 'short' })],
@@ -386,7 +386,7 @@ function AlertDetails({ alerts, onClose, timezone }) {
 
 function WeatherDetailsModal({ weather, onClose }) {
   const { location, current } = weather
-  return <div className="weather-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}><section className="weather-modal weather-details-modal" role="dialog" aria-modal="true" aria-labelledby="weather-details-title"><button type="button" className="weather-modal-close" onClick={onClose} aria-label="Close weather details"><X size={19} /></button><div className="weather-modal-heading"><div><p className="eyebrow">Current conditions</p><h2 id="weather-details-title">{location.name}</h2>{current.description && <p>{current.description}</p>}</div><WeatherIcon weather={current} /></div><div className="weather-modal-temp">{hasValue(current.temperature) && <strong>{compactNumber(current.temperature, 0)}°</strong>}{hasValue(current.feelsLike) && <span>Feels like {compactNumber(current.feelsLike, 0)}°C</span>}</div><MetricList rows={currentDetailRows(weather)} className="weather-modal-weather-list" /></section></div>
+  return <div className="weather-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}><section className="weather-modal weather-details-modal" role="dialog" aria-modal="true" aria-labelledby="weather-details-title"><button type="button" className="weather-modal-close" onClick={onClose} aria-label="Close weather details" data-icon-button="ghost"><X size={19} /></button><div className="weather-modal-heading"><div><p className="eyebrow">Current conditions</p><h2 id="weather-details-title">{location.name}</h2>{current.description && <p>{current.description}</p>}</div><WeatherIcon weather={current} /></div><div className="weather-modal-temp">{hasValue(current.temperature) && <strong>{compactNumber(current.temperature, 0)}°</strong>}{hasValue(current.feelsLike) && <span>Feels like {compactNumber(current.feelsLike, 0)}°C</span>}</div><MetricList rows={currentDetailRows(weather)} className="weather-modal-weather-list" /></section></div>
 }
 
 function CurrentWeatherCard({ weather, now, onOpenAlerts }) {
@@ -461,7 +461,7 @@ export default function Weather() {
   }
 
   return <main className="weather-page"><section className="section"><div className="container">
-    <div className="weather-heading"><div><h2>Weather updates</h2></div><a className="weather-heading-help" href="#weather-about-title" aria-label="Learn about weather data"><CircleHelp size={16} aria-hidden="true" /></a></div>
+    <div className="weather-heading"><div><h2>Weather updates</h2></div><a className="weather-heading-help" href="#weather-about-title" aria-label="Learn about weather data" data-icon-button="ghost"><CircleHelp size={16} aria-hidden="true" /></a></div>
     {error ? <div className="weather-error"><strong>Weather unavailable</strong><p>{error}</p><button onClick={load}>Try again</button></div> : currentWeather ? <>
       <div className={`weather-dashboard ${hasHourlyForecast(currentWeather) ? '' : 'solo'}`}><CurrentWeatherCard weather={currentWeather} now={now} onOpenAlerts={() => setAlertsOpen(true)} />{hasHourlyForecast(currentWeather) && <HourlyForecast hours={hourly} timezone={currentWeather.location.timezone} panelRef={hourlyPanelRef} requestedChart={requestedChart} onChartChange={setRequestedChart} />}</div>
       <div className="weather-insights-grid">

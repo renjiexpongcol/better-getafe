@@ -1,5 +1,82 @@
 # Getafe municipal e-services
 
+## Unified application experience (migration 024)
+
+Business Services, Other Services, the public municipal catalog and the resident
+catalog share `ServiceCatalog`. Catalog entries link to service details;
+they do not display processing controls or workflow diagrams. The former generic
+resident request modal has been replaced by CMS applications. Existing legacy
+application endpoints and records remain available for older requests. The
+`/services/business-trade` bookmark redirects to the Business Services catalog.
+Resident catalog, dashboard search, billing and new-request links use the protected
+`/app/services/:slug` details route within the citizen layout. Public visitors use
+`/services/e-services/:slug`. Both render the same `ServiceDetails` component;
+sign-in from public service details returns to the in-app details route.
+Dashboard service search and category links also read the CMS catalog. Old
+new-request bookmarks resolve to a published service's details or the catalog;
+they no longer open the generic request form. Existing application records and
+tracking APIs remain intact.
+
+`DynamicApplication` uses the existing requests API, revisioned form definitions,
+private attachments and staff engine. The order is applicant information,
+documents, service-specific sections, optional appointment, review, submission,
+confirmation and tracking. Empty document steps clearly say none are required.
+Required documents and visible required fields block progression; final validation
+remains authoritative on the server. Draft edits autosave after a short pause,
+and Back, Continue and Save draft persist values and the current step. Failed saves
+leave the form available with an error; leaving the browser with unsaved changes
+prompts the user. Appointment choices are saved but slots are reserved only during
+submission and are revalidated then.
+In-app link navigation also saves pending edits before leaving and keeps the user
+on the form if that save fails.
+
+Migration `024_service_application_experience.sql` adds `section`, `profile_source`
+and `profile_readonly` to revisioned fields, plus `applicant_snapshot`, `draft_step`
+and `draft_context` to requests. Existing definitions and transactions retain their
+workflow and financial snapshots. Profile data comes from `portal_users` and
+`resident_profiles`, never from submitted applicant IDs. Account identity and
+configured read-only profile bindings are enforced when saving drafts. Name,
+email, mobile, resident ID, address, barangay and selected profile attributes can
+be reused. Business details still come only from owned business records.
+
+In the CMS Application form tab, set each field's application section, account
+information source and read-only option. Existing standard field names retain
+automatic profile bindings. Other services use their own configured definitions;
+they do not share a generic purpose-only form. New application services receive
+the shared municipal workflow when no custom steps are supplied. The Workflow tab
+also has a button to load it for editing. Select Application for business
+certifications/clearances/closure; Assessment + Payment remains available for
+existing business billing. New CMS services default to Application. Catalog
+directories can be scoped to a CMS category in General.
+
+Resident status labels are centralized in `serviceApplication.js`. Received and
+validation map to Under Review; assessment, paid, approval and preparation map to
+Processing. Public history collapses consecutive events with the same public
+status and excludes staff identities/reasons. Staff still receive full internal
+history, workflow, assignments and processing controls. Request APIs retain the
+legacy `status` property for existing clients and add `public_status`; public
+service APIs explicitly exclude routing rules, permissions and notification
+configuration. Notifications also use public labels. Status filtering accepts
+public labels and legacy codes for compatibility.
+
+Additional registration, clearance, certification, closure and Other Services
+entries are structural and unpublished. Municipal staff must supply and approve
+actual eligibility, requirements, fees, declarations and offices before publishing.
+No legal requirements, fee rates or official processing times are invented.
+
+Apply the migration using the standard PostgreSQL migration runner before
+restarting the API. Apply it to both databases when CMS and portal are separate.
+Verification covers profile prefill, immutable identity, draft recovery, catalog
+privacy, public status filtering and staff history in a disposable PostgreSQL
+schema. Browser checks exercise the full application at 1440, 768 and 390 pixels;
+the business billing browser checks use actual domain APIs through completion.
+Current application screenshots are saved under `artifacts/unified-eservices`.
+
+Business billing now uses the resident → staff assessment → Treasury verification
+→ receipt → completion workflow. See [Business billing](BUSINESS_BILLING.md) for
+migration 023, configuration, provider contracts and database-backed browser tests.
+That document supersedes the foundation-only billing/receipt limitations below.
+
 ## Implemented foundation
 
 The existing public menu now routes into a shared, CMS-configurable municipal
@@ -83,6 +160,33 @@ groups are not silently granted the new financial permissions. The protected
 System Administrator group receives new catalog permissions through the existing
 authorization seeding mechanism. Administrators can use the CMS; processing staff
 use the staff shell with their configured groups and department membership.
+
+Department access uses a keyboard-accessible staff lookup (name, email/login or
+immutable ID) and searchable CMS office options. Disabled accounts and unpublished
+offices cannot receive new access. Existing assignments are shown by office name;
+grant and removal require confirmation and update the selected staff member's
+list immediately. The existing composite primary key rejects concurrent duplicate
+grants; only successful mutations produce transactional audit events. Processing
+checks membership from PostgreSQL on each request, including after revocation.
+
+Protected endpoints reuse the existing e-services namespace:
+
+- `GET /api/admin/eservices/staff-search?q=...&limit=10&page=1` requires
+  `eservices.admin`; returns only ID, name and email, with `has_more`. Query length
+  is capped at 100 characters; result limits are 1–20 and pages 1–100. Email is
+  the existing login identifier; the schema has no separate username field.
+- `GET /api/admin/eservices/department-members?user_id=...` lists only that user's
+  office assignments. Existing POST grant and `/revoke` routes remain in use.
+- `GET /api/admin/services?q=...&department=...&published=true&page=1&limit=20`
+  returns a bounded catalog page and `total`. Sorting follows existing display
+  order, name and ID. The editor retrieves full configuration separately.
+- `GET /api/admin/services/options` includes CMS office publishing state and
+  categories. The UI deduplicates this request and caches options in private
+  memory for one minute; category creation invalidates those options.
+
+Autocomplete waits 300 ms and cancels obsolete requests. Catalog filters also
+debounce search and cancel obsolete reads. Access mutations refresh only the
+selected user's local assignments; saving a service refreshes its catalog page.
 
 New permissions:
 
@@ -298,3 +402,7 @@ External/operational work that remains before a public rollout:
 
 This is an implemented and tested transactional foundation, not a claim that those
 external integrations or municipal authorization decisions have been completed.
+
+Resident profiles include Business information. Residents can add businesses and edit their own unverified details through `/api/businesses`; ownership comes from the authenticated resident, never from form data. Self-entered records remain UNVERIFIED and do not create municipal permits, billing accounts, or assessments. Verified records and information used in submitted applications require office updates. Service details can open the profile on the current app page, then refresh and select the saved business.
+
+Service details start directly with the catalog service name, followed by its description. They use an aligned information/request layout on desktop and put the request panel first on mobile. The business selector hides internal references, reports loading/empty/error states, and continues the existing profile workflow. Owned requests can be filtered by `business_id` to show saved applications, pending payments, and assessment review without mixing businesses. Public content may include `processing_information`, `service_steps`, and `important_reminders`; internal workflow steps are never presented as service instructions. Run `npm run test:service-details-ui` for the responsive content, error recovery, keyboard, and request-state checks.

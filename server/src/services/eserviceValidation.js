@@ -29,6 +29,11 @@ export function cents(value) {
 }
 export const decimal = (value) =>
   `${value / 100n}.${String(value % 100n).padStart(2, "0")}`;
+export const totalFees = fees => {
+  const total=fees.reduce((sum,fee)=>sum+(fee.fee_type==='CREDIT'?-1n:1n)*cents(fee.amount),0n);
+  if(total<=0n) fail('The assessment total after credits must be positive.');
+  return decimal(total);
+};
 export function visible(field, values) {
   return (
     !field.visibility ||
@@ -64,7 +69,9 @@ export function validateValues(fields, values, final = false) {
       if (
         typeof value !== "object" ||
         Array.isArray(value) ||
-        JSON.stringify(value).length > 2000
+        JSON.stringify(value).length > 2000 ||
+        Object.values(value).some(part => typeof part !== 'string') ||
+        (final && field.required && !Object.values(value).some(part => part.trim()))
       )
         fail(`Enter a valid ${field.label}.`);
     } else {
@@ -152,6 +159,8 @@ export function validateWorkflow(steps, paymentRequired) {
       fail("Submitted requests cannot become drafts.");
   }
   const reached = new Set(["DRAFT"]);
+  const corrections = steps.find(step => step.status === 'NEEDS_INFORMATION');
+  if (steps.some(step => step.next_statuses.includes('NEEDS_INFORMATION') && !corrections?.next_statuses.includes(step.status))) fail('Allow corrections to return to every step that may request information.');
   for (let i = 0; i < steps.length; i++)
     for (const step of steps)
       if (reached.has(step.status))

@@ -1,4 +1,5 @@
 import { createPostgresResource, safeConnectionError } from './postgres.js';
+import { isDependencyFailure } from './dependencyFailures.js';
 
 const active = new Map();
 const retired = new Set();
@@ -8,13 +9,21 @@ function categoryValues(values, category) {
   return { host: get('host'), port: get('port'), name: get('name'), username: get('username'), password: get('password'), sslMode: get('sslMode'), connectionLimit: get('connectionLimit'), connectTimeout: get('connectTimeout'), idleTimeout: get('idleTimeout') };
 }
 
-export async function buildDatabase(values, category, actor) {
+export async function buildDatabase(values, category, actor, { allowUnavailable = false } = {}) {
   const settings = categoryValues(values, category);
   const url = category === 'database' ? process.env.DATABASE_URL : process.env.PORTAL_DATABASE_URL;
   if ((!settings.host || !settings.name || !settings.username || !settings.password) && !url) throw new Error('PostgreSQL host, database, username and password are required.');
   const resource = createPostgresResource(Object.fromEntries(Object.entries(settings).map(([key, value]) => [`${category}.${key}`, value])), category, actor);
   try { const result = await resource.verify(); resource.serverVersion = result.version; resource.databaseName = result.database; return resource; }
-  catch (error) { throw new Error(error.safeMessage || safeConnectionError(error).message); }
+  catch (error) {
+    if (allowUnavailable && isDependencyFailure(error)) {
+      resource.degraded = true;
+      console.error(JSON.stringify({ event: 'database_startup_degraded', category, code: error.code || error.name }));
+      return resource;
+    }
+    await resource.pool.end().catch(() => {});
+    throw new Error(error.safeMessage || safeConnectionError(error).message, { cause: error });
+  }
 }
 
 async function dispose(resource) {
@@ -38,5 +47,16 @@ const cms = facade('database');
 const portal = facade('portalDatabase');
 export async function getCmsPool() { return cms; }
 export async function getPortalPool() { return portal; }
-export async function databaseHealth(category = 'database') { try { const [rows] = await (category === 'database' ? cms : portal).execute('SELECT 1 AS ok'); return { status: rows[0]?.ok === 1 ? 'healthy' : 'degraded' }; } catch { return { status: 'degraded' }; } }
+export async function databaseHealth(category = 'database') {
+  try {
+    const database = category === 'database' ? cms : portal;
+    const [rows] = await database.execute('SELECT 1 AS ok');
+    // A successful TCP connection alone does not make an incompatible schema
+    // ready, including when the database was unreachable during cold startup.
+    for (const table of category === 'database' ? ['users', 'categories', 'news', 'media', 'media_uploads'] : ['portal_users']) {
+      await database.execute(`SELECT 1 FROM ${table} LIMIT 0`);
+    }
+    return { status: rows[0]?.ok === 1 ? 'healthy' : 'degraded' };
+  } catch { return { status: 'degraded' }; }
+}
 export async function closeCloudSql() { for (const resource of active.values()) retire(resource); active.clear(); await Promise.all([...retired].map(dispose)); }

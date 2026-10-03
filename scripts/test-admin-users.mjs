@@ -8,6 +8,11 @@ import { authorizeChanges } from '../server/src/config/permissions.js';
 const actor = { id: 'operator', role: 'admin' };
 const target = { id: 'other', role: 'admin' };
 const values = { name: 'Test account', role: 'admin', email: 'test@example.com', password: 'Test-password9-long' };
+test('backend generated credentials allow essential-information-only creation', () => {
+  const { password, ...essential } = values;
+  assert.doesNotThrow(() => validateAccountChange(actor,null,essential));
+  assert.throws(() => validateAccountChange(actor,target,{ ...values,email:'invalid' }),/email/);
+});
 test('staff welcome email provides password reset without disclosing the initial password', () => {
   const email = buildStaffWelcomeEmail({ name: 'Test account', email: values.email, portalName: 'Getafe', signInUrl: 'https://portal.example', roleLabel: 'Administrator', password: values.password });
   assert.match(email.text, /Forgot password/);

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { cachedJson, cachedRequest, readCached, clearPrivateCache, invalidateCached, invalidateCachedPrefix } from '../src/services/requestCache.js'
 import { publicApi } from '../src/services/apiClient.js'
+import { apiFetch } from '../src/services/apiTransport.js'
 
 test('concurrent requests and repeat navigation share a single fetch', async () => {
   let calls = 0
@@ -83,8 +84,8 @@ test('read-only 429 responses are not replayed by the cache layer', async () => 
   }
   try {
     const results = await Promise.allSettled([
-      cachedJson('/api/test-rate-retry', { cacheTtl: 1000, persist: false }),
-      cachedJson('/api/test-rate-retry', { cacheTtl: 1000, persist: false }),
+      cachedJson('/api/news?test=rate-retry', { cacheTtl: 1000, persist: false }),
+      cachedJson('/api/news?test=rate-retry', { cacheTtl: 1000, persist: false }),
     ])
     assert.equal(results[0].status, 'rejected')
     assert.equal(results[1].status, 'rejected')
@@ -130,4 +131,41 @@ test('logout invalidates private CMS data', async () => {
   await cachedRequest('cms:media:logout-check', async () => ({ private: true }))
   clearPrivateCache()
   assert.equal(readCached('cms:media:logout-check'), undefined)
+})
+
+test('private JSON is fetched again across accounts while public reads discard credentials', async () => {
+  const original = globalThis.fetch
+  let calls = 0
+  try {
+    globalThis.fetch = async (url, options) => {
+      calls++
+      if (url.startsWith('/api/news')) {
+        assert.equal(options.credentials, 'omit')
+        assert.equal(options.headers.has('Authorization'), false)
+      } else assert.equal(options.credentials, 'include')
+      return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ account: calls }) }
+    }
+    assert.deepEqual(await cachedJson('/api/auth/me'), { account: 1 })
+    assert.deepEqual(await cachedJson('/api/auth/me'), { account: 2 })
+    assert.equal(readCached('http:GET:/api/auth/me'), undefined)
+    await cachedJson('/api/news?test=credential-isolation', { credentials: 'include', headers: { Authorization: 'Bearer private' }, persist: false })
+    await cachedJson('/api/news?test=credential-isolation', { persist: false })
+    assert.equal(calls, 3)
+  } finally { globalThis.fetch = original }
+})
+
+test('mutations never retry even when marked startup sensitive', async () => {
+  const original = globalThis.fetch
+  try {
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+      let calls = 0
+      globalThis.fetch = async () => { calls++; return new Response('{}', { status: 503, headers: { 'Retry-After': '2' } }) }
+      assert.equal((await apiFetch('/api/auth/login', { method, startupSensitive: true })).status, 503)
+      assert.equal(calls, 1)
+      calls = 0
+      globalThis.fetch = async () => { calls++; throw new TypeError('connection failed') }
+      await assert.rejects(apiFetch('/api/auth/login', { method, startupSensitive: true }))
+      assert.equal(calls, 1)
+    }
+  } finally { globalThis.fetch = original }
 })

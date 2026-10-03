@@ -1,9 +1,10 @@
 import crypto from 'node:crypto'
 import { getPostgresRuntime } from '../repositories/postgresRuntime.js'
 import { id, now } from './identifiers.js'
+import { dependencyStatus } from './dependencyFailures.js'
 
 const SAFE_STATUS_CODES = new Set([400, 401, 403, 404, 405, 409, 413, 415, 422, 429, 500, 502, 503, 504])
-const TECHNICAL_PATTERN = /(?:API_PROXY_[A-Z0-9_]+|ECONN(?:REFUSED|RESET)|ETIMEDOUT|ENOTFOUND|EHOSTUNREACH|SQLSTATE|POSTGRES(?:QL)?|REDIS|S3|B2_|AZURE_|VITE|EXPRESS|JWT|stack(?:trace)?|node_modules|[A-Z]:\\|\/var\/|127\.0\.0\.1|localhost:\d+|\bport\s+\d+|internal(?:_|\s)error|database\s+(?:connection|error|unavailable)|connection\s+(?:refused|failed|timed out)|permission\s+required|cannot\s+grant|authorization\s*[:=]|cookie\s*[:=]|password\s*[:=]|secret\s*[:=])/i
+const TECHNICAL_PATTERN = /(?:API_PROXY_[A-Z0-9_]+|ECONN(?:REFUSED|RESET)|ETIMEDOUT|EPIPE|ENETUNREACH|ENOTFOUND|EHOSTUNREACH|SQLSTATE|POSTGRES(?:QL)?|REDIS|S3|B2_|AZURE_|VITE|EXPRESS|JWT|stack(?:trace)?|node_modules|[A-Z]:\\|\/var\/|127\.0\.0\.1|localhost:\d+|\bport\s+\d+|internal(?:_|\s)error|database\s+(?:connection|error|unavailable)|connection\s+(?:refused|failed|timed out)|permission\s+required|cannot\s+grant|authorization\s*[:=]|cookie\s*[:=]|password\s*[:=]|secret\s*[:=])/i
 
 const PUBLIC_CONTEXTS = {
   news: { title: 'News is temporarily unavailable', message: "We couldn't load the latest news right now. Please try again in a moment." },
@@ -136,7 +137,7 @@ export async function recordDiagnosticError({ req, error, status, context = cont
 }
 
 export async function sendPublicError(res, req, error, options = {}) {
-  const status = safeStatusFor(error, options.status || 503)
+  const status = safeStatusFor(error, options.status || dependencyStatus(error))
   const context = options.context || contextFor(req)
   const publicMessage = options.message || publicMessageFor(error, context, status)
   const reference = await recordDiagnosticError({ req, error, status, context, service: options.service, publicMessage })

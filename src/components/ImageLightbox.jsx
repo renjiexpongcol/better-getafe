@@ -128,15 +128,15 @@ export default function ImageLightbox({ images, currentIndex, articleTitle, onCl
           <p>News &amp; Updates</p>
           {articleTitle && <h2 id={titleId}>{articleTitle}</h2>}
         </div>
-        <button ref={closeButton} type="button" className="article-gallery-close" aria-label="Close image preview" onClick={close}>
+        <button ref={closeButton} type="button" className="article-gallery-close" aria-label="Close image preview" onClick={close} data-icon-button="ghost">
           <X size={21} aria-hidden="true" />
         </button>
       </header>
       <figure className="article-gallery-lightbox-figure">
         <div className="article-gallery-lightbox-stage">
-          {multi && <button type="button" className="article-gallery-arrow previous" aria-label="Previous image" onClick={onPrevious}><ChevronLeft size={24} aria-hidden="true" /></button>}
+          {multi && <button type="button" className="article-gallery-arrow previous" aria-label="Previous image" onClick={onPrevious} data-icon-button="ghost"><ChevronLeft size={24} aria-hidden="true" /></button>}
           <img className="article-gallery-lightbox-image" src={image.url} alt={imageAlt} />
-          {multi && <button type="button" className="article-gallery-arrow next" aria-label="Next image" onClick={onNext}><ChevronRight size={24} aria-hidden="true" /></button>}
+          {multi && <button type="button" className="article-gallery-arrow next" aria-label="Next image" onClick={onNext} data-icon-button="ghost"><ChevronRight size={24} aria-hidden="true" /></button>}
         </div>
         {hasFooter && <figcaption className="article-gallery-lightbox-caption" id={captionId}>
           <span className="article-gallery-lightbox-caption-copy">

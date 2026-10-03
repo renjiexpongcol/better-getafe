@@ -105,7 +105,7 @@ export default function Login() {
   const handleResult = res => {
     if (res.verificationRequired) { setEmailChallenge(res.challengeId, res.nextResendAt, res.retryAfter); setError(''); return }
     if (res.mfaRequired) { clearEmailChallenge(); setMfaChallenge(res.mfaChallengeId); setError(''); return }
-    if (res.passwordExpired) { clearEmailChallenge(); setRenewal(res.resetToken); setError(''); return }
+    if (res.passwordExpired) { clearEmailChallenge(); setRenewal(true); setError(''); return }
     if (!res.ok) { if (!applyRateLimit(res)) setError(res.error); return }
     else { clearEmailChallenge(); navigate(res.setup ? '/app/setup' : destination(res.user?.role || (res.admin ? 'admin' : 'resident')), { replace: true }) }
   }
@@ -123,7 +123,7 @@ export default function Login() {
       if (renewal && !passwordPassesPolicy(newPassword, Number(settings['authentication.passwordMinLength'] || 12))) throw new Error('Choose a stronger password that meets the password requirements.')
       if (renewal && newPassword !== confirmNewPassword) throw new Error('Passwords do not match.')
       if (!renewal && code.length !== 6) throw new Error('Enter the six-digit verification code.')
-      const response = await fetch(renewal ? '/api/auth/renew-password' : '/api/auth/verify-code', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(renewal ? { resetToken: renewal, password: newPassword } : { challengeId: challenge, code }) })
+      const response = await fetch(renewal ? '/api/auth/renew-password' : '/api/auth/verify-code', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(renewal ? { password: newPassword } : { challengeId: challenge, code }) })
       const body = await response.json().catch(() => ({}))
       if (!response.ok) {
         if (response.status === 429) {
@@ -405,7 +405,7 @@ export default function Login() {
                   className="login-eye"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
+                 data-icon-button="ghost">
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>

@@ -1,44 +1,31 @@
-import { defineConfig } from 'vite'
+import { createLogger, defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import crypto from 'node:crypto'
+import { handleProxyError, proxyLogger } from './scripts/proxy-errors.mjs'
 import { backendConnection, loadLocalEnvironment, proxyRequestOrigin } from './scripts/backend-connection.mjs'
 
 loadLocalEnvironment()
 // The API listens on IPv4 during local development. Using 127.0.0.1 avoids
 // Windows/Node resolving localhost to ::1 and making the Vite proxy fail.
 const backendTarget = backendConnection().target
-const createProxyReference = () => `ERR-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
+const logger = proxyLogger(createLogger())
 
 const backendProxy = () => ({
   target: backendTarget,
   changeOrigin: true,
+  proxyTimeout: 15000,
   configure: (proxy) => {
     proxy.on('proxyReq', (outgoing, request) => {
       const origin = proxyRequestOrigin(request, backendTarget)
       if (origin) outgoing.setHeader('Origin', origin)
     })
-    proxy.on('error', (error, request, response) => {
-      const target = new URL(backendTarget)
-      const path = String(request?.url || '').split('?')[0]
-      const label = path.startsWith('/api/') ? '[API Proxy]' : '[Dev Proxy]'
-      console.error(`${label} Backend unavailable: ${error?.code || 'UNKNOWN'} ${target.hostname}:${target.port || (target.protocol === 'https:' ? 443 : 80)}`)
-      if (response && !response.headersSent && !response.destroyed) {
-        response.writeHead(502, { 'Content-Type': 'application/json' })
-        response.end(JSON.stringify({
-          error: {
-            type: 'SERVICE_UNAVAILABLE',
-            message: 'This service is temporarily unavailable. Please try again later.',
-            referenceId: createProxyReference(),
-          },
-        }))
-      }
-    })
+    proxy.on('error', handleProxyError)
   },
 })
 
 // https://vitejs.dev/config/
 
 export default defineConfig({
+  customLogger: logger,
   plugins: [react()],
 
   // Keep original source structure out of public production assets. Vite's

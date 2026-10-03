@@ -340,19 +340,25 @@ export function installCitizenRoutes(app, resident, safeUser) {
                 : type === 'application/msword' ? attachmentBytes.subarray(0, 8).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])) : false
       if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'].includes(type) || !signatures || attachmentBytes.length > 5 * 1024 * 1024) return res.status(422).json({ error: 'Attach a valid JPG, PNG, PDF, DOC, or DOCX file smaller than 5 MB.' })
     }
+    const attachmentId = attachmentBytes ? id() : null
+    const attachmentName = attachmentBytes ? String(attachment.name || 'supporting-file').replace(/[\\/\0\r\n]/g, '_').slice(0, 160) : null
+    const attachmentPath = attachmentBytes ? `citizen-private/concerns/${req.resident.id}/${attachmentId}` : null
+    // Persist required storage before committing a request. Otherwise a failed
+    // upload reports failure after the application has already been created.
+    if (attachmentBytes) await writeCitizenFile(attachmentPath, attachmentBytes, attachment.type)
     await db.exec('BEGIN')
     try {
       await db.prepare('INSERT INTO applications (id,user_id,reference_number,service_name,status,payment_status,submitted_at,last_updated,details) VALUES (?,?,?,?,?,?,?,?,?)').run(applicationId, req.resident.id, reference, service?.name || 'Report a Concern', 'submitted', 'not_required', created, created, JSON.stringify({ purpose: details.purpose.trim() }))
+      if (attachmentBytes) await db.prepare('INSERT INTO application_documents (id,application_id,user_id,name,storage_path,verification_status,document_kind,created_at) VALUES (?,?,?,?,?,?,?,?)').run(attachmentId, applicationId, req.resident.id, attachmentName, attachmentPath, 'pending', 'uploaded', created)
       await db.prepare('INSERT INTO application_status_history (id,application_id,status,note,created_at) VALUES (?,?,?,?,?)').run(id(), applicationId, 'submitted', 'Application submitted by resident.', created)
       await notify(db, req.resident.id, 'Application submitted', `${service?.name || 'Your concern'} has been submitted. Reference: ${reference}.`, applicationId, null, { type: 'request.created', eventKey: notificationEventKey('request.created', { applicationId }) })
       await db.exec('COMMIT')
-    } catch (error) { await db.exec('ROLLBACK'); throw error }
+    } catch (error) { await db.exec('ROLLBACK'); if (attachmentPath) await deleteCitizenFile(attachmentPath).catch(() => {}); throw error }
     queueNotification({ userId: req.resident.id, type: 'request.created', eventId: applicationId, applicationId, data: { name: req.resident.name, serviceName: service?.name || 'Report a Concern', reference, status: 'submitted', applicationId } })
     if (concern && config.get('general.supportEmail')) {
       const subject = `Report a Concern · ${reference}`
       const text = `A resident submitted a report concern.\n\nReference: ${reference}\nResident: ${req.resident.name}\nEmail: ${req.resident.email}\n\nDetails:\n${details.purpose.trim()}`
       const attachments = attachmentBytes ? [{ filename: String(attachment.name || 'supporting-file').replace(/[\\/\r\n]/g, '_').slice(0, 160), content: attachmentBytes, contentType: attachment.type || 'application/octet-stream' }] : []
-      if (attachmentBytes) await writeCitizenFile(`citizen-private/concerns/${req.resident.id}/${applicationId}-${attachments[0].filename}`, attachmentBytes, attachments[0].contentType)
       try {
         const queuedAttachments = attachments.map(attachment => ({ ...attachment, content: Buffer.isBuffer(attachment.content) ? attachment.content.toString('base64') : attachment.content, encoding: Buffer.isBuffer(attachment.content) ? 'base64' : attachment.encoding }))
         await enqueueEmail({ to: config.get('general.supportEmail'), subject, text, attachments: queuedAttachments })

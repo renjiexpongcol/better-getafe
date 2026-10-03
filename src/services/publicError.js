@@ -1,4 +1,4 @@
-const TECHNICAL_ERROR_PATTERN = /(?:API_PROXY_[A-Z0-9_]+|ECONN(?:REFUSED|RESET)|ETIMEDOUT|ENOTFOUND|EHOSTUNREACH|SQLSTATE|POSTGRES(?:QL)?|REDIS|S3|B2_|AZURE_|VITE|EXPRESS|JWT|stack(?:trace)?|node_modules|\/var\/|[A-Z]:\\|127\.0\.0\.1|localhost:\d+|\bport\s+\d+|internal(?:_|\s)error|database\s+(?:connection|error|unavailable)|connection\s+(?:refused|failed|timed out)|permission\s+required|cannot\s+grant|secret|password|authorization|cookie)/i
+const TECHNICAL_ERROR_PATTERN = /(?:API_PROXY_[A-Z0-9_]+|ECONN(?:REFUSED|RESET)|ETIMEDOUT|EPIPE|ENETUNREACH|ENOTFOUND|EHOSTUNREACH|SQLSTATE|POSTGRES(?:QL)?|REDIS|S3|B2_|AZURE_|VITE|EXPRESS|JWT|stack(?:trace)?|node_modules|\/var\/|[A-Z]:\\|127\.0\.0\.1|localhost:\d+|\bport\s+\d+|internal(?:_|\s)error|database\s+(?:connection|error|unavailable)|connection\s+(?:refused|failed|timed out)|permission\s+required|cannot\s+grant|secret|password|authorization|cookie)/i
 
 const CONTEXTS = {
   news: { title: 'News is temporarily unavailable', message: "We couldn't load the latest news right now. Please try again in a moment." },
@@ -50,7 +50,9 @@ export function normalizePublicError(error, context = 'unknown') {
   const contextContext = CONTEXTS[context] || CONTEXTS.unknown
   const safeCandidate = candidate && !isTechnicalError(candidate) && candidate.length <= 220
   const useStatusMessage = status >= 400 && status < 500 && safeCandidate
-  const copy = useStatusMessage ? { title: statusContext?.title || contextContext.title, message: candidate } : status >= 400 && status < 500 && statusContext ? statusContext : contextContext
+  const copy = context === 'auth' && status === 503
+    ? { title: 'Sign-in is temporarily unavailable', message: 'The service is temporarily unavailable. Please try again shortly.' }
+    : useStatusMessage ? { title: statusContext?.title || contextContext.title, message: candidate } : status >= 400 && status < 500 && statusContext ? statusContext : contextContext
   return {
     title: copy.title,
     message: copy.message,
