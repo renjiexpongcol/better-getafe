@@ -1,1 +1,0 @@
-A useful default is batch plus hybrid: establish the accepted inventory and dependency order first, reuse consistent item ownership, keep conflicting scopes separate, and judge completion from the integrated cutover.
