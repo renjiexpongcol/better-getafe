@@ -249,7 +249,7 @@
 .admin-portal.portal-v2 .citizen-content { width: min(1360px, calc(100% - 56px)); padding-top: 30px; }
 .admin-portal.portal-v2 .citizen-topbar { min-height: 66px; padding-inline: 26px; }
 .admin-portal.portal-v2 .citizen-welcome { margin-bottom: 24px; }
-.admin-portal.portal-v2 .citizen-welcome h1 { color: var(--admin-ink); font-size: var(--font-title); }
+.admin-portal.portal-v2 .citizen-welcome h1 { color: #fffdf8; font-size: var(--font-title); }
 .admin-portal.portal-v2 .citizen-stat { border-color: var(--admin-border); border-radius: var(--radius-control); box-shadow: none; }
 .admin-portal.portal-v2 .citizen-stat:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(17, 49, 79, .07); }
 .admin-portal.portal-v2 .cms-title { align-items: flex-start; margin-bottom: 18px; }

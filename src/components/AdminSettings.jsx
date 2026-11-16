@@ -476,8 +476,8 @@ function AzureConnectionTest({ busy, patch }) {
     setResult(null)
     try {
       setResult(await request('/test/azure-storage', { method: 'POST', body: JSON.stringify({ createMissingContainer }) }))
-    } catch {
-      setResult({ error: 'Could not run the Azure test. Check storage settings permissions or try again.' })
+    } catch (error) {
+      setResult({ error: error.message || 'Could not run the Azure test. Check storage settings permissions or try again.' })
     } finally {
       setTesting(false)
     }
@@ -489,7 +489,7 @@ function AzureConnectionTest({ busy, patch }) {
       </button>
       {unsaved && <span>Save Azure settings before testing.</span>}
     </div>
-    {result && !unsaved && <div role="status">
+    {result && !unsaved && <div role={result.error ? 'alert' : 'status'}>
       {result.operations && <ul>
         <li>Write {result.operations.write}</li>
         <li>Read {result.operations.read}</li>
