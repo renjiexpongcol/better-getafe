@@ -45,8 +45,12 @@ export async function apiFetch(path, options = {}) {
     if (!retryable || attempt === attempts - 1) {
       if (failure) throw failure
       const sessionExpiry = Number(response.headers.get('X-Session-Expires-At'))
-      if (Number.isFinite(sessionExpiry) && sessionExpiry > 0 && typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('auth-session-deadline', { detail: { expiresAt: sessionExpiry } }))
+      const absoluteExpiry = Number(response.headers.get('X-Session-Absolute-Expires-At'))
+      if ((Number.isFinite(sessionExpiry) && sessionExpiry > 0 || Number.isFinite(absoluteExpiry) && absoluteExpiry > 0) && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth-session-deadline', { detail: {
+          ...(Number.isFinite(sessionExpiry) && sessionExpiry > 0 ? { expiresAt: sessionExpiry } : {}),
+          ...(Number.isFinite(absoluteExpiry) && absoluteExpiry > 0 ? { absoluteExpiresAt: absoluteExpiry } : {}),
+        } }))
       }
       return response
     }

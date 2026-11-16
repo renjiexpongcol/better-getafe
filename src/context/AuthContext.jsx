@@ -1,5 +1,5 @@
 import { onDataChanged } from '../services/dataChanges'
-import { AUTH_ENDPOINTS, createAuthClient } from '@getafe/auth-client'
+import { AUTH_ENDPOINTS, createAuthClient, nextSessionDeadline, shouldSendActivityUpdate } from '@getafe/auth-client'
 import { apiFetch } from '../services/apiTransport.js'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { clearPrivateCache } from '../services/requestCache'
@@ -7,7 +7,6 @@ import { normalizePublicError } from '../services/publicError'
 import { routeRequest, invalidatePendingRouteRequest } from '../services/routeRequests'
 import { pendingReturnUrlKey } from '../authNavigation'
 import { SessionTimeoutWarning } from '../components/SessionTimeoutWarning.jsx'
-import { nextSessionDeadline } from '@getafe/auth-client'
 
 const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
@@ -16,12 +15,14 @@ export function AuthProvider({ children }) {
   const [sessionUnavailable, setSessionUnavailable] = useState(false)
   const [signedOut, setSignedOut] = useState(false)
   const [sessionExpiresAt, setSessionExpiresAt] = useState(null)
+  const [absoluteSessionExpiresAt, setAbsoluteSessionExpiresAt] = useState(null)
   const [sessionInitialized, setSessionInitialized] = useState(false)
   const [warningMinutes, setWarningMinutes] = useState(5)
   const requestRef = useRef(0)
   const activityPingRef = useRef(0)
   const renewalRef = useRef(null)
   const publishedDeadlineRef = useRef(0)
+  const publishedAbsoluteDeadlineRef = useRef(0)
   const sessionEpochRef = useRef(0)
   const sessionControllerRef = useRef(null)
   const sessionRef = useRef({ promise: null, checkedAt: 0, user: null })
@@ -36,7 +37,9 @@ export function AuthProvider({ children }) {
   const clearClientAuthState = useCallback((preserveIntent = false) => {
     ++sessionEpochRef.current
     publishedDeadlineRef.current = 0
+    publishedAbsoluteDeadlineRef.current = 0
     setSessionExpiresAt(null)
+    setAbsoluteSessionExpiresAt(null)
     setSessionInitialized(false)
     renewalRef.current = null
     sessionControllerRef.current?.abort()
@@ -96,8 +99,18 @@ export function AuthProvider({ children }) {
         publishedDeadlineRef.current = deadline
         setSessionExpiresAt(deadline)
       }
+      if (nextUser && body?.session?.absoluteExpiresAt != null && Number.isFinite(Number(body.session.absoluteExpiresAt))) {
+        const absolute = nextSessionDeadline(publishedAbsoluteDeadlineRef.current || null, body.session.absoluteExpiresAt)
+        publishedAbsoluteDeadlineRef.current = absolute
+        setAbsoluteSessionExpiresAt(absolute)
+      }
       if (nextUser && Number.isFinite(Number(body?.session?.warningMinutes))) setWarningMinutes(Number(body.session.warningMinutes))
-      if (!nextUser) { publishedDeadlineRef.current = 0; setSessionExpiresAt(null) }
+      if (!nextUser) {
+        publishedDeadlineRef.current = 0
+        publishedAbsoluteDeadlineRef.current = 0
+        setSessionExpiresAt(null)
+        setAbsoluteSessionExpiresAt(null)
+      }
       sessionRef.current.checkedAt = Date.now()
       // Keep consumers mounted without refetching their data when the session
       // returns the same account. Still apply profile/role changes immediately.
@@ -127,9 +140,15 @@ export function AuthProvider({ children }) {
     validateSession()
     const channel = 'BroadcastChannel' in window ? new BroadcastChannel('getafe-auth') : null
     const onRemoteLogout = event => {
-      if (event.data?.type === 'deadline' && Number.isFinite(Number(event.data.expiresAt))) {
-        publishedDeadlineRef.current = nextSessionDeadline(publishedDeadlineRef.current || null, event.data.expiresAt)
-        setSessionExpiresAt(publishedDeadlineRef.current)
+      if (event.data?.type === 'deadline') {
+        if (Number.isFinite(Number(event.data.expiresAt))) {
+          publishedDeadlineRef.current = nextSessionDeadline(publishedDeadlineRef.current || null, event.data.expiresAt)
+          setSessionExpiresAt(publishedDeadlineRef.current)
+        }
+        if (Number.isFinite(Number(event.data.absoluteExpiresAt))) {
+          publishedAbsoluteDeadlineRef.current = nextSessionDeadline(publishedAbsoluteDeadlineRef.current || null, event.data.absoluteExpiresAt)
+          setAbsoluteSessionExpiresAt(publishedAbsoluteDeadlineRef.current)
+        }
         return
       }
       if (event.data?.type === 'warning' && Number.isFinite(Number(event.data.minutes))) {
@@ -141,7 +160,12 @@ export function AuthProvider({ children }) {
           const expiresAt = Number(JSON.parse(event.newValue).expiresAt)
           if (Number.isFinite(expiresAt) && expiresAt > 0) {
             publishedDeadlineRef.current = nextSessionDeadline(publishedDeadlineRef.current || null, expiresAt)
-            setSessionExpiresAt(expiresAt)
+            setSessionExpiresAt(publishedDeadlineRef.current)
+            const absoluteExpiresAt = Number(JSON.parse(event.newValue).absoluteExpiresAt)
+            if (Number.isFinite(absoluteExpiresAt) && absoluteExpiresAt > 0) {
+              publishedAbsoluteDeadlineRef.current = nextSessionDeadline(publishedAbsoluteDeadlineRef.current || null, absoluteExpiresAt)
+              setAbsoluteSessionExpiresAt(publishedAbsoluteDeadlineRef.current)
+            }
           }
         } catch {}
         return
@@ -158,6 +182,7 @@ export function AuthProvider({ children }) {
         setSignedOut(true)
         setUser(null)
         setSessionExpiresAt(null)
+        setAbsoluteSessionExpiresAt(null)
         setSessionInitialized(true)
         setLoading(false)
       }
@@ -166,10 +191,12 @@ export function AuthProvider({ children }) {
       ++requestRef.current
       ++sessionEpochRef.current
       publishedDeadlineRef.current = 0
+      publishedAbsoluteDeadlineRef.current = 0
       clearClientAuthState()
       setSessionUnavailable(false)
       setUser(null)
       setSessionExpiresAt(null)
+      setAbsoluteSessionExpiresAt(null)
       setSessionInitialized(true)
       setSignedOut(true)
       setLoading(false)
@@ -181,13 +208,19 @@ export function AuthProvider({ children }) {
     const onFocus = () => validateSession()
     const onDeadline = event => {
       const expiresAt = Number(event.detail?.expiresAt)
-      if (!Number.isFinite(expiresAt) || expiresAt <= 0) return
-      const next = nextSessionDeadline(publishedDeadlineRef.current || null, expiresAt)
-      if (publishedDeadlineRef.current === next) return
-      publishedDeadlineRef.current = next
-      setSessionExpiresAt(next)
-      try { channel?.postMessage({ type: 'deadline', expiresAt }) } catch {}
-      try { window.localStorage.setItem('getafe-auth-deadline', JSON.stringify({ expiresAt, updatedAt: Date.now() })) } catch {}
+      const absoluteExpiresAt = Number(event.detail?.absoluteExpiresAt)
+      const validIdle = Number.isFinite(expiresAt) && expiresAt > 0
+      const validAbsolute = Number.isFinite(absoluteExpiresAt) && absoluteExpiresAt > 0
+      if (!validIdle && !validAbsolute) return
+      const nextIdle = validIdle ? nextSessionDeadline(publishedDeadlineRef.current || null, expiresAt) : publishedDeadlineRef.current || null
+      const nextAbsolute = validAbsolute ? nextSessionDeadline(publishedAbsoluteDeadlineRef.current || null, absoluteExpiresAt) : publishedAbsoluteDeadlineRef.current || null
+      if (nextIdle === publishedDeadlineRef.current && nextAbsolute === publishedAbsoluteDeadlineRef.current) return
+      publishedDeadlineRef.current = nextIdle || 0
+      publishedAbsoluteDeadlineRef.current = nextAbsolute || 0
+      if (validIdle) setSessionExpiresAt(nextIdle)
+      if (validAbsolute) setAbsoluteSessionExpiresAt(nextAbsolute)
+      try { channel?.postMessage({ type: 'deadline', ...(validIdle ? { expiresAt: nextIdle } : {}), ...(validAbsolute ? { absoluteExpiresAt: nextAbsolute } : {}) }) } catch {}
+      try { window.localStorage.setItem('getafe-auth-deadline', JSON.stringify({ ...(validIdle ? { expiresAt: nextIdle } : {}), ...(validAbsolute ? { absoluteExpiresAt: nextAbsolute } : {}), updatedAt: Date.now() })) } catch {}
     }
     const onWarningMinutes = event => {
       const minutes = Number(event.detail?.minutes)
@@ -252,6 +285,7 @@ export function AuthProvider({ children }) {
     setSignedOut(true)
     setUser(null)
     setSessionExpiresAt(null)
+    setAbsoluteSessionExpiresAt(null)
     setSessionUnavailable(false)
     setLoading(false)
     clearClientAuthState()
@@ -290,7 +324,12 @@ export function AuthProvider({ children }) {
       const deadline = nextSessionDeadline(publishedDeadlineRef.current || null, body.expiresAt)
       publishedDeadlineRef.current = deadline
       setSessionExpiresAt(deadline)
-      return { ok: true, expiresAt: deadline }
+      const absolute = Number(body.absoluteExpiresAt)
+      if (Number.isFinite(absolute) && absolute > 0) {
+        publishedAbsoluteDeadlineRef.current = nextSessionDeadline(publishedAbsoluteDeadlineRef.current || null, absolute)
+        setAbsoluteSessionExpiresAt(publishedAbsoluteDeadlineRef.current)
+      }
+      return { ok: true, expiresAt: deadline, absoluteExpiresAt: publishedAbsoluteDeadlineRef.current || null }
     } catch {
       return { ok: false, error: 'Could not renew your session. Check your connection and try again.' }
     } finally { if (renewalRef.current === pending) renewalRef.current = null } })()
@@ -301,17 +340,19 @@ export function AuthProvider({ children }) {
   const expireSession = useCallback(() => window.dispatchEvent(new Event('auth-session-expired')), [])
   useEffect(() => {
     if (!user) return undefined
-    const markActivity = () => {
-      if (document.visibilityState !== 'visible' || Date.now() - activityPingRef.current < 30000) return
-      activityPingRef.current = Date.now()
+    activityPingRef.current = 0
+    const markActivity = event => {
+      const now = Date.now()
+      if (!shouldSendActivityUpdate({ eventType: event.type, isTrusted: event.isTrusted, visible: document.visibilityState === 'visible', lastSentAt: activityPingRef.current, now })) return
+      activityPingRef.current = now
       renewSession().catch(() => {})
     }
     const events = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart']
     for (const event of events) document.addEventListener(event, markActivity, { passive: true })
     return () => { for (const event of events) document.removeEventListener(event, markActivity) }
   }, [renewSession, user])
-  const authValue = { user, loading, sessionUnavailable, signedOut, login: authClient.login, completeMfa: authClient.completeMfa, register: authClient.register, logout: authClient.logout, validateSession, refreshUser, updateUser, renewSession, sessionExpiresAt, warningMinutes }
-  return <AuthContext.Provider value={authValue}>{children}<SessionTimeoutWarning user={user} initialized={sessionInitialized && !loading} expiresAt={sessionExpiresAt} warningMinutes={warningMinutes} renewSession={renewSession} logout={authClient.logout} expireSession={expireSession} /></AuthContext.Provider>
+  const authValue = { user, loading, sessionUnavailable, signedOut, login: authClient.login, completeMfa: authClient.completeMfa, register: authClient.register, logout: authClient.logout, validateSession, refreshUser, updateUser, renewSession, sessionExpiresAt, absoluteSessionExpiresAt, warningMinutes }
+  return <AuthContext.Provider value={authValue}>{children}<SessionTimeoutWarning user={user} initialized={sessionInitialized && !loading} expiresAt={sessionExpiresAt} absoluteExpiresAt={absoluteSessionExpiresAt} warningMinutes={warningMinutes} renewSession={renewSession} logout={authClient.logout} expireSession={expireSession} /></AuthContext.Provider>
 }
 
 export function useAuth() {

@@ -46,6 +46,14 @@ export function getPostgresConnectionVariable() {
   return 'CMS_SUPABASE_DATABASE_URL';
 }
 
+export function getSupabaseDatabaseUrl(env = process.env) {
+  const canonical = String(env.CMS_SUPABASE_DATABASE_URL || '').trim();
+  if (canonical) return { url: canonical, variable: 'CMS_SUPABASE_DATABASE_URL' };
+  const legacy = String(env.SUPABASE_DATABASE_URL || '').trim();
+  if (legacy) return { url: legacy, variable: 'SUPABASE_DATABASE_URL' };
+  return { url: '', variable: 'CMS_SUPABASE_DATABASE_URL' };
+}
+
 export function postgresUrlOptions(connectionString, ssl) {
   if (!connectionString || !connectionString.includes('getafe_root_ca=')) return { connectionString, ssl };
   const url = new URL(connectionString);
@@ -57,8 +65,9 @@ export function postgresUrlOptions(connectionString, ssl) {
 }
 
 export function supabaseConnectionOptions(_category, env = process.env) {
-  const variable = 'CMS_SUPABASE_DATABASE_URL';
-  const connectionString = env[variable]?.trim();
+  const resolved = getSupabaseDatabaseUrl(env);
+  const variable = resolved.variable;
+  const connectionString = resolved.url;
   if (!connectionString) throw new Error(`Set ${variable} to a Supabase PostgreSQL connection string in the server environment or backend .env file.`);
   let url;
   try { url = new URL(connectionString); } catch { /* Report a redacted configuration error below. */ }

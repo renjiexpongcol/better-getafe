@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { loadLocalEnvironment, ensureSupabaseConfigured, checkBetterGetafeSchema } from '../server/src/config/supabaseSetup.js';
+import { probeBackendReadiness } from './readiness-probe.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const setupOnly = process.argv.includes('--setup-only');
@@ -62,13 +63,7 @@ function start(args, required = true) {
   });
   return child;
 }
-async function ready() {
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/ready`, { signal: AbortSignal.timeout(1500) });
-    const body = await response.json();
-    return { ready: response.ok && body.ready === true, httpStatus: response.status, status: body.status || 'unknown' };
-  } catch (error) { return { ready: false, httpStatus: null, status: error.name === 'TimeoutError' ? 'probe-timeout' : 'unreachable' }; }
-}
+const ready = () => probeBackendReadiness(port);
 process.on('SIGINT', () => stop());
 process.on('SIGTERM', () => stop());
 console.info(`[Portal] Starting Better Getafe on http://localhost:${port}.`);

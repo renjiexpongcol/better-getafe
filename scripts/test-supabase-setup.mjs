@@ -46,9 +46,11 @@ test('existing canonical URL wins without prompting', async () => {
   assert.equal(result.source, 'environment');
 });
 
-test('only the canonical CMS Supabase URL is accepted', () => {
+test('canonical Supabase URL wins and legacy Supabase URL remains a fallback', () => {
   assert.equal(selectedCmsUrl({ CMS_SUPABASE_DATABASE_URL: URL, SUPABASE_DATABASE_URL: 'unused' }), URL);
-  assert.equal(selectedCmsUrl({ CMS_SUPABASE_DATABASE_URL: '  ', SUPABASE_DATABASE_URL: URL }), '');
+  assert.equal(selectedCmsUrl({ CMS_SUPABASE_DATABASE_URL: '  ', SUPABASE_DATABASE_URL: URL }), URL);
+  assert.equal(supabaseConnectionOptions('database', { SUPABASE_DATABASE_URL: URL }).connectionString,
+    new globalThis.URL(URL).toString().replace('?sslmode=require', ''));
   assert.throws(() => supabaseConnectionOptions('portalDatabase', { PORTAL_SUPABASE_DATABASE_URL: URL }), /CMS_SUPABASE_DATABASE_URL/);
   const normalized = new globalThis.URL(URL);
   normalized.searchParams.delete('sslmode');

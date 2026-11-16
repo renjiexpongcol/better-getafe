@@ -2,6 +2,11 @@ export function sessionTtlSeconds(expiresAt, now = Date.now()) {
   return Math.max(1, Math.ceil((Number(expiresAt) - now) / 1000))
 }
 
+export function sessionIdleDeadline(lastActivityAt, idleMinutes) {
+  const deadline = Number(lastActivityAt) + Number(idleMinutes) * 60_000
+  return Number.isFinite(deadline) ? deadline : null
+}
+
 export function assertSessionRegistryAvailable(ready, production = process.env.NODE_ENV === 'production') {
   if (production && !ready) {
     const error = new Error('Session registry is unavailable.')

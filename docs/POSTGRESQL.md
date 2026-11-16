@@ -2,7 +2,7 @@
 
 The CMS, resident portal, application settings, scheduled jobs, and integration worker share one Supabase PostgreSQL database over TLS. The Supabase REST endpoint is used separately for the optional public category integration. Keep the database URL in the backend environment or untracked local `.env` file.
 
-Supabase PostgreSQL is the only application database. Set `CMS_SUPABASE_DATABASE_URL`; both CMS and resident services use this same connection. Separate portal URLs and local host/user/password settings are not supported. URL-encode special characters in the password. The application never falls back to local PostgreSQL when Supabase is unreachable.
+Supabase PostgreSQL is the only application database. Set `CMS_SUPABASE_DATABASE_URL`; both CMS and resident services use this same connection. `SUPABASE_DATABASE_URL` remains accepted as a legacy fallback when the canonical variable is absent. Separate portal URLs and local host/user/password settings are not supported. URL-encode special characters in the password. The application never falls back to local PostgreSQL when Supabase is unreachable.
 
 When `npm run dev` has no configured URL in an interactive local terminal, it asks for the PostgreSQL connection string from Supabase → Connect, masks the input, and runs a read-only connection check. After verification, choose whether to save it to the git-ignored backend `.env`. Saving updates only `CMS_SUPABASE_DATABASE_URL`. Choosing not to save uses the URL for that run. Production, CI, and non-interactive commands require `CMS_SUPABASE_DATABASE_URL` in the server environment and never prompt.
 

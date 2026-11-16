@@ -176,6 +176,7 @@ export function createApiSecurityMiddleware({ authenticate, isRevoked, validateA
         if (!validateAccount) return privateError(res, 503, 'Authentication service is temporarily unavailable.');
         if (!await validateAccount(req, session)) return privateError(res, 401, 'Authentication required.');
         if (session.idleExpiresAt) res.set('X-Session-Expires-At', String(session.idleExpiresAt));
+        if (session.exp) res.set('X-Session-Absolute-Expires-At', String(session.exp));
         if (policy.permissions.length && !authorize) return privateError(res, 503, 'Authorization service is temporarily unavailable.');
         if (policy.permissionMode === 'any') {
           let allowed = false;

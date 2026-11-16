@@ -4,7 +4,8 @@ import { sessionDeadline, sessionWarningMinutes, sessionWarningStartsAt, formatS
 import { validate } from '../server/src/config/defaults.js'
 import { resolveApiRoutePolicy } from '../server/src/services/apiRoutePolicy.js'
 import { ConfigService } from '../server/src/config/ConfigService.js'
-import { sessionWarningVisible, nextSessionDeadline } from '../packages/auth-client/src/sessionDeadlineState.js'
+import { sessionIdleDeadline } from '../server/src/services/sessionRegistry.js'
+import { sessionWarningVisible, sessionMaximumWarningVisible, shouldSendActivityUpdate, nextSessionDeadline } from '../packages/auth-client/src/sessionDeadlineState.js'
 
 test('session warning defaults to five minutes and is capped below the idle timeout', () => {
   assert.equal(sessionWarningMinutes(30), 5)
@@ -16,6 +17,11 @@ test('session warning defaults to five minutes and is capped below the idle time
 test('the effective session deadline is the earlier idle or absolute expiry', () => {
   assert.equal(sessionDeadline({ lastActivityAt: 1_000, idleMinutes: 20, absoluteExpiresAt: 2_000_000 }), 1_201_000)
   assert.equal(sessionDeadline({ lastActivityAt: 1_000, idleMinutes: 20, absoluteExpiresAt: 500_000 }), 500_000)
+})
+
+test('server idle deadline remains separate from the absolute session deadline', () => {
+  assert.equal(sessionIdleDeadline(1_000, 20), 1_201_000)
+  assert.ok(sessionIdleDeadline(1_000, 20) > 100_000)
 })
 
 test('a 20 minute idle deadline with a 5 minute warning opens after 15 minutes idle', () => {
@@ -41,6 +47,21 @@ test('older responses cannot move a live session deadline backwards, while a new
   const renewed = 2_000_000
   assert.equal(nextSessionDeadline(renewed, renewed - 60_000), renewed)
   assert.equal(nextSessionDeadline(null, 1_000_000), 1_000_000)
+})
+
+test('an approaching absolute limit uses a separate notice while the idle warning stays closed', () => {
+  const now = 1_000_000
+  assert.equal(sessionWarningVisible({ initialized: true, hasSession: true, expiresAt: now + 20 * 60_000, warningMinutes: 5, now }), false)
+  assert.equal(sessionMaximumWarningVisible({ initialized: true, hasSession: true, expiresAt: now + 4 * 60_000, warningMinutes: 5, now }), true)
+})
+
+test('only visible user input triggers a throttled activity update', () => {
+  assert.equal(shouldSendActivityUpdate({ eventType: 'keydown', isTrusted: true, visible: true, lastSentAt: 0, now: 1_000 }), true)
+  assert.equal(shouldSendActivityUpdate({ eventType: 'wheel', isTrusted: true, visible: true, lastSentAt: 1_000, now: 20_000 }), false)
+  assert.equal(shouldSendActivityUpdate({ eventType: 'keydown', isTrusted: true, visible: false, lastSentAt: 1_000, now: 40_000 }), false)
+  assert.equal(shouldSendActivityUpdate({ eventType: 'focus', isTrusted: true, visible: true, lastSentAt: 1_000, now: 40_000 }), false)
+  assert.equal(shouldSendActivityUpdate({ eventType: 'keydown', isTrusted: false, visible: true, lastSentAt: 1_000, now: 40_000 }), false)
+  assert.equal(shouldSendActivityUpdate({ eventType: 'keydown', isTrusted: true, visible: true, lastSentAt: 1_000, now: 31_000 }), true)
 })
 
 test('configuration rejects warnings that are not shorter than the idle timeout', () => {

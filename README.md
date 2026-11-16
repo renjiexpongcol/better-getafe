@@ -238,6 +238,7 @@ npm install
 Copy `.env.example` to `.env` and set `CMS_SUPABASE_DATABASE_URL` to the backend-only
 PostgreSQL connection string for the Supabase database containing all portal data.
 See [Supabase PostgreSQL setup](docs/POSTGRESQL.md) for connection, readiness, and migration details.
+For Vercel frontend deployment with a separately hosted API, see [Vercel deployment](docs/VERCEL_DEPLOYMENT.md).
 
 Run `npm run dev`. Setup verifies the Supabase connection and Better Getafe schema
 before starting the backend. If schema migrations are pending, run

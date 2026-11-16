@@ -5,7 +5,7 @@ import { emitKeypressEvents } from 'node:readline';
 import { createInterface as createPromiseInterface } from 'node:readline/promises';
 import { Client, Pool } from 'pg';
 import dotenv from 'dotenv';
-import { supabaseConnectionOptions } from '../services/postgres.js';
+import { getSupabaseDatabaseUrl, supabaseConnectionOptions } from '../services/postgres.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 export const localEnvPath = path.join(ROOT, '.env');
@@ -15,7 +15,7 @@ export function isInteractiveLocal(env = process.env, input = process.stdin, out
 }
 
 export function selectedCmsUrl(env = process.env) {
-  return String(env.CMS_SUPABASE_DATABASE_URL || '').trim();
+  return getSupabaseDatabaseUrl(env).url;
 }
 
 function resolverOptions(url) {

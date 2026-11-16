@@ -62,3 +62,4 @@ vite.config.*.timestamp-*
 .npm-cache/
 
 data/.settings-encryption-key
+.vercel

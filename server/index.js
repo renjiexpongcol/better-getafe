@@ -65,7 +65,7 @@ import redis, { isRedisReady } from './src/infrastructure/redis/redisClient.js';
 import { redisKeys } from './src/infrastructure/redis/redisKeys.js';
 import { enqueueEmail, recoverEmailJobs, startEmailWorker, stopEmailWorker } from './src/services/redisInfrastructure.js';
 import { markNotificationDeliveryFailed, markNotificationDeliverySent, validateQueuedNotification } from './src/services/notificationService.js';
-import { assertSessionRegistryAvailable, extendRedisKeyExpiry, sessionTtlSeconds } from './src/services/sessionRegistry.js';
+import { assertSessionRegistryAvailable, extendRedisKeyExpiry, sessionIdleDeadline, sessionTtlSeconds } from './src/services/sessionRegistry.js';
 import { passwordMeetsPolicy } from './src/services/passwordPolicy.js';
 import { safeUser } from './src/services/authPayload.js';
 import { hashPassword, verifyPassword } from './src/services/passwordHashing.js';
@@ -494,7 +494,7 @@ const tokenIsRevoked = async (session, { touch = false } = {}) => {
       return true;
     }
     if (touch) metadata.lastActivityAt = Date.now();
-    session.idleExpiresAt = Math.min(metadata.lastActivityAt + idleMinutes * 60_000, session.exp);
+    session.idleExpiresAt = sessionIdleDeadline(metadata.lastActivityAt, idleMinutes);
     const ttlSeconds = sessionTtlSeconds(session.exp);
     if (touch) await redis.set(key, JSON.stringify(metadata), { EX: ttlSeconds });
     return false;
@@ -573,6 +573,7 @@ const resident = async (req, res, next) => {
   try {
     if (!session || await tokenIsRevoked(session) || session.kind !== 'portal' || session.role !== 'resident') return res.status(401).json({ error: 'Resident authentication required.' });
     if (session.idleExpiresAt) res.setHeader('X-Session-Expires-At', String(session.idleExpiresAt));
+    if (session.exp) res.setHeader('X-Session-Absolute-Expires-At', String(session.exp));
     req.resident = await getPortalUserById(session.id);
     if (!req.resident || req.resident.role !== 'resident' || session.role !== req.resident.role || (session.updatedAt && session.updatedAt !== sessionUpdatedAt(req.resident))) return res.status(401).json({ error: 'Resident account unavailable.' });
     const onboarding = await googleOnboarding(req.resident);
@@ -1198,7 +1199,7 @@ app.get("/api/auth/me", async (req, res) => {
         } : {}),
       },
       admin: session.kind === 'cms' && ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role),
-      session: { expiresAt: session.idleExpiresAt, warningMinutes: config.get('authentication.sessionWarningMinutes') },
+      session: { expiresAt: session.idleExpiresAt, absoluteExpiresAt: session.exp, warningMinutes: config.get('authentication.sessionWarningMinutes') },
     });
   } catch (error) {
     logApiFailure(req, `authentication_session_${stage}`, error, 503);
@@ -1210,8 +1211,9 @@ app.post('/api/auth/renew', (req, res) => {
   const session = req.apiSession;
   if (!session?.idleExpiresAt || session.idleExpiresAt <= Date.now()) return res.status(401).json({ error: 'Your session has expired. Sign in again.' });
   res.setHeader('X-Session-Expires-At', String(session.idleExpiresAt));
+  res.setHeader('X-Session-Absolute-Expires-At', String(session.exp));
   res.setHeader('Cache-Control', 'no-store, private');
-  res.json({ expiresAt: session.idleExpiresAt });
+  res.json({ expiresAt: session.idleExpiresAt, absoluteExpiresAt: session.exp });
 });
 
 app.patch('/api/account/password', admin, async (req, res) => {

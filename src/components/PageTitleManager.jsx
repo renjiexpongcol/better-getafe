@@ -14,27 +14,34 @@ export default function PageTitleManager() {
       let element = document.head.querySelector(`meta[${attribute}="${key}"]`);
       if (!element) { element = document.createElement('meta'); element.setAttribute(attribute, key); document.head.appendChild(element); }
       element.content = value;
+      element.dataset.homepageMetadata = 'true';
     };
     setMeta('name', 'robots', privatePage ? 'noindex, nofollow' : 'index, follow');
     if (pathname !== '/') return undefined;
     document.head.querySelectorAll('[data-homepage-metadata]').forEach(element => element.remove());
     let origin = window.location.origin;
     try { const configured = new URL(settings['general.url']); if (['https:', 'http:'].includes(configured.protocol) && !configured.username && !configured.password) origin = configured.origin; } catch { /* Use the current public origin. */ }
-    const title = `${settings['general.company'] || settings['general.name'] || 'Municipal portal'} | Services & Information`;
+    const title = `${settings['general.company'] || settings['general.name'] || 'Municipality of Getafe'}, Bohol | Home`;
     const description = 'Find Getafe municipal services, requirements, office contacts, public advisories, news, and upcoming events.';
     document.title = title;
     setMeta('name', 'description', description);
+    setMeta('name', 'twitter:title', title);
+    setMeta('name', 'twitter:description', description);
+    setMeta('name', 'twitter:image', origin + '/assets/Getafe_Bohol_1.jpg');
+    setMeta('name', 'twitter:image:alt', 'Getafe, Bohol - Municipality of Getafe');
     setMeta('property', 'og:title', title);
     setMeta('property', 'og:description', description);
+    setMeta('property', 'og:site_name', settings['general.company'] || settings['general.name'] || 'Municipality of Getafe');
     setMeta('property', 'og:type', 'website');
     setMeta('property', 'og:url', origin + '/');
     setMeta('property', 'og:image', origin + '/assets/Getafe_Bohol_1.jpg');
+    setMeta('property', 'og:image:alt', 'Getafe, Bohol - Municipality of Getafe');
     setMeta('name', 'twitter:card', 'summary_large_image');
     const canonical = document.createElement('link'); canonical.rel = 'canonical'; canonical.href = origin + '/'; document.head.appendChild(canonical);
     const structured = document.createElement('script'); structured.type = 'application/ld+json';
     structured.textContent = JSON.stringify({ '@context': 'https://schema.org', '@type': 'GovernmentOrganization', name: settings['general.company'] || settings['general.name'], url: origin + '/', telephone: settings['contact.phone'] || undefined, email: settings['contact.email'] || settings['general.supportEmail'] || undefined, address: { '@type': 'PostalAddress', streetAddress: settings['contact.address'] || undefined,  } });
     document.head.appendChild(structured);
-    return () => { canonical.remove(); structured.remove(); document.head.querySelectorAll('meta[property^="og:"],meta[name="twitter:card"]').forEach(element => element.remove()); };
+    return () => { canonical.remove(); structured.remove(); document.head.querySelectorAll('[data-homepage-metadata]').forEach(element => element.remove()); };
   }, [pathname, settings]);
 
   useEffect(() => {
@@ -43,7 +50,7 @@ export default function PageTitleManager() {
     if (document.querySelector('.route-status-page h1')) return;
     const dynamicTitle = Object.entries(routeTitles).find(([pattern]) => pattern.includes(':') && matchPath({ path: pattern, end: true }, pathname))?.[1];
     const title = routeTitles[pathname] || dynamicTitle || 'Page not found';
-    document.title = pathname === '/' ? `${settings['general.company'] || settings['general.name'] || 'Municipal portal'} | Services & Information` : `${settings['general.name'] || 'Getafe'} | ${title}`;
+    document.title = pathname === '/' ? `${settings['general.company'] || settings['general.name'] || 'Municipality of Getafe'}, Bohol | Home` : `${settings['general.name'] || 'Getafe'} | ${title}`;
     setAnnouncement(title);
   }, [pathname, settings['general.name']]);
 

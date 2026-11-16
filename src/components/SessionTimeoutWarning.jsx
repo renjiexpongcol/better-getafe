@@ -1,22 +1,25 @@
 import { useEffect, useState } from 'react'
 import ModalDialog from './ModalDialog.jsx'
-import { formatSessionCountdown, sessionWarningVisible } from '@getafe/auth-client'
+import { formatSessionCountdown, sessionMaximumWarningVisible, sessionWarningVisible } from '@getafe/auth-client'
 import './SessionTimeoutWarning.css'
 
-export function SessionTimeoutWarning({ user, initialized, expiresAt, warningMinutes, renewSession, logout, expireSession }) {
+export function SessionTimeoutWarning({ user, initialized, expiresAt, absoluteExpiresAt, warningMinutes, renewSession, logout, expireSession }) {
   const [now, setNow] = useState(Date.now())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [renewalNote, setRenewalNote] = useState('')
   const deadline = Number(expiresAt)
+  const absoluteDeadline = Number(absoluteExpiresAt)
+  const idleDeadlineValid = Number.isFinite(deadline) && deadline > 0
+  const absoluteDeadlineValid = Number.isFinite(absoluteDeadline) && absoluteDeadline > 0
   const open = sessionWarningVisible({ initialized, hasSession: Boolean(user), expiresAt: deadline, warningMinutes, now })
+  const showMaximumNotice = sessionMaximumWarningVisible({ initialized, hasSession: Boolean(user), expiresAt: absoluteDeadline, warningMinutes, now })
 
   useEffect(() => {
-    if (!initialized || !user || !Number.isFinite(deadline)) return undefined
+    if (!initialized || !user || !(idleDeadlineValid || absoluteDeadlineValid)) return undefined
     const tick = () => {
       const current = Date.now()
       setNow(current)
-      if (deadline <= current) expireSession()
+      if ((idleDeadlineValid && deadline <= current) || (absoluteDeadlineValid && absoluteDeadline <= current)) expireSession()
     }
     tick()
     const timer = window.setInterval(tick, 1000)
@@ -27,22 +30,17 @@ export function SessionTimeoutWarning({ user, initialized, expiresAt, warningMin
       window.removeEventListener('pageshow', tick)
       document.removeEventListener('visibilitychange', tick)
     }
-  }, [deadline, expireSession, initialized, user])
+  }, [absoluteDeadline, absoluteDeadlineValid, deadline, expireSession, idleDeadlineValid, initialized, user])
 
-  useEffect(() => { if (open) { setError(''); setRenewalNote('') } }, [open])
-  if (!open) return null
+  useEffect(() => { if (open) setError('') }, [open])
 
   const staySignedIn = async () => {
     if (busy) return
     setBusy(true)
     setError('')
-    setRenewalNote('')
     try {
       const result = await renewSession()
       if (!result.ok && !result.expired && !result.stale) setError(result.error || 'Your session could not be renewed. Try again.')
-      if (result.ok && (Number(result.expiresAt) <= deadline || Number(result.expiresAt) - Date.now() <= Number(warningMinutes) * 60_000)) {
-        setRenewalNote('Your session was renewed as far as its maximum session lifetime allows. Sign in again when it expires.')
-      }
     } finally { setBusy(false) }
   }
   const signOut = async () => {
@@ -55,19 +53,24 @@ export function SessionTimeoutWarning({ user, initialized, expiresAt, warningMin
     } finally { setBusy(false) }
   }
 
-  return <ModalDialog labelledBy="session-warning-title" describedBy="session-warning-description" busy={busy} onClose={() => {}} size="small" themeClass="cms" backdropClass="session-timeout-backdrop">
-    <section className="portal-action-modal session-timeout-dialog">
-      <p className="session-timeout-kicker">Security reminder</p>
-      <h2 id="session-warning-title">Your session is about to expire</h2>
-      <p id="session-warning-description">For your security, you’ll be signed out after a period of inactivity.</p>
-      <p className="session-timeout-countdown" aria-live="off">{formatSessionCountdown(deadline, now)}</p>
-      <span className="session-timeout-sr-only" aria-live="polite">Your session is about to expire.</span>
-      {renewalNote && <p className="session-timeout-note" role="status">{renewalNote}</p>}
-      {error && <p className="session-timeout-error" role="alert">{error}</p>}
-      <div className="session-timeout-actions">
-        <button type="button" className="cms-primary" disabled={busy} onClick={staySignedIn}>{busy ? 'Renewing session…' : 'Stay signed in'}</button>
-        <button type="button" className="session-timeout-secondary" data-dialog-close-action disabled={busy} onClick={signOut}>Sign out</button>
-      </div>
-    </section>
-  </ModalDialog>
+  return <>
+    {showMaximumNotice && <aside className="session-maximum-notice" role="status" aria-live="polite">
+      <strong>Your session is reaching its maximum duration.</strong>
+      <span> Save your work before signing in again.</span>
+    </aside>}
+    {open && <ModalDialog labelledBy="session-warning-title" describedBy="session-warning-description" busy={busy} onClose={() => {}} size="small" themeClass="cms" backdropClass="session-timeout-backdrop">
+      <section className="portal-action-modal session-timeout-dialog">
+        <p className="session-timeout-kicker">Security reminder</p>
+        <h2 id="session-warning-title">Your session is about to expire</h2>
+        <p id="session-warning-description">For your security, you’ll be signed out after a period of inactivity.</p>
+        <p className="session-timeout-countdown" aria-live="off">{formatSessionCountdown(deadline, now)}</p>
+        <span className="session-timeout-sr-only" aria-live="polite">Your session is about to expire.</span>
+        {error && <p className="session-timeout-error" role="alert">{error}</p>}
+        <div className="session-timeout-actions">
+          <button type="button" className="cms-primary" disabled={busy} onClick={staySignedIn}>{busy ? 'Renewing session…' : 'Stay signed in'}</button>
+          <button type="button" className="session-timeout-secondary" data-dialog-close-action disabled={busy} onClick={signOut}>Sign out</button>
+        </div>
+      </section>
+    </ModalDialog>}
+  </>
 }
