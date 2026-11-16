@@ -12,9 +12,43 @@ dialog.modal-layer {
   overscroll-behavior: contain;
 }
 dialog.modal-layer::backdrop { background: transparent; }
+[data-modal-close-host="true"] { position: relative; }
+.modal-dialog-close {
+  position: absolute !important;
+  top: 12px !important;
+  right: 12px !important;
+  z-index: 6;
+  display: grid !important;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  border: 1px solid #c7d4e0 !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  box-shadow: 0 2px 5px rgb(7 26 51 / 14%) !important;
+  color: #425b73 !important;
+  cursor: pointer;
+}
+.modal-dialog-close:hover:not(:disabled) { background: #f1f6fb !important; color: #123d67 !important; }
+dialog.modal-layer[data-modal-close-mode="action"] [data-modal-dismiss-icon],
+dialog.modal-layer[data-modal-close-mode="icon"] .modal-dialog-close { display: none !important; }
+dialog.modal-layer[data-modal-close-mode="action"] .modal-dialog-close { display: none !important; }
+@media (max-width: 650px) {
+  .modal-dialog-close { top: 8px !important; right: 8px !important; }
+}
 dialog.modal-layer > .portal-action-modal,
 dialog.modal-layer > .staff-request-modal {
   box-sizing: border-box;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+dialog.modal-layer > :is(.app-modal,.cms-gallery-library-dialog,.weather-modal,form) {
+  box-sizing: border-box;
+  max-width: 100%;
   max-height: calc(100dvh - 48px);
   overflow-y: auto;
   overflow-wrap: anywhere;
@@ -23,11 +57,19 @@ dialog.modal-layer > .staff-request-modal {
   dialog.modal-layer { padding: 12px; }
   dialog.modal-layer > .portal-action-modal,
   dialog.modal-layer > .staff-request-modal { max-height: calc(100dvh - 24px); }
+  dialog.modal-layer > :is(.app-modal,.cms-gallery-library-dialog,.weather-modal,form) { max-height: calc(100dvh - 24px); }
 }
 
-.modal-theme.citizen-portal { display: contents; }
+.modal-theme.citizen-portal, .modal-theme.citizen-portal.cms { display: contents; }
+html[data-resident-contrast="high"] .modal-theme.cms :is(.cms-primary,.official-edit-modal .app-modal-actions button) { color:var(--color-on-brand); }
 .modal-layer .portal-action-modal > h2,
 .modal-layer .concern-modal-heading { padding-right: 38px; }
 .modal-layer .portal-calendar-days button { padding: 0; min-width: 0; white-space: nowrap; overflow-wrap: normal; }
 .modal-layer .portal-calendar { min-width: 0; }
 .modal-layer .portal-calendar header strong { text-align: center; font-size: 14px; }
+
+/* Explicit size variants; existing workflow dialogs retain their own widths. */
+dialog.modal-layer[data-dialog-size="small"] > .portal-action-modal { width:min(400px,100%); }
+dialog.modal-layer[data-dialog-size="standard"] > .portal-action-modal { width:min(640px,100%); }
+dialog.modal-layer[data-dialog-size="large"] > .portal-action-modal { width:min(960px,100%); }
+dialog.modal-layer[data-dialog-size="workflow"] > .portal-action-modal { width:min(1280px,100%); }

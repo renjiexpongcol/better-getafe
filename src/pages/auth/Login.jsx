@@ -1,18 +1,31 @@
+import { focusContentTarget } from '../../services/focusManagement'
+import { securityFetch as fetch } from '../../services/securityFetch.js'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import {
-  Mail, Lock, Eye, EyeOff, ArrowRight,
-  UserPlus, Loader2,
-  KeyRound, User, LogIn, ArrowLeft,
+  Mail, Lock, Eye, EyeOff,
+  Loader2,
+  KeyRound, User, ArrowLeft, Info,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { usePublicConfig } from '../../context/PublicConfig'
-import { safeReturnPath } from '../../authNavigation'
+import { safeReturnPath, setPendingReturnUrl, getPendingReturnUrl, clearPendingReturnUrl, consumePostAuthDestination } from '../../authNavigation'
 import { passwordPassesPolicy } from '../../passwordPolicy'
-import { ROUTES } from '../../routeRegistry'
+import { validatePasswordLogin } from '../../services/loginValidation'
+import AuthBranding from '../../components/AuthBranding'
 
 const loginChallengeStorageKey = 'getafe:login:email-challenge'
 const secondsUntil = timestamp => Math.max(0, Math.ceil((Number(timestamp || 0) - Date.now()) / 1000))
+const formatCooldown = seconds => {
+  const value = Math.max(0, Math.ceil(Number(seconds) || 0))
+  if (value < 60) return `${value} second${value === 1 ? '' : 's'}`
+  const minutes = Math.ceil(value / 60)
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'}`
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+  if (!remainingMinutes) return `${hours} hour${hours === 1 ? '' : 's'}`
+  return `${hours} hour${hours === 1 ? '' : 's'} ${remainingMinutes} minute${remainingMinutes === 1 ? '' : 's'}`
+}
 const readStoredLoginChallenge = () => {
   if (typeof window === 'undefined') return null
   try {
@@ -22,11 +35,12 @@ const readStoredLoginChallenge = () => {
 }
 
 export default function Login() {
-  const { user, loading: authLoading, login, completeMfa, register } = useAuth()
+  const { user, loading: authLoading, login, completeMfa, register, refreshUser } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [mode, setMode] = useState('signin') // 'signin' | 'register'
   const [showPassword, setShowPassword] = useState(false)
+  const [egovNotice, setEgovNotice] = useState(false)
   const [loading, setLoading] = useState(false)
   const [cooldown, setCooldown] = useState(0)
   const [error, setError] = useState('')
@@ -45,9 +59,24 @@ export default function Login() {
   const [captchaToken, setCaptchaToken] = useState('')
   const [info, setInfo] = useState('')
   const actionInFlight = useRef(false)
+  const redirectStarted = useRef(false)
   const codeRef = useRef(null)
+  useEffect(() => {
+    const title = mfaChallenge ? 'Two-factor authentication' : renewal ? 'Update your password' : challenge ? 'Check your email' : mode === 'register' ? 'Create your account' : 'Sign in'
+    document.title = `${settings['general.name'] || 'Getafe'} | ${title}`
+    if (mfaChallenge || challenge || renewal) {
+      const heading = document.querySelector('.login-challenge-page h1')
+      focusContentTarget(heading)
+    }
+  }, [mfaChallenge, challenge, renewal, mode, settings['general.name']])
   const returnUrl = safeReturnPath(searchParams.get('returnUrl'))
-  const destination = role => returnUrl || (['admin', 'super_admin'].includes(role) ? ROUTES.admin.root : ['staff', 'it_support', 'content_manager'].includes(role) ? ROUTES.staff.root : ROUTES.app.root)
+  const hasReturnUrl = searchParams.has('returnUrl')
+  useEffect(() => {
+    if (hasReturnUrl) {
+      if (returnUrl) setPendingReturnUrl(returnUrl)
+      else clearPendingReturnUrl()
+    }
+  }, [hasReturnUrl, returnUrl])
   const setEmailChallenge = (challengeId, nextResendAt, retryAfter = 30) => {
     const target = Number(nextResendAt) || Date.now() + Math.max(1, Number(retryAfter) || 30) * 1000
     setChallenge(challengeId)
@@ -71,7 +100,8 @@ export default function Login() {
     }
   }
   useEffect(() => {
-    if (searchParams.get('google') === 'existing') setInfo('This Google email already has a Getafe e-services account. Please sign in with your existing account.')
+    if (searchParams.get('google') === 'existing' || searchParams.get('google') === 'unavailable') setInfo('Google sign-in could not be completed. Please try again or use your email and password.')
+    if (searchParams.get('google') === 'cancelled') setInfo('Google sign-in was cancelled. You can try again or sign in with your password.')
     const fragment = new URLSearchParams(window.location.hash.slice(1))
     const challengeId = fragment.get('mfa') || searchParams.get('mfa')
     if (challengeId) {
@@ -99,7 +129,7 @@ export default function Login() {
     if (!result?.retryAfter && result?.error !== 'rate_limited') return false
     const seconds = Math.max(1, Math.ceil(Number(result.retryAfter) || 60))
     setCooldown(seconds)
-    setError(`Too many attempts. Please try again in ${seconds} seconds.`)
+    setError(`Too many attempts. Please try again in ${formatCooldown(seconds)}.`)
     return true
   }
   const handleResult = res => {
@@ -107,14 +137,13 @@ export default function Login() {
     if (res.mfaRequired) { clearEmailChallenge(); setMfaChallenge(res.mfaChallengeId); setError(''); return }
     if (res.passwordExpired) { clearEmailChallenge(); setRenewal(true); setError(''); return }
     if (!res.ok) { if (!applyRateLimit(res)) setError(res.error); return }
-    else { clearEmailChallenge(); navigate(res.setup ? '/app/setup' : destination(res.user?.role || (res.admin ? 'admin' : 'resident')), { replace: true }) }
+    else { clearEmailChallenge() }
   }
   const completeMfaChallenge = async event => {
     event.preventDefault(); if (actionInFlight.current || loading || cooldown > 0) return; actionInFlight.current = true; setLoading(true); setError('')
     try {
       const result = await completeMfa(mfaChallenge, code)
       if (!result.ok) { if (!applyRateLimit(result)) setError(result.error) }
-      else navigate(destination(result.admin ? 'admin' : result.user?.role), { replace: true })
     } catch { setError('Verification is temporarily unavailable.') } finally { setLoading(false); actionInFlight.current = false }
   }
   const completeChallenge = async event => {
@@ -129,7 +158,7 @@ export default function Login() {
         if (response.status === 429) {
           const seconds = Math.max(1, Math.ceil(Number(body.retryAfter || response.headers.get('Retry-After')) || 60))
           setCooldown(seconds)
-          throw new Error(`Too many attempts. Please try again in ${seconds} seconds.`)
+          throw new Error(`Too many attempts. Please try again in ${formatCooldown(seconds)}.`)
         }
         if (!renewal && response.status === 401 && /expired/i.test(body.error || '')) {
           setResendUntil(0)
@@ -139,7 +168,7 @@ export default function Login() {
         throw new Error(body.error || 'Verification failed.')
       }
       if (renewal) { clearEmailChallenge(); setRenewal(null); setError('Password updated. Sign in with your new password.'); setForm(previous => ({ ...previous, password: '' })) }
-      else { clearEmailChallenge(); navigate(destination(body.user?.role || (body.admin ? 'admin' : 'resident')), { replace: true }) }
+      else { clearEmailChallenge(); if (!await refreshUser()) throw new Error('The sign-in session could not be established. Please try again.') }
     } catch (error) { setError(error.message) } finally { actionInFlight.current = false; setLoading(false) }
   }
   const resendVerificationCode = async () => {
@@ -170,24 +199,30 @@ export default function Login() {
     email: '',
     password: '',
     confirm: '',
-    remember: true,
+    remember: false,
   })
 
   // Keep the login page from being used as an authenticated landing page.
   useEffect(() => {
-    if (!authLoading && user) navigate(destination(user.role), { replace: true })
-  }, [user, authLoading, navigate, returnUrl])
+    if (!authLoading && user && !redirectStarted.current) {
+      redirectStarted.current = true
+      const target = consumePostAuthDestination(user, hasReturnUrl ? returnUrl : undefined)
+      navigate(target, { replace: true, state: { authDestination: target } })
+    }
+  }, [user, authLoading, navigate, returnUrl, hasReturnUrl])
 
   useEffect(() => {
     if (mode !== 'register' || settings['security.registrationCaptcha'] !== true || !settings['security.recaptchaSiteKey']) return
     setCaptchaToken('')
     let script = document.querySelector('script[data-recaptcha]')
-    if (!script) { script = document.createElement('script'); script.src = 'https://www.google.com/recaptcha/api.js?render=explicit'; script.async = true; script.defer = true; script.dataset.recaptcha = 'true' }
+    const v3 = settings['security.recaptchaVersion'] === 'v3'
+    const enterprise = settings['security.recaptchaProvider'] === 'google-enterprise'
+    if (!script) { script = document.createElement('script'); script.src = enterprise ? `https://www.google.com/recaptcha/enterprise.js?render=${encodeURIComponent(settings['security.recaptchaSiteKey'])}` : v3 ? `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(settings['security.recaptchaSiteKey'])}` : 'https://www.google.com/recaptcha/api.js?render=explicit'; script.async = true; script.defer = true; script.dataset.recaptcha = 'true'; script.dataset.recaptchaVersion = v3 ? 'v3' : 'v2'; script.dataset.recaptchaProvider = enterprise ? 'google-enterprise' : 'google-standard' }
     if (!script.parentNode) document.head.appendChild(script)
-    const render = () => { if (window.grecaptcha && document.getElementById('recaptcha-widget') && !document.getElementById('recaptcha-widget').dataset.rendered) { window.grecaptcha.render('recaptcha-widget', { sitekey: settings['security.recaptchaSiteKey'], callback: setCaptchaToken, 'expired-callback': () => setCaptchaToken(''), 'error-callback': () => setCaptchaToken('') }); document.getElementById('recaptcha-widget').dataset.rendered = 'true' } }
+    const render = () => { const node = document.getElementById('recaptcha-widget'); const api = enterprise ? window.grecaptcha?.enterprise : window.grecaptcha; if (api && node && !v3 && !node.dataset.rendered) { api.render(node, { sitekey: settings['security.recaptchaSiteKey'], callback: setCaptchaToken, 'expired-callback': () => setCaptchaToken(''), 'error-callback': () => setCaptchaToken('') }); node.dataset.rendered = 'true' } }
     script.addEventListener('load', render); const timer = setInterval(render, 250)
     return () => { clearInterval(timer); script.removeEventListener('load', render) }
-  }, [mode, settings['security.registrationCaptcha'], settings['security.recaptchaSiteKey']])
+  }, [mode, settings['security.registrationCaptcha'], settings['security.recaptchaSiteKey'], settings['security.recaptchaProvider'], settings['security.recaptchaVersion']])
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
@@ -197,13 +232,16 @@ export default function Login() {
     setError('')
 
     if (mode === 'signin') {
-      if (!form.email.trim() || !form.password) {
-        setError('Please enter your email and password.')
+      const email = form.email.trim().toLowerCase()
+      const validation = validatePasswordLogin(email, form.password)
+      if (validation) {
+        setError(validation.message)
+        e.currentTarget.elements.namedItem(validation.field)?.focus()
         return
       }
       actionInFlight.current = true
       setLoading(true)
-      login(form.email, form.password, form.remember).then((res) => {
+      login(email, form.password, form.remember).then((res) => {
         setLoading(false)
         handleResult(res)
       }).finally(() => {
@@ -221,6 +259,25 @@ export default function Login() {
       if (form.password !== form.confirm) {
         setError('Passwords do not match.')
         return
+      }
+      const submitRegistration = (token) => {
+        actionInFlight.current = true
+        setLoading(true)
+        register(form.name, form.email, form.password, token).then((res) => {
+          setLoading(false)
+          handleResult(res)
+        }).finally(() => {
+          actionInFlight.current = false
+        })
+      }
+      if (settings['security.registrationCaptcha'] === true && settings['security.recaptchaSiteKey']) {
+        if (settings['security.recaptchaVersion'] === 'v3') {
+          const api = settings['security.recaptchaProvider'] === 'google-enterprise' ? window.grecaptcha?.enterprise : window.grecaptcha
+          if (!api) { setError('Verification is loading. Please try again.'); return }
+          api.ready(() => api.execute(settings['security.recaptchaSiteKey'], { action: 'register' }).then(submitRegistration).catch(() => setError('Verification failed. Please try again.')))
+          return
+        }
+        if (!captchaToken) { setError('Please complete the reCAPTCHA verification.'); return }
       }
       actionInFlight.current = true
       setLoading(true)
@@ -243,9 +300,34 @@ export default function Login() {
 
   const inputIcon = mode === 'signin' ? <Mail size={18} /> : <User size={18} />
 
-  if (mfaChallenge) return <main className="login-page login-challenge-page"><section className="login-main"><form className="login-card password-renewal-card" onSubmit={completeMfaChallenge}><img className="mfa-authentication-icon" src="/assets/icons/auth-pack/authentication.png" alt="" aria-hidden="true"/><h1>Two-factor authentication</h1><p>Enter the six-digit code from your authenticator app, or one of your recovery codes.</p><label>Authenticator or recovery code<input required type="text" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value)} /></label>{error && <p role="alert">{error}</p>}<button className="login-submit" disabled={loading || cooldown > 0}>{loading ? 'Verifying…' : cooldown > 0 ? `Try again in ${cooldown}s` : 'Verify and sign in'}</button><button className="renewal-cancel" type="button" onClick={() => { setMfaChallenge(null); setCode(''); setError('') }}>Return to sign in</button></form></section></main>
+  if (mfaChallenge) return <main className="login-page login-challenge-page"><section className="login-main"><form className="login-card password-renewal-card" onSubmit={completeMfaChallenge}><img className="mfa-authentication-icon" src="/assets/icons/auth-pack/authentication.png" alt="" aria-hidden="true"/><h1>Two-factor authentication</h1><p>Enter the six-digit code from your authenticator app, or one of your recovery codes.</p><label>Authenticator or recovery code<input required type="text" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value)} /></label>{error && <p role="alert">{error}</p>}<button className="login-submit" disabled={loading || cooldown > 0}>{loading ? 'Verifying…' : cooldown > 0 ? `Try again in ${formatCooldown(cooldown)}` : 'Verify and sign in'}</button><button className="renewal-cancel" type="button" onClick={() => { setMfaChallenge(null); setCode(''); setError('') }}>Return to sign in</button></form></section></main>
 
-  if (challenge || renewal) return <main className="login-page login-challenge-page"><section className="login-main"><form className={`login-card ${renewal ? 'password-renewal-card' : 'email-code-card'}`} onSubmit={completeChallenge}>{renewal && <img className="renewal-logo" src="/assets/getafe-seal.png" alt="Municipality of Getafe" />}<h1>{renewal ? 'Update your password' : 'Check your email'}</h1><p>{renewal ? 'You need to update your password because it has expired or this is your first time signing in.' : 'Enter the six-digit sign-in code sent to your email address.'}</p>{renewal ? <><label htmlFor="new-password">New password<input id="new-password" required minLength={Number(settings['authentication.passwordMinLength'] || 12)} maxLength="1024" type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="New password" /></label><label htmlFor="confirm-new-password">Confirm password<input id="confirm-new-password" required minLength={Number(settings['authentication.passwordMinLength'] || 12)} maxLength="1024" type="password" autoComplete="new-password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} placeholder="Confirm password" /></label></> : <><label htmlFor="verification-code">Verification code<input ref={codeRef} id="verification-code" required type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} aria-describedby={`${error ? 'verification-code-error' : ''}${challengeMessage ? ' verification-code-status' : ''}`} aria-invalid={Boolean(error)} /></label>{challengeMessage && <p id="verification-code-status" className="email-code-message" role="status">{challengeMessage}</p>}</>}{error && <p id={renewal ? undefined : 'verification-code-error'} className="login-error" role="alert">{error}</p>}<button className="login-submit" disabled={loading || cooldown > 0 || (!renewal && code.length !== 6)}>{loading ? (renewal ? 'Checking…' : 'Verifying…') : cooldown > 0 ? `Try again in ${cooldown}s` : renewal ? 'Sign in' : 'Continue'}</button>{!renewal && <><p className="email-resend-prompt">Didn't receive the code?</p><button className="email-resend-button" type="button" onClick={resendVerificationCode} disabled={loading || resendCooldown > 0} aria-label={resendCooldown > 0 ? `Resend code in ${resendCooldown} seconds` : 'Resend code'}>{loading ? 'Sending…' : resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}</button><button className="login-tertiary-link" type="button" onClick={() => { clearEmailChallenge(); setCode(''); setError(''); setChallengeMessage('') }}>← Back to sign in</button></>}{renewal && <button className="renewal-cancel" type="button" onClick={() => { clearEmailChallenge(); setRenewal(null); setCode('') }}>Return to sign in</button>}</form></section></main>
+  if (challenge || renewal) return (
+    <main className="login-page login-challenge-page">
+      <section className="login-main">
+        <form className={`login-card ${renewal ? 'password-renewal-card' : 'email-code-card'}`} onSubmit={completeChallenge}>
+          {renewal && <img className="renewal-logo" src="/assets/getafe-seal.png" alt="Municipality of Getafe" />}
+          <h1>{renewal ? 'Update your password' : 'Check your email'}</h1>
+          <p>{renewal ? 'You need to update your password because it has expired or this is your first time signing in.' : 'Enter the six-digit sign-in code sent to your email address.'}</p>
+          {renewal ? <>
+            <label htmlFor="new-password">New password<input id="new-password" required minLength={Number(settings['authentication.passwordMinLength'] || 12)} maxLength="1024" type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="New password" /></label>
+            <label htmlFor="confirm-new-password">Confirm password<input id="confirm-new-password" required minLength={Number(settings['authentication.passwordMinLength'] || 12)} maxLength="1024" type="password" autoComplete="new-password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} placeholder="Confirm password" /></label>
+          </> : <>
+            <label htmlFor="verification-code">Verification code<input ref={codeRef} id="verification-code" required type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} aria-describedby={`${error ? 'verification-code-error' : ''}${challengeMessage ? ' verification-code-status' : ''}`} aria-invalid={Boolean(error)} /></label>
+            {challengeMessage && <p id="verification-code-status" className="email-code-message" role="status"><Info size={16} aria-hidden="true"/><span>{challengeMessage}</span></p>}
+          </>}
+          {error && <p id={renewal ? undefined : 'verification-code-error'} className="login-error" role="alert">{error}</p>}
+          <button className="login-submit" disabled={loading || cooldown > 0 || (!renewal && code.length !== 6)}>{loading ? (renewal ? 'Checking…' : 'Verifying…') : cooldown > 0 ? `Try again in ${cooldown}s` : renewal ? 'Sign in' : 'Continue'}</button>
+          {!renewal && <>
+            <p className="email-resend-prompt">Didn't receive the code?</p>
+            <button className="email-resend-button" type="button" onClick={resendVerificationCode} disabled={loading || resendCooldown > 0} aria-label={resendCooldown > 0 ? `Resend code in ${resendCooldown} seconds` : 'Resend code'}>{loading ? 'Sending…' : resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}</button>
+            <button className="login-tertiary-link" type="button" onClick={() => { clearEmailChallenge(); setCode(''); setError(''); setChallengeMessage('') }}>← Back to sign in</button>
+          </>}
+          {renewal && <button className="renewal-cancel" type="button" onClick={() => { clearEmailChallenge(); setRenewal(null); setCode('') }}>Return to sign in</button>}
+        </form>
+      </section>
+    </main>
+  )
 
   return (
     <div className="login-page">
@@ -283,42 +365,12 @@ export default function Login() {
       {/* ===== Form panel ===== */}
       <main className="login-main">
         <div className={`login-card login-card-${mode}`}>
-          <div className="login-mobile-brand">
-            <img src="/assets/getafe-seal.png" alt="Getafe seal" className="login-seal" />
-            <div>
-              <div className="login-brand-name">Municipality of Getafe</div>
-              <div className="login-brand-sub">Bohol • Philippines</div>
-            </div>
-          </div>
-
-          <div className="login-tabs" role="tablist" aria-label="Account access">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'signin'}
-              className={mode === 'signin' ? 'login-tab active' : 'login-tab'}
-              onClick={() => switchMode('signin')}
-            >
-              <LogIn size={16} /> Sign in
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'register'}
-              className={mode === 'register' ? 'login-tab active' : 'login-tab'}
-              onClick={() => switchMode('register')}
-            >
-              <UserPlus size={16} /> Create account
-            </button>
-          </div>
-
-          <h2 className="login-heading">
+          <AuthBranding />
+          <section><h1 className="login-heading">
             {mode === 'signin' ? 'Welcome back' : 'Create your account'}
-          </h2>
-          <p className="login-subheading">
-            {mode === 'signin'
-              ? 'Enter your credentials to access the Getafe e-services portal.'
-              : 'Register to start using municipal digital services.'}
+          </h1>
+          <p className={`login-subheading login-subtitle login-subtitle-${mode}`}>
+            {mode === 'signin' ? 'Sign in to access Getafe’s online services.' : 'Create an account to access Getafe’s online services.'}
           </p>
 
           {error && (
@@ -362,7 +414,7 @@ export default function Login() {
               </div>
             )}
 
-            {mode === 'register' && settings['security.registrationCaptcha'] === true && settings['security.recaptchaSiteKey'] && <div className="login-field"><div id="recaptcha-widget" aria-label="reCAPTCHA verification" /></div>}
+            {mode === 'register' && settings['security.registrationCaptcha'] === true && settings['security.recaptchaSiteKey'] && settings['security.recaptchaVersion'] !== 'v3' && <div className="login-field"><div id="recaptcha-widget" aria-label="reCAPTCHA verification" /></div>}
 
             <div className="login-field">
               <label htmlFor="email">Email address</label>
@@ -405,6 +457,8 @@ export default function Login() {
                   className="login-eye"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-controls="password"
+                  title={showPassword ? 'Hide password' : 'Show password'}
                  data-icon-button="ghost">
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -445,17 +499,24 @@ export default function Login() {
               {loading ? (
                 <><Loader2 size={18} className="spin" /> {mode === 'signin' ? 'Signing in…' : 'Creating account…'}</>
               ) : cooldown > 0 ? (
-                <>Try again in {cooldown}s</>
+                <>Try again in {formatCooldown(cooldown)}</>
               ) : (
-                <>{mode === 'signin' ? 'Sign in' : 'Create account'} <ArrowRight size={18} /></>
+                mode === 'signin' ? 'Sign in' : 'Create account'
               )}
             </button>
-          </form>
+          </form></section>
 
           <div className="login-divider"><span>or continue with</span></div>
 
           <div className="login-social-row">
-            <button type="button" className="login-social" onClick={() => { window.location.href = `/api/auth/google?intent=${mode === 'register' ? 'signup' : 'signin'}` }}>
+            <button type="button" className="login-social" onClick={() => {
+              const intended = hasReturnUrl ? returnUrl : getPendingReturnUrl()
+              if (intended) setPendingReturnUrl(intended)
+              const query = new URLSearchParams({ intent: mode === 'register' ? 'signup' : 'signin' })
+              if (mode === 'signin') query.set('remember', String(form.remember))
+              if (intended) query.set('returnUrl', intended)
+              window.location.href = `/api/auth/google?${query}`
+            }}>
               <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z" />
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" />
@@ -464,9 +525,12 @@ export default function Login() {
               </svg>
               Google
             </button>
-            <button type="button" className="login-social">
-              <img src="/assets/icons/gov/e-gov.png" alt="" className="login-egov-icon" /> eGovPH
-            </button>
+            <div className="login-egov-option" onMouseEnter={() => setEgovNotice(true)} onMouseLeave={() => setEgovNotice(false)}>
+              <button type="button" className="login-social" aria-describedby={egovNotice ? 'egov-availability' : undefined} onFocus={() => setEgovNotice(true)} onBlur={() => setEgovNotice(false)} onClick={() => setEgovNotice(true)} onKeyDown={event => { if (event.key === 'Escape') setEgovNotice(false) }}>
+                <img src="/assets/icons/gov/e-gov.png" alt="" className="login-egov-icon" /> eGovPH
+              </button>
+              {egovNotice && <span id="egov-availability" className="login-egov-notice" role="tooltip">eGovPH sign-in is temporarily unavailable. Use email or Google instead.</span>}
+            </div>
           </div>
 
           {mode === 'signin' ? (

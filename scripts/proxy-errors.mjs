@@ -1,11 +1,16 @@
 import crypto from 'node:crypto'
+
 const expectedCodes = new Set(['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE'])
 const handled = new WeakSet()
 const lastLog = new Map()
+
 export const isHandledProxyError = error => error && handled.has(error)
+
 export function proxyLogger(logger) {
   const report = logger.error.bind(logger)
-  logger.error = (message, options) => { if (!isHandledProxyError(options?.error)) report(message, options) }
+  logger.error = (message, options) => {
+    if (!isHandledProxyError(options?.error)) report(message, options)
+  }
   return logger
 }
 
@@ -18,7 +23,7 @@ export function handleProxyError(error, request, response) {
     }
   }
   if (!response || response.destroyed || response.writableEnded) return
-  // http-proxy may pass a raw socket for an upgrade, rather than ServerResponse.
+  // http-proxy can pass a raw socket for an upgrade rather than ServerResponse.
   if (typeof response.writeHead !== 'function' || response.headersSent) {
     response.destroy()
     return

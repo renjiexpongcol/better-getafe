@@ -1,9 +1,11 @@
+import { usePublicConfig } from '../context/PublicConfig'
 import { useEffect, useRef } from 'react'
 import { MapPin, Users, UserRound, ExternalLink, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import OpenStreetMap from './OpenStreetMap'
 
 export default function BarangayModal({ barangay, onClose }) {
+  const settings = usePublicConfig()
   const modalRef = useRef(null)
   const closeButtonRef = useRef(null)
 
@@ -76,9 +78,15 @@ export default function BarangayModal({ barangay, onClose }) {
     typeof barangay.captain === 'string' &&
     barangay.captain.trim().length > 0
 
-  const hasDescription =
-    typeof barangay.description === 'string' &&
-    barangay.description.trim().length > 0
+  const research = barangay.researchData || {}
+  const descriptionIsPlaceholder = /detailed description for barangay .* is not currently available/i.test(barangay.description || '')
+  const sourcedDescription = descriptionIsPlaceholder ? '' : barangay.description?.trim()
+  const municipalSummary = typeof research.municipalContext === 'string' ? research.municipalContext.trim() : ''
+  const populationValue = research.population2024 ?? barangay.population
+  const populationSummary = populationValue != null && Number.isFinite(Number(populationValue))
+    ? `The Philippine Statistics Authority recorded ${Number(populationValue).toLocaleString('en-PH')} residents in the 2024 Census of Population.`
+    : ''
+  const aboutDescription = sourcedDescription || [municipalSummary, populationSummary].filter(Boolean).join(' ')
 
   const handleBackdropClick = (event) => {
     if (event.target === event.currentTarget) {
@@ -147,7 +155,7 @@ export default function BarangayModal({ barangay, onClose }) {
                 )}
 
                 <small className="info-meta">
-                  2020 Census of Population and Housing
+                  {settings['contact.populationSource'] || 'Published population record'}
                 </small>
               </div>
             </div>
@@ -230,9 +238,9 @@ export default function BarangayModal({ barangay, onClose }) {
               </div>
             </div>
 
-            {hasDescription ? (
+            {aboutDescription ? (
               <p className="modal-description">
-                {barangay.description}
+                {aboutDescription}
               </p>
             ) : (
               <div className="modal-unavailable-box">
@@ -258,7 +266,7 @@ export default function BarangayModal({ barangay, onClose }) {
           </span>
 
           <Link className="modal-detail-link" to={`/barangays/${barangay.id}`} onClick={onClose}>
-            View full profile <ExternalLink size={14} />
+            View profile <ExternalLink size={14} />
           </Link>
 
           <button

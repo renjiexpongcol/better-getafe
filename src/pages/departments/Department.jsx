@@ -1,4 +1,3 @@
-import { Building2, Landmark, WalletCards, HeartHandshake, Users, Map, ClipboardCheck, FileCheck2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ErrorPage, ResourceNotFound } from '../../components/RouteStatusPages'
@@ -39,9 +38,8 @@ export default function Department() {
   if (state.error === 404) return <ResourceNotFound type="service" title="Office not found" message="This office page is unavailable or has not been published." browseLabel="Browse departments" browseTo="/departments" />
   if (state.error) return <ErrorPage code="503" title="Office information is temporarily unavailable" message="Please try again later." primaryAction={{ label: 'Try again', onClick: () => setRetry(value => value + 1) }} secondaryAction={{ label: 'Browse departments', to: '/departments' }} />
   const office = state.data
-  const Icon = { Building2, Landmark, WalletCards, HeartHandshake, Users, Map, ClipboardCheck, FileCheck2 }[office.icon] || Building2
   return <main className="department-page">
-    <header className="department-hero"><div className="container"><nav aria-label="Breadcrumb"><Link to="/">Home</Link><span aria-hidden="true"> / </span><Link to="/departments">Departments</Link><span aria-hidden="true"> / </span><span>{office.name}</span></nav><p className="eyebrow"><Icon size={20} aria-hidden="true" /> Departments &amp; offices</p><h1>{office.name}</h1><p>{office.shortDescription}</p>{office.imageUrl && <img src={office.imageUrl} alt={office.imageAlt} />}</div></header>
+    <header className="department-hero"><div className="container"><h1>{office.name}</h1><p>{office.shortDescription}</p>{office.imageUrl && <img src={office.imageUrl} alt={office.imageAlt} />}</div></header>
     <div className="container department-content">
       <article><TextSection title="About the Office" text={office.description} />{office.slug === 'executive' && !office.official && <section className="department-section"><h2>Mayor &amp; municipal leadership</h2><Link className="department-link" to="/officials">View municipal officials →</Link></section>}<TextSection title="Responsibilities & functions" text={office.responsibilities} />
         <section className="department-section"><h2>Services &amp; transactions</h2>{office.services.length ? <ul className="department-services">{office.services.map(service => <li key={service.id}><div><h3>{service.name}</h3><span>Municipal service</span></div><Link to={service.href}>{service.category === 'treasury' ? 'Pay online' : 'Request service'} <span aria-hidden="true">→</span></Link></li>)}</ul> : <p>No online services are currently available for this office.</p>}{office.slug === 'health' && <Link className="department-link" to="/services/health">Health services, programs &amp; RHU information →</Link>}{office.slug === 'civil-registry' && <Link className="department-link" to="/services/certificates">View certificate requirements →</Link>}</section>

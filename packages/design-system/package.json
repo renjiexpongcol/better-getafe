@@ -1,0 +1,10 @@
+{
+  "name": "@getafe/design-system",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./tokens.css": "./src/tokens.css"
+  }
+}

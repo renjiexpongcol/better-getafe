@@ -1,4 +1,4 @@
-import { getCmsPool } from '../cloudSql.js';
+import { getCmsPool } from '../database.js';
 
 const ORIGIN = 'https://officials.bettergov.ph';
 const API_ROOT = `${ORIGIN}/api/v1`;

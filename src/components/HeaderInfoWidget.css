@@ -1,0 +1,8 @@
+.header-info-widget {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  padding-inline: clamp(8px, 0.8vw, 12px);
+}
+.header-info-widget .header-weather-reading { min-width: 0; }
+.header-info-widget .header-info-rate { cursor: default; }

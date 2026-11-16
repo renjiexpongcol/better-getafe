@@ -1,3 +1,4 @@
+import { securityFetch as fetch } from './securityFetch.js'
 const TECHNICAL_ERROR_PATTERN = /(?:API_PROXY_[A-Z0-9_]+|ECONN(?:REFUSED|RESET)|ETIMEDOUT|EPIPE|ENETUNREACH|ENOTFOUND|EHOSTUNREACH|SQLSTATE|POSTGRES(?:QL)?|REDIS|S3|B2_|AZURE_|VITE|EXPRESS|JWT|stack(?:trace)?|node_modules|\/var\/|[A-Z]:\\|127\.0\.0\.1|localhost:\d+|\bport\s+\d+|internal(?:_|\s)error|database\s+(?:connection|error|unavailable)|connection\s+(?:refused|failed|timed out)|permission\s+required|cannot\s+grant|secret|password|authorization|cookie)/i
 
 const CONTEXTS = {
@@ -48,7 +49,11 @@ export function normalizePublicError(error, context = 'unknown') {
   const candidate = String(errorValue(body) || (error instanceof Error ? error.message : '') || '').trim()
   const statusContext = STATUS_CONTEXTS[status]
   const contextContext = CONTEXTS[context] || CONTEXTS.unknown
-  const safeCandidate = candidate && !isTechnicalError(candidate) && candidate.length <= 220
+  // This known validation response is safe user-facing copy. Keep its exact
+  // meaning so password forms and session handling can distinguish it from
+  // an expired session without exposing arbitrary authentication messages.
+  const incorrectCurrentPassword = context === 'auth' && status === 401 && candidate === 'Current password is incorrect.'
+  const safeCandidate = incorrectCurrentPassword || (candidate && !isTechnicalError(candidate) && candidate.length <= 220)
   const useStatusMessage = status >= 400 && status < 500 && safeCandidate
   const copy = context === 'auth' && status === 503
     ? { title: 'Sign-in is temporarily unavailable', message: 'The service is temporarily unavailable. Please try again shortly.' }

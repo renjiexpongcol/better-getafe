@@ -1,3 +1,4 @@
+import { securityFetch as fetch } from '../services/securityFetch.js'
 import { useEffect, useState } from 'react'
 const permissions = { 'settings.view': ['View settings', 'Open the system settings area and review configuration.'], 'settings.edit': ['Edit settings', 'Change non-sensitive portal configuration.'], 'settings.secrets.edit': ['Manage secrets', 'Replace passwords, API keys, and other protected credentials.'], 'settings.database.edit': ['Manage databases', 'Update database connection and data-store settings.'], 'settings.storage.edit': ['Manage cloud storage', 'Configure storage providers, uploads, and file access.'], 'settings.security.edit': ['Manage access', 'Change security controls and administrator permissions.'], 'settings.audit.view': ['View audit history', 'Review recorded configuration and security changes.'] }
 const names = Object.fromEntries(Object.entries(permissions).map(([key, [label]]) => [key, label]))

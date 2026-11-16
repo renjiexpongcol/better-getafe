@@ -1,22 +1,58 @@
+import { usePublishedContent } from '../hooks/usePublicResource'
 import { usePublicConfig } from '../context/PublicConfig'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { NavLink, Link, useLocation } from 'react-router-dom'
-import { Accessibility, ArrowRight, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, Mail, Map, Menu, Newspaper, PhoneCall, Rocket, Siren, Users, WalletCards, ChartNoAxesCombined, X } from 'lucide-react'
-import HeaderWeather from './HeaderWeather'
+import { Accessibility, ArrowRight, BookOpen, Building2, CalendarDays, ChevronDown, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, Mail, Map as MapIcon, Menu, Newspaper, PhoneCall, Rocket, Siren, Users, WalletCards, ChartNoAxesCombined, X } from 'lucide-react'
+import HeaderInfoWidget from './HeaderInfoWidget'
+import { buildPublicHeaderMenus, groupPublicHeaderMenuItems } from './headerNavigation'
+import { navigationDestinationId } from '../services/websiteAnalytics.js'
 
+const menuIcons = { Accessibility, BookOpen, Building2, CalendarDays, ClipboardCheck, CloudSun, Compass, FileCheck2, HeartHandshake, Info, Landmark, Mail, Map: MapIcon, Newspaper, PhoneCall, Siren, Users, WalletCards, ChartNoAxesCombined }
 const DEFAULT_HEADER_HIDE_THRESHOLD = 90
 const LANDING_HEADER_HIDE_THRESHOLD = 220
+const DESKTOP_NAV_QUERY = '(min-width: 1121px)'
+const anchoredMenus = new Set(['services', 'discover', 'municipality', 'national-id'])
 
-export default function Header() {
+export default function Header({ featuresEnabled = true }) {
   const settings = usePublicConfig()
   const [openMenu, setOpenMenu] = useState(null)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [time, setTime] = useState('')
+  const [desktop, setDesktop] = useState(() => window.matchMedia('(min-width: 981px)').matches)
+  const navRef = useRef(null)
+  const mobileMenuToggleRef = useRef(null)
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 981px)')
+    const update = () => setDesktop(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
   const [isHidden, setIsHidden] = useState(false)
   const menuInteractionRef = useRef(null)
   const location = useLocation()
   const isLandingPage = location.pathname === '/'
   const hideThreshold = isLandingPage ? LANDING_HEADER_HIDE_THRESHOLD : DEFAULT_HEADER_HIDE_THRESHOLD
+
+  useLayoutEffect(() => {
+    if (!anchoredMenus.has(openMenu)) return undefined
+    const panel = navRef.current?.querySelector('.nav-dropdown--anchored > .nav-dropdown-menu.open')
+    if (!panel) return undefined
+    const anchor = panel.parentElement
+    const positionPanel = () => {
+      if (!window.matchMedia(DESKTOP_NAV_QUERY).matches) return
+      const { left, width, bottom } = anchor.getBoundingClientRect()
+      const triggerCenter = left + width / 2
+      const inset = panel.offsetWidth / 2 + 16
+      const viewportWidth = document.documentElement.clientWidth
+      const preferredCenter = openMenu === 'national-id' ? triggerCenter : viewportWidth / 2
+      const center = Math.max(inset, Math.min(preferredCenter, viewportWidth - inset))
+      panel.style.setProperty('--dropdown-offset', `${center - triggerCenter}px`)
+      panel.style.setProperty('--dropdown-space-below', `${window.innerHeight - bottom}px`)
+    }
+    positionPanel()
+    window.addEventListener('resize', positionPanel)
+    return () => window.removeEventListener('resize', positionPanel)
+  }, [openMenu])
 
   useEffect(() => {
     setMobileNavOpen(false)
@@ -27,9 +63,18 @@ export default function Header() {
   useEffect(() => {
     const closeMenusOnEscape = (event) => {
       if (event.key !== 'Escape') return
+      const mobileMenuWasOpen = mobileMenuToggleRef.current?.getAttribute('aria-expanded') === 'true'
+      const openDropdown = navRef.current?.querySelector('.nav-dropdown-menu.open')?.parentElement
+      if (!mobileMenuWasOpen && !openDropdown) return
+      event.preventDefault()
+      const servicesTrigger = openDropdown?.querySelector('[aria-controls="nav-menu-services"]')
       menuInteractionRef.current = null
       setOpenMenu(null)
-      setMobileNavOpen(false)
+      if (!servicesTrigger) setMobileNavOpen(false)
+      const focusTarget = servicesTrigger || (mobileMenuWasOpen
+        ? mobileMenuToggleRef.current
+        : openDropdown?.querySelector('.nav-dropdown-trigger'))
+      window.requestAnimationFrame(() => focusTarget?.focus())
     }
 
     document.addEventListener('keydown', closeMenusOnEscape)
@@ -37,8 +82,20 @@ export default function Header() {
   }, [])
 
   useEffect(() => {
+    const closeMenusOnOutsideClick = (event) => {
+      const openDropdown = navRef.current?.querySelector('.nav-dropdown-menu.open')?.parentElement
+      if (openDropdown?.contains(event.target)) return
+      menuInteractionRef.current = null
+      setOpenMenu(null)
+    }
+
+    document.addEventListener('pointerdown', closeMenusOnOutsideClick)
+    return () => document.removeEventListener('pointerdown', closeMenusOnOutsideClick)
+  }, [])
+
+  useEffect(() => {
     const closeOnResize = () => {
-      if (window.innerWidth > 980) setMobileNavOpen(false)
+      if (window.matchMedia(DESKTOP_NAV_QUERY).matches) setMobileNavOpen(false)
     }
     window.addEventListener('resize', closeOnResize)
     return () => window.removeEventListener('resize', closeOnResize)
@@ -47,27 +104,22 @@ export default function Header() {
 
 
   useEffect(() => {
+    if (!featuresEnabled || !desktop) return undefined
+    const formatter = new Intl.DateTimeFormat(settings['general.locale'] || 'en-PH', {
+      timeZone: settings['general.timezone'] || 'Asia/Manila', weekday: 'long', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+    })
     const updateTime = () => {
-      const formatter = new Intl.DateTimeFormat(settings['general.locale'] || 'en-PH', {
-        timeZone: settings['general.timezone'] || 'Asia/Manila',
-        weekday: 'long',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-      })
-
-      setTime(formatter.format(new Date()))
+      if (document.visibilityState === 'visible') setTime(formatter.format(new Date()))
     }
 
     updateTime()
     const interval = setInterval(updateTime, 1000)
     return () => clearInterval(interval)
-  }, [settings])
+  }, [featuresEnabled, desktop, settings['general.locale'], settings['general.timezone']])
 
   useEffect(() => {
     const handleScroll = () => {
-      const shouldHide = window.scrollY > hideThreshold
+      const shouldHide = !mobileNavOpen && window.scrollY > hideThreshold
       setIsHidden(shouldHide)
       if (shouldHide) setOpenMenu(null)
     }
@@ -75,63 +127,17 @@ export default function Header() {
     handleScroll()
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [hideThreshold, settings])
+  }, [hideThreshold, mobileNavOpen, settings])
 
-  const menuItems = [
-    {
-      label: 'Services',
-      key: 'services',
-      items: [
-        ['Executive', '/departments/executive', 'Mayor\'s office and municipal leadership.', Landmark],
-        ['Engineering', '/departments/engineering', 'Infrastructure and public works support.', Building2],
-        ['Zoning/Planning', '/departments/zoning-planning', 'Land use and development planning.', Map],
-        ['Treasury', '/departments/treasury', 'Local payments, taxes, and revenue services.', WalletCards],
-        ['Assessment', '/departments/assessment', 'Property assessment and tax declarations.', ClipboardCheck],
-        ['Civil Registry', '/departments/civil-registry', 'Birth, marriage, death, and other civil registry records.', FileCheck2],
-        ['Health', '/departments/health', 'Public health and rural health services.', HeartHandshake],
-        ['Social Welfare', '/departments/social-welfare', 'Assistance programs for residents and families.', Users],
-      ],
-    },
-    {
-      label: 'Business',
-      key: 'business',
-      items: [
-        ['Business Services', '/services/e-services/business-services', 'Permits, clearances, and local business requirements.', Building2],
-        ['Business Online Billing and Payment', '/services/e-services/business-billing', 'Business billing and payment information.', WalletCards],
-        ['New Business Application', '/services/e-services/new-business-application', 'Start a new business application.', ClipboardCheck],
-        ['Renew Business Application', '/services/e-services/renew-business-application', 'Renew an existing business application.', FileCheck2],
-        ['Realty Tax Online Billing and Payment', '/services/e-services/realty-billing', 'Real property tax billing and payment information.', Landmark],
-        ['Online Payment Order', '/services/e-services/online-payment-order', 'View online payment order guidance.', WalletCards],
-        ['Water Online Billing and Payment', '/services/e-services/water-billing', 'Water billing and payment information.', CloudSun],
-      ],
-    },
-    {
-      label: 'Residents',
-      key: 'residents',
-      items: [
-        ['Citizen Services', '/services', 'Common requests for Getafe residents.', Users],
-        ['Other Services', '/services/e-services/other-services', 'Requirements and applications for other municipal services.', ClipboardCheck],
-        ['Emergency Hotlines', '/services/hotlines', 'Fast access to urgent public numbers.', Siren],
-        ['Accessibility', '/accessibility', 'Inclusive access information.', Accessibility],
-      ],
-    },
-    {
-      label: 'Information',
-      key: 'information',
-      items: [
-        ['About Us', '/info/about', 'Mission, vision, and who we serve.', Info],
-        ['Municipal Officials', '/officials', 'Elected leaders, barangay captains, and department heads.', Landmark],
-        ['History & Hymn', '/info/history', 'The story, seal, and song of Getafe.', BookOpen],
-        ['Tourism', '/tourism', 'Explore Getafe destinations, islands, and coastal places.', Compass],
-        ['Gallery of Events', '/events', 'See the celebrations and milestones of Getafe.', CalendarDays],
-        ['Contact Us', '/contact', 'Reach the municipal offices.', Mail],
-        ['News and Updates', '/news', 'Latest local announcements.', Newspaper],
-        ['Weather Updates', '/weather', 'Live conditions and forecasts.', CloudSun],
-        ['Data & Statistics', '/data', 'Public datasets and official statistical releases.', ChartNoAxesCombined],
-        ['Emergency Hotlines', '/services/hotlines', 'Police, fire, medical, and public services.', PhoneCall],
-      ],
-    },
-  ]
+  const { content: navigation } = usePublishedContent('navigation')
+  const configuredMenus = Array.isArray(navigation?.menus) ? navigation.menus : []
+  const sourceMenus = buildPublicHeaderMenus(configuredMenus)
+  const menuItems = sourceMenus.map(menu => {
+    const items = (menu.items || []).map(item => ({ ...item, Icon: menuIcons[item.icon] || Info }))
+    return { ...menu, sections: groupPublicHeaderMenuItems(menu.key, items) }
+  })
+  const nationalIdItems = menuItems.find(menu => menu.key === 'services')?.sections.find(section => section.key === 'national-id')?.items || []
+  if (nationalIdItems.length) menuItems.push({ key: 'national-id', label: 'National ID', sections: [{ key: 'all', label: '', items: nationalIdItems }] })
 
   return (
     <>
@@ -146,11 +152,12 @@ export default function Header() {
           <img src={settings['general.logo'] || '/assets/getafe-seal.png'} alt="Municipality of Getafe Logo" className="brand-logo" />
           <div>
             <div className="brand-name" style={{ whiteSpace: 'nowrap' }}>{settings['general.company'] || 'Municipality of Getafe'}</div>
-            <div className="brand-subtitle">Bohol • Philippines</div>
+            <div className="brand-subtitle">{settings['general.locationLabel']}</div>
           </div>
         </Link>
 
         <button
+          ref={mobileMenuToggleRef}
           type="button"
           className="mobile-menu-toggle"
           aria-label={mobileNavOpen ? 'Close main navigation' : 'Open main navigation'}
@@ -161,13 +168,16 @@ export default function Header() {
           {mobileNavOpen ? <X size={21} aria-hidden="true" /> : <Menu size={21} aria-hidden="true" />}
         </button>
 
-        <nav id="site-navigation" className={`main-nav${mobileNavOpen ? ' is-open' : ''}`} aria-label="Main navigation">
+        <nav ref={navRef} id="site-navigation" className={`main-nav${mobileNavOpen ? ' is-open' : ''}`} aria-label="Main navigation">
           <NavLink to="/" className={({isActive}) => isActive ? "active" : ""}>Home</NavLink>
           {menuItems.map((menu) => (
             <div
-              className="nav-dropdown"
+              className={`nav-dropdown${anchoredMenus.has(menu.key) ? ' nav-dropdown--anchored' : ''}`}
               key={menu.key}
               onMouseEnter={() => {
+                if (!window.matchMedia(DESKTOP_NAV_QUERY).matches) return
+                const interaction = menuInteractionRef.current
+                if (interaction?.key === menu.key && interaction.mode === 'click') return
                 menuInteractionRef.current = { key: menu.key, mode: 'hover' }
                 setOpenMenu(menu.key)
               }}
@@ -190,20 +200,31 @@ export default function Header() {
                 aria-haspopup="true"
                 aria-controls={`nav-menu-${menu.key}`}
                 onClick={(event) => {
-                  const shouldClose = openMenu === menu.key && event.detail === 0
-                  menuInteractionRef.current = { key: menu.key, mode: 'click' }
+                  const shouldClose = openMenu === menu.key && (
+                    event.detail === 0 || menuInteractionRef.current?.mode === 'click'
+                  )
+                  menuInteractionRef.current = shouldClose ? null : { key: menu.key, mode: 'click' }
                   setOpenMenu(shouldClose ? null : menu.key)
                 }}
               >
                 {menu.label} <ChevronDown size={15} aria-hidden="true" />
               </button>
-              <div id={`nav-menu-${menu.key}`} className={openMenu === menu.key ? 'nav-dropdown-menu open' : 'nav-dropdown-menu'}>
-                {menu.items.map(([title, url, description, Icon]) => (
-                  <NavLink to={url} className={({ isActive }) => isActive ? 'active' : undefined} onClick={() => setOpenMenu(null)} key={title}>
-                    <span className="nav-dropdown-icon"><Icon size={18} aria-hidden="true" /></span>
-                    <span className="nav-dropdown-copy"><strong>{title}</strong><small>{description}</small></span>
-                  </NavLink>
-                ))}
+              <div id={`nav-menu-${menu.key}`} className={`nav-dropdown-menu nav-dropdown-menu--${menu.key}${openMenu === menu.key ? ' open' : ''}`}>
+                <div className="nav-dropdown-main-sections">
+                  {menu.sections.filter(section => section.key !== 'national-id').map(section => (
+                    <section className="nav-dropdown-section" key={section.key} aria-label={section.label || `${menu.label} links`}>
+                      {section.label && <h3>{section.label}</h3>}
+                      <div className="nav-dropdown-section-items">
+                        {section.items.map(({ name, url, description, Icon }) => {
+                          const content = <><span className="nav-dropdown-icon"><Icon size={18} aria-hidden="true" /></span><span className="nav-dropdown-copy"><strong>{name}</strong>{description && <small>{description}</small>}</span></>
+                          return url.startsWith('https://')
+                            ? <a href={url} target="_blank" rel="noopener noreferrer" data-analytics-placement={`header.${menu.key}`} data-analytics-destination={navigationDestinationId(url)} onClick={() => setOpenMenu(null)} key={url}>{content}</a>
+                            : <NavLink to={url} className={({ isActive }) => isActive ? 'active' : undefined} data-analytics-placement={`header.${menu.key}`} data-analytics-destination={navigationDestinationId(url)} onClick={() => setOpenMenu(null)} key={url}>{content}</NavLink>
+                        })}
+                      </div>
+                    </section>
+                  ))}
+                </div>
               </div>
             </div>
           ))}
@@ -219,13 +240,13 @@ export default function Header() {
 
         <div className="nav-actions">
           <div className="header-status">
-            <HeaderWeather />
+            {featuresEnabled && <HeaderInfoWidget />}
             <div className="header-clock" role="group" aria-label="Philippine Standard Time">
               <span className="header-clock-label">Philippine Standard Time</span>
               <span className="philippine-time">{time}</span>
             </div>
           </div>
-          <Link to="/app" className="login-button">E-Getafe</Link>
+          <Link to="/app" className="login-button">Login</Link>
         </div>
       </div>
       </header>

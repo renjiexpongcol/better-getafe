@@ -1,0 +1,81 @@
+:root {
+  --color-brand-primary: #194a78;
+  --color-brand-strong: #0b2345;
+  --color-brand-muted: #eaf4fc;
+  --color-bg: #f4f6f8;
+  --color-bg-subtle: #eef2f6;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-text: #17233a;
+  --color-text-secondary: #4b5d73;
+  --color-text-muted: #5f6b7a;
+  --color-border: #d9e2ec;
+  --color-border-strong: #7c8da1;
+  --color-focus: #2f80c9;
+  --color-on-brand: #ffffff;
+  --color-success: #176344;
+  --color-success-bg: #eaf5ef;
+  --color-warning: #805600;
+  --color-warning-bg: #fff6dd;
+  --color-danger: #b42332;
+  --color-danger-bg: #fff0f1;
+  --color-info: #194a78;
+  --color-info-bg: #eaf2fa;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --space-12: 48px; --space-16: 64px;
+  --font-caption: .75rem; --font-small: .875rem; --font-body: 1rem;
+  --font-subsection: 1rem; --font-section: 1.25rem; --font-title: 1.75rem;
+  --font-display: 3rem;
+  --radius-control: 6px; --radius-panel: 8px; --radius-dialog: 12px;
+  --shadow-raised: 0 4px 16px rgb(7 26 51 / 10%);
+  --shadow-dialog: 0 16px 48px rgb(7 26 51 / 20%);
+  --duration-fast: 160ms;
+  --control-height: 44px;
+  --navy-950: #071a33; --navy-900: var(--color-brand-strong);
+  --navy-800: #12345b; --navy-700: var(--color-brand-primary); --navy-600: #24639a;
+  --blue-500: var(--color-focus); --blue-100: var(--color-brand-muted); --blue-50: #f5f9fd;
+  --surface: var(--color-surface); --surface-muted: var(--color-bg);
+  --border: var(--color-border); --text-primary: var(--color-text); --text-secondary: var(--color-text-muted);
+  --bg: var(--color-bg); --surface-soft: var(--blue-50); --primary: var(--color-brand-primary);
+  --primary-dark: var(--color-brand-strong); --secondary: var(--color-brand-muted);
+  --text: var(--color-text); --muted: var(--color-text-muted);
+  --success: var(--color-success); --warning: var(--color-warning);
+  --shadow: var(--shadow-raised); --focus-ring: var(--color-focus);
+  --input-border: var(--color-border-strong); --input-border-hover: var(--color-brand-primary);
+  --input-border-focus: var(--color-focus); --input-focus-ring: rgb(36 99 154 / 16%);
+  --input-disabled-bg: var(--color-bg-subtle); --input-error: var(--color-danger);
+}
+:is(.portal-v2,.staff-workspace,.profile-modal-card) {
+  --surface: var(--color-surface); --surface-muted: var(--color-bg); --surface-soft: var(--color-bg-subtle);
+  --text: var(--color-text); --text-primary: var(--color-text); --text-secondary: var(--color-text-muted);
+  --muted: var(--color-text-muted); --border: var(--color-border); --input-border: var(--color-border-strong);
+  --navy-950: var(--color-text); --navy-700: var(--color-brand-primary);
+  --icon-button-hover-color: var(--color-brand-primary); --icon-button-active-color: var(--color-text);
+}
+/* Preferences stay scoped to private shells and their portaled overlays. */
+html[data-resident-theme="dark"] :is(.portal-v2,.staff-workspace,.profile-modal-card) {
+  --color-brand-primary: #a1cdf3; --color-brand-strong: #c5e4ff; --color-brand-muted: #203c59; --color-on-brand: #0b2345;
+  --color-bg: #0d1d31; --color-bg-subtle: #182e46;
+  --color-surface: #132943; --color-surface-raised: #1c3651;
+  --color-text: #edf5fc; --color-text-secondary: #c7d6e5; --color-text-muted: #abc0d3;
+  --color-border: #3c5873; --color-border-strong: #8da5ba; --color-focus: #90c9ff;
+  --color-success: #a5dfbf; --color-success-bg: #123f30;
+  --color-warning: #f5d88c; --color-warning-bg: #42351a;
+  --color-danger: #ffb3ba; --color-danger-bg: #4b2430;
+  --color-info: #a1cdf3; --color-info-bg: #203c59;
+  --surface: var(--color-surface); --surface-muted: var(--color-bg);
+  --text-primary: var(--color-text); --text-secondary: var(--color-text-muted);
+  --border: var(--color-border); --primary: var(--color-brand-primary);
+  --input-border: var(--color-border-strong); --input-error: var(--color-danger);
+}
+html[data-resident-contrast="high"] :is(.portal-v2,.staff-workspace,.profile-modal-card),
+html[data-high-contrast="true"], html.high-contrast {
+  --color-bg: #000; --color-bg-subtle: #000; --color-surface: #000; --color-surface-raised: #000;
+  --color-text: #fff; --color-text-secondary: #fff; --color-text-muted: #fff;
+  --color-border: #fff; --color-border-strong: #fff; --color-focus: #ff0;
+  --color-brand-primary: #ff0; --color-brand-muted: #000; --color-on-brand: #000;
+  --color-success: #fff; --color-success-bg: #000; --color-warning: #fff; --color-warning-bg: #000;
+  --color-danger: #fff; --color-danger-bg: #000; --color-info: #fff; --color-info-bg: #000;
+}
+@media (prefers-reduced-motion: reduce) { :root { --duration-fast: 0ms; } }

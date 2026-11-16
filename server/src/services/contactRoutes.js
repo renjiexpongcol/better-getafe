@@ -4,11 +4,8 @@ import { createContactMessage, updateContactAcknowledgement } from '../repositor
 import { stateKey, stateTransaction } from './authState.js';
 import { resolveClient } from './trafficProtection.js';
 import { sendContactAcknowledgement, sendEmail } from './email.js';
+import { verifyRecaptchaToken } from './recaptchaVerification.js';
 
-const categories = new Set([
-  'General inquiry', 'Business permits', 'Civil registry', 'Real property / taxation',
-  'Social services', 'Engineering / building permits', 'Tourism', 'Complaint or feedback', 'Other',
-]);
 const windows = { short: 10 * 60 * 1000, daily: 24 * 60 * 60 * 1000 };
 function rateLimit(name, fallback) {
   const raw = process.env[name]
@@ -39,20 +36,9 @@ async function consumeContactRate(scope, client) {
   });
 }
 
-async function verifyCaptcha(token, req) {
+async function verifyCaptcha(token) {
   if (config.get('security.contactCaptcha') !== true) return true;
-  const secret = config.get('security.recaptchaSecretKey');
-  if (!secret || !token) return false;
-  try {
-    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ secret, response: token, remoteip: req.ip || '' }),
-    });
-    const result = await response.json();
-    return result.success === true;
-  } catch {
-    return false;
-  }
+  return verifyRecaptchaToken(token, 'contact');
 }
 
 function referenceNumber() {
@@ -62,6 +48,34 @@ function referenceNumber() {
 }
 
 export function installContactRoutes(app) {
+  app.post('/api/contact/data-correction', async (req, res) => {
+    res.set('Cache-Control', 'no-store')
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+    const name = text(body.name), email = text(body.email).toLowerCase()
+    const barangay = text(body.barangay), field = text(body.field)
+    const currentValue = text(body.currentValue).slice(0, 500)
+    const correctedValue = text(body.correctedValue).slice(0, 500)
+    const details = text(body.details).slice(0, 2000)
+    const fields = new Set(['Postal code', 'Population', 'Punong Barangay', 'Other barangay information'])
+    if (!name || name.length > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !barangay || barangay.length > 100 || !fields.has(field) || !correctedValue) {
+      return res.status(400).json({ error: 'Complete your name, valid email, barangay, and the corrected information.' })
+    }
+    const client = resolveClient(req).value
+    const ipRate = await consumeContactRate('data-correction-ip', client)
+    if (!ipRate.allowed) { res.set('Retry-After', String(ipRate.retryAfter)); return res.status(429).json({ error: 'Too many reports. Please try again later.' }) }
+    const rate = await consumeContactRate('data-correction-email', crypto.createHash('sha256').update(email).digest('hex'))
+    if (!rate.allowed) { res.set('Retry-After', String(rate.retryAfter)); return res.status(429).json({ error: 'Too many reports. Please try again later.' }) }
+    if (!(await verifyCaptcha(text(body.captchaToken)))) return res.status(400).json({ error: 'Please complete the verification and try again.' })
+    const reference = referenceNumber(), submittedAt = new Date()
+    const subject = `Barangay data correction · ${barangay}`
+    const message = `Data correction report\nBarangay: ${barangay}\nField: ${field}\nCurrent value: ${currentValue || '(not shown)'}\nSuggested value: ${correctedValue}\nDetails: ${details || '(none provided)'}\nPage: ${String(body.pageUrl || '').slice(0, 1000)}\nReference: ${reference}`
+    try { await createContactMessage({ referenceNumber: reference, name, email, category: 'Website data correction', subject, message }) }
+    catch (error) { console.error('Unable to store barangay data correction:', error.safeMessage || error.message); return res.status(503).json({ error: 'We couldn’t store your report right now. Please try again.' }) }
+    const recipient = process.env.CONTACT_NOTIFICATION_EMAIL || config.get('general.supportEmail')
+    if (recipient && config.get('email.enabled') === true) void sendEmail(recipient, `Website data correction · ${reference}`, `Name: ${name}\nEmail: ${email}\n${message}`).catch(error => console.error('Data correction notification failed:', error.message))
+    return res.status(201).json({ message: 'Your report has been received for review.', referenceNumber: reference })
+  })
+
   app.post('/api/contact', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     const body = req.body && typeof req.body === 'object' ? req.body : {};
@@ -80,7 +94,7 @@ export function installContactRoutes(app) {
     else if (name.length > 100) errors.name = 'Name must be 100 characters or fewer.';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'A valid email is required.';
     else if (email.length > 254) errors.email = 'E-mail must be 254 characters or fewer.';
-    if (!categories.has(category)) errors.category = 'Select a valid category.';
+    if (!String(config.get('contact.categories') || '').split('\n').map(value => value.trim()).filter(Boolean).includes(category)) errors.category = 'Select a valid category.';
     if (!subject) errors.subject = 'Subject is required.';
     else if (subject.length > 200) errors.subject = 'Subject must be 200 characters or fewer.';
     if (!message) errors.message = 'Message is required.';
@@ -103,7 +117,7 @@ export function installContactRoutes(app) {
       res.set('Retry-After', String(rate.retryAfter));
       return res.status(429).json({ error: 'Too many messages. Please try again later.' });
     }
-    if (!(await verifyCaptcha(text(body.captchaToken), req))) {
+    if (!(await verifyCaptcha(text(body.captchaToken)))) {
       console.warn(JSON.stringify({ event: 'contact.bot_verification_failed', ip: resolveClient(req).value }));
       return res.status(400).json({ error: 'Please complete the verification and try again.' });
     }

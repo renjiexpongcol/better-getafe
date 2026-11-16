@@ -1,4 +1,4 @@
-import { getCmsPool } from '../services/cloudSql.js';
+import { getCmsPool } from '../services/database.js';
 import { getLocalDb, saveLocalDb, isGcp, id, slugify, now } from './postgresCompatibility.js';
 
 export async function getCategories() {

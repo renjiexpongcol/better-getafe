@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { employeeDepartmentAccess } from './employeeProvisioning.js'
 import { getCmsUsers } from '../repositories/cmsUserRepository.js'
 import { id, now } from './identifiers.js'
 import { ensureAuthorizationData, ensureBootstrapMembership, effectiveAccessFor, hasAccess, requireAccess, audit } from './authorizationService.js'
@@ -47,7 +48,12 @@ export function installAccessManagementRoutes(app, admin) {
       const memberships = await db.prepare('SELECT ug.user_id,g.id,g.name FROM auth_user_groups ug JOIN auth_groups g ON g.id=ug.group_id WHERE g.archived_at IS NULL ORDER BY g.name').all()
       const directory = users.map(user => ({ id: user.id, name: user.name, email: user.email, role: user.role, eid:user.eid, department:user.department, position:user.position, groups: memberships.filter(item => item.user_id === user.id).map(item => ({ id: item.id, name: item.name })) }))
       const activity = await db.prepare("SELECT a.*,COALESCE(actor.name || ' · EID ' || ap.eid,'System') AS actor_label,COALESCE(target.name || ' · EID ' || tp.eid,g.name,policy.name,a.target_type) AS target_label FROM auth_audit_logs a LEFT JOIN users actor ON actor.id=a.actor_id LEFT JOIN employee_profiles ap ON ap.user_id=actor.id LEFT JOIN users target ON target.id=a.target_id LEFT JOIN employee_profiles tp ON tp.user_id=target.id LEFT JOIN auth_groups g ON g.id=a.target_id LEFT JOIN auth_policies policy ON policy.id=a.target_id ORDER BY a.created_at DESC LIMIT 100").all()
-      res.json({ users: directory, groups, permissions, policies, activity })
+      const groupPermissions = await db.prepare('SELECT group_id,permission_id FROM auth_group_permissions').all()
+      groups.forEach(group => { group.permission_ids = groupPermissions.filter(grant => grant.group_id === group.id).map(grant => grant.permission_id) })
+      const departments = await db.prepare('SELECT id,name FROM departments WHERE published=TRUE ORDER BY name').all()
+      const departmentMembers = await db.prepare('SELECT user_id,department_id FROM eservice_department_members').all()
+      directory.forEach(user => { user.department_ids = departmentMembers.filter(member => member.user_id === user.id).map(member => member.department_id) })
+      res.json({ users: directory, groups, permissions, policies, activity, departments })
     } catch (error) { console.error('Access management load failed:', error.message); res.status(503).json({ error: 'Access management is temporarily unavailable.' }) }
   })
 
@@ -159,6 +165,12 @@ export function installAccessManagementRoutes(app, admin) {
       if (userIds.some(userId => !validUsers.has(userId))) return res.status(422).json({ error: 'One or more users are invalid.' })
       if (userIds.includes(req.admin.id) !== Boolean(await db.prepare('SELECT 1 FROM auth_user_groups WHERE user_id=? AND group_id=?').get(req.admin.id, group.id))) return res.status(403).json({ error: 'You cannot change your own group membership.' })
       const previous = (await db.prepare('SELECT user_id FROM auth_user_groups WHERE group_id=?').all(group.id)).map(item => item.user_id)
+      if (userIds.some(userId => !previous.includes(userId))) {
+        const actorAccess = await effectiveAccessFor(req.admin)
+        const held = new Set(actorAccess.permissions.filter(item => item.allowed).map(item => item.id))
+        const grants = await db.prepare('SELECT permission_id FROM auth_group_permissions WHERE group_id=?').all(group.id)
+        if (grants.some(grant => !held.has(grant.permission_id))) return res.status(403).json({ error: 'You cannot assign a group that grants permissions you do not hold.' })
+      }
       const protectedSuperIds = users.filter(item => item.role === 'super_admin').map(item => item.id)
       if (group.system_group && protectedSuperIds.some(userId => !userIds.includes(userId))) return res.status(409).json({ error: 'Super administrators cannot be removed from the protected system group.' })
       await db.exec('BEGIN IMMEDIATE'); try {
@@ -191,7 +203,18 @@ export function installAccessManagementRoutes(app, admin) {
         if (required.some(permission => !actorPermissions.has(permission))) return res.status(403).json({ error: 'You cannot assign a group that grants permissions you do not hold.' })
       }
       if (target.role === 'super_admin' && protectedGroup && !groupIds.includes(protectedGroup.id)) return res.status(409).json({ error: 'A super administrator cannot be removed from the protected system group.' })
+      if (req.body.department_ids !== undefined) await requireAccess(req.admin, 'eservices.admin')
       await db.exec('BEGIN IMMEDIATE'); try {
+        if (req.body.department_ids !== undefined) {
+          const previousOffices = (await db.prepare('SELECT department_id FROM eservice_department_members WHERE user_id=?').all(target.id)).map(row => row.department_id)
+          const departmentIds = await employeeDepartmentAccess((sql, values) => db.prepare(sql).all(...values), groupIds, req.body.department_ids, target.role)
+          await db.prepare('DELETE FROM eservice_department_members WHERE user_id=?').run(target.id)
+          for (const departmentId of departmentIds) await db.prepare('INSERT INTO eservice_department_members(user_id,department_id) VALUES(?,?)').run(target.id, departmentId)
+          await audit(db, req.admin.id, 'EMPLOYEE_DEPARTMENT_ACCESS_UPDATED', 'user', target.id, { department_ids: previousOffices }, { department_ids: departmentIds })
+        } else {
+          const departments = (await db.prepare('SELECT department_id FROM eservice_department_members WHERE user_id=?').all(target.id)).map(row => row.department_id)
+          await employeeDepartmentAccess((sql, values) => db.prepare(sql).all(...values), groupIds, departments, target.role)
+        }
         await db.prepare('DELETE FROM auth_user_groups WHERE user_id=?').run(target.id)
         const insert = await db.prepare('INSERT INTO auth_user_groups (user_id,group_id,created_at,created_by) VALUES (?,?,?,?)')
         for (const groupId of groupIds) await insert.run(target.id, groupId, now(), req.admin.id)

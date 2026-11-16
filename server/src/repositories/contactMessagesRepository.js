@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { getPortalPool } from '../services/cloudSql.js';
+import { getPortalPool } from '../services/database.js';
 
 export async function createContactMessage({ referenceNumber, name, email, category, subject, message }) {
   const pool = await getPortalPool();

@@ -1,16 +1,22 @@
-import { useEffect, useState } from "react";
+import { useDataRevision } from '../hooks/usePublicResource'
+import { statusPresentation } from '../services/statusPresentation';
+import { StatusBadge, LoadingState, ErrorState, Alert, EmptyState, Table } from './ui/Primitives';
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { requestJson, apiFetch } from "../services/apiClient";
 import "./EserviceUI.css";
-import { publicStatus, fieldProfileSource } from '../data/serviceApplication';
+import { fieldProfileSource } from '../data/serviceApplication';
+import {routeRequest, invalidateRouteRequestCache} from '../services/routeRequests';
+import {apiPath} from '../services/apiTransport';
+import {isPublicApiRequest} from '../services/securitySurfaces';
 
 export const esApi = (path, method = "GET", data, operationKey, options = {}) =>
-  requestJson(path, {
+  (method === 'GET' ? routeRequest(apiPath(path), { scope: isPublicApiRequest(apiPath(path)) ? 'public' : 'eservice', ttl: path === '/services' ? 60000 : 0, ...options }) : requestJson(path, {
     ...options,
     method,
     ...(data ? { body: JSON.stringify(data) } : {}),
     headers: operationKey ? { "Idempotency-Key": operationKey } : {},
-  });
+  }).then(result => { if (path.startsWith('/admin/services')) invalidateRouteRequestCache('/api/services'); if(path.startsWith('/staff/')) invalidateRouteRequestCache('/api/staff'); return result; }));
 export const label = (value) =>
   ({
     IN_REVIEW: "Under review",
@@ -31,75 +37,81 @@ export const date = (value) =>
   value
     ? new Date(value).toLocaleString("en-PH", { timeZone: "Asia/Manila" })
     : "—";
-export function useEservice(load, dependencies) {
-  const currentKey = JSON.stringify(dependencies),
+export function useEservice(load, dependencies, enabled = true) {
+  const dataRevision = useDataRevision();
+  const controllerRef = useRef(null), sequenceRef = useRef(0);
+  const currentKey = JSON.stringify([...dependencies, dataRevision]),
     [loadedKey, setLoadedKey] = useState(null);
   const [data, setData] = useState(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true);
   const refresh = async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController(), sequence = ++sequenceRef.current;
+    controllerRef.current = controller;
     setError("");
     setLoading(true);
     try {
-      const result = await load();
+      const result = await load(controller.signal);
+      if (controller.signal.aborted || sequence !== sequenceRef.current) return;
       setData(result);
       setLoadedKey(currentKey);
       return result;
     } catch (e) {
-      setError(e.message);
+      if (!controller.signal.aborted && sequence === sequenceRef.current) setError(e.message);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted && sequence === sequenceRef.current) setLoading(false);
     }
   };
   useEffect(() => {
+    if (!enabled) return undefined;
     let active = true;
     const controller = new AbortController();
+    controllerRef.current = controller;
+    const sequence = ++sequenceRef.current;
     setLoading(true);
     setError("");
     load(controller.signal)
       .then((result) => {
-        if (active) {
+        if (active && sequence === sequenceRef.current) {
           setData(result);
           setLoadedKey(currentKey);
         }
       })
       .catch((e) => {
-        if (active) {
+        if (active && sequence === sequenceRef.current) {
           setData(null);
           setLoadedKey(currentKey);
           setError(e.message);
         }
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active && sequence === sequenceRef.current) setLoading(false);
       });
     return () => {
       active = false;
       controller.abort();
+      ++sequenceRef.current;
     };
-  }, dependencies);
+  }, [...dependencies, dataRevision, enabled]);
   return {
     data: loadedKey === currentKey ? data : null,
     setData,
     error,
     setError,
-    loading: loading || loadedKey !== currentKey,
+    loading: enabled && (loading || loadedKey !== currentKey),
     refresh,
   };
 }
 export function Feedback({ error, notice, loading }) {
   return (
     <>
-      {loading && <p role="status">Loading…</p>}
+      {loading && <LoadingState/>}
       {error && (
-        <p className="es-error" role="alert">
-          {error}
-        </p>
+        <ErrorState message={error}/>
       )}
       {notice && (
-        <p className="es-notice" role="status">
-          {notice}
-        </p>
+        <Alert tone="success">{notice}</Alert>
       )}
     </>
   );
@@ -216,8 +228,7 @@ export function DynamicFields({ fields, values, setValues, disabled = false }) {
 export function RequestTable({ items, base }) {
   const staff = base.includes("/staff/");
   return items.length ? (
-    <div className="es-table-wrap">
-      <table className="es-table">
+    <Table label={staff ? "Service request queue" : "Your service requests"} className="ui-table--records">
         <thead>
           <tr>
             <th>Reference</th>
@@ -231,10 +242,10 @@ export function RequestTable({ items, base }) {
         <tbody>
           {items.map((row) => (
             <tr key={row.id}>
-              <td>
+              <td data-label="Reference">
                 <Link to={`${base}/${row.id}`}>{row.request_number}</Link>
               </td>
-              <td>
+              <td data-label="Service">
                 {row.service_name}
                 {row.business_name && (
                   <small style={{ display: "block" }}>
@@ -242,19 +253,18 @@ export function RequestTable({ items, base }) {
                   </small>
                 )}
               </td>
-              {staff && <td>{row.applicant_name}</td>}
-              <td>{date(row.submitted_at)}</td>
-              <td>
-                <span className="es-status">{staff ? label(row.status) : row.public_status || publicStatus(row.status)}</span>
+              {staff && <td data-label="Applicant">{row.applicant_name}</td>}
+              <td data-label="Submitted">{date(row.submitted_at)}</td>
+              <td data-label="Status">
+                <StatusBadge value={row.status} audience={staff ? "staff" : "resident"}/>
               </td>
-              {staff && <td>{row.assigned_user_name || "Unassigned"}</td>}
+              {staff && <td data-label="Assigned">{row.assigned_user_name || "Unassigned"}</td>}
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+    </Table>
   ) : (
-    <p className="es-empty">No requests match this view.</p>
+    <EmptyState title="No requests match this view" description="Try another status filter to find your requests."/>
   );
 }
 export function Activity({ history }) {
@@ -262,7 +272,7 @@ export function Activity({ history }) {
     <ol className="es-timeline">
       {history.map((event) => (
         <li key={event.id}>
-          <strong>{event.staff_label ? label(event.to_status) : publicStatus(event.to_status)}</strong>
+          <strong>{event.staff_label ? label(event.to_status) : statusPresentation(event.to_status).label}</strong>
           <time>{date(event.created_at)}</time>
           {event.staff_label && (
             <p>

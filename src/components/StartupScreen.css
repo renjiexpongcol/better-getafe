@@ -1,0 +1,7 @@
+.configuration-loader { min-height: 100svh; display: grid; place-items: center; box-sizing: border-box; padding: 24px 18px; background: #f4f8fb; }
+.configuration-loader-card { display: grid; justify-items: center; gap: 16px; width: min(100%, 400px); box-sizing: border-box; padding: 36px 24px; border: 1px solid #dce5ee; border-radius: 16px; background: #fff; box-shadow: 0 12px 36px rgb(23 50 77 / 6%); text-align: center; }
+.configuration-loader-seal { display: block; object-fit: contain; }
+.configuration-loader-card h1 { margin: 0; color: #17324d; font-size: 1.35rem; line-height: 1.3; letter-spacing: -.02em; }
+.configuration-loader-card p { margin: 0; color: #536579; font-size: .95rem; line-height: 1.5; }
+.configuration-loader-card .page-loader-spinner { width: 28px; height: 28px; margin-top: 4px; border-width: 3px; }
+@media (prefers-reduced-motion: reduce) { .configuration-loader-card .page-loader-spinner { animation: none; } }

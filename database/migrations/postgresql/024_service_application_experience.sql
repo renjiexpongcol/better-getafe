@@ -7,6 +7,8 @@ ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS draft_step INTEGER NOT NUL
 ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS draft_context JSONB NOT NULL DEFAULT '{}';
 
 -- Structural entries only: offices must configure and publish actual services.
+DO $catalog_seed$ BEGIN
+IF current_setting('getafe.import_source_catalog', true) = 'on' THEN RETURN; END IF;
 INSERT INTO service_categories(name,slug) VALUES ('Other Services','other') ON CONFLICT(slug) DO NOTHING;
 INSERT INTO services(name,slug,kind,category_id)
 SELECT entry.name,entry.slug,entry.kind,category.id FROM (VALUES
@@ -20,3 +22,4 @@ ON CONFLICT(slug) DO NOTHING;
 -- New business transactions are applications; legacy billing stays unchanged.
 UPDATE services SET settings=settings||'{"workflow_type":"APPLICATION"}'::jsonb
 WHERE slug IN ('business-registration','business-clearance','business-certification','business-closure') AND NOT published AND version=1 AND settings='{}'::jsonb;
+END; $catalog_seed$;

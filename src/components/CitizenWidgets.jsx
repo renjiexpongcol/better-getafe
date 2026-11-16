@@ -1,3 +1,4 @@
+import { StatusBadge, LoadingState, EmptyState, Button, ErrorState } from './ui/Primitives'
 import { useState } from 'react'
 import { ArrowRight, CalendarDays, Check, Download, FileText, FolderOpen, Search, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -7,11 +8,11 @@ import { apiFetch } from '../services/apiTransport'
 import { normalizePublicError } from '../services/publicError'
 import { dateLabel, needsAction, isActive, statusKey } from '../services/citizenData'
 import { ROUTES } from '../routeRegistry'
-import './CitizenWidgets.css'
+import { routeRequest } from '../services/routeRequests'
 
 export function DataState({ children }) {
   const { loading, data } = useCitizen()
-  if (loading && !data) return <div className="portal-loading" role="status"><span className="page-loader-spinner"/>Loading your records…</div>
+  if (loading && !data) return <LoadingState label="Loading your records…"/>
   if (!data) return <p className="portal-muted">Records are unavailable. Use “Try again” above to reload.</p>
   return children
 }
@@ -19,13 +20,9 @@ export function Panel({ title, href, action = 'View all', children, className = 
   return <section className={`citizen-panel ${className}`}><div className="citizen-panel-head"><h2>{title}</h2>{href && <Link to={href}>{action}<ArrowRight size={15}/></Link>}</div>{children}</section>
 }
 export function Empty({ icon: Icon = FolderOpen, title, description, href, action }) {
-  return <div className="citizen-empty"><span className="portal-empty-icon"><Icon size={25}/></span><strong>{title}</strong>{description && <p>{description}</p>}{href && <Link to={href}>{action}<ArrowRight size={14}/></Link>}</div>
+  return <EmptyState icon={Icon} title={title} description={description} action={href && <Button variant="link" to={href}>{action}<ArrowRight size={14}/></Button>}/>
 }
-const labels = { draft: 'Draft', submitted: 'Submitted', verified: 'Verified', under_review: 'Under Review', review: 'Under Review', processing: 'In progress', needs_information: 'Action required', on_hold: 'On hold', action_required: 'Action Required', additional_information_required: 'Action Required', additional_documents_required: 'Action Required', requires_action: 'Action Required', approved: 'Approved', ready_for_release: 'Ready for Release', completed: 'Completed', rejected: 'Rejected', released: 'Released', cancelled: 'Cancelled', requested: 'Awaiting confirmation', scheduled: 'Scheduled', confirmed: 'Confirmed', pending: 'Pending', paid: 'Paid', unpaid: 'Unpaid' }
-export function Status({ value }) {
-  const key = statusKey(value), tone = needsAction({ status: key }) || ['pending', 'unpaid', 'requested'].includes(key) ? 'amber' : ['approved', 'completed', 'paid', 'released', 'ready_for_release'].includes(key) ? 'green' : ['rejected', 'failed', 'overdue'].includes(key) ? 'red' : ['draft', 'cancelled'].includes(key) ? 'gray' : 'blue'
-  return <span className={`portal-status ${tone}`}><i/>{labels[key] || key.replaceAll('_', ' ')}</span>
-}
+export function Status({ value }) { return <StatusBadge value={value}/> }
 export function Progress({ status }) {
   const key = statusKey(status)
   const current = { submitted: 0, verified: 1, under_review: 2, review: 2, processing: 2, approved: 3, ready_for_release: 4, released: 4, completed: 4 }[key]
@@ -53,14 +50,14 @@ export function AppointmentRows({ items }) {
 }
 export function ServiceSearch({ autoFocus = false, compact = false, inputId }) {
   const [query, setQuery] = useState(''), [open, setOpen] = useState(true)
-  const catalog = useEservice(() => esApi('/services'), [])
+  const catalog = useEservice(signal => routeRequest('/api/services', { signal, ttl: 60000 }), [], Boolean(query.trim()))
   const results = (catalog.data?.items || []).filter(service => service.kind !== 'DIRECTORY' && `${service.name} ${service.category_name || ''}`.toLowerCase().includes(query.toLowerCase()))
   const id = inputId || (compact ? 'header-service-search' : 'service-search')
-  const placeholder = compact ? 'Search services, news, and information...' : 'Search municipal services, permits, certificates…'
-  return <section className={`portal-service-search${compact ? ' portal-service-search-compact' : ''}`}><label htmlFor={id}>{compact ? 'Search services, news, and information' : 'What municipal service do you need?'}</label><div className="portal-search-input"><Search size={19} aria-hidden="true"/><input id={id} autoFocus={autoFocus} type="search" placeholder={placeholder} value={query} onChange={event => { setQuery(event.target.value); setOpen(true) }} onFocus={() => setOpen(true)} onKeyDown={event => { if (event.key === 'Escape') setOpen(false) }}/>{query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')} data-icon-button="ghost"><X size={17}/></button>}</div>{query.trim() && open && <div className="portal-search-results"><p role="status">{results.length} matching {results.length === 1 ? 'service' : 'services'}</p>{results.map(service => <Link key={service.id} to={`/app/services/${service.slug}`}><FileText size={17}/><span>{service.name}<small>{service.category_name}</small></span><ArrowRight size={16}/></Link>)}{!results.length && <p>Try another keyword, or <Link to="/app/help">get help finding a service</Link>.</p>}</div>}</section>
+  const placeholder = compact ? 'Search municipal services…' : 'Search municipal services, permits, certificates…'
+  return <section className={`portal-service-search${compact ? ' portal-service-search-compact' : ''}`}><label htmlFor={id}>{compact ? 'Search municipal services' : 'What municipal service do you need?'}</label><div className="portal-search-input"><Search size={19} aria-hidden="true"/><input id={id} autoFocus={autoFocus} type="search" placeholder={placeholder} value={query} onChange={event => { setQuery(event.target.value); setOpen(true) }} onFocus={() => setOpen(true)} onKeyDown={event => { if (event.key === 'Escape') setOpen(false) }}/>{query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')} data-icon-button="ghost"><X size={17}/></button>}</div>{query.trim() && open && <div className="portal-search-results"><p role="status">{results.length} matching {results.length === 1 ? 'service' : 'services'}</p>{results.map(service => <Link key={service.id} to={`/app/services/${service.slug}`}><FileText size={17}/><span>{service.name}<small>{service.category_name}</small></span><ArrowRight size={16}/></Link>)}{!results.length && <p>Try another keyword, or <Link to="/app/help">get help finding a service</Link>.</p>}</div>}</section>
 }
 export function ServiceCategories() {
-  const catalog = useEservice(() => esApi('/services'), [])
+  const catalog = useEservice(signal => routeRequest('/api/services', { signal, ttl: 60000 }), [])
   const categories = [...new Map((catalog.data?.items || []).filter(item => item.kind !== 'DIRECTORY' && item.category_id).map(item => [item.category_id, { name: item.category_name, count: catalog.data.items.filter(service => service.kind !== 'DIRECTORY' && service.category_id === item.category_id).length }])).entries()]
-  return <section className="citizen-section"><div className="citizen-section-head"><h2>Municipal services</h2><Link to={ROUTES.app.services}>View all services<ArrowRight size={15}/></Link></div><div className="citizen-service-grid">{categories.map(([id, category]) => <Link className="citizen-service" to={`${ROUTES.app.services}?category=${encodeURIComponent(id)}`} key={id}><span><FileText size={21}/></span><strong>{category.name}</strong><small>{category.count} services<ArrowRight size={17}/></small></Link>)}</div>{catalog.error && <p role="alert">{catalog.error}</p>}</section>
+  return <section className="citizen-section"><div className="citizen-section-head"><h2>Municipal services</h2><Link to={ROUTES.app.services}>View all services<ArrowRight size={15}/></Link></div><div className="citizen-service-grid">{categories.map(([id, category]) => <Link className="citizen-service" to={`${ROUTES.app.services}?category=${encodeURIComponent(id)}`} key={id}><span><FileText size={21}/></span><strong>{category.name}</strong><small>{category.count} services<ArrowRight size={17}/></small></Link>)}</div>{catalog.loading && <LoadingState label="Loading service categories…"/>}{catalog.error && <ErrorState message={catalog.error} onRetry={catalog.refresh}/>} {!catalog.loading && !catalog.error && !categories.length && <p className="portal-muted">Browse all services to find available requests, or contact the office for help.</p>}</section>
 }

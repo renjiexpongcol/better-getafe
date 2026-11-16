@@ -1,3 +1,4 @@
+import RecordNavigation from '../../components/RecordNavigation';
 import { useParams, Link } from "react-router-dom";
 import { useState } from "react";
 import AppPage from "./AppPage";
@@ -13,12 +14,12 @@ import {
 export default function Ebilling() {
   const { kind = "all" } = useParams(),
     state = useEservice(
-      () =>
+      (signal) =>
         Promise.all([
-          esApi("/billing/accounts"),
-          esApi("/payment-orders"),
-          esApi("/businesses"),
-          esApi("/requests?business=true&limit=100"),
+          esApi("/billing/accounts", "GET", undefined, undefined, {signal}),
+          esApi("/payment-orders", "GET", undefined, undefined, {signal}),
+          esApi("/businesses", "GET", undefined, undefined, {signal}),
+          esApi("/requests?business=true&limit=100", "GET", undefined, undefined, {signal}),
         ]).then(([accounts, orders, businesses, transactions]) => ({
           accounts: accounts.items,
           orders: orders.items,
@@ -37,14 +38,14 @@ export default function Ebilling() {
   };
   return (
     <AppPage title="Billing and payment">
-      <main className="es-workspace">
-        <h1>
+      <section className="es-workspace"><RecordNavigation kind="payments"/>
+        <h2>
           {kind === "business"
             ? "My Business Transactions"
             : kind === "all"
               ? "My billing"
               : label(kind)}
-        </h1>
+        </h2>
         <nav className="es-toolbar">
           {["all", "business", "real_property", "water", "payment_order"].map(
             (type) => (
@@ -176,7 +177,7 @@ export default function Ebilling() {
             )}
           </>
         )}
-      </main>
+      </section>
     </AppPage>
   );
 }

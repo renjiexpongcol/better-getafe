@@ -1,0 +1,2126 @@
+[
+  {
+    "width": 320,
+    "url": "/",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Home"
+  },
+  {
+    "width": 320,
+    "url": "/auth/login",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Log In"
+  },
+  {
+    "width": 320,
+    "url": "/auth/forgot-password",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Reset Password"
+  },
+  {
+    "width": 320,
+    "url": "/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News & Updates"
+  },
+  {
+    "width": 320,
+    "url": "/events",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Gallery of Events"
+  },
+  {
+    "width": 320,
+    "url": "/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Discover Getafe"
+  },
+  {
+    "width": 320,
+    "url": "/tourism",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Tourism in Getafe"
+  },
+  {
+    "width": 320,
+    "url": "/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Officials"
+  },
+  {
+    "width": 320,
+    "url": "/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Barangays of Getafe"
+  },
+  {
+    "width": 320,
+    "url": "/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Departments & Offices"
+  },
+  {
+    "width": 320,
+    "url": "/data",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Philippines Open Data & Statistics"
+  },
+  {
+    "width": 320,
+    "url": "/contact",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Contact Us"
+  },
+  {
+    "width": 320,
+    "url": "/legal/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Privacy Policy"
+  },
+  {
+    "width": 320,
+    "url": "/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services"
+  },
+  {
+    "width": 320,
+    "url": "/app",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 320,
+    "url": "/app/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services"
+  },
+  {
+    "width": 320,
+    "url": "/app/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Your Service Requests"
+  },
+  {
+    "width": 320,
+    "url": "/app/payments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payments"
+  },
+  {
+    "width": 320,
+    "url": "/app/e-billing/all",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Billing and Payment Orders"
+  },
+  {
+    "width": 320,
+    "url": "/app/staff",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff workspace"
+  },
+  {
+    "width": 320,
+    "url": "/admin",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin Portal"
+  },
+  {
+    "width": 320,
+    "url": "/admin/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · News & Events"
+  },
+  {
+    "width": 320,
+    "url": "/admin/categories",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Categories"
+  },
+  {
+    "width": 320,
+    "url": "/admin/access",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Access Management"
+  },
+  {
+    "width": 320,
+    "url": "/admin/settings/general",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · System Settings"
+  },
+  {
+    "width": 320,
+    "url": "/weather",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Weather Updates"
+  },
+  {
+    "width": 320,
+    "url": "/news/qa-article",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News Article"
+  },
+  {
+    "width": 320,
+    "url": "/services/e-services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details"
+  },
+  {
+    "width": 320,
+    "url": "/info/about",
+    "overflow": 0,
+    "title": "Municipality of Getafe | About Us"
+  },
+  {
+    "width": 320,
+    "url": "/legal/terms",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Terms of Use"
+  },
+  {
+    "width": 320,
+    "url": "/app/requests/qa-application",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Application Details"
+  },
+  {
+    "width": 320,
+    "url": "/app/services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details"
+  },
+  {
+    "width": 320,
+    "url": "/app/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Request Details"
+  },
+  {
+    "width": 320,
+    "url": "/app/appointments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Appointments"
+  },
+  {
+    "width": 320,
+    "url": "/app/documents",
+    "overflow": 0,
+    "title": "Municipality of Getafe | My Documents"
+  },
+  {
+    "width": 320,
+    "url": "/app/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Notifications"
+  },
+  {
+    "width": 320,
+    "url": "/app/profile",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 320,
+    "url": "/app/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 320,
+    "url": "/app/help",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Help & Support"
+  },
+  {
+    "width": 320,
+    "url": "/app/e-payment/qa-order",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payment Details"
+  },
+  {
+    "width": 320,
+    "url": "/app/staff/requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff service requests"
+  },
+  {
+    "width": 320,
+    "url": "/app/staff/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Queue"
+  },
+  {
+    "width": 320,
+    "url": "/app/staff/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Request Details"
+  },
+  {
+    "width": 320,
+    "url": "/app/staff/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff system parameters"
+  },
+  {
+    "width": 320,
+    "url": "/app/staff/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff notifications"
+  },
+  {
+    "width": 320,
+    "url": "/admin/editor",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Content Editor"
+  },
+  {
+    "width": 320,
+    "url": "/admin/media",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Media Library"
+  },
+  {
+    "width": 320,
+    "url": "/admin/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Officials"
+  },
+  {
+    "width": 320,
+    "url": "/admin/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Barangays"
+  },
+  {
+    "width": 320,
+    "url": "/admin/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Departments"
+  },
+  {
+    "width": 320,
+    "url": "/admin/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Discover Getafe"
+  },
+  {
+    "width": 320,
+    "url": "/admin/service-catalog",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Service Catalog"
+  },
+  {
+    "width": 320,
+    "url": "/admin/users",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Users"
+  },
+  {
+    "width": 320,
+    "url": "/admin/access/groups",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Groups"
+  },
+  {
+    "width": 320,
+    "url": "/admin/access/permissions",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Permissions"
+  },
+  {
+    "width": 320,
+    "url": "/admin/access/policies",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Policies"
+  },
+  {
+    "width": 320,
+    "url": "/admin/audit",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Audit Log"
+  },
+  {
+    "width": 320,
+    "url": "/admin/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Privacy Requests"
+  },
+  {
+    "width": 320,
+    "url": "/admin/system/errors",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Error Center"
+  },
+  {
+    "width": 390,
+    "url": "/",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Home"
+  },
+  {
+    "width": 390,
+    "url": "/auth/login",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Log In"
+  },
+  {
+    "width": 390,
+    "url": "/auth/forgot-password",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Reset Password"
+  },
+  {
+    "width": 390,
+    "url": "/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News & Updates"
+  },
+  {
+    "width": 390,
+    "url": "/events",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Gallery of Events"
+  },
+  {
+    "width": 390,
+    "url": "/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Discover Getafe"
+  },
+  {
+    "width": 390,
+    "url": "/tourism",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Tourism in Getafe"
+  },
+  {
+    "width": 390,
+    "url": "/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Officials"
+  },
+  {
+    "width": 390,
+    "url": "/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Barangays of Getafe"
+  },
+  {
+    "width": 390,
+    "url": "/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Departments & Offices"
+  },
+  {
+    "width": 390,
+    "url": "/data",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Philippines Open Data & Statistics"
+  },
+  {
+    "width": 390,
+    "url": "/contact",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Contact Us"
+  },
+  {
+    "width": 390,
+    "url": "/legal/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Privacy Policy"
+  },
+  {
+    "width": 390,
+    "url": "/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services"
+  },
+  {
+    "width": 390,
+    "url": "/app",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 390,
+    "url": "/app/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services"
+  },
+  {
+    "width": 390,
+    "url": "/app/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Your Service Requests"
+  },
+  {
+    "width": 390,
+    "url": "/app/payments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payments"
+  },
+  {
+    "width": 390,
+    "url": "/app/e-billing/all",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Billing and Payment Orders"
+  },
+  {
+    "width": 390,
+    "url": "/app/staff",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff workspace"
+  },
+  {
+    "width": 390,
+    "url": "/admin",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin Portal"
+  },
+  {
+    "width": 390,
+    "url": "/admin/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · News & Events"
+  },
+  {
+    "width": 390,
+    "url": "/admin/categories",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Categories"
+  },
+  {
+    "width": 390,
+    "url": "/admin/access",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Access Management"
+  },
+  {
+    "width": 390,
+    "url": "/admin/settings/general",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · System Settings"
+  },
+  {
+    "width": 390,
+    "url": "/weather",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Weather Updates"
+  },
+  {
+    "width": 390,
+    "url": "/news/qa-article",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News Article"
+  },
+  {
+    "width": 390,
+    "url": "/services/e-services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details"
+  },
+  {
+    "width": 390,
+    "url": "/info/about",
+    "overflow": 0,
+    "title": "Municipality of Getafe | About Us"
+  },
+  {
+    "width": 390,
+    "url": "/legal/terms",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Terms of Use"
+  },
+  {
+    "width": 390,
+    "url": "/app/requests/qa-application",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Application Details"
+  },
+  {
+    "width": 390,
+    "url": "/app/services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details"
+  },
+  {
+    "width": 390,
+    "url": "/app/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Request Details"
+  },
+  {
+    "width": 390,
+    "url": "/app/appointments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Appointments"
+  },
+  {
+    "width": 390,
+    "url": "/app/documents",
+    "overflow": 0,
+    "title": "Municipality of Getafe | My Documents"
+  },
+  {
+    "width": 390,
+    "url": "/app/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Notifications"
+  },
+  {
+    "width": 390,
+    "url": "/app/profile",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 390,
+    "url": "/app/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 390,
+    "url": "/app/help",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Help & Support"
+  },
+  {
+    "width": 390,
+    "url": "/app/e-payment/qa-order",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payment Details"
+  },
+  {
+    "width": 390,
+    "url": "/app/staff/requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff service requests"
+  },
+  {
+    "width": 390,
+    "url": "/app/staff/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Queue"
+  },
+  {
+    "width": 390,
+    "url": "/app/staff/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Request Details"
+  },
+  {
+    "width": 390,
+    "url": "/app/staff/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff system parameters"
+  },
+  {
+    "width": 390,
+    "url": "/app/staff/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff notifications"
+  },
+  {
+    "width": 390,
+    "url": "/admin/editor",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Content Editor"
+  },
+  {
+    "width": 390,
+    "url": "/admin/media",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Media Library"
+  },
+  {
+    "width": 390,
+    "url": "/admin/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Officials"
+  },
+  {
+    "width": 390,
+    "url": "/admin/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Barangays"
+  },
+  {
+    "width": 390,
+    "url": "/admin/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Departments"
+  },
+  {
+    "width": 390,
+    "url": "/admin/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Discover Getafe"
+  },
+  {
+    "width": 390,
+    "url": "/admin/service-catalog",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Service Catalog"
+  },
+  {
+    "width": 390,
+    "url": "/admin/users",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Users"
+  },
+  {
+    "width": 390,
+    "url": "/admin/access/groups",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Groups"
+  },
+  {
+    "width": 390,
+    "url": "/admin/access/permissions",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Permissions"
+  },
+  {
+    "width": 390,
+    "url": "/admin/access/policies",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Policies"
+  },
+  {
+    "width": 390,
+    "url": "/admin/audit",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Audit Log"
+  },
+  {
+    "width": 390,
+    "url": "/admin/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Privacy Requests"
+  },
+  {
+    "width": 390,
+    "url": "/admin/system/errors",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Error Center"
+  },
+  {
+    "width": 768,
+    "url": "/",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Home"
+  },
+  {
+    "width": 768,
+    "url": "/auth/login",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Log In"
+  },
+  {
+    "width": 768,
+    "url": "/auth/forgot-password",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Reset Password"
+  },
+  {
+    "width": 768,
+    "url": "/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News & Updates"
+  },
+  {
+    "width": 768,
+    "url": "/events",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Gallery of Events"
+  },
+  {
+    "width": 768,
+    "url": "/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Discover Getafe"
+  },
+  {
+    "width": 768,
+    "url": "/tourism",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Tourism in Getafe"
+  },
+  {
+    "width": 768,
+    "url": "/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Officials"
+  },
+  {
+    "width": 768,
+    "url": "/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Barangays of Getafe"
+  },
+  {
+    "width": 768,
+    "url": "/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Departments & Offices"
+  },
+  {
+    "width": 768,
+    "url": "/data",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Philippines Open Data & Statistics"
+  },
+  {
+    "width": 768,
+    "url": "/contact",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Contact Us"
+  },
+  {
+    "width": 768,
+    "url": "/legal/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Privacy Policy"
+  },
+  {
+    "width": 768,
+    "url": "/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services"
+  },
+  {
+    "width": 768,
+    "url": "/app",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 768,
+    "url": "/app/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services"
+  },
+  {
+    "width": 768,
+    "url": "/app/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Your Service Requests"
+  },
+  {
+    "width": 768,
+    "url": "/app/payments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payments"
+  },
+  {
+    "width": 768,
+    "url": "/app/e-billing/all",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Billing and Payment Orders"
+  },
+  {
+    "width": 768,
+    "url": "/app/staff",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff workspace"
+  },
+  {
+    "width": 768,
+    "url": "/admin",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin Portal"
+  },
+  {
+    "width": 768,
+    "url": "/admin/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · News & Events"
+  },
+  {
+    "width": 768,
+    "url": "/admin/categories",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Categories"
+  },
+  {
+    "width": 768,
+    "url": "/admin/access",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Access Management"
+  },
+  {
+    "width": 768,
+    "url": "/admin/settings/general",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · System Settings"
+  },
+  {
+    "width": 768,
+    "url": "/weather",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Weather Updates"
+  },
+  {
+    "width": 768,
+    "url": "/news/qa-article",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News Article"
+  },
+  {
+    "width": 768,
+    "url": "/services/e-services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details"
+  },
+  {
+    "width": 768,
+    "url": "/info/about",
+    "overflow": 0,
+    "title": "Municipality of Getafe | About Us"
+  },
+  {
+    "width": 768,
+    "url": "/legal/terms",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Terms of Use"
+  },
+  {
+    "width": 768,
+    "url": "/app/requests/qa-application",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Application Details"
+  },
+  {
+    "width": 768,
+    "url": "/app/services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details"
+  },
+  {
+    "width": 768,
+    "url": "/app/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Request Details"
+  },
+  {
+    "width": 768,
+    "url": "/app/appointments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Appointments"
+  },
+  {
+    "width": 768,
+    "url": "/app/documents",
+    "overflow": 0,
+    "title": "Municipality of Getafe | My Documents"
+  },
+  {
+    "width": 768,
+    "url": "/app/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Notifications"
+  },
+  {
+    "width": 768,
+    "url": "/app/profile",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 768,
+    "url": "/app/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 768,
+    "url": "/app/help",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Help & Support"
+  },
+  {
+    "width": 768,
+    "url": "/app/e-payment/qa-order",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payment Details"
+  },
+  {
+    "width": 768,
+    "url": "/app/staff/requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff service requests"
+  },
+  {
+    "width": 768,
+    "url": "/app/staff/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Queue"
+  },
+  {
+    "width": 768,
+    "url": "/app/staff/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Request Details"
+  },
+  {
+    "width": 768,
+    "url": "/app/staff/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff system parameters"
+  },
+  {
+    "width": 768,
+    "url": "/app/staff/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff notifications"
+  },
+  {
+    "width": 768,
+    "url": "/admin/editor",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Content Editor"
+  },
+  {
+    "width": 768,
+    "url": "/admin/media",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Media Library"
+  },
+  {
+    "width": 768,
+    "url": "/admin/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Officials"
+  },
+  {
+    "width": 768,
+    "url": "/admin/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Barangays"
+  },
+  {
+    "width": 768,
+    "url": "/admin/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Departments"
+  },
+  {
+    "width": 768,
+    "url": "/admin/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Discover Getafe"
+  },
+  {
+    "width": 768,
+    "url": "/admin/service-catalog",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Service Catalog"
+  },
+  {
+    "width": 768,
+    "url": "/admin/users",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Users"
+  },
+  {
+    "width": 768,
+    "url": "/admin/access/groups",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Groups"
+  },
+  {
+    "width": 768,
+    "url": "/admin/access/permissions",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Permissions"
+  },
+  {
+    "width": 768,
+    "url": "/admin/access/policies",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Policies"
+  },
+  {
+    "width": 768,
+    "url": "/admin/audit",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Audit Log"
+  },
+  {
+    "width": 768,
+    "url": "/admin/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Privacy Requests"
+  },
+  {
+    "width": 768,
+    "url": "/admin/system/errors",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Error Center"
+  },
+  {
+    "width": 1024,
+    "url": "/",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Home"
+  },
+  {
+    "width": 1024,
+    "url": "/auth/login",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Log In"
+  },
+  {
+    "width": 1024,
+    "url": "/auth/forgot-password",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Reset Password"
+  },
+  {
+    "width": 1024,
+    "url": "/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News & Updates"
+  },
+  {
+    "width": 1024,
+    "url": "/events",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Gallery of Events"
+  },
+  {
+    "width": 1024,
+    "url": "/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Discover Getafe"
+  },
+  {
+    "width": 1024,
+    "url": "/tourism",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Tourism in Getafe"
+  },
+  {
+    "width": 1024,
+    "url": "/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Officials"
+  },
+  {
+    "width": 1024,
+    "url": "/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Barangays of Getafe"
+  },
+  {
+    "width": 1024,
+    "url": "/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Departments & Offices"
+  },
+  {
+    "width": 1024,
+    "url": "/data",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Philippines Open Data & Statistics"
+  },
+  {
+    "width": 1024,
+    "url": "/contact",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Contact Us"
+  },
+  {
+    "width": 1024,
+    "url": "/legal/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Privacy Policy"
+  },
+  {
+    "width": 1024,
+    "url": "/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services"
+  },
+  {
+    "width": 1024,
+    "url": "/app",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 1024,
+    "url": "/app/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services"
+  },
+  {
+    "width": 1024,
+    "url": "/app/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Your Service Requests"
+  },
+  {
+    "width": 1024,
+    "url": "/app/payments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payments"
+  },
+  {
+    "width": 1024,
+    "url": "/app/e-billing/all",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Billing and Payment Orders"
+  },
+  {
+    "width": 1024,
+    "url": "/app/staff",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff workspace"
+  },
+  {
+    "width": 1024,
+    "url": "/admin",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin Portal"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · News & Events"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/categories",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Categories"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/access",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Access Management"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/settings/general",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · System Settings"
+  },
+  {
+    "width": 1024,
+    "url": "/weather",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Weather Updates"
+  },
+  {
+    "width": 1024,
+    "url": "/news/qa-article",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News Article"
+  },
+  {
+    "width": 1024,
+    "url": "/services/e-services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details"
+  },
+  {
+    "width": 1024,
+    "url": "/info/about",
+    "overflow": 0,
+    "title": "Municipality of Getafe | About Us"
+  },
+  {
+    "width": 1024,
+    "url": "/legal/terms",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Terms of Use"
+  },
+  {
+    "width": 1024,
+    "url": "/app/requests/qa-application",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Application Details"
+  },
+  {
+    "width": 1024,
+    "url": "/app/services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details"
+  },
+  {
+    "width": 1024,
+    "url": "/app/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Request Details"
+  },
+  {
+    "width": 1024,
+    "url": "/app/appointments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Appointments"
+  },
+  {
+    "width": 1024,
+    "url": "/app/documents",
+    "overflow": 0,
+    "title": "Municipality of Getafe | My Documents"
+  },
+  {
+    "width": 1024,
+    "url": "/app/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Notifications"
+  },
+  {
+    "width": 1024,
+    "url": "/app/profile",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 1024,
+    "url": "/app/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 1024,
+    "url": "/app/help",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Help & Support"
+  },
+  {
+    "width": 1024,
+    "url": "/app/e-payment/qa-order",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payment Details"
+  },
+  {
+    "width": 1024,
+    "url": "/app/staff/requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff service requests"
+  },
+  {
+    "width": 1024,
+    "url": "/app/staff/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Queue"
+  },
+  {
+    "width": 1024,
+    "url": "/app/staff/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Request Details"
+  },
+  {
+    "width": 1024,
+    "url": "/app/staff/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff system parameters"
+  },
+  {
+    "width": 1024,
+    "url": "/app/staff/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff notifications"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/editor",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Content Editor"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/media",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Media Library"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Officials"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Barangays"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Departments"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Discover Getafe"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/service-catalog",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Service Catalog"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/users",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Users"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/access/groups",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Groups"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/access/permissions",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Permissions"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/access/policies",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Policies"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/audit",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Audit Log"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Privacy Requests"
+  },
+  {
+    "width": 1024,
+    "url": "/admin/system/errors",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Error Center"
+  },
+  {
+    "width": 1280,
+    "url": "/",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Home"
+  },
+  {
+    "width": 1280,
+    "url": "/auth/login",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Log In"
+  },
+  {
+    "width": 1280,
+    "url": "/auth/forgot-password",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Reset Password"
+  },
+  {
+    "width": 1280,
+    "url": "/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News & Updates"
+  },
+  {
+    "width": 1280,
+    "url": "/events",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Gallery of Events"
+  },
+  {
+    "width": 1280,
+    "url": "/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Discover Getafe"
+  },
+  {
+    "width": 1280,
+    "url": "/tourism",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Tourism in Getafe"
+  },
+  {
+    "width": 1280,
+    "url": "/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Officials"
+  },
+  {
+    "width": 1280,
+    "url": "/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Barangays of Getafe"
+  },
+  {
+    "width": 1280,
+    "url": "/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Departments & Offices"
+  },
+  {
+    "width": 1280,
+    "url": "/data",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Philippines Open Data & Statistics"
+  },
+  {
+    "width": 1280,
+    "url": "/contact",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Contact Us"
+  },
+  {
+    "width": 1280,
+    "url": "/legal/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Privacy Policy"
+  },
+  {
+    "width": 1280,
+    "url": "/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services"
+  },
+  {
+    "width": 1280,
+    "url": "/app",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 1280,
+    "url": "/app/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services"
+  },
+  {
+    "width": 1280,
+    "url": "/app/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Your Service Requests"
+  },
+  {
+    "width": 1280,
+    "url": "/app/payments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payments"
+  },
+  {
+    "width": 1280,
+    "url": "/app/e-billing/all",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Billing and Payment Orders"
+  },
+  {
+    "width": 1280,
+    "url": "/app/staff",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff workspace"
+  },
+  {
+    "width": 1280,
+    "url": "/admin",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin Portal"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · News & Events"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/categories",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Categories"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/access",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Access Management"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/settings/general",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · System Settings"
+  },
+  {
+    "width": 1280,
+    "url": "/weather",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Weather Updates"
+  },
+  {
+    "width": 1280,
+    "url": "/news/qa-article",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News Article"
+  },
+  {
+    "width": 1280,
+    "url": "/services/e-services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details"
+  },
+  {
+    "width": 1280,
+    "url": "/info/about",
+    "overflow": 0,
+    "title": "Municipality of Getafe | About Us"
+  },
+  {
+    "width": 1280,
+    "url": "/legal/terms",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Terms of Use"
+  },
+  {
+    "width": 1280,
+    "url": "/app/requests/qa-application",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Application Details"
+  },
+  {
+    "width": 1280,
+    "url": "/app/services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details"
+  },
+  {
+    "width": 1280,
+    "url": "/app/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Request Details"
+  },
+  {
+    "width": 1280,
+    "url": "/app/appointments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Appointments"
+  },
+  {
+    "width": 1280,
+    "url": "/app/documents",
+    "overflow": 0,
+    "title": "Municipality of Getafe | My Documents"
+  },
+  {
+    "width": 1280,
+    "url": "/app/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Notifications"
+  },
+  {
+    "width": 1280,
+    "url": "/app/profile",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 1280,
+    "url": "/app/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 1280,
+    "url": "/app/help",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Help & Support"
+  },
+  {
+    "width": 1280,
+    "url": "/app/e-payment/qa-order",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payment Details"
+  },
+  {
+    "width": 1280,
+    "url": "/app/staff/requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff service requests"
+  },
+  {
+    "width": 1280,
+    "url": "/app/staff/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Queue"
+  },
+  {
+    "width": 1280,
+    "url": "/app/staff/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Request Details"
+  },
+  {
+    "width": 1280,
+    "url": "/app/staff/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff system parameters"
+  },
+  {
+    "width": 1280,
+    "url": "/app/staff/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff notifications"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/editor",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Content Editor"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/media",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Media Library"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Officials"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Barangays"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Departments"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Discover Getafe"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/service-catalog",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Service Catalog"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/users",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Users"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/access/groups",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Groups"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/access/permissions",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Permissions"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/access/policies",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Policies"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/audit",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Audit Log"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Privacy Requests"
+  },
+  {
+    "width": 1280,
+    "url": "/admin/system/errors",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Error Center"
+  },
+  {
+    "width": 1440,
+    "url": "/",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Home"
+  },
+  {
+    "width": 1440,
+    "url": "/auth/login",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Log In"
+  },
+  {
+    "width": 1440,
+    "url": "/auth/forgot-password",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Reset Password"
+  },
+  {
+    "width": 1440,
+    "url": "/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News & Updates"
+  },
+  {
+    "width": 1440,
+    "url": "/events",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Gallery of Events"
+  },
+  {
+    "width": 1440,
+    "url": "/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Discover Getafe"
+  },
+  {
+    "width": 1440,
+    "url": "/tourism",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Tourism in Getafe"
+  },
+  {
+    "width": 1440,
+    "url": "/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Officials"
+  },
+  {
+    "width": 1440,
+    "url": "/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Barangays of Getafe"
+  },
+  {
+    "width": 1440,
+    "url": "/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Departments & Offices"
+  },
+  {
+    "width": 1440,
+    "url": "/data",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Philippines Open Data & Statistics"
+  },
+  {
+    "width": 1440,
+    "url": "/contact",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Contact Us"
+  },
+  {
+    "width": 1440,
+    "url": "/legal/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Privacy Policy"
+  },
+  {
+    "width": 1440,
+    "url": "/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services"
+  },
+  {
+    "width": 1440,
+    "url": "/app",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 1440,
+    "url": "/app/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services"
+  },
+  {
+    "width": 1440,
+    "url": "/app/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Your Service Requests"
+  },
+  {
+    "width": 1440,
+    "url": "/app/payments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payments"
+  },
+  {
+    "width": 1440,
+    "url": "/app/e-billing/all",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Billing and Payment Orders"
+  },
+  {
+    "width": 1440,
+    "url": "/app/staff",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff workspace"
+  },
+  {
+    "width": 1440,
+    "url": "/admin",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin Portal"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · News & Events"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/categories",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Categories"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/access",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Access Management"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/settings/general",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · System Settings"
+  },
+  {
+    "width": 1440,
+    "url": "/weather",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Weather Updates"
+  },
+  {
+    "width": 1440,
+    "url": "/news/qa-article",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News Article"
+  },
+  {
+    "width": 1440,
+    "url": "/services/e-services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details"
+  },
+  {
+    "width": 1440,
+    "url": "/info/about",
+    "overflow": 0,
+    "title": "Municipality of Getafe | About Us"
+  },
+  {
+    "width": 1440,
+    "url": "/legal/terms",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Terms of Use"
+  },
+  {
+    "width": 1440,
+    "url": "/app/requests/qa-application",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Application Details"
+  },
+  {
+    "width": 1440,
+    "url": "/app/services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details"
+  },
+  {
+    "width": 1440,
+    "url": "/app/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Request Details"
+  },
+  {
+    "width": 1440,
+    "url": "/app/appointments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Appointments"
+  },
+  {
+    "width": 1440,
+    "url": "/app/documents",
+    "overflow": 0,
+    "title": "Municipality of Getafe | My Documents"
+  },
+  {
+    "width": 1440,
+    "url": "/app/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Notifications"
+  },
+  {
+    "width": 1440,
+    "url": "/app/profile",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 1440,
+    "url": "/app/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal"
+  },
+  {
+    "width": 1440,
+    "url": "/app/help",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Help & Support"
+  },
+  {
+    "width": 1440,
+    "url": "/app/e-payment/qa-order",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payment Details"
+  },
+  {
+    "width": 1440,
+    "url": "/app/staff/requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff service requests"
+  },
+  {
+    "width": 1440,
+    "url": "/app/staff/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Queue"
+  },
+  {
+    "width": 1440,
+    "url": "/app/staff/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Request Details"
+  },
+  {
+    "width": 1440,
+    "url": "/app/staff/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff system parameters"
+  },
+  {
+    "width": 1440,
+    "url": "/app/staff/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff notifications"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/editor",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Content Editor"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/media",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Media Library"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Officials"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Barangays"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Departments"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Discover Getafe"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/service-catalog",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Service Catalog"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/users",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Users"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/access/groups",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Groups"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/access/permissions",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Permissions"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/access/policies",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Policies"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/audit",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Audit Log"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Privacy Requests"
+  },
+  {
+    "width": 1440,
+    "url": "/admin/system/errors",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Error Center"
+  }
+]

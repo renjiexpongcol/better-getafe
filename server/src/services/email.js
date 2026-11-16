@@ -1,5 +1,6 @@
 import { config } from '../config/index.js';
 import { contactAcknowledgementTemplate } from '../email/templates/contactAcknowledgement.js';
+import { dependencyReason } from './startupDiagnostics.js';
 let transport;
 export async function buildEmail(values, { allowUnavailable = false } = {}) {
   if (!values['email.enabled']) return null;
@@ -12,12 +13,14 @@ export async function buildEmail(values, { allowUnavailable = false } = {}) {
     if (allowUnavailable) {
       console.error(JSON.stringify({ event: 'smtp_startup_degraded', code: error.code || error.name }));
       candidate.degraded = true;
+      candidate.failureReason = dependencyReason(error);
       return candidate;
     }
     candidate.close(); throw new Error('SMTP connection failed. Check host, TLS settings and credentials.', { cause: error });
   }
 }
 export function activateEmail(value) { const previous = transport; transport = value; previous?.close(); }
+export function emailHealth() { return { status: !transport ? 'disabled' : transport.degraded ? 'degraded' : 'healthy', reason: transport?.degraded ? transport.failureReason : undefined }; }
 export async function sendEmail(to, subject, text, candidate = transport, values = config.values, attachments = [], html = undefined) {
   if (!candidate) throw Object.assign(new Error('Email is not configured.'), { code: 'DEPENDENCY_UNAVAILABLE', status: 503 });
   const result = await candidate.sendMail({ from: { name: 'Getafe Citizen Portal', address: values['email.senderEmail'] }, to, replyTo: values['email.replyTo'] || undefined, subject, text, html, attachments });

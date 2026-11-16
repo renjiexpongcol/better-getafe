@@ -1,7 +1,8 @@
 import crypto from 'node:crypto';
-import { definitions, validate } from './defaults.js';
+import { definitions, isSettingVisible, omitInactiveSettings, validate } from './defaults.js';
 import { environmentValue } from './EnvironmentProvider.js';
 import { isDependencyFailure } from '../services/dependencyFailures.js';
+import { dependencyReason } from '../services/startupDiagnostics.js';
 export class ConfigService {
   constructor({ provider, secrets, env = process.env, prepare = async () => ({ activate() {}, discard() {} }) }) {
     this.provider = provider; this.secrets = secrets; this.env = env; this.prepare = prepare;
@@ -9,24 +10,54 @@ export class ConfigService {
     this.pending = Promise.resolve();
     for (const key of Object.keys(definitions)) { this.values[key] = environmentValue(key, env) ?? definitions[key].default; this.sources[key] = environmentValue(key, env) !== undefined ? 'environment' : 'default'; }
   }
-  get(key) { if (!definitions[key]) throw new Error(`Unknown setting: ${key}`); return this.values[key]; }
+  get(key) { if (!definitions[key]) throw new Error(`Unknown setting: ${key}`); return isSettingVisible(key, this.values) ? this.values[key] : definitions[key].default; }
+  managedByEnvironment(key) {
+    return this.sources[key] === 'environment'
+      && (key === 'storage.provider' || key === 'storage.configuredProvider' || (/^google\./.test(key) && Boolean(this.localGoogleConfiguration())) || (/^(database|portalDatabase)\./.test(key)
+        && this.env.NODE_ENV !== 'production'));
+  }
+  localGoogleConfiguration() {
+    if (this.env.NODE_ENV === 'production') return null;
+    const configuration = Object.fromEntries(['google.clientId', 'google.clientSecret', 'google.redirectUri']
+      .map(key => [key, environmentValue(key, this.env)]));
+    if (Object.values(configuration).some(value => typeof value !== 'string' || !value.trim())) return null;
+    return configuration;
+  }
   async resolve(stored) {
     const values = {}, sources = {};
     for (const [key, d] of Object.entries(definitions)) {
       const environment = environmentValue(key, this.env);
+      const localGoogle = this.localGoogleConfiguration();
+      if (localGoogle && Object.hasOwn(localGoogle, key)) {
+        values[key] = localGoogle[key];
+        sources[key] = 'environment';
+        continue;
+      }
+      if (key === 'database.provider' || key === 'portalDatabase.provider') {
+        values[key] = d.default;
+        sources[key] = 'default';
+        continue;
+      }
       // Development should follow the checked-out .env database so a stale
       // saved host cannot silently point the CMS at a different instance.
       // Persisted settings remain authoritative in production.
       const useDevelopmentDatabase = this.env.NODE_ENV !== 'production'
         && /^(database|portalDatabase)\./.test(key)
         && environment !== undefined;
-      if (useDevelopmentDatabase) {
+      if (useDevelopmentDatabase || (key === 'storage.provider' && environment !== undefined)) {
+        values[key] = environment;
+        sources[key] = 'environment';
+      } else if (d.secret && stored[key]?.secret_ref && environment !== undefined) {
         values[key] = environment;
         sources[key] = 'environment';
       } else if (stored[key] !== undefined && stored[key] !== null) {
         values[key] = d.secret ? await this.secrets.open(key, stored[key]) : stored[key];
-        sources[key] = d.secret && stored[key].secret_ref ? 'secret-manager' : 'database';
+        sources[key] = 'database';
       } else { values[key] = environment ?? d.default; sources[key] = environment !== undefined ? 'environment' : 'default'; }
+    }
+    if (stored['storage.configuredProvider'] == null || sources['storage.provider'] === 'environment') {
+      values['storage.configuredProvider'] = values['storage.provider'];
+      sources['storage.configuredProvider'] = sources['storage.provider'];
     }
     validate(values);
     return { values, sources };
@@ -43,35 +74,81 @@ export class ConfigService {
         catch (error) {
           if (this.loadedAt || !isDependencyFailure(error)) throw error;
           stored = {}; unavailable = true;
-          console.error(JSON.stringify({ event: 'settings_startup_degraded', code: error.code || error.name }));
+          this.failureReason = dependencyReason(error);
+          console.error(JSON.stringify({ event: 'settings_startup_degraded', reason: this.failureReason, required: true }));
         }
         const snapshot = await this.resolve(stored);
         const resources = await this.prepare(snapshot.values, this.values, { initializing: !this.loadedAt });
+        await this.provider.activateConfigDatabase?.(snapshot.values);
         resources.activate();
         this.values = snapshot.values; this.sources = snapshot.sources; this.stored = stored; this.available = !unavailable; this.loadedAt = Date.now();
-      } catch (error) { this.available = false; throw error; }
+        if (!unavailable) this.failureReason = undefined;
+      } catch (error) { this.available = false; this.failureReason = dependencyReason(error); error.subsystem ||= 'RUNTIME_CONFIG'; throw error; }
     });
   }
   snapshot() {
     const values = {}, metadata = {};
     for (const [key, d] of Object.entries(definitions)) {
+      if (d.internal) continue;
       values[key] = d.secret ? null : this.values[key];
-      metadata[key] = { ...d, env: undefined, default: undefined, source: this.sources[key], configured: d.secret ? Boolean(this.values[key]) : undefined, overridden: Object.hasOwn(this.stored, key), requiresRestart: false, description: d.secret ? 'Leave blank to keep the current secret. Enter a new value to replace it.' : 'Saved settings override environment fallback values.' };
+      const environmentNames = key === 'storage.configuredProvider' ? definitions['storage.provider'].env : d.env;
+      const environmentVariable = environmentNames.find(name => this.env[name] !== undefined && this.env[name] !== '');
+      const managedByEnvironment = this.managedByEnvironment(key);
+      metadata[key] = {
+        ...d, env: undefined, default: undefined, source: this.sources[key],
+        environmentVariable: this.sources[key] === 'environment' ? environmentVariable : undefined,
+        managedByEnvironment,
+        configured: d.secret ? Boolean(this.values[key]) : undefined,
+        overridden: Object.hasOwn(this.stored, key), requiresRestart: false,
+        description: d.secret ? 'Leave blank to keep the current secret. Enter a new value to replace it.' : 'Saved settings override environment fallback values.',
+      };
+      if (!d.secret && (d.options || d.type === 'boolean')) metadata[key].resetValue = this.resetValue(key);
     }
+    if (!Object.hasOwn(this.stored, 'storage.configuredProvider')) values['storage.configuredProvider'] = this.values['storage.provider'];
     return { values, metadata, available: this.available };
   }
+  resetValue(key) {
+    return key === 'storage.configuredProvider' ? this.values['storage.provider'] : environmentValue(key, this.env) ?? definitions[key].default;
+  }
+  visiblePatch(patch, baseline = this.values) {
+    return omitInactiveSettings(patch, baseline, key => this.resetValue(key));
+  }
+  validateGoogleConfiguration(values) {
+    const clientId = String(values['google.clientId'] || '').trim();
+    const clientSecret = String(values['google.clientSecret'] || '').trim();
+    const redirectUri = String(values['google.redirectUri'] || '').trim();
+    if ((clientId || clientSecret) && (!clientId || !clientSecret)) {
+      throw new Error('Google OAuth requires both a client ID and client secret.');
+    }
+    if (!redirectUri) return;
+    let parsed;
+    try { parsed = new URL(redirectUri); } catch { /* Report the expected backend callback below. */ }
+    if (!parsed || !['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password
+      || parsed.search || parsed.hash || parsed.pathname !== '/auth/callback'
+      || (this.env.NODE_ENV === 'production' && parsed.protocol !== 'https:')
+      || (parsed.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname))) {
+      throw new Error('Google OAuth redirect URI must be the registered browser callback /auth/callback (HTTPS in production; localhost is allowed for development).');
+    }
+  }
   update(patch, actor) {
-    validate(patch);
     return this.serial(() => this.provider.transaction(async stored => {
-      const settings = { ...stored };
       const original = await this.resolve(stored);
+      const activePatch = this.visiblePatch(patch, original.values);
+      const managed = Object.keys(activePatch).find(key => this.managedByEnvironment(key));
+      if (managed) {
+        const environmentNames = managed === 'storage.configuredProvider' ? definitions['storage.provider'].env : definitions[managed].env;
+        const variable = environmentNames.find(name => this.env[name] !== undefined && this.env[name] !== '');
+        throw new Error(`${definitions[managed].label} is managed by environment${variable ? ` variable ${variable}` : ''}. Change it in the deployment environment and restart the backend.`);
+      }
+      validate(activePatch, { visiblePatch: true });
+      const settings = { ...stored };
       const candidate = { ...original.values };
       const changes = [];
-      for (const [key, value] of Object.entries(patch)) {
+      for (const [key, value] of Object.entries(activePatch)) {
         const d = definitions[key];
         if (d.secret && value === '') continue;
         if (value === null) {
-          const fallback = environmentValue(key, this.env) ?? d.default;
+          const fallback = key === 'storage.configuredProvider' ? candidate['storage.provider'] : this.resetValue(key);
           candidate[key] = fallback;
           if (!Object.hasOwn(settings, key)) continue;
           delete settings[key];
@@ -82,14 +159,24 @@ export class ConfigService {
         changes.push(key);
       }
       validate(candidate);
+      if (Object.keys(activePatch).some(key => key.startsWith('google.'))) this.validateGoogleConfiguration(candidate);
       const resources = await this.prepare(candidate, this.values, { actor, changed: changes });
       try {
-        for (const key of changes) if (definitions[key].secret && patch[key] !== null) settings[key] = await this.secrets.seal(key, patch[key]);
+        for (const key of changes) if (definitions[key]?.secret && activePatch[key] !== null) settings[key] = await this.secrets.seal(key, activePatch[key]);
         const snapshot = await this.resolve(settings);
-        const audit = changes.map(key => ({ id: crypto.randomUUID(), user_id: actor.id, action: 'settings.update', category: key.split('.')[0], setting_key: key, old_value: definitions[key].secret ? (original.values[key] ? '[SECRET CONFIGURED]' : null) : stored[key] ?? null, new_value: definitions[key].secret ? '[SECRET UPDATED]' : patch[key], ip_address: actor.ip || '', created_at: new Date().toISOString() }));
-        return { settings, audit, discard: resources.discard, activate: () => { resources.activate(); this.values = snapshot.values; this.sources = snapshot.sources; this.stored = settings; this.loadedAt = Date.now(); this.available = true; } };
+        const audit = changes.map(key => ({ id: crypto.randomUUID(), user_id: actor.id, action: 'settings.update', category: key.split('.')[0], setting_key: key, old_value: definitions[key].secret ? (original.values[key] ? '[SECRET CONFIGURED]' : null) : stored[key] ?? null, new_value: definitions[key].secret ? '[SECRET UPDATED]' : activePatch[key], ip_address: actor.ip || '', created_at: new Date().toISOString() }));
+        return { settings, audit, discard: resources.discard, activate: async () => { await this.provider.activateConfigDatabase?.(snapshot.values); resources.activate(); this.values = snapshot.values; this.sources = snapshot.sources; this.stored = settings; this.loadedAt = Date.now(); this.available = true; } };
       } catch (error) { await resources.discard(); throw error; }
     }));
   }
-  candidate(patch) { validate(patch); const values = { ...this.values }; for (const [key, value] of Object.entries(patch)) { if (definitions[key].secret && value === '') continue; values[key] = value; } return values; }
+  candidate(patch) {
+    const activePatch = this.visiblePatch(patch);
+    if (Object.keys(activePatch).length) validate(activePatch, { visiblePatch: true });
+    const values = { ...this.values };
+    for (const [key, value] of Object.entries(activePatch)) {
+      if (definitions[key].secret && value === '') continue;
+      values[key] = value ?? this.resetValue(key);
+    }
+    return values;
+  }
 }

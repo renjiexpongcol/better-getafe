@@ -2,11 +2,15 @@ import { clearPrivateCache } from './requestCache.js'
 import { ROUTES } from '../routeRegistry.js'
 import { formatResidentDate } from './residentPreferences.js'
 import { requestJson } from './apiTransport.js'
+import { routeRequest } from './routeRequests.js'
 export { ApiRequestError } from './apiTransport.js'
 
 async function requestApi(path, options = {}) {
+  const readOnly = !options.method || options.method === 'GET'
   try {
-    const body = await requestJson(path, { errorContext: 'services', ...options })
+    const body = await (readOnly
+      ? routeRequest(path.startsWith('/api/') ? path : '/api'+path, {scope:'citizen',errorContext:'services',...options})
+      : requestJson(path, { errorContext: 'form', ...options }))
     if (!['GET', 'HEAD'].includes((options.method || 'GET').toUpperCase())) clearPrivateCache()
     return body
   } catch (error) {

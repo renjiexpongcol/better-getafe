@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import { residentPreferencesApi, residentPreferencesError } from '../services/citizenData'
 import { translate } from '../i18n/translations'
+import {routeRequest} from '../services/routeRequests'
 import {
   RESIDENT_PREFERENCE_DEFAULTS,
   normalizeResidentPreferences,
@@ -81,6 +82,7 @@ export function ResidentPreferencesProvider({ children }) {
   const [error, setError] = useState('')
   const baselineRef = useRef(null)
   const loadSequenceRef = useRef(0)
+  const controllerRef = useRef(null)
   const preferencesRef = useRef(preferences)
   preferencesRef.current = preferences
 
@@ -97,8 +99,11 @@ export function ResidentPreferencesProvider({ children }) {
     return () => applyResidentDom(RESIDENT_PREFERENCE_DEFAULTS, false, baselineRef.current)
   }, [])
 
-  const loadPreferences = useCallback(async () => {
+  const loadPreferences = useCallback(async (ownedController = null) => {
     const sequence = ++loadSequenceRef.current
+    controllerRef.current?.abort()
+    const controller = ownedController || new AbortController()
+    controllerRef.current = controller
     setDraft(null)
     setError('')
     setLoaded(false)
@@ -113,7 +118,7 @@ export function ResidentPreferencesProvider({ children }) {
     const cached = readCache(residentId)
     if (cached) setPreferences(cached)
     try {
-      const body = await residentPreferencesApi.get()
+      const body = await routeRequest('/api/users/me/preferences', {scope:`citizen:${residentId}`,signal:controller.signal})
       if (sequence !== loadSequenceRef.current) return
       const next = normalizeResidentPreferences(body?.preferences || body)
       setPreferences(next)
@@ -127,8 +132,13 @@ export function ResidentPreferencesProvider({ children }) {
   }, [residentId])
 
   useEffect(() => {
-    loadPreferences()
-    return () => { ++loadSequenceRef.current }
+    const controller = new AbortController()
+    loadPreferences(controller)
+    return () => {
+      ++loadSequenceRef.current
+      controller.abort()
+      if (controllerRef.current === controller) controllerRef.current = null
+    }
   }, [loadPreferences])
 
   const effective = draft || preferences

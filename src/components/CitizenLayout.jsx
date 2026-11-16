@@ -1,15 +1,16 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { Bell, CalendarDays, ChevronDown, CircleHelp, CreditCard, FileText, FolderOpen, Home, LayoutGrid, LogOut, Menu, Search, Settings, UserRound, X } from 'lucide-react'
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { Bell, CalendarDays, ChevronDown, CircleHelp, CreditCard, FileText, FolderOpen, Home, LayoutGrid, LogOut, Menu, Search, Settings, UserRound } from 'lucide-react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { CitizenProvider, useCitizen } from '../context/CitizenContext'
 import { citizenApi, dateLabel, notificationLink } from '../services/citizenData'
 import { ServiceSearch } from './CitizenWidgets'
 import '../citizen.css'
-import { AccountSettingsContent, AccountSettingsFooter } from '../pages/app/Settings'
+const AccountSettingsContent = lazy(() => import('../pages/app/Settings').then(module => ({ default: module.AccountSettingsContent })))
+const AccountSettingsFooter = lazy(() => import('../pages/app/Settings').then(module => ({ default: module.AccountSettingsFooter })))
 import { ROUTES } from '../routeRegistry'
 import ProfileModal from './ProfileModal'
-import { ProfileForm } from '../pages/dashboard/Profile'
+const ProfileForm = lazy(() => import('../pages/dashboard/Profile').then(module => ({ default: module.ProfileForm })))
 import PasswordChangeModal from './PasswordChangeModal'
 import { useResidentPreferences } from '../context/ResidentPreferencesContext'
 import StableAvatar from './StableAvatar'
@@ -17,7 +18,7 @@ import { DEFAULT_SETTINGS_CATEGORY, normalizeSettingsCategory } from '../pages/a
 
 const groups = [
   ['Overview', [['Dashboard', ROUTES.app.root, Home]]],
-  ['Services', [['Browse Services', ROUTES.app.services, LayoutGrid], ['My Requests', '/app/e-requests', FileText], ['My Applications', ROUTES.app.requests, FileText], ['Appointments', ROUTES.app.appointments, CalendarDays]]],
+  ['Services', [['Browse Services', ROUTES.app.services, LayoutGrid], ['Service requests', '/app/e-requests', FileText], ['My Applications', ROUTES.app.requests, FileText], ['Appointments', ROUTES.app.appointments, CalendarDays]]],
   ['Records', [['My Documents', ROUTES.app.documents, FolderOpen], ['Payments', ROUTES.app.payments, CreditCard]]],
   ['Support', [['Help & Support', ROUTES.app.help, CircleHelp]]],
 ]
@@ -88,7 +89,7 @@ function Shell({ children }) {
     document.addEventListener('pointerdown', outside); document.addEventListener('keydown', escape)
     return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape) }
   }, [accountOpen, drawer, popover])
-  useEffect(() => { if (!drawer) return; sidebarRef.current?.querySelector('button')?.focus(); const previous = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = previous } }, [drawer])
+  useEffect(() => { if (!drawer) return; sidebarRef.current?.querySelector('a[href]')?.focus(); const previous = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = previous } }, [drawer])
   const signOut = async () => { setPopover(''); setNotice(''); const result = await logout(); if (result.ok) navigate('/auth/login', { replace: true }); else setNotice(result.error) }
   const openNotification = async item => { try { await citizenApi(`/notifications/${item.id}/read`, { method: 'PATCH' }); await reload(); setPopover(''); navigate(notificationLink(item)) } catch (error) { setNotice(error.message) } }
   const markAllNotificationsRead = async () => { try { setNotice(''); await citizenApi('/notifications/read-all', { method: 'PATCH' }); await reload() } catch (error) { setNotice(error.message) } }
@@ -117,7 +118,7 @@ function Shell({ children }) {
   return <div className="citizen-portal portal-v2">
     {drawer && <button type="button" className="portal-scrim" aria-label="Close navigation" onClick={() => setDrawer(false)}/>}
     <aside ref={sidebarRef} className={`citizen-sidebar ${drawer ? 'open' : ''}`} onKeyDown={trapFocus} aria-label="Citizen navigation" role={drawer ? 'dialog' : undefined} aria-modal={drawer || undefined}>
-      <div className="citizen-sidebar-brand"><img src="/assets/getafe-seal.png" alt="Municipality of Getafe seal"/><span>CITIZEN PORTAL<small>Municipality of Getafe</small></span><button type="button" onClick={() => { setDrawer(false); menuRef.current?.focus() }} aria-label="Close menu" data-icon-button="ghost"><X size={20}/></button></div>
+      <div className="citizen-sidebar-brand"><img src="/assets/getafe-seal.png" alt="Municipality of Getafe seal"/><span>CITIZEN PORTAL<small>Municipality of Getafe</small></span></div>
       <nav className="portal-nav">{groups.map(([label, links]) => <div key={label}><small>{t(`nav.${label.toLowerCase()}`, label)}</small>{links.map(([text, href, Icon]) => <NavLink to={href} end={href === ROUTES.app.root} key={href}><Icon size={17}/>{t(`nav.${({ 'Dashboard': 'dashboard', 'Browse Services': 'browseServices', 'My Applications': 'applications', 'Appointments': 'appointments', 'My Documents': 'documents', 'Payments': 'payments', 'Help & Support': 'help' })[text] || text}`, text)}{text === 'Notifications' && unread > 0 && <span className="portal-nav-count">{unread}</span>}</NavLink>)}</div>)}</nav>
     </aside>
     <div className="citizen-main">
@@ -125,7 +126,7 @@ function Shell({ children }) {
         <div className="citizen-top-actions" ref={actionsRef} onKeyDown={accountMenuKeys}>
           <ServiceSearch compact inputId="header-service-search"/>
           <div className="portal-mobile-search">
-            <button type="button" className="portal-icon-button portal-mobile-search-trigger" aria-label={mobileSearchOpen ? 'Close search' : 'Search services, news, and information'} aria-expanded={mobileSearchOpen} aria-controls="mobile-header-search-panel" onClick={() => setMobileSearchOpen(value => !value)} data-icon-button="ghost"><Search size={19} aria-hidden="true"/></button>
+            <button type="button" className="portal-icon-button portal-mobile-search-trigger" aria-label={mobileSearchOpen ? 'Close search' : 'Search municipal services'} aria-expanded={mobileSearchOpen} aria-controls="mobile-header-search-panel" onClick={() => setMobileSearchOpen(value => !value)} data-icon-button="ghost"><Search size={19} aria-hidden="true"/></button>
             {mobileSearchOpen && <div className="portal-mobile-search-panel" id="mobile-header-search-panel"><ServiceSearch compact autoFocus inputId="mobile-header-service-search"/></div>}
           </div>
           <div className="portal-header-utility"><Link className="portal-icon-button" data-tooltip="Help and support" to={ROUTES.app.help} aria-label="Help and support" data-icon-button="ghost"><CircleHelp size={19}/></Link>
@@ -137,16 +138,15 @@ function Shell({ children }) {
       </header>
       <main className="citizen-content" id="portal-content">{notice && <p className="portal-error" role="alert">{notice}</p>}{error && <div className="portal-error" role="alert"><span>{error}</span><button type="button" onClick={reload}>Try again</button></div>}{children}</main>
     </div>
-    {accountOpen && <ProfileModal
-      title={accountView === 'settings' ? t('settings.title') : t('account.myAccount')}
-      description={accountView === 'settings' ? t('settings.description') : undefined}
+    {accountOpen && <Suspense fallback={<p role="status">Loading account…</p>}><ProfileModal
+      title={accountView === 'settings' ? 'Resident account' : t('account.myAccount')}
       onClose={closeModal}
       returnFocusRef={profileTriggerRef}
       closeGuardRef={accountView === 'settings' ? settingsCloseGuardRef : accountView === 'profile' ? profileFormRef : undefined}
       focusKey={accountView}
-      showHeader={accountView !== 'password'}
+      showHeader={accountView !== 'password' && accountView !== 'settings'}
       labelledBy={accountView === 'password' ? 'password-change-title' : undefined}
-      closeLabel={accountView === 'settings' ? 'Close account settings' : undefined}
+      closeLabel="Close account profile"
       className={accountView === 'settings' ? 'account-settings-modal' : ''}
       footer={accountView === 'settings' ? <AccountSettingsFooter onClose={requestSettingsClose}/> : undefined}
     >
@@ -157,6 +157,6 @@ function Shell({ children }) {
       {accountView === 'settings' && (
         <AccountSettingsContent activeCategory={accountCategory} onCategoryChange={setAccountCategory} onEditProfile={() => { if (!confirmSettingsDiscard()) return; cancelEditing(); setAccountView('profile') }} onChangePassword={() => openPassword('settings')} changePasswordRef={changePasswordRef}/>
       )}
-    </ProfileModal>}
+    </ProfileModal></Suspense>}
   </div>
 }

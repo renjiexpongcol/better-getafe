@@ -1,3 +1,5 @@
+import { securityFetch as fetch } from '../../services/securityFetch.js'
+import { StatusBadge } from '../../components/ui/Primitives'
 import { createPortal } from "react-dom";
 import { Component, forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { Bell, ChevronRight, CircleHelp, Download, ExternalLink, Globe2, LockKeyhole, Palette, ShieldCheck, Smartphone, UserRound, X } from "lucide-react";
@@ -6,6 +8,7 @@ import { useCitizen } from "../../context/CitizenContext";
 import { citizenApi, dateLabel, notificationPreferencesApi, notificationPreferencesError } from "../../services/citizenData";
 import { Link, Navigate } from "react-router-dom";
 import { ROUTES } from "../../routeRegistry";
+import MobileVerification from '../../components/MobileVerification';
 
 import { useResidentPreferences } from "../../context/ResidentPreferencesContext";
 import { formatResidentDateTime } from "../../services/residentPreferences";
@@ -44,7 +47,7 @@ const SETTINGS_CATEGORY_ICONS = {
 
 export function AccountSettingsContent({ onEditProfile, onChangePassword, changePasswordRef, activeCategory = DEFAULT_SETTINGS_CATEGORY, onCategoryChange }) {
   const { user } = useAuth(),
-    { data } = useCitizen(),
+    { data, reload } = useCitizen(),
     { beginEditing, loading: preferencesLoading, loaded: preferencesLoaded, reload: reloadPreferences, t, error: preferenceError } = useResidentPreferences(),
     [open, setOpen] = useState(false),
     [showPrivacyRequests, setShowPrivacyRequests] = useState(false);
@@ -123,6 +126,7 @@ export function AccountSettingsContent({ onEditProfile, onChangePassword, change
               {onEditProfile && <button type="button" className="settings-edit-link" onClick={onEditProfile}>Edit profile</button>}
             </div>
             <AccountInformation user={user} data={data} />
+            <MobileVerification mobile={data?.profile?.mobile} verified={Boolean(data?.profile?.mobile_verified_at)} onVerified={reload}/>
           </section>}
           {category === "security" && <section id="settings-access" className="settings-card">
             <div className="settings-card-heading">
@@ -361,9 +365,11 @@ function NotificationSettings() {
   if (!preferences) return <section className="settings-notification-content"><div className="settings-notification-error" role="alert"><p>{error || "We couldn't load your notification settings."}</p><button type="button" className="settings-inline-action" onClick={loadPreferences}>Try again</button></div></section>
   return <section className="settings-notification-content">
     <div className="settings-notification-group"><p className="settings-notification-label">Essential notifications</p><div className="settings-notification-row"><div><strong>In-app notifications</strong><small>Receive important updates directly in your citizen portal.</small></div><span className="settings-always-on">Always on</span></div></div>
-    <div className="settings-notification-group"><p className="settings-notification-label">Email notifications</p><label className="settings-notification-row settings-notification-toggle"><div><strong>Email notifications</strong><small>Receive important updates by email at {preferences.email || user?.email || 'your verified email address'}.</small></div><input type="checkbox" checked={Boolean(preferences.emailEnabled)} disabled={saving} onChange={event => update('emailEnabled', event.target.checked)}/><span aria-hidden="true"/></label>
-      {!preferences.emailVerified && <div className="settings-email-verification"><p>Email notifications</p><span>Verify your email address to receive email notifications.</span><button type="button" className="settings-inline-action" disabled={verificationBusy} onClick={requestVerification}>Verify email</button>{verificationChallenge && <form onSubmit={confirmVerification}><input aria-label="Email verification code" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={verificationCode} onChange={event => setVerificationCode(event.target.value.replace(/\D/g, ''))} placeholder="6-digit code"/><button type="submit" className="settings-inline-action" disabled={verificationBusy || verificationCode.length !== 6}>Confirm</button></form>}</div>}
-      <p className="settings-notification-label settings-sub-label">Email me about</p>{categories.map(([key, label, description]) => <label className={`settings-notification-row settings-notification-toggle settings-category-row${preferences.emailEnabled ? '' : ' is-disabled'}`} key={key}><div><strong>{label}</strong><small>{description}</small></div><input type="checkbox" checked={Boolean(preferences[key])} disabled={saving || !preferences.emailEnabled} onChange={event => update(key, event.target.checked)}/><span aria-hidden="true"/></label>)}
+    <div className="settings-notification-group"><p className="settings-notification-label">Email notifications</p><label className="settings-notification-row settings-notification-toggle"><div><strong>Email notifications</strong><small>Receive important updates by email at {preferences.email || user?.email || 'your verified email address'}.</small></div><input type="checkbox" checked={Boolean(preferences.emailEnabled)} disabled={saving} aria-expanded={Boolean(preferences.emailEnabled)} aria-controls={preferences.emailEnabled ? 'email-notification-options' : undefined} onChange={event => update('emailEnabled', event.target.checked)}/><span aria-hidden="true"/></label>
+      {preferences.emailEnabled && <div id="email-notification-options" className="settings-notification-dependent-options">
+        {!preferences.emailVerified && <div className="settings-email-verification"><p>Email notifications</p><span>Verify your email address to receive email notifications.</span><button type="button" className="settings-inline-action" disabled={verificationBusy} onClick={requestVerification}>Verify email</button>{verificationChallenge && <form onSubmit={confirmVerification}><input aria-label="Email verification code" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={verificationCode} onChange={event => setVerificationCode(event.target.value.replace(/\D/g, ''))} placeholder="6-digit code"/><button type="submit" className="settings-inline-action" disabled={verificationBusy || verificationCode.length !== 6}>Confirm</button></form>}</div>}
+        <p className="settings-notification-label settings-sub-label">Email me about</p>{categories.map(([key, label, description]) => <label className="settings-notification-row settings-notification-toggle settings-category-row" key={key}><div><strong>{label}</strong><small>{description}</small></div><input type="checkbox" checked={Boolean(preferences[key])} disabled={saving} onChange={event => update(key, event.target.checked)}/><span aria-hidden="true"/></label>)}
+      </div>}
       {saveState && <p className="settings-save-state" role="status">{saveState}</p>}{error && <p className="portal-error" role="alert">{error}</p>}</div>
   </section>
 }
@@ -385,8 +391,7 @@ const SettingsRow = forwardRef(function SettingsRow({ icon: Icon, title, descrip
         onClick={(event) => {
           if (title === "Change your password" || isMfa) event.preventDefault();
           if (title === "Change your password") {
-            if (onPasswordChange) return onPasswordChange();
-            setPasswordOpen(true);
+            return onPasswordChange?.();
           }
           if (isMfa) setMfaOpen(true);
         }}
@@ -1047,9 +1052,7 @@ function PrivacyRequests({ items }) {
               <span>{item.id.slice(0, 8).toUpperCase()}</span>
               <span>{item.request_type}</span>
               <span>{dateLabel(item.created_at)}</span>
-              <span className="portal-status blue">
-                {item.status.replaceAll("_", " ")}
-              </span>
+              <StatusBadge value={item.status}/>
               <span>{dateLabel(item.updated_at)}</span>
               {item.review_note && <p>{item.review_note}</p>}
             </div>

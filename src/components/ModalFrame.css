@@ -1,0 +1,34 @@
+/* Opt-in frame: other dialog workflows keep their existing sizing. */
+.modal-theme dialog.modal-layer:has(> .modal-frame) {
+  display: grid;
+  place-items: center;
+  height: var(--modal-viewport-height, 100dvh);
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  overflow: hidden;
+}
+.modal-theme dialog.modal-layer > .modal-frame {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  width: min(760px, 100%);
+  max-height: calc(min(100dvh, var(--modal-viewport-height, 100dvh)) - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom)));
+  padding: 0;
+  overflow: hidden;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  box-shadow: none;
+}
+.modal-frame-header, .modal-frame-footer { flex: 0 0 auto; padding: 20px 24px; background: inherit; }
+.modal-frame-header { border-bottom: 1px solid var(--color-border); }
+.modal-frame-body { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 0 24px 24px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.modal-frame-footer { border-top: 1px solid var(--color-border); padding-block: 14px; }
+.modal-frame :is(input,select,textarea) { max-width: 100%; }
+.modal-frame-body > :first-child { margin-top: 0; }
+@media (max-width: 650px) {
+  .modal-frame-header, .modal-frame-footer { padding-inline: 16px; }
+  .modal-frame-header { padding-block: 16px; }
+  .modal-frame-body { padding-inline: 16px; padding-bottom: 20px; }
+}

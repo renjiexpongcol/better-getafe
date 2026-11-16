@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { esApi, useEservice, Feedback, label, money } from "./EserviceUI";
-import { cachedRequest, invalidateCached } from "../services/requestCache";
+import { invalidateCached } from "../services/requestCache";
 import StaffDepartmentAccess from "./StaffDepartmentAccess";
 import { APPLICATION_STEPS, REQUEST_STATUSES } from "../data/eserviceWorkflow";
 import { PROFILE_SOURCES } from '../data/serviceApplication';
@@ -40,7 +40,7 @@ export default function AdminEservices() {
   const [page, setPage] = useState(1);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => { const timer = setTimeout(() => setDebouncedSearch(search), 300); return () => clearTimeout(timer); }, [search]);
-  const options = useEservice(() => cachedRequest("cms:service-catalog-options", () => esApi("/admin/services/options"), { ttl: 60000 }), []);
+  const options = useEservice((signal) => esApi("/admin/services/options", "GET", undefined, undefined, {signal}), []);
   const state = useEservice(signal => esApi(`/admin/services?q=${encodeURIComponent(debouncedSearch)}&department=${encodeURIComponent(department)}&published=${published}&page=${page}&limit=20`, "GET", undefined, undefined, { signal }), [debouncedSearch, department, published, page]);
   const filtered = state.data?.items || [];
   const total = state.data?.total ?? filtered.length;
@@ -458,9 +458,6 @@ export default function AdminEservices() {
                       }
                     />
                   </label>
-                  <label>Application section<input value={f.section || ''} placeholder="Applicant information, Business information…" maxLength={100} onChange={e => row('fields', i, 'section', e.target.value)} /></label>
-                  <label>Use account information<select value={f.profile_source || ''} onChange={e => row('fields', i, 'profile_source', e.target.value)}><option value="">Automatic for standard field names</option>{PROFILE_SOURCES.map(source => <option key={source} value={source}>{label(source)}</option>)}</select></label>
-                  <label><input type="checkbox" checked={f.profile_readonly === true} onChange={e => row('fields', i, 'profile_readonly', e.target.checked)} />Keep account information read-only</label>
                   <label>
                     <input
                       type="checkbox"
@@ -559,6 +556,9 @@ export default function AdminEservices() {
                       }
                     />
                   </label>
+                  <label>Application section<input value={f.section || ''} placeholder="Applicant information, Business information…" maxLength={100} onChange={e => row('fields', i, 'section', e.target.value)} /></label>
+                  <label>Use account information<select value={f.profile_source || ''} onChange={e => row('fields', i, 'profile_source', e.target.value)}><option value="">Automatic for standard field names</option>{PROFILE_SOURCES.map(source => <option key={source} value={source}>{label(source)}</option>)}</select></label>
+                  <label><input type="checkbox" checked={f.profile_readonly === true} onChange={e => row('fields', i, 'profile_readonly', e.target.checked)} />Keep account information read-only</label>
                   <label>
                     Options, one per line
                     <textarea

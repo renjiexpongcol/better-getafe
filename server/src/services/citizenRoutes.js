@@ -1,26 +1,27 @@
-import { googleOnboarding, completeGoogleOnboarding, validMobile, markGooglePasswordSet, markGoogleIdentityVerified } from './googleOnboarding.js'
+import { googleOnboarding, completeGoogleOnboarding, validMobile, setGoogleInitialPassword, markGoogleIdentityVerified } from './googleOnboarding.js'
 import express from 'express'
 import { getPostgresRuntime } from '../repositories/postgresRuntime.js'
-import { getPortalPool } from './cloudSql.js'
+import { getPortalPool } from './database.js'
 import { id, now } from './identifiers.js'
-import { citizenServices } from '../../../src/data/citizenServices.js'
+import { EserviceEngine } from './eserviceEngine.js'
 import { config } from '../config/index.js'
 import { writeCitizenFile, readCitizenFile, deleteCitizenFile, isStorageNotFoundError } from './storage.js'
 import { getWeatherAt } from './getafeWeather.js'
-import { barangays } from '../../../src/data/barangays.js'
+import { getBarangays } from '../repositories/barangaysRepository.js'
 import { actionThrottle, issueCode, issueSmsCode, verifyCode } from './authSecurity.js'
-import { replacePassword } from './passwords.js'
 import { passwordMeetsPolicy } from './passwordPolicy.js'
 import { hashPassword, verifyPassword } from './passwordHashing.js'
 import { smsConfigured } from './sms.js'
-import { appointmentSlotLockValues, bookedSlots, isExactAppointmentMinute } from './appointmentScheduling.js'
+import { appointmentSlotLockValues, appointmentAvailability as scheduleAvailability, isExactAppointmentMinute } from './appointmentScheduling.js'
 import { putState, stateKey } from './authState.js'
 import { createInAppNotification, getNotificationPreferences, notificationEventKey, queueOptionalNotification, saveNotificationPreferences } from './notificationService.js'
 import { getResidentPreferences, saveResidentPreferences } from './residentPreferences.js'
 import { enqueueEmail } from './redisInfrastructure.js'
 import crypto from 'node:crypto'
+import { optionalSubmissionNotification, persistDocument, submissionId } from './submissionPersistence.js'
+import { normalizeMobile } from '../../../src/data/residentContact.js'
 
-export function installCitizenRoutes(app, resident, safeUser) {
+export function installCitizenRoutes(app, resident, safeUser, { rotateSession } = {}) {
   app.use('/api/citizen', (req, res, next) => { res.set('Cache-Control', 'no-store'); next() })
   const database = () => getPostgresRuntime('portal')
   const ownedApplication = async (db, req, applicationId) => await db.prepare('SELECT * FROM applications WHERE id = ? AND user_id = ?').get(applicationId, req.resident.id)
@@ -58,28 +59,8 @@ export function installCitizenRoutes(app, resident, safeUser) {
     delete view.avatar_storage_path
     return view
   }
-  const appointmentConfiguration = async db => await db.prepare('SELECT * FROM appointment_schedule_config WHERE id = 1').get()
   const dayKey = date => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
-  const slotDate = (date, time) => new Date(`${date}T${time}:00+08:00`)
-  const appointmentAvailability = async (db, serviceId) => {
-    const config = await appointmentConfiguration(db), today = new Date(), start = new Date(today.getTime() + config.min_advance_minutes * 60000), end = new Date(today.getTime() + config.booking_horizon_days * 86400000)
-    const weekdays = Array.isArray(config.weekdays) ? config.weekdays : JSON.parse(config.weekdays), closures = new Set((await db.prepare('SELECT closure_date FROM appointment_closures').all()).map(item => item.closure_date))
-    const appointments = await db.prepare("SELECT appointment_at FROM appointments WHERE appointment_at >= ? AND appointment_at <= ? AND status IN ('requested','scheduled','confirmed')").all(start.toISOString(), end.toISOString())
-    const occupied = bookedSlots(appointments)
-    const dates = [], cursor = new Date(start); cursor.setUTCHours(0, 0, 0, 0)
-    for (; cursor <= end; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
-      const date = dayKey(cursor), weekday = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', weekday: 'short' }).formatToParts(cursor).find(item => item.type === 'weekday') ? ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', weekday: 'short' }).format(cursor)) : 0)
-      const slots = []
-      if (weekdays.includes(weekday) && !closures.has(date)) for (let minute = Number(config.opening_time.slice(0,2)) * 60 + Number(config.opening_time.slice(3)); minute + config.slot_minutes <= Number(config.closing_time.slice(0,2)) * 60 + Number(config.closing_time.slice(3)); minute += config.slot_minutes) {
-        const time = `${String(Math.floor(minute / 60)).padStart(2,'0')}:${String(minute % 60).padStart(2,'0')}`, breakStart = Number(config.break_start.slice(0,2)) * 60 + Number(config.break_start.slice(3)), breakEnd = Number(config.break_end.slice(0,2)) * 60 + Number(config.break_end.slice(3))
-        if (minute >= breakStart && minute < breakEnd) continue
-        const at = slotDate(date, time); if (at <= start) continue
-        const count = occupied.get(at.toISOString()) || 0; if (count < config.slot_capacity) slots.push({ time, available: config.slot_capacity - count })
-      }
-      dates.push({ date, slots })
-    }
-    return { config: { start: dayKey(start), end: dayKey(end), location: config.location, slot_minutes: config.slot_minutes }, dates, service_id: serviceId }
-  }
+  const appointmentAvailability = (db, serviceId) => scheduleAvailability((sql, values = []) => db.prepare(sql).all(...values), serviceId)
 
   app.get('/api/citizen/dashboard', resident, async (req, res) => {
     const db = await database(), userId = req.resident.id
@@ -102,10 +83,66 @@ export function installCitizenRoutes(app, resident, safeUser) {
   })
   app.put('/api/citizen/profile', resident, async (req, res) => {
     const db = await database(), timestamp = now(), body = req.body || {}
-    if ((await googleOnboarding(req.resident)).googleAccount && (!String(body.full_name || '').trim() || !validMobile(body.mobile))) return res.status(422).json({ error: 'Provide your full name and a valid mobile number (10–15 digits).' })
-    if (body.barangay && !barangays.some(item => item.name === String(body.barangay).trim())) return res.status(422).json({ error: 'Choose one of Getafe’s 24 barangays.' })
-    await db.prepare(`INSERT INTO resident_profiles (user_id, full_name, mobile, gender, barangay, house_lot, street, purok_sitio, municipality, province, zip_code, verification_status, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'unverified', ?) ON CONFLICT(user_id) DO UPDATE SET full_name=excluded.full_name, mobile=excluded.mobile, gender=excluded.gender, barangay=excluded.barangay, house_lot=excluded.house_lot, street=excluded.street, purok_sitio=excluded.purok_sitio, municipality=excluded.municipality, province=excluded.province, zip_code=excluded.zip_code, updated_at=excluded.updated_at`).run(req.resident.id, String(body.full_name || req.resident.name).slice(0, 160), String(body.mobile || '').slice(0, 32), String(body.gender || '').slice(0, 16), String(body.barangay || '').slice(0, 160), String(body.house_lot || '').slice(0, 160), String(body.street || '').slice(0, 160), String(body.purok_sitio || '').slice(0, 160), String(body.municipality || 'Getafe').slice(0, 100), String(body.province || 'Bohol').slice(0, 100), String(body.zip_code || '').slice(0, 16), timestamp)
-    res.json({ ok: true, profile: profileView(await db.prepare('SELECT * FROM resident_profiles WHERE user_id = ?').get(req.resident.id)) })
+    const googleAccount = (await googleOnboarding(req.resident)).googleAccount
+    const result = await db.transaction(async connection => {
+      const [[previous]] = await connection.execute('SELECT * FROM resident_profiles WHERE user_id = ? FOR UPDATE', [req.resident.id])
+      const fields = { full_name: 160, mobile: 32, gender: 16, barangay: 160, house_lot: 160, street: 160, purok_sitio: 160, municipality: 100, province: 100, zip_code: 16 }
+      const profile = { full_name: req.resident.name, municipality: 'Getafe', province: 'Bohol', ...previous }
+      for (const [field, limit] of Object.entries(fields)) {
+        if (Object.hasOwn(body, field)) {
+          if (typeof body[field] !== 'string' || body[field].length > limit) return { error: `Provide a valid ${field.replaceAll('_', ' ')}.`, field }
+          profile[field] = body[field].trim()
+        }
+      }
+      profile.mobile = normalizeMobile(profile.mobile)
+      if (!String(profile.full_name || '').trim()) return { error: 'Enter your full name.', field: 'full_name' }
+      if ((googleAccount || profile.mobile) && !validMobile(profile.mobile)) return { error: 'Enter a valid mobile number with 10–15 digits, such as 0917 123 4567.', field: 'mobile' }
+      // A resident's address is self-reported profile data. Publication of
+      // barangay directory pages must not block contact or address updates.
+      const verifiedAt = normalizeMobile(previous?.mobile) === profile.mobile ? previous?.mobile_verified_at || null : null
+      const values = Object.keys(fields).map(field => profile[field] || '')
+      await connection.execute(`INSERT INTO resident_profiles (user_id, ${Object.keys(fields).join(', ')}, mobile_verified_at, verification_status, updated_at)
+        VALUES (?, ${values.map(() => '?').join(', ')}, ?, 'unverified', ?)
+        ON CONFLICT(user_id) DO UPDATE SET ${Object.keys(fields).map(field => `${field}=excluded.${field}`).join(', ')}, mobile_verified_at=excluded.mobile_verified_at, updated_at=excluded.updated_at`, [req.resident.id, ...values, verifiedAt, timestamp])
+      const [[saved]] = await connection.execute('SELECT * FROM resident_profiles WHERE user_id = ?', [req.resident.id])
+      return { profile: saved }
+    })
+    if (result.error) return res.status(422).json(result)
+    res.json({ ok: true, profile: profileView(result.profile) })
+  })
+  const mobileVerificationOptions = () => ({
+    mobileVerificationEnabled: Boolean(config.get('authentication.mobileVerificationEnabled')),
+    mobileVerificationRequired: Boolean(config.get('authentication.requireMobileVerification')),
+    sms: Boolean(config.get('authentication.mobileVerificationEnabled') && smsConfigured()),
+  })
+  const markMobileVerified = async (userId, mobile) => {
+    const result = await (await database()).prepare('UPDATE resident_profiles SET mobile_verified_at = CURRENT_TIMESTAMP WHERE user_id = ? AND mobile = ?').run(userId, mobile)
+    return result.changes === 1
+  }
+  app.post('/api/citizen/mobile-verification/request', resident, async (req, res) => {
+    const options = mobileVerificationOptions()
+    if (!options.mobileVerificationEnabled) return res.status(403).json({ error: 'Mobile verification is currently disabled.' })
+    if (!options.sms) return res.status(503).json({ error: 'SMS verification is not configured. Contact the municipal support team.' })
+    const profile = await (await database()).prepare('SELECT mobile, mobile_verified_at FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
+    if (!validMobile(profile?.mobile)) return res.status(422).json({ error: 'Save a valid mobile number before requesting a code.', field: 'mobile' })
+    if (profile.mobile_verified_at) return res.json({ verified: true })
+    const throttle = await actionThrottle('mobile-verification-send', req.resident.id, 3, 15 * 60 * 1000)
+    if (!throttle.allowed) { res.set('Retry-After', String(throttle.retryAfter)); return res.status(429).json({ error: 'Too many code requests. Try again later.', retryAfter: throttle.retryAfter }) }
+    const cooldown = await actionThrottle('mobile-verification-cooldown', req.resident.id, 1, 30000)
+    if (!cooldown.allowed) { res.set('Retry-After', String(cooldown.retryAfter)); return res.status(429).json({ error: 'Wait before requesting another code.', retryAfter: cooldown.retryAfter }) }
+    try {
+      const challengeId = await issueSmsCode(profile.mobile, 'mobile-verification', { userId: req.resident.id, mobile: profile.mobile })
+      res.json({ challengeId, mobile: profile.mobile, expiresIn: 600, retryAfter: 30 })
+    } catch { res.status(503).json({ error: 'We could not send the SMS code. Try again later.' }) }
+  })
+  app.post('/api/citizen/mobile-verification/confirm', resident, async (req, res) => {
+    if (!mobileVerificationOptions().mobileVerificationEnabled) return res.status(403).json({ error: 'Mobile verification is currently disabled.' })
+    const throttle = await actionThrottle('mobile-verification-confirm', req.resident.id, 10, 15 * 60 * 1000)
+    if (!throttle.allowed) { res.set('Retry-After', String(throttle.retryAfter)); return res.status(429).json({ error: 'Too many verification attempts. Try again later.', retryAfter: throttle.retryAfter }) }
+    const payload = await verifyCode(String(req.body?.challengeId || ''), String(req.body?.code || ''), 'mobile-verification')
+    if (!payload || payload.userId !== req.resident.id) return res.status(422).json({ error: 'Invalid or expired code. Check the code or request a new one.' })
+    if (!await markMobileVerified(req.resident.id, payload.mobile)) return res.status(409).json({ error: 'Your mobile number changed. Request a code for your current number.' })
+    res.json({ ok: true, mobile: payload.mobile, mobileVerified: true })
   })
   const notificationPreferences = async (req, res) => {
     try { res.json(await getNotificationPreferences(req.resident.id)) }
@@ -179,18 +216,22 @@ export function installCitizenRoutes(app, resident, safeUser) {
     } catch (error) { console.error('Email verification confirmation failed:', error.message); res.status(503).json({ error: 'Email verification is temporarily unavailable.' }) }
   })
   app.post('/api/citizen/onboarding/complete', resident, async (req, res) => {
+    const onboarding = await googleOnboarding(req.resident)
+    if (onboarding.mobileVerificationRequired && !onboarding.mobileVerified) return res.status(422).json({ error: 'Verify your mobile number before completing account setup.', field: 'mobile' })
     if (!await completeGoogleOnboarding(req.resident)) return res.status(422).json({ error: 'Complete your profile and create a password before continuing.' })
     res.json({ ok: true })
   })
   app.get('/api/citizen/onboarding/options', resident, async (req, res) => {
-    res.json({ email: true, sms: smsConfigured() })
+    res.json({ email: true, ...mobileVerificationOptions() })
   })
   app.post('/api/citizen/onboarding/password', resident, async (req, res) => {
-    if (!(await googleOnboarding(req.resident)).googleAccount) return res.status(403).json({ error: 'This setup is only available to Google accounts.' })
+    const onboarding = await googleOnboarding(req.resident)
+    if (!onboarding.googleAccount || onboarding.passwordSet || !onboarding.setupRequired) return res.status(403).json({ error: 'Initial password setup is unavailable. Use Change password.' })
     const password = String(req.body?.password || '')
     if (!passwordMeetsPolicy(password, config.get('authentication.passwordMinLength'))) return res.status(422).json({ error: `Use at least ${config.get('authentication.passwordMinLength')} characters with uppercase, lowercase, a number, and a special character. Avoid common passwords.` })
-    await replacePassword(req.resident.id, 'portal', password, { touchUpdatedAt: false })
-    await markGooglePasswordSet(req.resident.id)
+    try { await setGoogleInitialPassword(req.resident.id, password) }
+    catch (error) { if (error.status === 409) return res.status(409).json({ error: 'Initial password setup is already complete. Use Change password.' }); throw error }
+    if (rotateSession) await rotateSession(req, res)
     res.json({ ok: true })
   })
   app.post('/api/citizen/onboarding/verification/request', resident, async (req, res) => {
@@ -200,13 +241,16 @@ export function installCitizenRoutes(app, resident, safeUser) {
     if (method === 'sms' && (!smsConfigured() || !validMobile(profile?.mobile))) return res.status(422).json({ error: smsConfigured() ? 'Save a valid mobile number before requesting an SMS code.' : 'SMS verification is not configured. Choose email verification.' })
     const throttle = await actionThrottle('onboarding-code', req.resident.id, 5, 15 * 60 * 1000)
     if (!throttle.allowed) { res.set('Retry-After', String(throttle.retryAfter)); return res.status(429).json({ error: 'Too many verification requests. Try again later.', retryAfter: throttle.retryAfter }) }
-    const payload = { userId: req.resident.id, method }
+    if (method === 'sms' && !mobileVerificationOptions().mobileVerificationEnabled) return res.status(403).json({ error: 'Mobile verification is currently disabled.' })
+    const payload = { userId: req.resident.id, method, ...(method === 'sms' ? { mobile: profile.mobile } : {}) }
     const challengeId = method === 'sms' ? await issueSmsCode(profile.mobile, 'google-onboarding', payload) : await issueCode(req.resident.email, 'google-onboarding', payload)
     res.json({ challengeId, method })
   })
   app.post('/api/citizen/onboarding/verification/confirm', resident, async (req, res) => {
     const payload = await verifyCode(String(req.body?.challengeId || ''), String(req.body?.code || ''), 'google-onboarding')
     if (!payload || payload.userId !== req.resident.id) return res.status(401).json({ error: 'Invalid or expired verification code.' })
+    if (payload.method === 'sms' && !mobileVerificationOptions().mobileVerificationEnabled) return res.status(403).json({ error: 'Mobile verification is currently disabled.' })
+    if (payload.method === 'sms' && !await markMobileVerified(req.resident.id, payload.mobile)) return res.status(409).json({ error: 'Your mobile number changed. Request a code for your current number.' })
     await markGoogleIdentityVerified(req.resident.id, payload.method)
     res.json({ ok: true, method: payload.method })
   })
@@ -216,13 +260,16 @@ export function installCitizenRoutes(app, resident, safeUser) {
     const signatures = { 'image/jpeg': value => value.toString('hex', 0, 3) === 'ffd8ff', 'image/png': value => value.toString('hex', 0, 8) === '89504e470d0a1a0a', 'image/webp': value => value.toString('ascii', 0, 4) === 'RIFF' && value.toString('ascii', 8, 12) === 'WEBP' }
     if (!Buffer.isBuffer(bytes) || !bytes.length || !signatures[type]?.(bytes)) return res.status(422).json({ error: 'Upload a valid JPEG, PNG or WebP profile photo, up to 5 MB.' })
     const db = await database(), previous = (await db.prepare('SELECT avatar_storage_path FROM resident_profiles WHERE user_id = ?').get(req.resident.id))?.avatar_storage_path || null
-    const extension = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[type], key = `profiles/${req.resident.id}/avatar.${extension}`
+    const extension = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[type], uploadId = id(), key = `profiles/${req.resident.id}/${uploadId}.${extension}`
     await writeCitizenFile(key, bytes, type)
     try {
       const timestamp = now()
       await db.prepare(`INSERT INTO resident_profiles (user_id, full_name, avatar_storage_path, verification_status, updated_at) VALUES (?, ?, ?, 'unverified', ?) ON CONFLICT(user_id) DO UPDATE SET avatar_storage_path=excluded.avatar_storage_path, updated_at=excluded.updated_at`).run(req.resident.id, req.resident.name, key, timestamp)
-      if (previous && previous !== key) await deleteCitizenFile(previous)
-    } catch (error) { await deleteCitizenFile(key); throw error }
+    } catch (error) {
+      await deleteCitizenFile(key).catch(() => console.error(JSON.stringify({ event: 'avatar_cleanup_required', uploadId })))
+      throw error
+    }
+    if (previous && previous !== key) await deleteCitizenFile(previous).catch(() => console.error(JSON.stringify({ event: 'previous_avatar_cleanup_required', uploadId })))
     res.status(201).json({ ok: true, avatar_url: `/api/citizen/profile/avatar?v=${encodeURIComponent(now())}` })
   })
   const citizenAvatarFailures = new Map()
@@ -304,7 +351,8 @@ export function installCitizenRoutes(app, resident, safeUser) {
 
   app.get('/api/citizen/weather', citizenFetchOnly, resident, async (req, res) => {
     const db = await database(), profile = await db.prepare('SELECT barangay FROM resident_profiles WHERE user_id = ?').get(req.resident.id)
-    const selected = barangays.find(item => item.name.toLowerCase() === String(profile?.barangay || '').trim().toLowerCase()) || barangays.find(item => item.name === 'Poblacion')
+    const barangays = await getBarangays()
+    const selected = barangays.find(item => item.name.toLowerCase() === String(profile?.barangay || '').trim().toLowerCase())
     if (!selected?.coords) return res.status(404).json({ error: 'Add your barangay to your profile to see local weather.' })
     try { res.json({ barangay: selected.name, ...await getWeatherAt(selected.coords.lat, selected.coords.lng) }) }
     catch { res.status(502).json({ error: 'Weather is temporarily unavailable.' }) }
@@ -315,7 +363,7 @@ export function installCitizenRoutes(app, resident, safeUser) {
     res.json({ ...application, history: await db.prepare("SELECT * FROM application_status_history WHERE application_id = ? AND COALESCE(visibility, 'public') = 'public' ORDER BY created_at DESC").all(application.id) })
   })
   app.post('/api/citizen/applications', resident, async (req, res) => {
-    const service = citizenServices.find(item => item.name === req.body?.service_name)
+    const service = (await new EserviceEngine().catalog()).find(item => item.name === req.body?.service_name)
     const concern = req.body?.service_name === 'Report a Concern'
     if (concern) {
       const throttle = await actionThrottle('citizen-concern', `${req.resident.id}:${req.ip || 'unknown'}`, 5, 60 * 60 * 1000)
@@ -345,10 +393,11 @@ export function installCitizenRoutes(app, resident, safeUser) {
     const attachmentPath = attachmentBytes ? `citizen-private/concerns/${req.resident.id}/${attachmentId}` : null
     // Persist required storage before committing a request. Otherwise a failed
     // upload reports failure after the application has already been created.
+    const routing = await db.prepare('SELECT department_id FROM services WHERE lower(name)=lower(?) AND department_id IS NOT NULL AND (SELECT count(*) FROM services WHERE lower(name)=lower(?))=1').get(service?.name || 'Report a Concern',service?.name || 'Report a Concern')
     if (attachmentBytes) await writeCitizenFile(attachmentPath, attachmentBytes, attachment.type)
     await db.exec('BEGIN')
     try {
-      await db.prepare('INSERT INTO applications (id,user_id,reference_number,service_name,status,payment_status,submitted_at,last_updated,details) VALUES (?,?,?,?,?,?,?,?,?)').run(applicationId, req.resident.id, reference, service?.name || 'Report a Concern', 'submitted', 'not_required', created, created, JSON.stringify({ purpose: details.purpose.trim() }))
+      await db.prepare('INSERT INTO applications (id,user_id,reference_number,service_name,status,payment_status,submitted_at,last_updated,details,department_id) VALUES (?,?,?,?,?,?,?,?,?,?)').run(applicationId, req.resident.id, reference, service?.name || 'Report a Concern', 'submitted', 'not_required', created, created, JSON.stringify({ purpose: details.purpose.trim() }), routing?.department_id || null)
       if (attachmentBytes) await db.prepare('INSERT INTO application_documents (id,application_id,user_id,name,storage_path,verification_status,document_kind,created_at) VALUES (?,?,?,?,?,?,?,?)').run(attachmentId, applicationId, req.resident.id, attachmentName, attachmentPath, 'pending', 'uploaded', created)
       await db.prepare('INSERT INTO application_status_history (id,application_id,status,note,created_at) VALUES (?,?,?,?,?)').run(id(), applicationId, 'submitted', 'Application submitted by resident.', created)
       await notify(db, req.resident.id, 'Application submitted', `${service?.name || 'Your concern'} has been submitted. Reference: ${reference}.`, applicationId, null, { type: 'request.created', eventKey: notificationEventKey('request.created', { applicationId }) })
@@ -367,7 +416,7 @@ export function installCitizenRoutes(app, resident, safeUser) {
     res.status(201).json({ id: applicationId, reference_number: reference })
   })
   app.post('/api/citizen/settlements', resident, async (req, res) => {
-    const allowed = new Set(['Ordinance Violation', 'Public Market Stall', 'Miscellaneous Fees', 'Transport Franchise'])
+    const allowed = new Set(String(config.get('contact.settlementTypes') || '').split('\n').map(value => value.trim()).filter(Boolean))
     const category = String(req.body?.category || '').trim()
     const referenceNumber = String(req.body?.reference_number || '').trim().slice(0, 80)
     const amount = Number(req.body?.amount)
@@ -376,11 +425,35 @@ export function installCitizenRoutes(app, resident, safeUser) {
     if (!allowed.has(category)) return res.status(422).json({ error: 'Choose a valid settlement type.' })
     if (!referenceNumber) return res.status(422).json({ error: 'Enter the notice, stall, fee, or franchise reference number.' })
     if (!Number.isFinite(amount) || amount <= 0 || amount > 10000000) return res.status(422).json({ error: 'Enter a valid amount between ₱0.01 and ₱10,000,000.' })
-    if (!['Treasurer’s Office', 'GCash / e-wallet', 'Bank transfer'].includes(paymentMethod)) return res.status(422).json({ error: 'Choose a payment channel.' })
-    const db = await database(), settlementId = id(), created = now(), tracking = `SET-${new Date().getFullYear()}-${settlementId.slice(0, 8).toUpperCase()}`
-    await db.prepare('INSERT INTO settlement_requests (id,user_id,category,reference_number,amount,payment_method,status,notes,created_at) VALUES (?,?,?,?,?,?,?,?,?)').run(settlementId, req.resident.id, category, referenceNumber, amount, paymentMethod, 'for_verification', notes, created)
-    const notification = await notify(db, req.resident.id, 'Settlement request received', `${category} settlement ${tracking} was submitted for Treasurer verification.`, null, null, { type: 'payment.requires_attention', eventKey: notificationEventKey('payment.requires_attention', { eventId: settlementId }) })
-    queueNotification({ userId: req.resident.id, type: 'payment.requires_attention', eventId: settlementId, notificationId: notification.id, data: { name: req.resident.name, serviceName: category, reference: tracking, status: 'Requires attention' } })
+    if (!String(config.get('contact.paymentChannels') || '').split('\n').map(value => value.trim()).filter(Boolean).includes(paymentMethod)) return res.status(422).json({ error: 'Choose a payment channel.' })
+    const requestKey = req.get('Idempotency-Key')
+    if (requestKey && (requestKey.length > 200 || !/^[\x21-\x7e]+$/.test(requestKey))) return res.status(422).json({ error: 'Use a valid submission identifier.' })
+    const values = [category, referenceNumber, amount.toFixed(2), paymentMethod, notes]
+    const settlementId = submissionId('settlement', [req.resident.id, requestKey ? ['key', requestKey] : ['content', ...values]])
+    const db = await database()
+    let created = now(), inserted = false
+    await db.exec('BEGIN')
+    try {
+      await db.prepare('SELECT pg_advisory_xact_lock(hashtext(?), hashtext(?))').get('settlement-submission', settlementId)
+      const existing = await db.prepare('SELECT * FROM settlement_requests WHERE id = ? AND user_id = ?').get(settlementId, req.resident.id)
+      if (existing) {
+        const previous = [existing.category, existing.reference_number, Number(existing.amount).toFixed(2), existing.payment_method, existing.notes || '']
+        if (JSON.stringify(previous) !== JSON.stringify(values)) {
+          await db.exec('ROLLBACK')
+          return res.status(409).json({ error: 'This submission identifier was already used for a different settlement.' })
+        }
+        created = existing.created_at
+      } else {
+        await db.prepare('INSERT INTO settlement_requests (id,user_id,category,reference_number,amount,payment_method,status,notes,created_at) VALUES (?,?,?,?,?,?,?,?,?)').run(settlementId, req.resident.id, category, referenceNumber, amount.toFixed(2), paymentMethod, 'for_verification', notes, created)
+        inserted = true
+      }
+      await db.exec('COMMIT')
+    } catch (error) { await db.exec('ROLLBACK').catch(() => {}); throw error }
+    const tracking = `SET-${new Date(created).getFullYear()}-${settlementId.slice(0, 8).toUpperCase()}`
+    if (inserted) await optionalSubmissionNotification(async () => {
+      const notification = await notify(db, req.resident.id, 'Settlement request received', `${category} settlement ${tracking} was submitted for Treasurer verification.`, null, null, { type: 'payment.requires_attention', eventKey: notificationEventKey('payment.requires_attention', { eventId: settlementId }) })
+      queueNotification({ userId: req.resident.id, type: 'payment.requires_attention', eventId: settlementId, notificationId: notification.id, data: { name: req.resident.name, serviceName: category, reference: tracking, status: 'Requires attention' } })
+    }, settlementId)
     res.status(201).json({ id: settlementId, tracking_number: tracking })
   })
   app.post('/api/citizen/privacy-requests/verify-password', resident, async (req, res) => {
@@ -415,7 +488,7 @@ export function installCitizenRoutes(app, resident, safeUser) {
     res.json({ ok: true, updated: result.changes })
   })
   app.get('/api/citizen/appointments/availability', resident, async (req, res) => {
-    const service = citizenServices.find(item => item.id === req.query.service_id)
+    const service = (await new EserviceEngine().catalog()).find(item => item.id === req.query.service_id)
     if (!service) return res.status(422).json({ error: 'Choose an available service.' })
     res.json(await appointmentAvailability(await database(), service.id))
   })
@@ -426,21 +499,21 @@ export function installCitizenRoutes(app, resident, safeUser) {
     if (!applicationId || !name || !Buffer.isBuffer(bytes) || !bytes.length || bytes.length > 5 * 1024 * 1024 || !validSignature) return res.status(422).json({ error: 'Upload a valid PDF, JPEG, or PNG smaller than 5 MB.' })
     const db = await database(), application = await ownedApplication(db, req, applicationId)
     if (!application) return res.status(404).json({ error: 'Application not found.' })
-    const documentId = id(), extension = type === 'application/pdf' ? 'pdf' : type === 'image/png' ? 'png' : 'jpg', storagePath = `citizen-private/documents/${req.resident.id}/${documentId}.${extension}`
-    await writeCitizenFile(storagePath, bytes, type)
-    try {
-      await db.prepare('INSERT INTO application_documents (id,application_id,user_id,name,storage_path,verification_status,document_kind,created_at) VALUES (?,?,?,?,?,?,?,?)').run(documentId, applicationId, req.resident.id, name, storagePath, 'pending', 'uploaded', now())
+    const { document, created } = await persistDocument(db, { applicationId, userId: req.resident.id, name, bytes, type, status: 'pending', kind: 'uploaded', createdAt: now() })
+    const documentId = document.id
+    if (created) await optionalSubmissionNotification(async () => {
       await notify(db, req.resident.id, 'Document uploaded', `${name} was uploaded to application ${application.reference_number}.`, applicationId, documentId, { type: 'document.received', eventKey: notificationEventKey('document.received', { documentId }) })
-    } catch (error) { await deleteCitizenFile(storagePath).catch(() => {}); throw error }
-    queueNotification({ userId: req.resident.id, type: 'document.received', eventId: documentId, applicationId, documentId, data: { name: req.resident.name, serviceName: application.service_name, reference: application.reference_number, status: 'Received', applicationId, documentId } })
-    res.status(201).json({ id: documentId, name, status: 'pending' })
+      queueNotification({ userId: req.resident.id, type: 'document.received', eventId: documentId, applicationId, documentId, data: { name: req.resident.name, serviceName: application.service_name, reference: application.reference_number, status: 'Received', applicationId, documentId } })
+    }, documentId)
+    res.status(201).json({ id: documentId, name, status: document.verification_status })
   })
   app.post('/api/citizen/appointments', resident, async (req, res) => {
-    const service = citizenServices.find(item => item.id === req.body?.service_id), date = new Date(req.body?.appointment_at), contact = String(req.body?.contact_number || '').replace(/\s+/g, ''), barangay = barangays.find(item => item.id === req.body?.barangay_id)
+    const barangays = await getBarangays()
+    const service = (await new EserviceEngine().catalog()).find(item => item.id === req.body?.service_id), date = new Date(req.body?.appointment_at), contact = String(req.body?.contact_number || '').replace(/\s+/g, ''), barangay = barangays.find(item => item.id === req.body?.barangay_id)
     if (!service || !isExactAppointmentMinute(date)) return res.status(422).json({ error: 'Choose an available appointment slot.' })
     if (!barangay) return res.status(422).json({ error: 'Choose a barangay for this appointment.' })
-    if (contact && !/^09\d{9}$/.test(contact)) return res.status(422).json({ error: 'Enter a valid Philippine mobile number.' })
-    const departments = { certificates: 'Municipal Civil Registrar', business: 'Business Permit and Licensing Office', health: 'Municipal Health Office', education: 'Municipal Social Welfare and Development' }
+    if (!/^09\d{9}$/.test(contact)) return res.status(422).json({ error: 'Enter a valid Philippine mobile number.' })
+    if (!String(req.body?.reason || '').trim() || String(req.body.reason).length > 1000) return res.status(422).json({ error: 'Enter a reason of up to 1,000 characters.' })
     const db = await database(), appointmentId = id()
     await db.exec('BEGIN IMMEDIATE')
     let integration, reference
@@ -453,7 +526,7 @@ export function installCitizenRoutes(app, resident, safeUser) {
       if (!day?.slots.some(slot => slot.time === time)) { await db.exec('ROLLBACK'); return res.status(409).json({ error: 'That slot is no longer available. Please select another time.' }) }
       integration = await db.prepare('SELECT notification_email,portal_url FROM barangay_appointment_integrations WHERE barangay_id = ?').get(barangay.id) || {}
       reference = `GTF-APT-${appointmentId.slice(0, 8).toUpperCase()}`
-      await db.prepare('INSERT INTO appointments (id,user_id,department,service,service_id,appointment_at,reason,contact_number,barangay,barangay_portal_url,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(appointmentId, req.resident.id, departments[service.category], service.name, service.id, date.toISOString(), String(req.body?.reason || '').slice(0, 1000), contact, barangay.name, integration.portal_url || null, 'requested', now())
+      await db.prepare('INSERT INTO appointments (id,user_id,department,service,service_id,appointment_at,reason,contact_number,barangay,barangay_portal_url,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(appointmentId, req.resident.id, service.department_name || '', service.name, service.id, date.toISOString(), String(req.body?.reason || '').slice(0, 1000), contact, barangay.name, integration.portal_url || null, 'requested', now())
       await db.exec('COMMIT')
     } catch (error) { await db.exec('ROLLBACK'); throw error }
     try {

@@ -50,6 +50,7 @@ CREATE TRIGGER payment_attempt_integrity BEFORE UPDATE OR DELETE ON payment_atte
 -- Names already stored as UUID-like references remain intact for compatibility.
 -- New references use sequences; no existing account or financial record is recreated.
 DO $$ DECLARE s services%ROWTYPE; definition UUID; workflow UUID; BEGIN
+ IF current_setting('getafe.import_source_catalog', true) = 'on' THEN RETURN; END IF;
  FOR s IN SELECT * FROM services WHERE kind='BUSINESS' AND NOT EXISTS
    (SELECT 1 FROM service_workflows w JOIN service_workflow_steps x ON x.workflow_id=w.id WHERE w.service_id=services.id AND w.revision=services.version)
  LOOP
@@ -61,18 +62,19 @@ DO $$ DECLARE s services%ROWTYPE; definition UUID; workflow UUID; BEGIN
    INSERT INTO service_fees(service_id,revision,code,description,amount,source) SELECT service_id,s.version+1,code,description,amount,source FROM service_fees WHERE service_id=s.id AND revision=s.version;
    INSERT INTO service_workflows(service_id,revision) VALUES(s.id,s.version+1) RETURNING id INTO workflow;
    INSERT INTO service_workflow_steps(workflow_id,status,label,permission,next_statuses,display_order)
-   SELECT workflow,v.status,v.label,v.permission,v.next_statuses::jsonb,v.display_order FROM (VALUES
-     ('DRAFT','Draft','requests.own.update','["SUBMITTED","CANCELLED"]',0),
-     ('SUBMITTED','Submitted','requests.department.process','["IN_REVIEW","FOR_ASSESSMENT","AWAITING_PAYMENT","CANCELLED"]',1),
-     ('IN_REVIEW','Under review','requests.department.process','["FOR_ASSESSMENT","NEEDS_INFORMATION","REJECTED","CANCELLED"]',2),
-     ('NEEDS_INFORMATION','Action required','requests.department.process','["IN_REVIEW","FOR_ASSESSMENT","CANCELLED"]',3),
-     ('FOR_ASSESSMENT','For assessment','assessments.create','["AWAITING_PAYMENT","NEEDS_INFORMATION","REJECTED","CANCELLED"]',4),
-     ('AWAITING_PAYMENT','Ready for payment','assessments.create','["PAID","CANCELLED"]',5),
-     ('PAID','Paid','payments.verify','["COMPLETED","AWAITING_PAYMENT"]',6),
-     ('COMPLETED','Completed','requests.department.process','[]',7),
-     ('REJECTED','Rejected','requests.department.process','[]',8),
-     ('CANCELLED','Cancelled','requests.department.process','[]',9)
-   ) v(status,label,permission,next_statuses,display_order);
+   SELECT workflow, step->>0, step->>1, step->>2, step->3, (step_order - 1)::integer
+   FROM jsonb_array_elements($billing_seed_steps$[
+     ["DRAFT","Draft","requests.own.update",["SUBMITTED","CANCELLED"]],
+     ["SUBMITTED","Submitted","requests.department.process",["IN_REVIEW","FOR_ASSESSMENT","AWAITING_PAYMENT","CANCELLED"]],
+     ["IN_REVIEW","Under review","requests.department.process",["FOR_ASSESSMENT","NEEDS_INFORMATION","REJECTED","CANCELLED"]],
+     ["NEEDS_INFORMATION","Action required","requests.department.process",["IN_REVIEW","FOR_ASSESSMENT","CANCELLED"]],
+     ["FOR_ASSESSMENT","For assessment","assessments.create",["AWAITING_PAYMENT","NEEDS_INFORMATION","REJECTED","CANCELLED"]],
+     ["AWAITING_PAYMENT","Ready for payment","assessments.create",["PAID","CANCELLED"]],
+     ["PAID","Paid","payments.verify",["COMPLETED","AWAITING_PAYMENT"]],
+     ["COMPLETED","Completed","requests.department.process",[]],
+     ["REJECTED","Rejected","requests.department.process",[]],
+     ["CANCELLED","Cancelled","requests.department.process",[]]
+   ]$billing_seed_steps$::jsonb) WITH ORDINALITY AS seed(step, step_order);
    UPDATE services SET version=s.version+1,payment_required=TRUE,settings=settings||'{"workflow_type":"ASSESSMENT_PAYMENT"}'::jsonb,updated_at=now() WHERE id=s.id;
  END LOOP;
 END $$;

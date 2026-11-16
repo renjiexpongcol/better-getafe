@@ -1,3 +1,4 @@
+import { useDataRevision } from '../../hooks/usePublicResource'
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
@@ -26,6 +27,7 @@ function ElectionDetails({ election }) {
 }
 
 export default function OfficialProfile() {
+  const dataRevision = useDataRevision()
   const { id } = useParams()
   const [directory, setDirectory] = useState(null)
   const [loadError, setLoadError] = useState(false)
@@ -35,7 +37,7 @@ export default function OfficialProfile() {
     let active = true
     publicApi('/officials/directory').then(value => { if (active) setDirectory(value) }).catch(() => { if (active) setLoadError(true) })
     return () => { active = false }
-  }, [])
+  }, [dataRevision])
   const official = useMemo(() => directory?.items?.find(item => item.slug === id) || null, [directory, id])
   if (!directory && loadError) return <ErrorPage code="503" title="Official profiles are temporarily unavailable" message="Please try again later." secondaryAction={{ label: 'Browse Officials', to: '/officials' }} />
   if (!directory) return <main className="section"><div className="container"><p role="status">Loading official profile…</p></div></main>

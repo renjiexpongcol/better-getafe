@@ -1,35 +1,26 @@
-/* One focus policy for every surface, including dialogs portaled to body.
-   Important declarations in this layer beat unlayered legacy outline resets
-   (including !important resets) without changing borders or elevation. */
+/* Shared focus policy. The layer's important declarations are scoped to
+   controls/proxies to override legacy component resets without altering
+   validation borders, elevation or selection state. */
 @layer keyboard-focus {
-  :focus {
-    outline: none !important;
+  html[data-focus-modality="pointer"] :is(a[href],button,input,select,textarea,summary,[role="button"],[role="tab"],[role="menuitem"],[tabindex]:not([tabindex="-1"])):focus:not(:focus-visible),
+  :is(a[href],button,input,select,textarea,summary,[role="button"],[role="tab"],[role="menuitem"],[tabindex]:not([tabindex="-1"])):focus:not(:focus-visible) {
+    outline:none !important;
   }
-
-  :focus-visible {
-    outline: 2px solid var(--focus-ring) !important;
-    outline-offset: 2px !important;
+  /* The site search input draws its keyboard outline on the surrounding bar. */
+  html:not([data-focus-modality="pointer"]) :is(a[href],button,input,select,textarea,summary,[role="button"],[role="tab"],[role="menuitem"],[tabindex]:not([tabindex="-1"])):focus-visible:not(:where(.site-search-bar > input)) {
+    outline:2px solid var(--focus-ring) !important;
+    outline-offset:2px !important;
   }
-
-  /* These native inputs are transparent: mark their visible control instead. */
-  :is(.settings-switch, .settings-toggle, .settings-notification-toggle) input:focus-visible {
-    outline: none !important;
-  }
-
-  :is(.settings-switch, .settings-toggle, .settings-notification-toggle) input:focus-visible + span,
-  .button-like:has(input:focus-visible) {
-    outline: 2px solid var(--focus-ring) !important;
-    outline-offset: 2px !important;
-  }
-}
-
-/* Preserve the application's opt-in high-contrast preference. */
-html:is([data-high-contrast="true"], .high-contrast) {
-  --focus-ring: #ffff00;
-}
-
-@media (forced-colors: active) {
-  :root {
-    --focus-ring: Highlight !important;
+  /* Static announcement targets are out of the tab sequence. Their focus is
+     retained for screen readers; they are not interactive keyboard controls. */
+  [data-focus-target="content"]:focus,
+  dialog:focus { outline:none; }
+  :is(.settings-switch,.settings-toggle,.settings-notification-toggle) input:focus-visible { outline:none !important; }
+  html:not([data-focus-modality="pointer"]) :is(.settings-switch,.settings-toggle,.settings-notification-toggle) input:focus-visible + span,
+  html:not([data-focus-modality="pointer"]) .button-like:has(input:focus-visible) {
+    outline:2px solid var(--focus-ring) !important;
+    outline-offset:2px !important;
   }
 }
+html:is([data-high-contrast="true"],.high-contrast) { --focus-ring:#ffff00; }
+@media(forced-colors:active) { :root { --focus-ring:Highlight !important; } }

@@ -1,152 +1,96 @@
+import { endpointPolicies } from './apiEndpointPolicies.js';
+import { validateApiInput } from './apiInputValidation.js';
 import { checkRequestOrigin } from './requestOrigin.js';
 const CMS_ROLES = new Set(['admin', 'super_admin', 'staff', 'it_support', 'content_manager']);
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
-const route = (id, path, methods, access, options = {}) => ({
-  id,
-  path,
-  methods,
-  access,
-  body: options.body || (methods.some(method => MUTATING_METHODS.has(method)) ? 'json' : 'none'),
-  matcher: options.matcher,
-});
-
-// This registry is the allowlist for the HTTP API.  A route module may still
-// apply a narrower permission or ownership check, but a new API path must be
-// added here before Express can reach it.  Keep the broad namespace entries
-// after the specific public entries so GET and mutation policies do not bleed
-// into one another.
-const definitions = [
-  route('eservices.webhooks', '/api/eservices/payment-webhooks/*', ['POST'], 'PUBLIC'),
-  route('eservices.catalog', '/api/services/*', ['GET'], 'PUBLIC'),
-  route('eservices.requests', '/api/requests/*', ['GET','POST','PATCH'], 'RESIDENT', { body: 'mixed' }),
-  route('eservices.businesses', '/api/businesses', ['GET', 'POST'], 'RESIDENT'),
-  route('eservices.business', '/api/businesses/:id', ['PUT'], 'RESIDENT'),
-  route('eservices.billing', '/api/billing/*', ['GET'], 'RESIDENT'),
-  route('eservices.payment-orders', '/api/payment-orders/*', ['GET','POST'], 'RESIDENT'),
-  route('eservices.staff', '/api/staff/eservices/*', ['GET','POST'], 'CMS', { body: 'mixed' }),
-  route('weather.getafe', '/api/weather/getafe', ['GET'], 'PUBLIC'),
-  route('weather.forecast', '/api/weather/forecast', ['GET'], 'PUBLIC'),
-  route('weather', '/api/weather', ['GET'], 'PUBLIC'),
-  route('feedback.article', '/api/feedback/article', ['POST'], 'PUBLIC'),
-  route('client-errors', '/api/client-errors', ['POST'], 'PUBLIC'),
-
-  route('auth.login', '/api/auth/login', ['POST'], 'AUTH_FLOW'),
-  route('auth.mfa.verify', '/api/auth/mfa/verify', ['POST'], 'AUTH_FLOW'),
-  route('auth.google', '/api/auth/google', ['GET'], 'AUTH_FLOW'),
-  route('auth.google.callback', '/api/auth/google/callback', ['GET'], 'AUTH_FLOW'),
-  route('auth.me', '/api/auth/me', ['GET'], 'AUTH_FLOW'),
-  route('auth.logout', '/api/auth/logout', ['POST'], 'AUTH_FLOW', { body: 'optional-json' }),
-  route('auth.verify-code', '/api/auth/verify-code', ['POST'], 'AUTH_FLOW'),
-  route('auth.resend-code', '/api/auth/resend-code', ['POST'], 'AUTH_FLOW'),
-  route('auth.forgot-password', '/api/auth/forgot-password', ['POST'], 'AUTH_FLOW'),
-  route('auth.forgot-password.verify', '/api/auth/forgot-password/verify', ['POST'], 'AUTH_FLOW'),
-  route('auth.renew-password', '/api/auth/renew-password', ['POST'], 'AUTH_FLOW'),
-  route('portal-auth.login', '/api/portal-auth/login', ['POST'], 'AUTH_FLOW'),
-  route('portal-auth.register', '/api/portal-auth/register', ['POST'], 'AUTH_FLOW'),
-  route('auth.sessions', '/api/auth/sessions', ['GET', 'DELETE'], 'SESSION', { body: 'optional-json' }),
-  route('auth.session', '/api/auth/sessions/:sessionId', ['DELETE'], 'SESSION', { body: 'none' }),
-  route('auth.mfa.status', '/api/auth/mfa/status', ['GET'], 'RESIDENT'),
-  route('auth.change-password', '/api/auth/change-password', ['POST'], 'RESIDENT'),
-  route('auth.mfa.setup', '/api/auth/mfa/setup', ['POST'], 'RESIDENT'),
-  route('auth.mfa.activate', '/api/auth/mfa/activate', ['POST'], 'RESIDENT'),
-  route('auth.mfa.disable.request', '/api/auth/mfa/disable/request', ['POST'], 'RESIDENT'),
-  route('auth.mfa.disable.confirm', '/api/auth/mfa/disable/confirm', ['POST'], 'RESIDENT'),
-
-  route('public.config', '/api/public/config', ['GET'], 'PUBLIC'),
-  route('contact', '/api/contact', ['POST'], 'PUBLIC'),
-  route('notifications.public', '/api/notifications', ['GET'], 'PUBLIC'),
-  route('news.public.collection', '/api/news', ['GET'], 'PUBLIC'),
-  route('news.public.article', '/api/news/:slug', ['GET'], 'PUBLIC'),
-  route('categories.public', '/api/categories', ['GET'], 'PUBLIC'),
-  route('popular-services.public', '/api/popular-services', ['GET'], 'PUBLIC'),
-  route('officials.directory', '/api/officials/directory', ['GET'], 'PUBLIC'),
-  route('officials.public', '/api/officials', ['GET'], 'PUBLIC'),
-  route('barangays.public', '/api/barangays', ['GET'], 'PUBLIC'),
-  route('departments.collection', '/api/departments', ['GET'], 'PUBLIC'),
-  route('departments.item', '/api/departments/:slug', ['GET'], 'PUBLIC'),
-  route('discover.collection', '/api/discover', ['GET'], 'PUBLIC'),
-  route('discover.legacy', '/api/discover/legacy/:key', ['GET'], 'PUBLIC'),
-  route('discover.item', '/api/discover/:slug', ['GET'], 'PUBLIC'),
-  route('public-data', '/api/public-data/*', ['GET', 'POST'], 'PUBLIC'),
-
-  route('resident.citizen', '/api/citizen/*', ['GET', 'POST', 'PUT', 'PATCH'], 'RESIDENT', { body: 'mixed' }),
-  // Keep the account-preferences resource explicit.  A broad /api/users/me/*
-  // allowlist would make typos look like valid private routes until they hit
-  // the final 404 handler, which is exactly the failure this resource should
-  // not produce for a supported request.
-  route('resident.preferences', '/api/users/me/preferences', ['GET', 'PATCH'], 'RESIDENT'),
-  route('resident.notification-preferences', '/api/users/me/notification-preferences', ['GET', 'PATCH'], 'RESIDENT'),
-
-  route('account.password', '/api/account/password', ['PATCH'], 'CMS'),
-  route('account.avatar', '/api/account/avatar', ['GET', 'POST'], 'CMS', { body: 'raw-image' }),
-  route('officials.mutation', '/api/officials', ['PUT'], 'CMS'),
-  route('barangays.mutation', '/api/barangays', ['PUT'], 'CMS'),
-  route('categories.mutation', '/api/categories/*', ['POST', 'PUT', 'DELETE'], 'CMS'),
-  route('news.mutation', '/api/news/*', ['POST', 'PUT', 'PATCH', 'DELETE'], 'CMS'),
-  route('media', '/api/media', ['GET', 'DELETE'], 'CMS'),
-  route('media.item', '/api/media/:id', ['DELETE'], 'CMS', { matcher: /^\/api\/media\/(?!upload-proxy(?:\/|$)|complete(?:\/|$))[^/]+\/?$/ }),
-  route('media.upload-proxy', '/api/media/upload-proxy', ['PUT'], 'CMS', { body: 'raw-image' }),
-  route('media.complete', '/api/media/complete', ['POST'], 'CMS'),
-  route('storage.upload-url', '/api/storage/upload-url', ['POST'], 'CMS'),
-  route('storage.local-upload', '/api/storage/local-upload/*', ['PUT'], 'CMS', { body: 'raw-image' }),
-
-  route('staff', '/api/staff/*', ['GET', 'POST', 'PATCH'], 'STAFF', { body: 'mixed' }),
-  route('admin.system-errors', '/api/admin/system/errors/*', ['GET', 'PATCH'], 'CMS', { body: 'mixed' }),
-  route('admin', '/api/admin/*', ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], 'CMS', { body: 'mixed' }),
-
-  // These endpoints are retained for operator diagnostics, but are never a
-  // public health check.  Public probes should use /health/live or /healthz.
-  route('health.storage', '/api/health/storage', ['GET'], 'CMS'),
-  route('health.database', '/api/health/database', ['GET'], 'CMS'),
-  route('health', '/api/health', ['GET'], 'CMS'),
-  route('health.live', '/api/health/live', ['GET'], 'PUBLIC'),
-  route('health.ready', '/api/ready', ['GET'], 'PUBLIC'),
-];
-
-const exact = value => new RegExp(`^${value.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}/?$`);
-const segment = value => new RegExp(`^${value.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}/[^/]+/?$`);
-const wildcard = value => new RegExp(`^${value.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}(?:/[^?]*)?/?$`);
-const parameterized = definition => {
-  if (definition.matcher) return definition.matcher;
-  if (definition.path.endsWith('/*')) return wildcard(definition.path.slice(0, -2));
-  if (definition.path.includes('/:')) return segment(definition.path.replace(/\/:\w+$/, ''));
-  return exact(definition.path);
-};
-
-const compiled = definitions.map(definition => ({ ...definition, matcher: parameterized(definition) }));
-
-export const apiRouteInventory = Object.freeze(compiled.map(({ matcher, ...definition }) => ({
-  id: definition.id,
-  path: definition.path,
-  methods: [...definition.methods],
-  access: definition.access,
-  body: definition.body,
-})));
+// Each method/path is audited explicitly; only the storage-key tail is variable.
+const escapePattern = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const compiled = endpointPolicies.map(definition => ({
+  ...definition,
+  id: `${definition.method} ${definition.path}`,
+  methods: [definition.method],
+  matcher: new RegExp('^' + definition.path.split('/').map(segment => segment === '*' ? '.+' : segment.startsWith(':') ? '[^/]+' : escapePattern(segment)).join('/') + '/?$', 'i'),
+}));
+export const apiRouteInventory = Object.freeze(compiled.map(({ matcher, ...definition }) => Object.freeze(definition)));
 
 export function resolveApiRoutePolicy(method, pathname) {
-  const normalizedPath = String(pathname || '').split('?')[0].replace(/\/{2,}/g, '/');
+  const normalizedPath = String(pathname || '').split('?')[0];
   const normalizedMethod = String(method || '').toUpperCase();
   const matches = compiled.filter(candidate => candidate.matcher.test(normalizedPath));
-  const definition = matches.find(candidate => candidate.methods.includes(normalizedMethod)) || matches[0];
+  const definition = matches.find(candidate => candidate.method === normalizedMethod || (normalizedMethod === 'HEAD' && candidate.method === 'GET')) || matches[0];
   if (!definition) return null;
-  return {
-    id: definition.id,
-    path: definition.path,
-    access: definition.access,
-    body: definition.body,
-    methods: [...definition.methods],
-    // Express treats HEAD as the body-less equivalent of a registered GET.
-    // Keep it available without adding duplicate HEAD entries to the audit
-    // inventory.
-    methodAllowed: definition.methods.includes(normalizedMethod) || (normalizedMethod === 'HEAD' && definition.methods.includes('GET')),
+  return { ...definition, methods: [...new Set(matches.filter(candidate => candidate.path === definition.path).map(candidate => candidate.method))], methodAllowed: definition.method === normalizedMethod || (normalizedMethod === 'HEAD' && definition.method === 'GET') };
+}
+
+// Enforce classification at registration, including aliases and generated routes.
+// Checking the template (not a sample URL) prevents a broad parameter route
+// from silently classifying a newly added, literal endpoint.
+export function installApiRegistrationGuard(app) {
+  const middlewareMounts = new Set(['/api', '/api/auth', '/api/portal-auth', '/api/contact', '/api/analytics/events', '/api/search/complete', '/api/citizen', '/api/admin/news', '/api/admin/settings', '/api/admin/access', '/api/admin/users', '/api/admin/system/errors', '/api/public-data/datasets', '/api/eservices/payment-webhooks', '/api/integrations/webhooks']);
+  const originalUse = app.use;
+  app.use = function (...args) {
+    const prefixes = typeof args[0] === 'string' || Array.isArray(args[0]) ? args[0] : '';
+    const handlers = prefixes === '' ? args : args.slice(1);
+    for (const prefix of Array.isArray(prefixes) ? prefixes : [prefixes]) {
+      if (typeof prefix !== 'string') throw new Error('Unclassified middleware mount expression.');
+      if (/^\/api(?:\/|$)/i.test(prefix) && !middlewareMounts.has(prefix) && handlers.flat(Infinity).some(handler => !Array.isArray(handler?.stack))) {
+        throw new Error(`Unclassified API middleware mount: ${prefix}`);
+      }
+    }
+    for (const handler of handlers.flat(Infinity)) {
+      if (!Array.isArray(handler?.stack)) continue;
+      for (const prefix of Array.isArray(prefixes) ? prefixes : [prefixes]) {
+        for (const layer of handler.stack) {
+          if (!layer.route) throw new Error('Mounted router middleware must be registered on the classified application boundary.');
+          for (const routePath of Array.isArray(layer.route.path) ? layer.route.path : [layer.route.path]) {
+            if (typeof routePath !== 'string') throw new Error('Unclassified mounted router expression.');
+            const fullPath = `${prefix}/${routePath}`.replace(/\/{2,}/g, '/');
+            for (const method of Object.keys(layer.route.methods)) assertDeclaration(method, fullPath);
+          }
+        }
+      }
+      // Freeze the mounted route surface so later router registration cannot
+      // silently introduce a handler under an existing parameter policy.
+      for (const method of ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'all', 'route', 'use']) {
+        handler[method] = () => { throw new Error('Register router endpoints before mounting and declaring their policies.'); };
+      }
+    }
+    return originalUse.apply(this, args);
   };
+  const originalRoute = app.route;
+  app.route = function (paths) {
+    const registered = originalRoute.call(this, paths);
+    for (const method of ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'all']) {
+      const original = registered[method];
+      registered[method] = function (...handlers) {
+        assertDeclaration(method, paths);
+        return original.apply(this, handlers);
+      };
+    }
+    return registered;
+  };
+  function assertDeclaration(method, paths) {
+    for (const routePath of Array.isArray(paths) ? paths : [paths]) {
+      const declared = routePath instanceof RegExp ? '/api/storage/local-upload/*' : routePath;
+      if (routePath instanceof RegExp && routePath.source !== '^\\/api\\/storage\\/local-upload\\/(.+)$') throw new Error('Unclassified regular expression route.');
+      if (!endpointPolicies.some(policy => policy.method === method.toUpperCase() && policy.path === declared)) throw new Error(`Unclassified endpoint: ${method.toUpperCase()} ${declared}`);
+    }
+  }
+  for (const method of ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'all']) {
+    const original = app[method];
+    app[method] = function (paths, ...handlers) {
+      if (!handlers.length) return original.call(this, paths);
+      assertDeclaration(method, paths);
+      return original.call(this, paths, ...handlers);
+    };
+  }
 }
 
 export const cmsRoles = Object.freeze([...CMS_ROLES]);
 export const mutatingMethods = Object.freeze([...MUTATING_METHODS]);
 
-const requestPath = req => String(req.originalUrl || req.url || '').split('?')[0];
+const requestPath = req => String(req.apiRoutePath || req.originalUrl || req.url || '').split('?')[0];
 
 export function createApiCorsMiddleware({ configuredOrigin, isTrustedProxy }) {
   return (req, res, next) => {
@@ -171,7 +115,7 @@ export function createApiCorsMiddleware({ configuredOrigin, isTrustedProxy }) {
     res.set('Vary', 'Origin, Access-Control-Request-Method, Access-Control-Request-Headers');
     if (req.method === 'OPTIONS') {
       res.set('Access-Control-Allow-Methods', policy.methods.join(', '));
-      res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Requested-With, Idempotency-Key, X-Filename, X-Requirement-Id, X-Replaces-Id, X-Request-Version');
+      res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-CSRF-Token, X-Requested-With, Idempotency-Key, X-Filename, X-Requirement-Id, X-Replaces-Id, X-Request-Version');
       return res.status(204).end();
     }
     next();
@@ -181,7 +125,7 @@ export function createApiCorsMiddleware({ configuredOrigin, isTrustedProxy }) {
 const privateAccess = new Set(['SESSION', 'RESIDENT', 'STAFF', 'CMS']);
 const privateError = (res, status, error) => res.status(status).json({ error, request_id: res.getHeader('X-Request-Id') || null });
 
-export function createApiSecurityMiddleware({ authenticate, isRevoked }) {
+export function createApiSecurityMiddleware({ authenticate, isRevoked, validateAccount, authorize }) {
   return async (req, res, next) => {
     const pathname = requestPath(req);
     const policy = resolveApiRoutePolicy(req.method, pathname);
@@ -201,7 +145,7 @@ export function createApiSecurityMiddleware({ authenticate, isRevoked }) {
         request_id: req.requestId || null,
         route: policy.id,
         method: req.method,
-        path: pathname,
+        path: policy.path,
         access: policy.access,
         status: res.statusCode,
         user_id: session?.id || null,
@@ -228,6 +172,28 @@ export function createApiSecurityMiddleware({ authenticate, isRevoked }) {
       if (policy.access === 'RESIDENT' && !isPortalResident) return privateError(res, 403, 'Resident access required.');
       if (['STAFF', 'CMS'].includes(policy.access) && !isCmsUser) return privateError(res, 403, 'Staff access required.');
       if (policy.access === 'SESSION' && !isPortalResident && !isCmsUser) return privateError(res, 403, 'Authenticated account access required.');
+      try {
+        if (!validateAccount) return privateError(res, 503, 'Authentication service is temporarily unavailable.');
+        if (!await validateAccount(req, session)) return privateError(res, 401, 'Authentication required.');
+        if (policy.permissions.length && !authorize) return privateError(res, 503, 'Authorization service is temporarily unavailable.');
+        if (policy.permissionMode === 'any') {
+          let allowed = false;
+          for (const permission of policy.permissions) {
+            try {
+              await authorize(req, permission, policy.authorization);
+              allowed = true;
+              break;
+            } catch (error) {
+              if (Number(error?.status) !== 403) throw error;
+            }
+          }
+          if (!allowed) throw Object.assign(new Error('Access denied.'), { status: 403 });
+        } else {
+          for (const permission of policy.permissions) await authorize(req, permission, policy.authorization);
+        }
+      } catch (error) {
+        return privateError(res, Number(error?.status) === 403 ? 403 : 503, Number(error?.status) === 403 ? 'Access denied.' : 'Authorization service is temporarily unavailable.');
+      }
     }
 
     const hasBody = Number(req.get('content-length') || 0) > 0 || Boolean(req.get('transfer-encoding'));
@@ -241,6 +207,8 @@ export function createApiSecurityMiddleware({ authenticate, isRevoked }) {
     if (MUTATING_METHODS.has(req.method) && hasBody && policy.body === 'mixed' && contentType !== 'application/json' && !['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {
       return privateError(res, 415, 'Unsupported request content type.');
     }
+    const inputError = validateApiInput(req, policy);
+    if (inputError) return privateError(res, 400, inputError);
     next();
   };
 }

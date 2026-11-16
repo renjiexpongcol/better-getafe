@@ -1,3 +1,4 @@
+import { securityFetch as fetch } from '../services/securityFetch.js'
 import { useEffect, useState } from 'react'
 
 export default function CommentsModeration({ onNotice }) {

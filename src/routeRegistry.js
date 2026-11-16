@@ -32,6 +32,8 @@ export const ROUTES = freeze({
   }),
   staff: freeze({
     root: '/app/staff',
+    profile: '/app/staff/profile',
+    security: '/app/staff/security',
     requests: '/app/staff/requests',
     request: id => `/app/staff/requests/${encodeURIComponent(id)}`,
     notifications: '/app/staff/notifications',
@@ -62,7 +64,11 @@ export const ROUTES = freeze({
 })
 
 export const ADMIN_MODULE_PATHS = freeze({
+  'public-content': '/admin/public-content',
+  integrations: '/admin/system/integrations',
   'service-catalog': '/admin/service-catalog',
+  search: '/admin/search',
+  'website-analytics': '/admin/analytics',
   dashboard: ROUTES.admin.root,
   news: ROUTES.admin.news,
   editor: ROUTES.admin.editor,
@@ -85,6 +91,8 @@ export const ADMIN_MODULE_PATHS = freeze({
 })
 
 export const STAFF_MODULE_PATHS = freeze({
+  profile: ROUTES.staff.profile,
+  security: ROUTES.staff.security,
   'e-service-requests': '/app/staff/e-requests',
   requests: '/app/staff/e-requests',
   dashboard: ROUTES.staff.root,
@@ -110,9 +118,10 @@ export const APP_MODULE_PATHS = freeze({
 
 const SETTINGS_SLUGS = freeze({
   general: 'general',
+  contact: 'contact',
   database: 'database',
   portalDatabase: 'portal-database',
-  google: 'google-cloud',
+  google: 'google-signin',
   storage: 'storage',
   authentication: 'authentication',
   email: 'email',
@@ -137,9 +146,21 @@ export const settingsCategorySlug = category => SETTINGS_SLUGS[category] || Stri
 export const settingsCategoryKey = slug => SETTINGS_KEYS_BY_SLUG[slug] || null
 export const isSettingsCategorySlug = slug => Boolean(settingsCategoryKey(slug))
 
+export function canonicalSettingsTarget(search = '', hash = '') {
+  const query = new URLSearchParams(search)
+  const requested = query.get('category')
+  const category = requested ? (SETTINGS_SLUGS[requested] ? requested : settingsCategoryKey(requested)) : 'general'
+  if (!category) return null
+  // Consume the legacy selector while retaining other parameters verbatim.
+  const remaining = search.replace(/^\?/, '').split('&').filter(part => {
+    return part && !new URLSearchParams(part).has('category')
+  }).join('&')
+  return ROUTES.admin.setting(category) + (remaining ? '?' + remaining : '') + hash
+}
+
 export function adminLocation(pathname) {
   if (pathname === ROUTES.admin.root) return { module: 'dashboard', category: null }
-  if (pathname === ROUTES.admin.settings) return { module: 'settings', category: 'general', redirect: '/admin/settings/general' }
+  if (pathname === ROUTES.admin.settings) return { module: 'settings', category: 'general' }
   if (pathname.startsWith(`${ROUTES.admin.settings}/`)) {
     const slug = pathname.slice(ROUTES.admin.settings.length + 1)
     const category = settingsCategoryKey(slug)
@@ -164,7 +185,9 @@ export function staffLocation(pathname) {
 }
 
 const QUERY_OWNERS = [
-  [/^\/app\/(staff\/)?e-requests$/, new Set(['page','status','search','assigned','service_id','department_id','from','to'])],
+  [/^\/search$/, new Set(['q'])],
+  [/^\/app\/staff\/requests$/, new Set(['page','status','search','assigned','service','department_id','from','to','sort','limit'])],
+  [/^\/app\/(staff\/)?e-requests$/, new Set(['page','status','search','assigned','service_id','department_id','from','to','sort','limit'])],
   [/^\/barangays$/, new Set(['brgy'])],
   [/^\/services$/, new Set(['category', 'search', 'page', 'sort'])],
   [/^\/admin\/media$/, new Set(['page', 'limit', 'search', 'usage', 'sort'])],
@@ -183,6 +206,8 @@ const QUERY_OWNERS = [
 ]
 
 export function ownedSearch(pathname, search = '') {
+  // Service forms own their application parameters; preserve their exact encoding.
+  if (/^\/app\/services\/[^/]+$/.test(pathname)) return search
   const allowed = QUERY_OWNERS.find(([pattern]) => pattern.test(pathname))?.[1] || new Set()
   const current = new URLSearchParams(search)
   const next = new URLSearchParams()

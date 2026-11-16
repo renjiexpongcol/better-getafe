@@ -9,7 +9,7 @@ export default function Application() { return <AppPage title="Application detai
 function Details() {
   const { id: routeId } = useParams(), [params] = useSearchParams(), id = routeId || params.get('sysparm_record_id'), { data } = useCitizen()
   const [item, setItem] = useState(null), [error, setError] = useState(''), [retry, setRetry] = useState(0)
-  useEffect(() => { let active = true; setItem(null); setError(''); citizenApi(`/applications/${encodeURIComponent(id)}`).then(result => { if (active) setItem(result) }).catch(error => { if (active) setError(error.message) }); return () => { active = false } }, [id, retry])
+  useEffect(() => { let active = true; const controller=new AbortController(); setItem(null); setError(''); citizenApi(`/applications/${encodeURIComponent(id)}`, {signal:controller.signal}).then(result => { if (active) setItem(result) }).catch(error => { if (active) setError(error.message) }); return () => { active = false; controller.abort() } }, [id, retry])
   if (error) return <div className="portal-error" role="alert">{error}<button onClick={() => setRetry(value => value + 1)}>Try again</button></div>
   if (!item) return <p role="status">Loading application…</p>
   let details; try { details = typeof item.details === 'string' ? JSON.parse(item.details) : item.details || {} } catch { details = {} }

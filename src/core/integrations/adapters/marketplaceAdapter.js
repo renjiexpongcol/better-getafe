@@ -8,7 +8,7 @@ export class MarketplaceAdapter extends IntegrationProvider {
   }
 
   async connect(config) {
-    // In a real application, config.apiKey might be fetched from Secret Manager
+    // In a real application, config.apiKey might be loaded from the configured secret store
     this.baseUrl = config.baseUrl;
     this.apiKey = config.apiKey;
     

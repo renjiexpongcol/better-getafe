@@ -1,3 +1,6 @@
+import { statusPresentation } from '../../services/statusPresentation';
+import RecordNavigation from '../../components/RecordNavigation';
+import { Field, Pagination } from '../../components/ui/Primitives';
 import { Link } from "react-router-dom";
 import AppPage from "./AppPage";
 import {
@@ -12,16 +15,15 @@ export default function Erequests() {
   const [page, setPage] = useState(1),
     [status, setStatus] = useState("");
   const state = useEservice(
-    () => esApi(`/requests?page=${page}&status=${status}`),
+    (signal) => esApi(`/requests?page=${page}&status=${status}`, "GET", undefined, undefined, {signal}),
     [page, status],
   );
   return (
-    <AppPage title="My e-service requests">
-      <div className="es-workspace">
+    <AppPage title="Your service requests">
+      <div className="es-workspace"><RecordNavigation/>
         <Link to="/app/services">Browse services</Link>
         <div className="es-toolbar">
-          <label>
-            Status
+          <Field label="Status">
             <select
               value={status}
               onChange={(e) => {
@@ -30,28 +32,17 @@ export default function Erequests() {
               }}
             >
               <option value="">All requests</option>
-              {[...new Set(Object.values(PUBLIC_STATUS))].map((s) => (
-                <option key={s}>{s}</option>
+              {Object.keys(PUBLIC_STATUS).map(value => (
+                <option key={value} value={value}>{({ IN_REVIEW: 'Under review', FOR_ASSESSMENT: 'Fees being assessed', FOR_APPROVAL: 'Awaiting approval' })[value] || statusPresentation(value).label}</option>
               ))}
             </select>
-          </label>
+          </Field>
         </div>
         <Feedback error={state.error} loading={state.loading} />
         {state.data && (
           <>
             <RequestTable items={state.data.items} base="/app/e-requests" />
-            <div className="es-toolbar">
-              <button disabled={page === 1} onClick={() => setPage(page - 1)}>
-                Previous
-              </button>
-              <span>Page {page}</span>
-              <button
-                disabled={page * 20 >= state.data.total}
-                onClick={() => setPage(page + 1)}
-              >
-                Next
-              </button>
-            </div>
+            <Pagination page={page} totalPages={Math.max(1, Math.ceil(state.data.total / 20))} onChange={setPage}/>
           </>
         )}
       </div>

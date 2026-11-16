@@ -1,4 +1,4 @@
-import { getCmsPool } from '../services/cloudSql.js';
+import { getCmsPool } from '../services/database.js';
 import { id } from '../services/identifiers.js';
 import { asIsoDate, assignmentStatus, isCurrentOfficeholder, overlaps, resolveTermDates, validAssumptionType } from '../services/officials/termResolver.js';
 import { isContestWinner, nameMatch, toPositionQuery } from '../services/betterGov/normalization.js';

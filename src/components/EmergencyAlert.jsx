@@ -1,9 +1,11 @@
+import { useDataRevision } from '../hooks/usePublicResource'
 import { useEffect, useState } from 'react'
 import { ArrowRight, Bell, ShieldAlert } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { publicApi } from '../services/apiClient'
 
 export default function EmergencyAlert() {
+  const dataRevision = useDataRevision()
   const [notice, setNotice] = useState(null)
   const [dismissedNoticeKey, setDismissedNoticeKey] = useState(null)
   const [isDismissing, setIsDismissing] = useState(false)
@@ -15,9 +17,9 @@ export default function EmergencyAlert() {
       .catch(() => { if (!cancelled) setNotice(null) })
 
     loadNotice()
-    const interval = setInterval(loadNotice, 60000)
+    const interval = setInterval(() => { if (document.visibilityState === 'visible') loadNotice() }, 60000)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [])
+  }, [dataRevision])
 
   const noticeKey = notice ? String(notice.id ?? notice.slug ?? notice.title ?? '') : ''
 

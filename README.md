@@ -235,28 +235,15 @@ Install dependencies:
 npm install
 ```
 
-Prepare the local development environment:
+Copy `.env.example` to `.env` and set `CMS_SUPABASE_DATABASE_URL` to the backend-only
+PostgreSQL connection string for the Supabase database containing all portal data.
+See [Supabase PostgreSQL setup](docs/POSTGRESQL.md) for connection, readiness, and migration details.
 
-```bash
-npm run setup
-```
-
-The setup command creates `.env` from `.env.example` only when `.env` does not
-exist, starts the repository's PostgreSQL and Redis services with Docker
-Compose, waits for them to become reachable, and applies the idempotent
-PostgreSQL migrations. It never overwrites `.env`, removes Docker volumes,
-drops tables, resets accounts, or reseeds existing data. It is safe to run
-again when troubleshooting local infrastructure.
-
-For a fresh checkout, the recommended sequence is:
-
-```bash
-git clone <repository-url>
-cd GETAFE_PORTAL
-npm install
-npm run setup
-npm run dev
-```
+Run `npm run dev`. Setup verifies the Supabase connection and Better Getafe schema
+before starting the backend. If schema migrations are pending, run
+`npm run migrate:postgres` and then start development again. Setup never falls
+back to local PostgreSQL. The application does not start or depend on a local
+PostgreSQL service. Existing local data volumes are left untouched as backups.
 
 ---
 
@@ -277,10 +264,13 @@ npm run dev -- --host 0.0.0.0
 Vite will normally provide a local address similar to:
 
 ```text
-http://localhost:5173
+http://127.0.0.1:5173
 ```
 
-To run the API and frontend separately, start the API with `npm start` first, then run `npm run dev:vite` in another terminal. The frontend-only command waits for the API health endpoint before starting Vite.
+The development runner starts one HTTP server: Vite middleware and the API share
+`http://localhost:5173`. The server binds to `127.0.0.1`, uses a strict port, and
+does not start a separate API listener on port `8080`. Database readiness is
+gated on the configured Supabase connection and Better Getafe schema.
 
 ---
 
@@ -304,12 +294,9 @@ Preview the production build locally:
 npm run preview
 ```
 
-Both `npm run dev` and `npm run preview` start the API when needed, wait for its
-database-backed health check, and then start Vite. They reuse an already healthy
-API without stopping it on shutdown. Preview uses the same `/api` proxy as
-development. Both commands stop their own frontend if the API remains unavailable
-for 30 seconds. Use `BACKEND_PORT` (or `PORT`) consistently for the API port;
-`VITE_BACKEND_URL` is only a tooling proxy target, never a browser API base URL.
+`npm run preview` continues to use the production-built frontend and API
+architecture. Cloud Run uses its injected `PORT` and binds the API to
+`0.0.0.0`; its fallback remains port `8080`.
 
 For deployment, `npm run build` followed by `npm start` serves the built frontend
 and API together. Frontend requests remain relative `/api/...` requests.
@@ -853,9 +840,9 @@ Before submitting a change:
 
 ## Local News CMS
 
-The News & Updates section is now managed by the local CMS at `/admin`. Start the full application with `npm run build` followed by `npm start`; this serves both the website and CMS API. For front-end-only work, start `npm start` in one terminal and `npm run dev:vite` in another. The frontend-only command waits for the CMS API on port 8080 before Vite starts.
+The News & Updates section is managed by the local CMS at `/admin`. Run `npm run dev` for local development; the website and CMS API share `http://localhost:5173`. For production, run `npm run build` followed by `npm start`.
 
-Copy `.env.example` to `.env`, configure PostgreSQL and the storage provider, and provision a CMS administrator through the access-management flow before deployment. Never use a shared or documented default password. Generated local data and uploaded media are intentionally local and should not be committed.
+Copy `.env.example` to `.env`, configure `CMS_SUPABASE_DATABASE_URL` and the storage provider, and provision a CMS administrator through the access-management flow before deployment. Never use a shared or documented default password. Generated local data and uploaded media are intentionally local and should not be committed.
 
 The API provides public `GET /api/news`, `GET /api/news/:slug`, and `GET /api/categories`; management requests require the CMS bearer token. Admin endpoints support article, category, and media CRUD.
 
@@ -889,3 +876,6 @@ The long-term vision is to evolve the portal from an information website into a 
 
 ```
 ```
+# Enterprise Integration Hub
+
+The Admin CMS includes **System → Integrations**. See [implementation and test results](docs/INTEGRATION_HUB_IMPLEMENTATION_REPORT.md), [integration inventory](docs/INTEGRATION_ARCHITECTURE_AUDIT.md), and [deployment/operations](docs/INTEGRATION_HUB_OPERATIONS.md). The hub requires migration `028`, a separately injected vault keyring, approved outbound hosts and an independently supervised worker (`npm run worker:integrations`). Existing connector credentials are not imported or activated automatically.

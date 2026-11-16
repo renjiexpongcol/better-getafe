@@ -1,4 +1,7 @@
+import { PageHeader } from './ui/Primitives'
 import { Phone, MapPin, Clock, ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { trackServiceJourneyStep } from '../services/websiteAnalytics.js'
 
 // Shared layout for LGU service category pages (Business, Certificates,
 // Education, Health). Each page passes in its own content.
@@ -17,16 +20,27 @@ export default function ServicePageLayout({
   requirementsTitle = 'Services we offer',
   stepsTitle = 'How to apply',
   variant = '',
+  analyticsServiceId = '',
 }) {
+  const requirementsRef = useRef(null)
+  useEffect(() => { if (analyticsServiceId) trackServiceJourneyStep(analyticsServiceId, 'service_viewed') }, [analyticsServiceId])
+  useEffect(() => {
+    const node = requirementsRef.current
+    if (!analyticsServiceId || !node) return undefined
+    if (!('IntersectionObserver' in window)) { trackServiceJourneyStep(analyticsServiceId, 'requirements_opened'); return undefined }
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) { trackServiceJourneyStep(analyticsServiceId, 'requirements_opened'); observer.disconnect() }
+    }, { threshold: 0.25 })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [analyticsServiceId])
   return (
     <main className={`service-detail ${variant}`}>
       <div className="page-header">
         <div className="container page-header-inner">
           <div>
             {backLabel && <button type="button" className="service-hero-back" onClick={() => window.history.back()}><ArrowLeft size={18} strokeWidth={2.4} aria-hidden="true" /> {backLabel}</button>}
-            {kicker && <p className="service-detail-kicker">{kicker}</p>}
-            <h1 className="page-title">{title}</h1>
-            {subtitle && <p className="page-subtitle">{subtitle}</p>}
+            <PageHeader title={title} description={subtitle} context={kicker} className="ui-public-header"/>
           </div>
         </div>
       </div>
@@ -36,7 +50,7 @@ export default function ServicePageLayout({
 
         <div className="service-detail-grid">
           <div className="service-detail-main">
-            <section className="service-block">
+            <section ref={requirementsRef} className="service-block">
               <h2>{requirementsTitle}</h2>
               <div className="service-items">
                 {services.map((s) => (
@@ -73,23 +87,20 @@ export default function ServicePageLayout({
                 <h2>Related institutions</h2>
                 <div className="service-related">
                   {related.map((r) => (
-                    <a
+                    <article
                       key={r.name}
-                      href={r.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
                       className="service-related-card"
                     >
                       {r.img && <img src={r.img} alt={`${r.name} logo`} className="service-related-img" />}
                       <div>
-                        <strong>{r.name}</strong>
+                        <strong><a href={r.url} target="_blank" rel="noopener noreferrer">{r.name}</a></strong>
                         {r.desc && <p>{r.desc}</p>}
                         {r.email && (
                           <a href={`mailto:${r.email}`} className="service-related-email">{r.email}</a>
                         )}
                       </div>
-                      <ArrowRight size={16} />
-                    </a>
+                      <ArrowRight size={16} aria-hidden="true" />
+                    </article>
                   ))}
                 </div>
               </section>

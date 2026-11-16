@@ -2,12 +2,9 @@ services:
   backups:
     image: postgres:17-alpine
     restart: unless-stopped
+    env_file: .env
     environment:
-      PGHOST: ${BACKUP_DB_HOST:-host.docker.internal}
-      PGPORT: ${DB_PORT:-5432}
-      PGDATABASE: ${DB_NAME:-getafe_portal}
-      PGUSER: ${DB_USER:-getafe_app}
-      PGPASSWORD: ${DB_PASSWORD:-getafe_local_dev_password}
+      PGSSLMODE: require
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
       BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
     entrypoint: ["sh", "/scripts/eservices-backup.sh"]

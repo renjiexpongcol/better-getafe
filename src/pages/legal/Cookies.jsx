@@ -1,13 +1,15 @@
-import { usePublicConfig } from '../../context/PublicConfig'
+import PublishedPage from '../../components/PublishedPage'
 
-const sections = [
-  ['Essential cookies', 'The portal uses an essential session cookie to keep you signed in and protect authenticated requests. It is HttpOnly and is not used for advertising or cross-site tracking. Sign-in and citizen services may not work if essential cookies are blocked.'],
-  ['Google sign-in', 'If you choose Google sign-in or sign-up, Google and this portal use temporary authentication state to complete the secure sign-in exchange. The temporary state is cleared when the exchange finishes or expires.'],
-  ['Caching and private data', 'Public, versioned website assets may be cached to improve loading speed. Account pages, authentication responses, citizen records, and other private API responses are marked no-store so browsers and shared caches should not retain them.'],
-  ['Your choices', 'You can manage cookies through your browser settings. Blocking essential cookies may prevent sign-in, account access, and other protected services from working. The portal does not require non-essential advertising cookies.'],
-]
-
-export default function Cookies() {
-  const config = usePublicConfig(), custom = config['legal.cookies']
-  return <main id="cookies"><div className="page-header"><div className="container page-header-inner"><div><h1 className="page-title">Cookies & Cache</h1><p className="page-subtitle">How the Municipality of Getafe uses cookies and browser caching</p></div></div></div><div className="content-page container"><div className="legal-page card" style={{ maxWidth: '860px', margin: '0 auto', padding: '40px' }}><p className="legal-updated">Last updated: {new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })}</p><p className="legal-intro">We use the minimum technology needed to provide a secure and reliable government service portal. We do not sell personal information or use cookies for advertising.</p>{custom ? custom.split(/\n\s*\n/).filter(Boolean).map((body, index) => <section className="legal-section" key={index}><p>{body}</p></section>) : sections.map(([title, body]) => <section className="legal-section" key={title}><h2>{title}</h2><p>{body}</p></section>)}<section className="legal-section"><h2>Related information</h2><p>See our <a href="/legal/privacy">Privacy Policy</a> for information about personal data and your rights.</p></section></div></div></main>
+export default function Page() {
+  return <>
+    <PublishedPage contentKey="page-cookies" title="Cookie policy" legalKey="legal.cookies" />
+    <section className="published-page analytics-privacy-disclosure">
+      <div className="content-page container"><article><section className="legal-section">
+        <h2>Analytics preference</h2>
+        <p>Analytics is on by default and can be turned off using the preference controls below. When collection is enabled by the production server, first-party reports count public page and content views, broad CSS viewport sizes, entry-source categories, announcement popup impressions/opens/dismissals, navigation placement impressions/clicks, service journey steps, search result clicks, dataset views, explicit query requests, and CSV/XLSX download clicks. No visitor ID or analytics cookie is created.</p>
+        <p>Your Analytics choice is saved with other preferences in local browser storage. The separate <code>getafe_cache</code> cookie records whether public-file caching is enabled; it does not hold analytics events. Browser-generated exports are counted as download clicks, not confirmed file saves. Server operational reliability metrics are described separately in the <a href="/legal/privacy">Privacy Policy</a>.</p>
+        <button type="button" className="cookie-policy-settings" onClick={() => window.dispatchEvent(new Event('open-cookie-preferences'))}>Manage cookie preferences</button>
+      </section></article></div>
+    </section>
+  </>
 }

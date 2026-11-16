@@ -21,7 +21,7 @@ import {
 import { getPostgresRuntime } from "../repositories/postgresRuntime.js";
 import { getCmsUserById, searchDepartmentStaff } from "../repositories/cmsUserRepository.js";
 import { PaymentProviderRegistry } from "./eservicePaymentProviders.js";
-import { getCmsPool } from "./cloudSql.js";
+import { getCmsPool } from "./database.js";
 import { getMediaByStoragePath } from "../repositories/mediaRepository.js";
 import { createDownloadUrl } from "./storage.js";
 
@@ -85,7 +85,7 @@ export function installEserviceRoutes(
     const items=await engine.read(`SELECT DISTINCT u.id,u.name,u.email,b.id AS business_id,b.business_name,b.business_reference
       FROM portal_users u LEFT JOIN business_owners owner ON owner.user_id=u.id AND owner.effective_until IS NULL LEFT JOIN businesses b ON b.id=owner.business_id
       WHERE (u.name ILIKE ? OR u.email ILIKE ? OR b.business_name ILIKE ? OR b.business_reference ILIKE ?)
-      AND (b.id IS NULL OR EXISTS(SELECT 1 FROM business_applications ba JOIN service_requests r ON r.id=ba.request_id JOIN eservice_department_members m ON m.department_id=r.department_id WHERE ba.business_id=b.id AND m.user_id=?) OR EXISTS(SELECT 1 FROM billing_accounts a JOIN eservice_department_members m ON m.department_id=a.department_id WHERE a.business_id=b.id AND m.user_id=?))
+      AND (EXISTS(SELECT 1 FROM business_applications ba JOIN service_requests r ON r.id=ba.request_id JOIN eservice_department_members m ON m.department_id=r.department_id WHERE ba.business_id=b.id AND m.user_id=?) OR EXISTS(SELECT 1 FROM billing_accounts a JOIN eservice_department_members m ON m.department_id=a.department_id WHERE a.user_id=u.id AND m.user_id=?))
       ORDER BY u.name,b.business_name LIMIT 20`,[...Array(4).fill(`%${q}%`),req.admin.id,req.admin.id]);
     res.json({items});
   }));
@@ -561,14 +561,16 @@ export function installEserviceRoutes(
     admin,
     permission("requests.department.view"),
     handle(async (req, res) => {
-      const members = await engine.read("SELECT user_id,department_id FROM eservice_department_members WHERE department_id IN(SELECT department_id FROM eservice_department_members WHERE user_id=?)", [req.admin.id]);
+      const members = ['admin', 'super_admin'].includes(req.admin.role)
+        ? await engine.read("SELECT u.id AS user_id,d.id AS department_id FROM users u JOIN employee_profiles p ON p.user_id=u.id CROSS JOIN departments d WHERE u.role IN ('staff','it_support','content_manager','admin','super_admin') AND lower(p.employment_status)='active' AND d.published=TRUE")
+        : await engine.read("SELECT user_id,department_id FROM eservice_department_members WHERE department_id IN(SELECT department_id FROM eservice_department_members WHERE user_id=?)", [req.admin.id]);
       const identities = await engine.staffIdentities(members.map(member => member.user_id));
       res.json({
-        departments: await engine.read(
+        departments: ['admin', 'super_admin'].includes(req.admin.role) ? await engine.read("SELECT id,name FROM departments WHERE published=TRUE ORDER BY name") : await engine.read(
           "SELECT d.id,d.name FROM departments d JOIN eservice_department_members m ON m.department_id=d.id WHERE m.user_id=?",
           [req.admin.id],
         ),
-        services: await engine.read(
+        services: ['admin', 'super_admin'].includes(req.admin.role) ? await engine.read("SELECT id,name FROM services WHERE published=TRUE ORDER BY name") : await engine.read(
           "SELECT id,name FROM services WHERE department_id IN(SELECT department_id FROM eservice_department_members WHERE user_id=?)",
           [req.admin.id],
         ),

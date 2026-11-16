@@ -1,7 +1,9 @@
+import { withBackblazeWrite, maxDirectUploadSeconds } from './mediaWriteGate.js';
 import {
   S3Client,
   HeadBucketCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   DeleteObjectCommand,
   PutObjectCommand,
   GetObjectCommand,
@@ -17,6 +19,8 @@ import tls from 'node:tls';
 import { config } from '../config/index.js';
 import { createBackblazeHttpsAgent } from './b2HttpAgent.js';
 import { isDependencyFailure } from './dependencyFailures.js';
+import { BlobServiceClient, BlobSASPermissions } from '@azure/storage-blob';
+import { azureCredential, testAzureStorage } from './azureStorageTest.js';
 
 const MAX_ATTEMPTS = 3;
 const CONNECTION_TIMEOUT_MS = 8_000;
@@ -77,7 +81,7 @@ function localPath(key, root = activeStorage.root) {
 }
 
 function localSettings(values) {
-  return values['storage.localPath'] || process.env.LOCAL_STORAGE_PATH || 'data/uploads';
+  return values['storage.localPath'] || 'data/uploads';
 }
 
 async function buildLocalStorage(values) {
@@ -175,9 +179,24 @@ async function diagnoseEndpoint(endpoint, region, bucket, credentialsConfigured)
   if (!tlsResult?.ok) throw Object.assign(new Error('Backblaze B2 TLS connection failed.'), { code: tlsResult?.code || 'ETIMEDOUT' });
 }
 
-export async function buildStorage(values, { allowUnavailable = false, deferHealth = false } = {}) {
+export async function buildStorage(values, { allowUnavailable = false, verifiedCutover = false } = {}) {
   const provider = values['storage.provider'];
   if (provider === 'local') return buildLocalStorage(values);
+  if (provider === 'azure') {
+    if (!verifiedCutover && process.env.AZURE_MEDIA_MIGRATION_VERIFIED !== 'true') throw new Error('Azure activation requires a verified media migration.');
+    if (verifiedCutover && (values['storage.azureAccount'] !== 'lgumedia' || values['storage.azureContainer'] !== 'portal-media')) throw new Error('The Azure target does not match the verified migration.');
+    if (values['storage.azureAuthentication'] !== 'connection-string') throw new Error('Azure runtime storage requires Connection string authentication.');
+    const account = values['storage.azureAccount'];
+    if (!/^[a-z0-9]{3,24}$/.test(account || '')) throw new Error('Set a valid Azure storage account.');
+    const credential = azureCredential(values, account);
+    if (!credential) throw new Error('Use an HTTPS Azure account-key connection string for the configured account.');
+    const service = new BlobServiceClient(`https://${account}.blob.core.windows.net`, credential);
+    const bucket = values['storage.azureContainer'];
+    const client = service.getContainerClient(bucket);
+    const check = await testAzureStorage(values);
+    if (!check.ok) throw new Error(`Storage test failed. ${check.error || 'Azure must pass the write, read, and delete checks before activation.'}`);
+    return { provider, client, bucket };
+  }
   if (provider !== 'backblaze') throw new Error(`Unsupported storage provider: ${provider || '(empty)'}.`);
 
   const candidate = {
@@ -204,20 +223,6 @@ export async function buildStorage(values, { allowUnavailable = false, deferHeal
     maxAttempts: 1,
     requestHandler: new NodeHttpHandler({ connectionTimeout: CONNECTION_TIMEOUT_MS, requestTimeout: REQUEST_TIMEOUT_MS, httpsAgent: createBackblazeHttpsAgent() }),
   });
-  if (deferHealth) {
-    const candidateResource = { provider: 'backblaze', client: resource, bucket: candidate.bucket, endpoint, region: candidate.region, degraded: true };
-    candidateResource.checkHealth = async () => {
-      try {
-        await resource.send(new HeadBucketCommand({ Bucket: candidate.bucket }));
-        candidateResource.degraded = false;
-        console.info(JSON.stringify({ event: 'storage_health', status: 'healthy', provider: 'backblaze-b2' }));
-      } catch (error) {
-        candidateResource.degraded = true;
-        console.error(JSON.stringify({ event: 'storage_health', status: 'degraded', code: errorCode(error) }));
-      }
-    };
-    return candidateResource;
-  }
   try {
     // Use HeadBucket for the startup check. A bucket-scoped B2 key can be
     // allowed to read existing objects while lacking list permission; in
@@ -237,7 +242,7 @@ export async function buildStorage(values, { allowUnavailable = false, deferHeal
   } catch (error) {
     if (allowUnavailable && (isDependencyFailure(error) || Number(error?.$metadata?.httpStatusCode) >= 500)) {
       console.error(JSON.stringify({ event: 'storage_startup_degraded', code: errorCode(error) }));
-      return { provider: 'backblaze', client: resource, bucket: candidate.bucket, endpoint, region: candidate.region, degraded: true };
+      return { provider: 'backblaze', client: resource, bucket: candidate.bucket, endpoint, region: candidate.region, degraded: true, failureReason: `Storage check failed (${errorCode(error)})` };
     }
     resource.destroy();
     console.error(`[Storage] S3 request: FAILED (${errorCode(error)}${error?.$metadata?.httpStatusCode ? `, HTTP ${error.$metadata.httpStatusCode}` : ''})`);
@@ -249,42 +254,77 @@ export async function buildStorage(values, { allowUnavailable = false, deferHeal
 export function activateStorage(resource) {
   const previous = activeStorage;
   activeStorage = resource || { provider: null, client: null, bucket: null, root: null, endpoint: null, region: null };
-  if (previous.client && previous.client !== activeStorage.client) previous.client.destroy();
-  if (resource?.checkHealth) void resource.checkHealth();
+  if (previous.client && previous.client !== activeStorage.client) previous.client.destroy?.();
 }
+let verifiedAzureStatus;
+export function getVerifiedAzureStatus() { return verifiedAzureStatus; }
+export function setVerifiedAzureStatus(status) { verifiedAzureStatus = status; }
 export function storageIsLocal() { return activeStorage.provider === 'local'; }
 
 function storageUnavailable() { return Object.assign(new Error('Media storage is temporarily unavailable.'), { code: 'STORAGE_UNAVAILABLE', status: 503 }); }
 export function localObjectExists(objectKey) { return fs.stat(localPath(objectKey)).then(stat => stat.isFile()).catch(error => { if (error.code === 'ENOENT') return false; throw error; }); }
 export function storageProvider() { return activeStorage.provider; }
+export function storageLocation() { return { provider: activeStorage.provider, bucket: activeStorage.bucket }; }
 export function storageHealth() { return { status: activeStorage.provider && activeStorage.provider !== 'degraded' && !activeStorage.degraded ? 'healthy' : 'degraded', provider: activeStorage.provider === 'backblaze' ? 'backblaze-b2' : activeStorage.provider || 'unknown' }; }
-export async function initializeStorage() { const resource = await buildStorage(config.values); activateStorage(resource); return resource; }
+export async function initializeStorage() {
+  const verifiedCutover = Boolean(verifiedAzureStatus);
+  const resource = await buildStorage(verifiedCutover ? { ...config.values, 'storage.provider': 'azure' } : config.values, { verifiedCutover });
+  activateStorage(resource);
+  return resource;
+}
+export function runMediaWrite(operation) {
+  if (activeStorage.provider === 'backblaze') return withBackblazeWrite(operation);
+  if (verifiedAzureStatus === 'active' || process.env.MEDIA_MIGRATION_FREEZE === 'true') {
+    throw Object.assign(new Error('Media writes are paused for Azure migration.'), { status: 503, code: 'MEDIA_WRITES_PAUSED' });
+  }
+  return operation();
+}
+
+export function mediaWriteRoute(handler) {
+  return async (req, res) => {
+    try {
+      return await runMediaWrite(() => handler(req, res));
+    } catch (error) {
+      if (error.code === 'MEDIA_WRITES_PAUSED') return res.status(503).json({ error: error.message, code: error.code });
+      throw error;
+    }
+  };
+}
 
 export async function createUploadUrl(objectKey, contentType, fileSize) {
-  if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
-  if (!contentType || !Number.isSafeInteger(Number(fileSize)) || Number(fileSize) < 1) throw new Error('Invalid upload metadata.');
-  if (storageIsLocal()) {
-    const target = localPath(objectKey);
-    await fs.mkdir(path.dirname(target), { recursive: true });
-    return `/api/storage/local-upload/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
-  }
-  if (!activeStorage.client) throw storageUnavailable();
-  const expiresIn = Math.min(900, Math.max(60, Number(config.get('storage.signedUrlMinutes') || 15) * 60));
-  return presign(activeStorage.client, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: objectKey, ContentType: contentType }), { expiresIn });
+  return runMediaWrite(async () => {
+    if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
+    if (!contentType || !Number.isSafeInteger(Number(fileSize)) || Number(fileSize) < 1) throw new Error('Invalid upload metadata.');
+    if (storageProvider() === 'azure') return `/api/media/upload-proxy?storagePath=${encodeURIComponent(objectKey)}&contentType=${encodeURIComponent(contentType)}`;
+    if (storageIsLocal()) {
+      const target = localPath(objectKey);
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      return `/api/storage/local-upload/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
+    }
+    if (!activeStorage.client) throw storageUnavailable();
+    const expiresIn = Math.min(maxDirectUploadSeconds, Math.max(60, Number(config.get('storage.signedUrlMinutes') || 15) * 60));
+    return presign(activeStorage.client, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: objectKey, ContentType: contentType }), { expiresIn });
+  });
 }
 export function validateObjectKey(objectKey) { return validObjectKey(objectKey); }
 
 export async function uploadObject(objectKey, body, contentType) {
-  if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
-  if (!Buffer.isBuffer(body) || !body.length || !contentType) throw new Error('Invalid upload content.');
-  if (storageIsLocal()) {
-    const target = localPath(objectKey);
-    await fs.mkdir(path.dirname(target), { recursive: true });
-    await fs.writeFile(target, body, { flag: 'w' });
-    return;
-  }
-  if (!activeStorage.client) throw storageUnavailable();
-  return send('upload', objectKey, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: objectKey, Body: body, ContentType: contentType }));
+  return runMediaWrite(async () => {
+    if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
+    if (!Buffer.isBuffer(body) || !body.length || !contentType) throw new Error('Invalid upload content.');
+    if (storageProvider() === 'azure') {
+      await azureBlob(objectKey).uploadData(body, { blobHTTPHeaders: { blobContentType: contentType } });
+      return;
+    }
+    if (storageIsLocal()) {
+      const target = localPath(objectKey);
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, body, { flag: 'w' });
+      return;
+    }
+    if (!activeStorage.client) throw storageUnavailable();
+    return send('upload', objectKey, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: objectKey, Body: body, ContentType: contentType }));
+  });
 }
 
 export function imageSignatureMatches(bytes, contentType) {
@@ -300,10 +340,57 @@ export function validateImageUpload(bytes, contentType, maxBytes) {
   return true;
 }
 
-export async function createDownloadUrl(objectKey, targetBucket = activeStorage.bucket) {
+function azureBlob(key, bucket = activeStorage.bucket) {
+  if (bucket !== activeStorage.bucket) throw new Error('Media record points outside the active Azure container.');
+  return activeStorage.client.getBlockBlobClient(key);
+}
+
+export function activeAzureImageKey(value) {
+  if (storageProvider() !== 'azure' || !value) return null;
+  try {
+    const url = new URL(value);
+    const container = new URL(activeStorage.client.url);
+    const prefix = container.pathname.replace(/\/$/, '') + '/';
+    if (url.origin !== container.origin || !url.pathname.startsWith(prefix)) return null;
+    const key = decodeURIComponent(url.pathname.slice(prefix.length));
+    return validObjectKey(key) && !/^(citizen-private|profiles|eservices)\//i.test(key) ? key : null;
+  } catch { return null; }
+}
+
+export function openAzureArticleImage(key, abortSignal) {
+  if (storageProvider() !== 'azure' || !validObjectKey(key) || /^(citizen-private|profiles|eservices)\//i.test(key)) {
+    throw new Error('Invalid public image key.');
+  }
+  return azureBlob(key).download(0, undefined, { abortSignal });
+}
+
+let legacyBackblaze;
+export async function createDownloadUrl(objectKey, targetBucket, targetProvider) {
   if (!objectKey) return null;
   if (/^https?:\/\//i.test(objectKey)) return objectKey;
   if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
+  if (storageProvider() === 'azure') {
+    if (targetBucket === undefined || targetProvider === 'local' || targetProvider === 'backblaze') {
+      const { getMediaByStoragePath } = await import('../repositories/mediaRepository.js');
+      const record = await getMediaByStoragePath(objectKey);
+      if (record?.storage_provider === 'local') return `/uploads/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
+      if (record?.storage_provider === 'backblaze') {
+        const values = config.values;
+        if (legacyBackblaze?.values !== values) {
+          const previous = legacyBackblaze;
+          const resource = buildStorage({ ...values, 'storage.provider': 'backblaze' });
+          legacyBackblaze = { values, resource };
+          previous?.resource.then(storage => storage.client?.destroy()).catch(() => {});
+          resource.catch(() => { if (legacyBackblaze?.resource === resource) legacyBackblaze = undefined; });
+        }
+        const resource = await legacyBackblaze.resource;
+        if (record.storage_bucket !== resource.bucket) throw storageUnavailable();
+        return presign(resource.client, new GetObjectCommand({ Bucket: resource.bucket, Key: objectKey }), { expiresIn: 900 });
+      }
+    }
+    const minutes = Math.min(15, Math.max(1, Number(config.get('storage.signedUrlMinutes') || 15)));
+    return azureBlob(objectKey, targetBucket).generateSasUrl({ permissions: BlobSASPermissions.parse('r'), expiresOn: new Date(Date.now() + minutes * 60000), protocol: 'https' });
+  }
   if (storageIsLocal()) return `/uploads/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
   if (!activeStorage.client) throw storageUnavailable();
   if (config.get('storage.visibility') === 'public') {
@@ -315,6 +402,11 @@ export async function createDownloadUrl(objectKey, targetBucket = activeStorage.
   return presign(activeStorage.client, new GetObjectCommand({ Bucket: targetBucket || activeStorage.bucket, Key: objectKey }), { expiresIn });
 }
 
+export async function readAzureMediaVersion(key, length, etag) {
+  if (storageProvider() !== 'azure' || !validObjectKey(key) || !etag) throw storageUnavailable();
+  return azureBlob(key).downloadToBuffer(0, length, { conditions: { ifMatch: etag } });
+}
+
 export async function getObjectMetadata(objectKey, targetBucket = activeStorage.bucket) {
   if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
   if (storageIsLocal()) return statLocalObject(objectKey);
@@ -322,8 +414,51 @@ export async function getObjectMetadata(objectKey, targetBucket = activeStorage.
     throw storageUnavailable();
   }
   try {
+    if (storageProvider() === 'azure') {
+      const p = await azureBlob(objectKey, targetBucket).getProperties();
+      return { ContentLength: p.contentLength, ContentType: p.contentType, LastModified: p.lastModified, ETag: p.etag };
+    }
     return await send('metadata', objectKey, new HeadObjectCommand({ Bucket: targetBucket || activeStorage.bucket, Key: objectKey }));
   } catch (error) { if (isStorageNotFoundError(error)) return null; throw error; }
+}
+export async function listStorageObjectsPage({ prefix, continuationToken } = {}) {
+  if (storageProvider() === 'azure') {
+    const { value } = await activeStorage.client.listBlobsFlat({ prefix }).byPage({ continuationToken, maxPageSize: 1000 }).next();
+    return {
+      objects: (value?.segment.blobItems || []).map(({ name, properties }) => ({ key: name, size: properties.contentLength, lastModified: properties.lastModified, etag: properties.etag })),
+      continuationToken: value?.continuationToken || null,
+      isTruncated: Boolean(value?.continuationToken),
+    };
+  }
+  if (storageIsLocal()) throw new Error('Object listing is only available for Backblaze B2 storage.');
+  if (!activeStorage.client || activeStorage.provider !== 'backblaze') throw storageUnavailable();
+  const result = await send('list', prefix, new ListObjectsV2Command({
+    Bucket: activeStorage.bucket,
+    Prefix: prefix,
+    ...(continuationToken ? { ContinuationToken: continuationToken } : {}),
+    MaxKeys: 1000,
+  }));
+  return {
+    objects: (result.Contents || []).filter(item => item.Key && !item.Key.endsWith('/')).map(item => ({
+      key: item.Key,
+      size: Number(item.Size || 0),
+      lastModified: item.LastModified || null,
+      etag: item.ETag || null,
+    })),
+    continuationToken: result.NextContinuationToken || null,
+    isTruncated: Boolean(result.IsTruncated),
+  };
+}
+
+export async function listAzureMediaFolder(prefix, continuationToken) {
+  if (storageProvider() !== 'azure' || !activeStorage.client) throw storageUnavailable();
+  const { value } = await activeStorage.client.listBlobsByHierarchy('/', { prefix })
+    .byPage({ continuationToken, maxPageSize: 40 }).next();
+  return {
+    folders: (value?.segment.blobPrefixes || []).map(folder => folder.name.slice(0, -1)),
+    files: value?.segment.blobItems || [],
+    next: value?.continuationToken || null,
+  };
 }
 async function statLocalObject(objectKey) {
   try { const stat = await fs.stat(localPath(objectKey)); return { ContentLength: stat.size, LastModified: stat.mtime, ContentType: 'application/octet-stream' }; }
@@ -331,19 +466,24 @@ async function statLocalObject(objectKey) {
 }
 export async function objectExists(objectKey) { return Boolean(await getObjectMetadata(objectKey)); }
 export function isStorageNotFoundError(error) {
+  if (error?.statusCode === 404 && error?.code === 'BlobNotFound') return true;
   const code = errorCode(error);
   return ['ENOENT', 'NoSuchKey', 'NotFound', 'ObjectNotFound', 'NoSuchObject'].includes(code) || (code === '404' && error?.$metadata?.httpStatusCode === 404);
 }
 
 export async function deleteObject(objectKey, targetBucket = activeStorage.bucket) {
-  if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
-  if (storageIsLocal()) return fs.rm(localPath(objectKey), { force: true });
-  if (!activeStorage.client) throw storageUnavailable();
-  try { await send('delete', objectKey, new DeleteObjectCommand({ Bucket: targetBucket || activeStorage.bucket, Key: objectKey })); }
-  catch (error) { if (!isStorageNotFoundError(error)) throw error; }
+  return runMediaWrite(async () => {
+    if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
+    if (storageProvider() === 'azure') { await azureBlob(objectKey, targetBucket).deleteIfExists(); return; }
+    if (storageIsLocal()) return fs.rm(localPath(objectKey), { force: true });
+    if (!activeStorage.client) throw storageUnavailable();
+    try { await send('delete', objectKey, new DeleteObjectCommand({ Bucket: targetBucket || activeStorage.bucket, Key: objectKey })); }
+    catch (error) { if (!isStorageNotFoundError(error)) throw error; }
+  });
 }
 export async function readObject(objectKey, targetBucket = activeStorage.bucket) {
   if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
+  if (storageProvider() === 'azure') return azureBlob(objectKey, targetBucket).downloadToBuffer();
   if (storageIsLocal()) return fs.readFile(localPath(objectKey));
   if (!activeStorage.client) throw storageUnavailable();
   const result = await send('download', objectKey, new GetObjectCommand({ Bucket: targetBucket || activeStorage.bucket, Key: objectKey }));
@@ -356,18 +496,25 @@ function privateLocalPath(key, suffix) {
   return localPath(key, root);
 }
 export async function writeCitizenFile(key, bytes, contentType) {
-  if (!Buffer.isBuffer(bytes) || !bytes.length) throw new Error('Invalid file content.');
-  if (storageIsLocal()) { const target = privateLocalPath(key, '-citizen-private'); await fs.mkdir(path.dirname(target), { recursive: true }); await fs.writeFile(target, bytes); return; }
-  if (!activeStorage.client) throw storageUnavailable();
-  // The legacy resident/staff upload routes also use this boundary. A private
-  // object key does not protect a file when the bucket itself is public.
-  await ensureCitizenStoragePrivate();
-  return send('upload-private', key, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: key, Body: bytes, ContentType: contentType }));
+  return runMediaWrite(async () => {
+    if (!Buffer.isBuffer(bytes) || !bytes.length) throw new Error('Invalid file content.');
+    if (storageIsLocal()) { const target = privateLocalPath(key, '-citizen-private'); await fs.mkdir(path.dirname(target), { recursive: true }); await fs.writeFile(target, bytes); return; }
+    if (!activeStorage.client) throw storageUnavailable();
+    // The legacy resident/staff upload routes also use this boundary. A private
+    // object key does not protect a file when the bucket itself is public.
+    await ensureCitizenStoragePrivate();
+    if (storageProvider() === 'azure') return uploadObject(key, bytes, contentType);
+    return send('upload-private', key, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: key, Body: bytes, ContentType: contentType }));
+  });
 }
 // Backblaze ACLs are bucket-wide. Random keys alone cannot make a public bucket
 // private. E-service uploads fail closed unless the bucket ACL is private.
 export async function ensureCitizenStoragePrivate() {
   if (storageIsLocal()) return;
+  if (storageProvider() === 'azure') {
+    if ((await activeStorage.client.getProperties()).blobPublicAccess) throw new Error('Private document storage is unavailable.');
+    return;
+  }
   if (!activeStorage.client) throw storageUnavailable();
   const acl = await send('private-bucket-check', null, new GetBucketAclCommand({ Bucket: activeStorage.bucket }));
   if (!acl.Owner?.ID || !Array.isArray(acl.Grants) || acl.Grants.some(grant => grant.Grantee?.Type === 'Group' || (grant.Grantee?.ID && grant.Grantee.ID !== acl.Owner.ID))) {
@@ -385,19 +532,25 @@ export async function writeEserviceFile(key,bytes,contentType) {
 export async function deleteCitizenFile(key) { if (storageIsLocal()) return fs.rm(privateLocalPath(key, '-citizen-private'), { force: true }); return deleteObject(key); }
 export async function readCitizenFile(key) {
   if (storageIsLocal()) return fs.readFile(privateLocalPath(key, '-citizen-private'));
+  if (storageProvider() === 'azure') return readObject(key);
   if (!activeStorage.client) throw storageUnavailable();
   const result = await send('download-private', key, new GetObjectCommand({ Bucket: activeStorage.bucket, Key: key }));
   return Buffer.from(await result.Body.transformToByteArray());
 }
 export async function writePrivateFile(key, bytes, contentType) {
-  if (!Buffer.isBuffer(bytes) || !bytes.length) throw new Error('Invalid file content.');
-  if (storageIsLocal()) { const target = privateLocalPath(key, '-private'); await fs.mkdir(path.dirname(target), { recursive: true }); await fs.writeFile(target, bytes); return; }
-  if (!activeStorage.client) throw storageUnavailable();
-  return send('upload-private', key, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: key, Body: bytes, ContentType: contentType }));
+  return runMediaWrite(async () => {
+    if (!Buffer.isBuffer(bytes) || !bytes.length) throw new Error('Invalid file content.');
+    if (storageIsLocal()) { const target = privateLocalPath(key, '-private'); await fs.mkdir(path.dirname(target), { recursive: true }); await fs.writeFile(target, bytes); return; }
+    if (!activeStorage.client) throw storageUnavailable();
+    await ensureCitizenStoragePrivate();
+    if (storageProvider() === 'azure') return uploadObject(key, bytes, contentType);
+    return send('upload-private', key, new PutObjectCommand({ Bucket: activeStorage.bucket, Key: key, Body: bytes, ContentType: contentType }));
+  });
 }
 export async function deletePrivateFile(key) { if (storageIsLocal()) return fs.rm(privateLocalPath(key, '-private'), { force: true }); return deleteObject(key); }
 export async function readPrivateFile(key) {
   if (storageIsLocal()) return fs.readFile(privateLocalPath(key, '-private'));
+  if (storageProvider() === 'azure') return readObject(key);
   if (!activeStorage.client) throw storageUnavailable();
   const result = await send('download-private', key, new GetObjectCommand({ Bucket: activeStorage.bucket, Key: key }));
   return Buffer.from(await result.Body.transformToByteArray());

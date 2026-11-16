@@ -1,12 +1,12 @@
 import { listDestinations, findDestination, findDestinationById, findLegacyDestination, saveDestination, deleteDestination } from '../repositories/destinationsRepository.js';
 import { getMediaByStoragePath } from '../repositories/mediaRepository.js';
 import { createDownloadUrl } from './storage.js';
-import { getCmsPool } from './cloudSql.js';
+import { getCmsPool } from './database.js';
 import { validateDestination } from './destinationValidation.js';
 import { syncContentMedia } from '../repositories/contentMediaRepository.js';
 const decorate = async item => {
   const media = item.featuredImage ? await getMediaByStoragePath(item.featuredImage) : null;
-  return { ...item, featuredMediaId: media?.id || null, imageUrl: media ? await createDownloadUrl(media.storage_path, media.storage_bucket) : '' };
+  return { ...item, featuredMediaId: media?.id || null, imageUrl: media ? await createDownloadUrl(media.storage_path, media.storage_bucket, media.storage_provider) : '' };
 };
 const publicView = item => ({
   id: item.id,

@@ -1,21 +1,27 @@
+import { useDataRevision } from '../../hooks/usePublicResource'
+import { SearchInput, LoadingState, ErrorState, EmptyState, Button } from '../../components/ui/Primitives'
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronRight, Search, X } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { publicApi } from '../../services/apiClient'
+import EventCalendar from '../../components/EventCalendar'
+import { municipalDate } from '../../services/homepagePresentation'
 
-const formatDate = (value) => new Intl.DateTimeFormat('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(value))
+const formatDate = value => municipalDate(value, { month: 'long' })
 
 export default function Events() {
+  const dataRevision = useDataRevision()
   const [events, setEvents] = useState([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(0)
+  const [showCalendar, setShowCalendar] = useState(false)
 
   useEffect(() => {
     setLoading(true)
     setError('')
-    publicApi('/news?display=events&limit=24&public=true')
+    publicApi('/news?display=events&limit=24&public=true', { force: retry > 0 || dataRevision > 0, persist: false })
       .then((data) => {
         const items = data.items || []
         const mergedItems = items.map((item) => ({
@@ -29,7 +35,7 @@ export default function Events() {
         setError('We could not load the event calendar right now.')
       })
       .finally(() => setLoading(false))
-  }, [retry])
+  }, [retry, dataRevision])
 
   const filteredEvents = useMemo(() => {
     const term = query.trim().toLowerCase()
@@ -44,8 +50,8 @@ export default function Events() {
       <section className="events-hero">
         <div className="container events-hero-inner">
           <div>
-            <h1>Gathered in celebration.</h1>
-            <p className="events-hero-lead">Celebrating the people, traditions, and special moments that make Getafe feel like home.</p>
+            <h1>Events in Getafe</h1>
+            <p className="events-hero-lead">Community celebrations, municipal activities, and local events.</p>
           </div>
         </div>
       </section>
@@ -53,13 +59,15 @@ export default function Events() {
       <section className="events-content">
         <div className="container">
           <div className="events-heading">
-            <div><h2>Moments we remember.</h2></div>
-            <label className="events-search"><Search size={17} aria-hidden="true" /><span className="sr-only">Search events</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search events" />{query && <button type="button" onClick={() => setQuery('')} aria-label="Clear event search" data-icon-button="ghost"><X size={15} /></button>}</label>
+            <div><h2>Community events</h2></div>
+            <button type="button" className="public-calendar-toggle" aria-expanded={showCalendar} aria-controls="full-event-calendar" onClick={() => setShowCalendar(value => !value)}>{showCalendar ? 'Close calendar' : 'View calendar'}</button>
+            <SearchInput label="Search events" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search events" />
           </div>
+          <div id="full-event-calendar">{showCalendar && <EventCalendar />}</div>
 
           {query && !loading && <p className="events-result-count" role="status">Showing {filteredEvents.length} {filteredEvents.length === 1 ? 'event' : 'events'}</p>}
 
-          {loading ? <div className="list-state-card events-state" role="status"><strong>Loading the event gallery…</strong><p>Getting the latest community activities.</p></div> : error ? <div className="list-state-card" role="alert"><strong>Events are temporarily unavailable</strong><p>{error} Please try again in a moment.</p><button type="button" onClick={() => setRetry(value => value + 1)}>Try again</button></div> : filteredEvents.length ? (
+          {loading ? <LoadingState label="Loading events…"/> : error ? <ErrorState message={error} onRetry={() => setRetry(value => value + 1)}/> : filteredEvents.length ? (
             <div className="event-sections">
               {filteredEvents.map((event, index) => {
                 const date = event.event_start_at
@@ -72,7 +80,7 @@ export default function Events() {
                 )
               })}
             </div>
-          ) : <div className="events-empty"><h3>No events found</h3><p>{query ? 'Try another search term or clear your search.' : 'No public events have been published yet.'}</p>{query && <button type="button" onClick={() => setQuery('')}>Clear search</button>}</div>}
+          ) : <EmptyState title="No events found" description={query ? 'Try another search term or clear your search.' : 'No public events have been published yet.'} action={query && <Button variant="outline" onClick={() => setQuery('')}>Clear search</Button>}/>}
 
         </div>
       </section>

@@ -1,3 +1,4 @@
+import { PageHeader, Button } from '../../components/ui/Primitives'
 import { ArrowRight, Bell, CalendarDays, CircleAlert, CreditCard, FilePlus2, FileText, FolderOpen, MessageSquare, Plus, BriefcaseBusiness } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import CitizenLayout from '../../components/CitizenLayout'
@@ -28,8 +29,9 @@ function DashboardContent() {
   ]
   const activity = data?.notifications || []
   return <>
-    <section className="citizen-welcome"><div><p className="portal-date">{formatResidentDate(new Date(), { weekday: 'long' })}</p><h1>Welcome back, {name.trim().split(/\s+/)[0]}</h1><p>Requests, records, and appointments in one place.</p></div><Link className="citizen-primary" to={ROUTES.app.services}><Plus size={17}/>Start a request</Link></section>
-    <section className="citizen-stats" aria-label="Your account at a glance">{stats.map(([label, Icon, value, secondary, href]) => <Link className="citizen-stat" to={href} key={label}><div><span>{label}</span><Icon size={18}/></div><strong>{pending ? '—' : value}</strong><small>{pending ? loading ? 'Loading your records…' : 'Records unavailable' : secondary}<ArrowRight size={14}/></small></Link>)}</section>
+    <PageHeader title={`Welcome back, ${name.trim().split(/\s+/)[0]}`} description="Requests, records, and appointments in one place." context={formatResidentDate(new Date(), { weekday: 'long' })} actions={<Button to={ROUTES.app.services}><Plus size={17}/>Start a request</Button>}/>
+    <section className="citizen-stats" aria-label="Your account at a glance">{stats.map(([label, Icon, value, secondary, href]) => <Link className={`citizen-stat${label === 'Balance due' ? ' citizen-stat--amount' : ''}`} to={href} key={label}><div><span>{label}</span><Icon size={18}/></div><strong>{pending ? '—' : value}</strong><small>{pending ? loading ? 'Loading your records…' : 'Records unavailable' : secondary}<ArrowRight size={14}/></small></Link>)}</section>
+    <p className="portal-summary-scope">These totals cover document applications and appointments. Check <Link to="/app/e-requests">service requests</Link> and <Link to="/app/e-billing/all">billing</Link> for other applications and assessments.</p>
     {!pending && (attention.length > 0 || due.length > 0) && <section className="portal-attention"><h2><CircleAlert size={20}/>Requires your attention<span>{attention.length + due.length}</span></h2>{attention.map(item => <article key={item.id}><div><h3>{item.service_name}</h3><p>{item.latest_note || 'Additional information is required to continue processing.'}</p></div><Link to={ROUTES.app.request(item.id)}>Continue application<ArrowRight size={15}/></Link></article>)}{due.map(item => <article key={item.id}><div><h3>Payment required · {item.service_name || 'Municipal service'}</h3><p>{money(item.amount)} outstanding</p></div><Link to={ROUTES.app.payments}>View payment<ArrowRight size={15}/></Link></article>)}</section>}
     <section className="portal-quick"><h2>Start a task</h2><div>{actions.map(([label, Icon, href]) => <Link key={label} to={href}><Icon size={20}/><span>{label}</span></Link>)}</div></section>
     <ServiceCategories/>

@@ -1,5 +1,6 @@
 import { lazy } from 'react'
 import { buildPageRouteManifest } from './routeConfig'
+import { registerAuthDestinationRoutes } from './authNavigation'
 
 // ============================================================
 // Single source of truth for the app's routes.
@@ -9,8 +10,62 @@ import { buildPageRouteManifest } from './routeConfig'
 // page titles all read from this module.
 // ============================================================
 
-// Discover all pages under src/pages/<category>/<Name>.jsx
-const pageModules = import.meta.glob('./pages/**/*.jsx')
+// Discover only the route modules owned by the current application surface.
+// Keeping these globs explicit prevents a public build from pulling resident
+// and admin page chunks into its asset graph while preserving the root build's
+// all-surface rollback path.
+const allPageModules = import.meta.glob('./pages/**/*.jsx')
+const publicPageModules = import.meta.glob([
+  './pages/auth/**/*.jsx',
+  './pages/community/**/*.jsx',
+  './pages/data/**/*.jsx',
+  './pages/departments/**/*.jsx',
+  './pages/discover/**/*.jsx',
+  './pages/events/**/*.jsx',
+  './pages/home/**/*.jsx',
+  './pages/info/**/*.jsx',
+  './pages/legal/**/*.jsx',
+  './pages/news/**/*.jsx',
+  './pages/search/**/*.jsx',
+  './pages/services/**/*.jsx',
+  './pages/tourism/**/*.jsx',
+  './pages/weather/**/*.jsx',
+])
+const residentPageModules = import.meta.glob([
+  './pages/app/Application.jsx',
+  './pages/app/Appointments.jsx',
+  './pages/app/Documents.jsx',
+  './pages/app/Ebilling.jsx',
+  './pages/app/Epayment.jsx',
+  './pages/app/Erequest.jsx',
+  './pages/app/Erequests.jsx',
+  './pages/app/Eservice.jsx',
+  './pages/app/Help.jsx',
+  './pages/app/Notifications.jsx',
+  './pages/app/Payments.jsx',
+  './pages/app/Requests.jsx',
+  './pages/app/Services.jsx',
+  './pages/app/Settings.jsx',
+  './pages/app/Setup.jsx',
+  './pages/auth/**/*.jsx',
+  './pages/dashboard/Dashboard.jsx',
+  './pages/dashboard/Profile.jsx',
+  './pages/dashboard/RequestDocument.jsx',
+])
+const adminPageModules = import.meta.glob([
+  './pages/admin/**/*.jsx',
+  './pages/auth/**/*.jsx',
+  './pages/app/StaffSysparm.jsx',
+])
+
+const surface = import.meta.env.VITE_APP_SURFACE || 'all'
+const pageModules = surface === 'public'
+  ? publicPageModules
+  : surface === 'resident'
+    ? residentPageModules
+    : surface === 'admin'
+      ? adminPageModules
+      : allPageModules
 
 // A tab can keep an older entry bundle open after a new build removes its
 // hashed route chunks. Recover once by reloading the current document so it
@@ -37,6 +92,8 @@ const loadPageModule = (loader) => async () => {
 // Human-readable titles used by the sitemap and the document title.
 export const routeTitles = {
   '/': 'Home',
+  '/search': 'Search the Getafe website',
+  '/data/supabase-todos': 'Supabase Todos',
   '/info/about': 'About Us',
   '/accessibility': 'Accessibility Statement',
   '/info/history': 'History, Seal & Hymn',
@@ -50,6 +107,8 @@ export const routeTitles = {
   '/departments': 'Departments & Offices',
   '/departments/:slug': 'Municipal Department',
   '/services': 'Municipal Services',
+  '/services/barangay/:id': 'Barangay Services',
+  '/services/e-services/:slug': 'Service Details',
   '/services/directory': 'Services & Departments',
   '/barangays': 'Barangays of Getafe',
   '/services/hotlines': 'Emergency Hotlines',
@@ -78,6 +137,12 @@ export const routeTitles = {
   '/app/profile': 'My Profile',
   '/app/setup': 'Set Up Account',
   '/app/services': 'Municipal Services',
+  '/app/services/:slug': 'Service Details',
+  '/app/e-requests': 'Your Service Requests',
+  '/app/e-requests/:id': 'Service Request Details',
+  '/app/e-payment/:id': 'Payment Details',
+  '/app/e-billing/:type': 'Billing and Payment Orders',
+  '/app/requests/:id': 'Application Details',
   '/app/requests': 'My Applications',
   '/app/notifications': 'Notifications',
   '/app/documents': 'My Documents',
@@ -88,6 +153,8 @@ export const routeTitles = {
   '/app/requests/new': 'New Request',
   '/app/staff': 'Staff workspace',
   '/app/staff/requests': 'Staff service requests',
+  '/app/staff/e-requests': 'Staff Service Queue',
+  '/app/staff/e-requests/:id': 'Staff Service Request Details',
   '/app/staff/requests/:id': 'Staff request details',
   '/app/staff/notifications': 'Staff notifications',
   '/app/staff/settings': 'Staff system parameters',
@@ -95,6 +162,8 @@ export const routeTitles = {
   '/admin': 'Admin Portal',
   '/admin/news': 'Admin · News & Events',
   '/admin/editor': 'Admin · Content Editor',
+  '/admin/departments': 'Admin · Departments',
+  '/admin/service-catalog': 'Admin · Service Catalog',
   '/admin/categories': 'Admin · Categories',
   '/admin/discover': 'Admin · Discover Getafe',
   '/admin/media': 'Admin · Media Library',
@@ -107,9 +176,11 @@ export const routeTitles = {
   '/admin/access/policies': 'Admin · Policies',
   '/admin/audit': 'Admin · Audit Log',
   '/admin/system/errors': 'Admin · Error Center',
+  '/admin/system/integrations': 'Admin · Integrations',
   '/admin/privacy': 'Admin · Privacy Requests',
   '/admin/settings/:category': 'Admin · System Settings',
   '/auth/login': 'Log In',
+  '/auth/forgot-password': 'Reset Password',
   '/data': 'Philippines Open Data & Statistics',
   '/data/datasets': 'Dataset Explorer',
   '/data/barangays': 'Barangay Statistics',
@@ -121,6 +192,7 @@ const HIDDEN_ROUTES = ['/auth/login', '/admin', '/app/profile', '/app/settings']
 
 // Build { path, Component, folder, name, title } for every page file.
 const routeManifest = buildPageRouteManifest(Object.keys(pageModules))
+registerAuthDestinationRoutes(routeManifest)
 export const pageRoutes = routeManifest.map(({ file, path }) => {
   const loader = pageModules[file]
   const Component = lazy(loadPageModule(loader))

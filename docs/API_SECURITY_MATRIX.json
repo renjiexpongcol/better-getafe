@@ -1,0 +1,5827 @@
+[
+  {
+    "method": "GET",
+    "path": "/health",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "none: minimal status only",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public probes expose status only; detailed diagnostics are protected.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "static/probe (no API bucket)",
+    "rateLimits": [],
+    "source": "server/index.js:124"
+  },
+  {
+    "method": "GET",
+    "path": "/healthz",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "none: minimal status only",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public probes expose status only; detailed diagnostics are protected.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "static/probe (no API bucket)",
+    "rateLimits": [],
+    "source": "server/index.js:124"
+  },
+  {
+    "method": "GET",
+    "path": "/health/live",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "none: minimal status only",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public probes expose status only; detailed diagnostics are protected.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "static/probe (no API bucket)",
+    "rateLimits": [],
+    "source": "server/index.js:124"
+  },
+  {
+    "method": "GET",
+    "path": "/api/health/live",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "none: minimal status only",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public probes expose status only; detailed diagnostics are protected.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:124"
+  },
+  {
+    "method": "GET",
+    "path": "/ready",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "none: minimal status only",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public probes expose status only; detailed diagnostics are protected.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "static/probe (no API bucket)",
+    "rateLimits": [],
+    "source": "server/index.js:143"
+  },
+  {
+    "method": "GET",
+    "path": "/health/ready",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "none: minimal status only",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public probes expose status only; detailed diagnostics are protected.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "static/probe (no API bucket)",
+    "rateLimits": [],
+    "source": "server/index.js:143"
+  },
+  {
+    "method": "GET",
+    "path": "/api/ready",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "none: minimal status only",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public probes expose status only; detailed diagnostics are protected.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:143"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client-errors",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "untrusted bounded report; server creates its own log reference",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public bounded telemetry ingestion; no read access to internal logs.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "general",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:283"
+  },
+  {
+    "method": "GET",
+    "path": "/api/weather/getafe",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:295"
+  },
+  {
+    "method": "GET",
+    "path": "/api/weather/forecast",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "expensive",
+    "rateLimits": [
+      {
+        "rate": 30,
+        "windowMs": 60000,
+        "burst": 8
+      }
+    ],
+    "source": "server/index.js:303"
+  },
+  {
+    "method": "GET",
+    "path": "/api/weather",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:313"
+  },
+  {
+    "method": "GET",
+    "path": "/rss.xml",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "static/probe (no API bucket)",
+    "rateLimits": [],
+    "source": "server/index.js:709"
+  },
+  {
+    "method": "POST",
+    "path": "/api/feedback/article",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "server validates contact or published article; client cannot choose workflow state",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Anonymous form ingestion with rate limiting; no privileged mutation.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "expensive",
+    "rateLimits": [
+      {
+        "rate": 30,
+        "windowMs": 60000,
+        "burst": 8
+      }
+    ],
+    "source": "server/index.js:746"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/login",
+    "access": "AUTH_FLOW",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "server session or single-use challenge/state; no client-chosen authenticated principal",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Route-specific credential/challenge validation; me/csrf/logout inspect cookie state; OAuth verifies state.",
+    "area": "Authentication",
+    "public": false,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "authentication",
+    "rateLimits": [
+      {
+        "rate": 10,
+        "windowMs": 60000,
+        "burst": 10
+      },
+      {
+        "rate": 30,
+        "windowMs": 900000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:851"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/mfa/verify",
+    "access": "AUTH_FLOW",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "server session or single-use challenge/state; no client-chosen authenticated principal",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Route-specific credential/challenge validation; me/csrf/logout inspect cookie state; OAuth verifies state.",
+    "area": "Authentication",
+    "public": false,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/index.js:853"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/google",
+    "access": "AUTH_FLOW",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "server session or single-use challenge/state; no client-chosen authenticated principal",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Route-specific credential/challenge validation; me/csrf/logout inspect cookie state; OAuth verifies state.",
+    "area": "Authentication",
+    "public": false,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "authentication",
+    "rateLimits": [
+      {
+        "rate": 10,
+        "windowMs": 60000,
+        "burst": 10
+      },
+      {
+        "rate": 30,
+        "windowMs": 900000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:904"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/google/callback",
+    "access": "AUTH_FLOW",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "server session or single-use challenge/state; no client-chosen authenticated principal",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Route-specific credential/challenge validation; me/csrf/logout inspect cookie state; OAuth verifies state.",
+    "area": "Authentication",
+    "public": false,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "authentication",
+    "rateLimits": [
+      {
+        "rate": 10,
+        "windowMs": 60000,
+        "burst": 10
+      },
+      {
+        "rate": 30,
+        "windowMs": 900000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:931"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/me",
+    "access": "AUTH_FLOW",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "server session or single-use challenge/state; no client-chosen authenticated principal",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Route-specific credential/challenge validation; me/csrf/logout inspect cookie state; OAuth verifies state.",
+    "area": "Authentication",
+    "public": false,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:977"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/account/password",
+    "access": "CMS",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current CMS user from session; cannot target another account",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Self-service account operation; current-password check for credential change.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/index.js:1024"
+  },
+  {
+    "method": "POST",
+    "path": "/api/account/avatar",
+    "access": "CMS",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "mixed",
+    "ownership": "current CMS user from session; cannot target another account",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Self-service account operation; current-password check for credential change.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "uploads",
+    "rateLimits": [
+      {
+        "rate": 12,
+        "windowMs": 60000,
+        "burst": 4
+      }
+    ],
+    "source": "server/index.js:1059"
+  },
+  {
+    "method": "GET",
+    "path": "/api/account/avatar",
+    "access": "CMS",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "current CMS user from session; cannot target another account",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Self-service account operation; current-password check for credential change.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1087"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/mfa/status",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/index.js:1117"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/change-password",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/index.js:1122"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/mfa/setup",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/index.js:1142"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/mfa/activate",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/index.js:1158"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/mfa/disable/request",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/index.js:1181"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/mfa/disable/confirm",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/index.js:1191"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/logout",
+    "access": "AUTH_FLOW",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "optional-json",
+    "ownership": "server session or single-use challenge/state; no client-chosen authenticated principal",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Route-specific credential/challenge validation; me/csrf/logout inspect cookie state; OAuth verifies state.",
+    "area": "Authentication",
+    "public": false,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "general",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:1203"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/sessions",
+    "access": "SESSION",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "optional-json",
+    "ownership": "session user id/kind; session ids must belong to the current account",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Current account and durable revocation are checked before access.",
+    "area": "Account sessions",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/index.js:1238"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/auth/sessions/:sessionId",
+    "access": "SESSION",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "optional-json",
+    "ownership": "session user id/kind; session ids must belong to the current account",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Current account and durable revocation are checked before access.",
+    "area": "Account sessions",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/index.js:1268"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/auth/sessions",
+    "access": "SESSION",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "optional-json",
+    "ownership": "session user id/kind; session ids must belong to the current account",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Current account and durable revocation are checked before access.",
+    "area": "Account sessions",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/index.js:1289"
+  },
+  {
+    "method": "POST",
+    "path": "/api/portal-auth/login",
+    "access": "AUTH_FLOW",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "server session or single-use challenge/state; no client-chosen authenticated principal",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Route-specific credential/challenge validation; me/csrf/logout inspect cookie state; OAuth verifies state.",
+    "area": "Authentication",
+    "public": false,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "authentication",
+    "rateLimits": [
+      {
+        "rate": 10,
+        "windowMs": 60000,
+        "burst": 10
+      },
+      {
+        "rate": 30,
+        "windowMs": 900000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:1312"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/verify-code",
+    "access": "AUTH_FLOW",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "server session or single-use challenge/state; no client-chosen authenticated principal",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Route-specific credential/challenge validation; me/csrf/logout inspect cookie state; OAuth verifies state.",
+    "area": "Authentication",
+    "public": false,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/index.js:1313"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/resend-code",
+    "access": "AUTH_FLOW",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "server session or single-use challenge/state; no client-chosen authenticated principal",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Route-specific credential/challenge validation; me/csrf/logout inspect cookie state; OAuth verifies state.",
+    "area": "Authentication",
+    "public": false,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/index.js:1332"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/forgot-password",
+    "access": "AUTH_FLOW",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "server session or single-use challenge/state; no client-chosen authenticated principal",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Route-specific credential/challenge validation; me/csrf/logout inspect cookie state; OAuth verifies state.",
+    "area": "Authentication",
+    "public": false,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/index.js:1363"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/forgot-password/verify",
+    "access": "AUTH_FLOW",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "server session or single-use challenge/state; no client-chosen authenticated principal",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Route-specific credential/challenge validation; me/csrf/logout inspect cookie state; OAuth verifies state.",
+    "area": "Authentication",
+    "public": false,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/index.js:1398"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/renew-password",
+    "access": "AUTH_FLOW",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "server session or single-use challenge/state; no client-chosen authenticated principal",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Route-specific credential/challenge validation; me/csrf/logout inspect cookie state; OAuth verifies state.",
+    "area": "Authentication",
+    "public": false,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/index.js:1408"
+  },
+  {
+    "method": "POST",
+    "path": "/api/portal-auth/register",
+    "access": "AUTH_FLOW",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "server session or single-use challenge/state; no client-chosen authenticated principal",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Route-specific credential/challenge validation; me/csrf/logout inspect cookie state; OAuth verifies state.",
+    "area": "Authentication",
+    "public": false,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "authentication",
+    "rateLimits": [
+      {
+        "rate": 10,
+        "windowMs": 60000,
+        "burst": 10
+      },
+      {
+        "rate": 30,
+        "windowMs": 900000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:1420"
+  },
+  {
+    "method": "GET",
+    "path": "/api/public/config",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:1493"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/reports",
+    "access": "CMS",
+    "permissions": [
+      "reports.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1524"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/privacy-requests",
+    "access": "CMS",
+    "permissions": [
+      "privacy.manage"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1534"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/privacy-requests/:id",
+    "access": "CMS",
+    "permissions": [
+      "privacy.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:1539"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/integrations/test",
+    "access": "CMS",
+    "permissions": [
+      "system.settings.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:1551"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/ai",
+    "access": "CMS",
+    "permissions": [
+      "system.settings.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:1555"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/notifications/test",
+    "access": "CMS",
+    "permissions": [
+      "system.settings.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:1560"
+  },
+  {
+    "method": "GET",
+    "path": "/api/notifications",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:1565"
+  },
+  {
+    "method": "GET",
+    "path": "/api/news",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:1580"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/news",
+    "access": "CMS",
+    "permissions": [
+      "content.news.manage"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1580"
+  },
+  {
+    "method": "GET",
+    "path": "/api/news/:slug",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:1666"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/news/:slug",
+    "access": "CMS",
+    "permissions": [
+      "content.news.manage"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1666"
+  },
+  {
+    "method": "POST",
+    "path": "/api/news",
+    "access": "CMS",
+    "permissions": [
+      "content.news.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1701"
+  },
+  {
+    "method": "POST",
+    "path": "/api/news/drafts",
+    "access": "CMS",
+    "permissions": [
+      "content.news.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1712"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/news/:id",
+    "access": "CMS",
+    "permissions": [
+      "content.news.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1734"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/news/:id/draft",
+    "access": "CMS",
+    "permissions": [
+      "content.news.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1746"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/news/:id",
+    "access": "CMS",
+    "permissions": [
+      "content.news.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1771"
+  },
+  {
+    "method": "POST",
+    "path": "/api/news/bulk",
+    "access": "CMS",
+    "permissions": [
+      "content.news.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1777"
+  },
+  {
+    "method": "GET",
+    "path": "/api/categories",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:1792"
+  },
+  {
+    "method": "GET",
+    "path": "/api/popular-services",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:1802"
+  },
+  {
+    "method": "GET",
+    "path": "/api/officials/directory",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:1831"
+  },
+  {
+    "method": "GET",
+    "path": "/api/officials",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:1841"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/officials",
+    "access": "CMS",
+    "permissions": [
+      "directory.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1871"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/officials/data-quality",
+    "access": "CMS",
+    "permissions": [
+      "directory.manage"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1888"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/official-assignments",
+    "access": "CMS",
+    "permissions": [
+      "directory.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:1892"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/official-assignments/:id/matches",
+    "access": "CMS",
+    "permissions": [
+      "directory.manage"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1899"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/official-assignments/:id/connect",
+    "access": "CMS",
+    "permissions": [
+      "directory.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:1906"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/official-assignments/:id/refresh",
+    "access": "CMS",
+    "permissions": [
+      "directory.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:1917"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/official-assignments/:id/disconnect",
+    "access": "CMS",
+    "permissions": [
+      "directory.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:1926"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/official-assignments/:id/reject",
+    "access": "CMS",
+    "permissions": [
+      "directory.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/index.js:1935"
+  },
+  {
+    "method": "GET",
+    "path": "/api/barangays",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:1946"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/barangays",
+    "access": "CMS",
+    "permissions": [
+      "directory.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1966"
+  },
+  {
+    "method": "POST",
+    "path": "/api/categories",
+    "access": "CMS",
+    "permissions": [
+      "content.categories.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:1994"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/categories/:id",
+    "access": "CMS",
+    "permissions": [
+      "content.categories.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:2007"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/categories/:id",
+    "access": "CMS",
+    "permissions": [
+      "content.categories.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:2018"
+  },
+  {
+    "method": "GET",
+    "path": "/api/media",
+    "access": "CMS",
+    "permissions": [
+      "content.media.manage"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:2033"
+  },
+  {
+    "method": "POST",
+    "path": "/api/storage/upload-url",
+    "access": "CMS",
+    "permissions": [
+      "content.media.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "uploads",
+    "rateLimits": [
+      {
+        "rate": 12,
+        "windowMs": 60000,
+        "burst": 4
+      }
+    ],
+    "source": "server/index.js:2077"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/media/upload-proxy",
+    "access": "CMS",
+    "permissions": [
+      "content.media.manage"
+    ],
+    "authorization": "rbac",
+    "body": "mixed",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "uploads",
+    "rateLimits": [
+      {
+        "rate": 12,
+        "windowMs": 60000,
+        "burst": 4
+      }
+    ],
+    "source": "server/index.js:2159"
+  },
+  {
+    "method": "POST",
+    "path": "/api/media/complete",
+    "access": "CMS",
+    "permissions": [
+      "content.media.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "uploads",
+    "rateLimits": [
+      {
+        "rate": 12,
+        "windowMs": 60000,
+        "burst": 4
+      }
+    ],
+    "source": "server/index.js:2185"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/media",
+    "access": "CMS",
+    "permissions": [
+      "content.media.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "uploads",
+    "rateLimits": [
+      {
+        "rate": 12,
+        "windowMs": 60000,
+        "burst": 4
+      }
+    ],
+    "source": "server/index.js:2285"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/media/:id",
+    "access": "CMS",
+    "permissions": [
+      "content.media.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "uploads",
+    "rateLimits": [
+      {
+        "rate": 12,
+        "windowMs": 60000,
+        "burst": 4
+      }
+    ],
+    "source": "server/index.js:2306"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/dashboard",
+    "access": "CMS",
+    "permissions": [
+      "admin.dashboard.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:2319"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/infrastructure/redis",
+    "access": "CMS",
+    "permissions": [
+      "system.infrastructure.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:2331"
+  },
+  {
+    "method": "GET",
+    "path": "/api/health/storage",
+    "access": "CMS",
+    "permissions": [
+      "system.infrastructure.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "infrastructure permission; no resident access",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public probes expose status only; detailed diagnostics are protected.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:2345"
+  },
+  {
+    "method": "GET",
+    "path": "/api/health",
+    "access": "CMS",
+    "permissions": [
+      "system.infrastructure.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "infrastructure permission; no resident access",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public probes expose status only; detailed diagnostics are protected.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:2351"
+  },
+  {
+    "method": "GET",
+    "path": "/api/health/database",
+    "access": "CMS",
+    "permissions": [
+      "system.infrastructure.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "infrastructure permission; no resident access",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public probes expose status only; detailed diagnostics are protected.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/index.js:2361"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/storage/local-upload/*",
+    "access": "CMS",
+    "permissions": [
+      "content.media.manage"
+    ],
+    "authorization": "rbac",
+    "body": "mixed",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "uploads",
+    "rateLimits": [
+      {
+        "rate": 12,
+        "windowMs": 60000,
+        "burst": 4
+      }
+    ],
+    "source": "server/index.js:2366"
+  },
+  {
+    "method": "GET",
+    "path": "/sitemap.xml",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "static/probe (no API bucket)",
+    "rateLimits": [],
+    "source": "server/index.js:2410"
+  },
+  {
+    "method": "GET",
+    "path": "/robots.txt",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "static/probe (no API bucket)",
+    "rateLimits": [],
+    "source": "server/index.js:2420"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/access",
+    "access": "CMS",
+    "permissions": [
+      "users.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/accessManagementRoutes.js:39"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/access/users/:id/effective",
+    "access": "CMS",
+    "permissions": [
+      "users.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/accessManagementRoutes.js:60"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/access/groups/:id",
+    "access": "CMS",
+    "permissions": [
+      "users.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/accessManagementRoutes.js:68"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/access/groups",
+    "access": "CMS",
+    "permissions": [
+      "groups.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/accessManagementRoutes.js:86"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/access/groups/:id",
+    "access": "CMS",
+    "permissions": [
+      "groups.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/accessManagementRoutes.js:107"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/admin/access/groups/:id",
+    "access": "CMS",
+    "permissions": [
+      "groups.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/accessManagementRoutes.js:120"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/access/groups/:id/permissions",
+    "access": "CMS",
+    "permissions": [
+      "permissions.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/accessManagementRoutes.js:135"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/access/groups/:id/members",
+    "access": "CMS",
+    "permissions": [
+      "groups.manage",
+      "users.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/accessManagementRoutes.js:158"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/access/users/:id/groups",
+    "access": "CMS",
+    "permissions": [
+      "groups.manage",
+      "users.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/accessManagementRoutes.js:188"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/access/policies",
+    "access": "CMS",
+    "permissions": [
+      "policies.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/accessManagementRoutes.js:229"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/access/policies/:id",
+    "access": "CMS",
+    "permissions": [
+      "policies.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/accessManagementRoutes.js:242"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/access/groups/:id/policies",
+    "access": "CMS",
+    "permissions": [
+      "policies.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/accessManagementRoutes.js:260"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/users",
+    "access": "CMS",
+    "permissions": [
+      "users.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/adminUsersRoutes.js:42"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/users/options",
+    "access": "CMS",
+    "permissions": [
+      "users.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/adminUsersRoutes.js:46"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/users/:id/profile",
+    "access": "CMS",
+    "permissions": [
+      "users.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/adminUsersRoutes.js:50"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/users/:id/profile",
+    "access": "CMS",
+    "permissions": [
+      "users.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/adminUsersRoutes.js:54"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/users",
+    "access": "CMS",
+    "permissions": [
+      "users.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/adminUsersRoutes.js:109"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/users/:id",
+    "access": "CMS",
+    "permissions": [
+      "users.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "authorized target account/group; self/super-admin protections; cannot grant permissions actor lacks",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Existing RBAC and assignment guards; security changes affect subsequent checks.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/adminUsersRoutes.js:110"
+  },
+  {
+    "method": "GET",
+    "path": "/api/citizen/dashboard",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:64"
+  },
+  {
+    "method": "GET",
+    "path": "/api/citizen/profile",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:78"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/citizen/profile",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:83"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/me/notification-preferences",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:130"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/users/me/notification-preferences",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:131"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/me/preferences",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:132"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/users/me/preferences",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:136"
+  },
+  {
+    "method": "POST",
+    "path": "/api/citizen/email-verification/request",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:144"
+  },
+  {
+    "method": "POST",
+    "path": "/api/citizen/email-verification/confirm",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:152"
+  },
+  {
+    "method": "POST",
+    "path": "/api/citizen/onboarding/complete",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:161"
+  },
+  {
+    "method": "GET",
+    "path": "/api/citizen/onboarding/options",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:165"
+  },
+  {
+    "method": "POST",
+    "path": "/api/citizen/onboarding/password",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:168"
+  },
+  {
+    "method": "POST",
+    "path": "/api/citizen/onboarding/verification/request",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:178"
+  },
+  {
+    "method": "POST",
+    "path": "/api/citizen/onboarding/verification/confirm",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:189"
+  },
+  {
+    "method": "POST",
+    "path": "/api/citizen/profile/avatar",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "mixed",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "uploads",
+    "rateLimits": [
+      {
+        "rate": 12,
+        "windowMs": 60000,
+        "burst": 4
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:195"
+  },
+  {
+    "method": "GET",
+    "path": "/api/citizen/profile/avatar",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:214"
+  },
+  {
+    "method": "GET",
+    "path": "/api/citizen/weather",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "current resident from session; supplied ownership/role fields rejected or ignored",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:290"
+  },
+  {
+    "method": "GET",
+    "path": "/api/citizen/applications/:id",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:297"
+  },
+  {
+    "method": "POST",
+    "path": "/api/citizen/applications",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:302"
+  },
+  {
+    "method": "POST",
+    "path": "/api/citizen/settlements",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:354"
+  },
+  {
+    "method": "POST",
+    "path": "/api/citizen/privacy-requests/verify-password",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "otp",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      },
+      {
+        "rate": 20,
+        "windowMs": 900000,
+        "burst": 20
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:395"
+  },
+  {
+    "method": "POST",
+    "path": "/api/citizen/privacy-requests",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:399"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/citizen/notifications/:id/read",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:415"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/citizen/notifications/read-all",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:421"
+  },
+  {
+    "method": "GET",
+    "path": "/api/citizen/appointments/availability",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:426"
+  },
+  {
+    "method": "POST",
+    "path": "/api/citizen/documents",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "mixed",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "uploads",
+    "rateLimits": [
+      {
+        "rate": 12,
+        "windowMs": 60000,
+        "burst": 4
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:431"
+  },
+  {
+    "method": "POST",
+    "path": "/api/citizen/appointments",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:446"
+  },
+  {
+    "method": "GET",
+    "path": "/api/citizen/documents/:id/download",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/citizenRoutes.js:476"
+  },
+  {
+    "method": "POST",
+    "path": "/api/contact",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "server validates contact or published article; client cannot choose workflow state",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Anonymous form ingestion with rate limiting; no privileged mutation.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "contact_form",
+    "rateLimits": [
+      {
+        "rate": 5,
+        "windowMs": 60000,
+        "burst": 5
+      }
+    ],
+    "source": "server/src/services/contactRoutes.js:65"
+  },
+  {
+    "method": "GET",
+    "path": "/api/departments",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/src/services/departmentRoutes.js:44"
+  },
+  {
+    "method": "GET",
+    "path": "/api/departments/:slug",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/src/services/departmentRoutes.js:45"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/departments/options",
+    "access": "CMS",
+    "permissions": [
+      "departments.manage"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/departmentRoutes.js:50"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/departments",
+    "access": "CMS",
+    "permissions": [
+      "departments.manage"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/departmentRoutes.js:55"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/departments/:id",
+    "access": "CMS",
+    "permissions": [
+      "departments.manage"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/departmentRoutes.js:56"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/departments",
+    "access": "CMS",
+    "permissions": [
+      "departments.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/departmentRoutes.js:83"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/departments/:id",
+    "access": "CMS",
+    "permissions": [
+      "departments.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/departmentRoutes.js:84"
+  },
+  {
+    "method": "GET",
+    "path": "/api/discover",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/src/services/destinationRoutes.js:35"
+  },
+  {
+    "method": "GET",
+    "path": "/api/discover/legacy/:key",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/src/services/destinationRoutes.js:40"
+  },
+  {
+    "method": "GET",
+    "path": "/api/discover/:slug",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/src/services/destinationRoutes.js:45"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/destinations",
+    "access": "CMS",
+    "permissions": [
+      "content.news.manage"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/destinationRoutes.js:50"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/destinations/:id",
+    "access": "CMS",
+    "permissions": [
+      "content.news.manage"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/destinationRoutes.js:51"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/destinations",
+    "access": "CMS",
+    "permissions": [
+      "content.news.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/destinationRoutes.js:69"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/destinations/:id",
+    "access": "CMS",
+    "permissions": [
+      "content.news.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/destinationRoutes.js:70"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/admin/destinations/:id",
+    "access": "CMS",
+    "permissions": [
+      "content.news.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/destinationRoutes.js:71"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/system/errors",
+    "access": "CMS",
+    "permissions": [
+      "system.errors.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/errorCenterRoutes.js:43"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/system/errors/:referenceId",
+    "access": "CMS",
+    "permissions": [
+      "system.errors.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/errorCenterRoutes.js:75"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/system/errors/:referenceId",
+    "access": "CMS",
+    "permissions": [
+      "system.errors.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/errorCenterRoutes.js:84"
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff/eservices/billing-parties",
+    "access": "STAFF",
+    "permissions": [
+      "billing.manage"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "expensive",
+    "rateLimits": [
+      {
+        "rate": 30,
+        "windowMs": 60000,
+        "burst": 8
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:82"
+  },
+  {
+    "method": "GET",
+    "path": "/api/requests/:id/business-billing",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:92"
+  },
+  {
+    "method": "POST",
+    "path": "/api/requests/:id/select-assessment",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:93"
+  },
+  {
+    "method": "POST",
+    "path": "/api/requests/:id/review-assessment",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:94"
+  },
+  {
+    "method": "POST",
+    "path": "/api/payment-orders/:id/payment-submissions",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:95"
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff/eservices/payment-orders/:id/reject-submission",
+    "access": "STAFF",
+    "permissions": [
+      "payments.verify"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:96"
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff/eservices/payment-orders/:id/receipt",
+    "access": "STAFF",
+    "permissions": [
+      "payments.verify"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:97"
+  },
+  {
+    "method": "POST",
+    "path": "/api/eservices/payment-webhooks/:provider",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "provider signature over raw body; server order, amount/currency and event id; idempotent consumption",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Anonymous transport is required; invalid signatures cannot mutate payments.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "general",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:98"
+  },
+  {
+    "method": "GET",
+    "path": "/api/services",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:119"
+  },
+  {
+    "method": "GET",
+    "path": "/api/services/:slug",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:123"
+  },
+  {
+    "method": "POST",
+    "path": "/api/requests",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:139"
+  },
+  {
+    "method": "GET",
+    "path": "/api/requests",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:155"
+  },
+  {
+    "method": "GET",
+    "path": "/api/requests/:id",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:162"
+  },
+  {
+    "method": "GET",
+    "path": "/api/requests/:id/appointment-availability",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:171"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/requests/:id/draft",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:181"
+  },
+  {
+    "method": "POST",
+    "path": "/api/requests/:id/submit",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:196"
+  },
+  {
+    "method": "POST",
+    "path": "/api/requests/:id/respond",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:196"
+  },
+  {
+    "method": "POST",
+    "path": "/api/requests/:id/documents",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "mixed",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "uploads",
+    "rateLimits": [
+      {
+        "rate": 12,
+        "windowMs": 60000,
+        "burst": 4
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:212"
+  },
+  {
+    "method": "GET",
+    "path": "/api/requests/:id/documents/:documentId",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:357"
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff/eservices/requests/:id/documents/:documentId",
+    "access": "STAFF",
+    "permissions": [
+      "documents.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:358"
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff/eservices/requests",
+    "access": "STAFF",
+    "permissions": [
+      "requests.department.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:363"
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff/eservices/requests/:id",
+    "access": "STAFF",
+    "permissions": [
+      "requests.department.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:370"
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff/eservices/requests/:id/assign",
+    "access": "STAFF",
+    "permissions": [
+      "requests.department.assign"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:388"
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff/eservices/requests/:id/status",
+    "access": "STAFF",
+    "permissions": [
+      "requests.department.process"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:388"
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff/eservices/requests/:id/request-information",
+    "access": "STAFF",
+    "permissions": [
+      "requests.department.process"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:388"
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff/eservices/requests/:id/notes",
+    "access": "STAFF",
+    "permissions": [
+      "requests.department.process"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:388"
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff/eservices/requests/:id/documents",
+    "access": "STAFF",
+    "permissions": [
+      "documents.process"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:388"
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff/eservices/requests/:id/assessment",
+    "access": "STAFF",
+    "permissions": [
+      "assessments.create"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:388"
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff/eservices/requests/:id/approve",
+    "access": "STAFF",
+    "permissions": [
+      "requests.department.approve"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:388"
+  },
+  {
+    "method": "POST",
+    "path": "/api/businesses",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:404"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/businesses/:id",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:405"
+  },
+  {
+    "method": "GET",
+    "path": "/api/businesses",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:406"
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff/eservices/requests/:id/adjust-assessment",
+    "access": "STAFF",
+    "permissions": [
+      "assessments.adjust"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:418"
+  },
+  {
+    "method": "GET",
+    "path": "/api/billing/accounts",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:433"
+  },
+  {
+    "method": "GET",
+    "path": "/api/billing/accounts/:id/statements",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:445"
+  },
+  {
+    "method": "GET",
+    "path": "/api/payment-orders",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:470"
+  },
+  {
+    "method": "GET",
+    "path": "/api/payment-orders/:id",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:482"
+  },
+  {
+    "method": "POST",
+    "path": "/api/payment-orders/:id/checkout",
+    "access": "RESIDENT",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "resident id from session; object query scoped to applicant/user id",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Resident-only; resource handlers enforce ownership and business rules.",
+    "area": "Resident",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "authenticated",
+    "rateLimits": [
+      {
+        "rate": 1200,
+        "windowMs": 60000,
+        "burst": 200
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:489"
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff/eservices/payment-orders/:id",
+    "access": "STAFF",
+    "permissions": [
+      "payments.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:522"
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff/eservices/payment-orders/:id/confirm",
+    "access": "STAFF",
+    "permissions": [
+      "payments.verify"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:529"
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff/eservices/payments/:id/reverse",
+    "access": "STAFF",
+    "permissions": [
+      "payments.reverse"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:544"
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff/eservices/options",
+    "access": "STAFF",
+    "permissions": [
+      "requests.department.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:559"
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff/eservices/report",
+    "access": "STAFF",
+    "permissions": [
+      "reports.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:579"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/services",
+    "access": "CMS",
+    "permissions": [
+      "services.catalog.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:596"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/services/options",
+    "access": "CMS",
+    "permissions": [
+      "services.catalog.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:602"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/services/:id",
+    "access": "CMS",
+    "permissions": [
+      "services.catalog.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:620"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/services",
+    "access": "CMS",
+    "permissions": [
+      "services.catalog.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:628"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/services/:id",
+    "access": "CMS",
+    "permissions": [
+      "services.catalog.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:639"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/service-categories",
+    "access": "CMS",
+    "permissions": [
+      "services.catalog.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:653"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/service-categories",
+    "access": "CMS",
+    "permissions": [
+      "services.catalog.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:665"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/eservices/staff-search",
+    "access": "CMS",
+    "permissions": [
+      "eservices.admin"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "expensive",
+    "rateLimits": [
+      {
+        "rate": 30,
+        "windowMs": 60000,
+        "burst": 8
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:692"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/eservices/department-members",
+    "access": "CMS",
+    "permissions": [
+      "eservices.admin"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:703"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/eservices/audit",
+    "access": "CMS",
+    "permissions": [
+      "eservices.admin",
+      "audit.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:718"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/eservices/department-members",
+    "access": "CMS",
+    "permissions": [
+      "eservices.admin"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:733"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/eservices/department-members/revoke",
+    "access": "CMS",
+    "permissions": [
+      "eservices.admin"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "CMS operation permission on the referenced record; catalog/media reference rules in handler",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "CMS role context plus listed permissions; media upload keys require issued owner grant.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:768"
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff/eservices/billing",
+    "access": "STAFF",
+    "permissions": [
+      "billing.manage"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/eserviceRoutes.js:794"
+  },
+  {
+    "method": "GET",
+    "path": "/api/public-data/coverage",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/src/services/publicDataRoutes.js:32"
+  },
+  {
+    "method": "GET",
+    "path": "/api/public-data/topics",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/src/services/publicDataRoutes.js:33"
+  },
+  {
+    "method": "GET",
+    "path": "/api/public-data/datasets",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/src/services/publicDataRoutes.js:34"
+  },
+  {
+    "method": "GET",
+    "path": "/api/public-data/datasets/:id",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/src/services/publicDataRoutes.js:35"
+  },
+  {
+    "method": "GET",
+    "path": "/api/public-data/datasets/:id/values",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/src/services/publicDataRoutes.js:36"
+  },
+  {
+    "method": "POST",
+    "path": "/api/public-data/datasets/:id/query",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "expensive",
+    "rateLimits": [
+      {
+        "rate": 30,
+        "windowMs": 60000,
+        "burst": 8
+      }
+    ],
+    "source": "server/src/services/publicDataRoutes.js:37"
+  },
+  {
+    "method": "GET",
+    "path": "/api/public-data/classification",
+    "access": "PUBLIC",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "published DTO / public dataset only; no private owner data",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Public reads ignore CMS status filters and session identity.",
+    "area": "Public/system",
+    "public": true,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/src/services/publicDataRoutes.js:38"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/settings",
+    "access": "CMS",
+    "permissions": [
+      "settings.view"
+    ],
+    "authorization": "settings",
+    "body": "none",
+    "ownership": "granular RBAC plus settings delegation/category/secret permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Both existing permission systems must authorize; writes validate candidate settings.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/settingsRoutes.js:21"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/settings/principals",
+    "access": "CMS",
+    "permissions": [
+      "settings.security.edit"
+    ],
+    "authorization": "settings",
+    "body": "none",
+    "ownership": "granular RBAC plus settings delegation/category/secret permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Both existing permission systems must authorize; writes validate candidate settings.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/settingsRoutes.js:22"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/settings/history",
+    "access": "CMS",
+    "permissions": [
+      "settings.audit.view"
+    ],
+    "authorization": "settings",
+    "body": "none",
+    "ownership": "granular RBAC plus settings delegation/category/secret permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Both existing permission systems must authorize; writes validate candidate settings.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/settingsRoutes.js:26"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/settings/status",
+    "access": "CMS",
+    "permissions": [
+      "settings.view"
+    ],
+    "authorization": "settings",
+    "body": "none",
+    "ownership": "granular RBAC plus settings delegation/category/secret permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Both existing permission systems must authorize; writes validate candidate settings.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/settingsRoutes.js:29"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/settings/test/:service",
+    "access": "CMS",
+    "permissions": [
+      "settings.view"
+    ],
+    "authorization": "settings",
+    "body": "json",
+    "ownership": "granular RBAC plus settings delegation/category/secret permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Both existing permission systems must authorize; writes validate candidate settings.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/settingsRoutes.js:34"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/settings",
+    "access": "CMS",
+    "permissions": [
+      "settings.edit"
+    ],
+    "authorization": "settings",
+    "body": "json",
+    "ownership": "granular RBAC plus settings delegation/category/secret permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Both existing permission systems must authorize; writes validate candidate settings.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/settingsRoutes.js:78"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/settings/:category",
+    "access": "CMS",
+    "permissions": [
+      "settings.edit"
+    ],
+    "authorization": "settings",
+    "body": "json",
+    "ownership": "granular RBAC plus settings delegation/category/secret permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Both existing permission systems must authorize; writes validate candidate settings.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/settingsRoutes.js:79"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/settings/:category",
+    "access": "CMS",
+    "permissions": [
+      "settings.edit"
+    ],
+    "authorization": "settings",
+    "body": "json",
+    "ownership": "granular RBAC plus settings delegation/category/secret permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Both existing permission systems must authorize; writes validate candidate settings.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/settingsRoutes.js:80"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/settings/:category",
+    "access": "CMS",
+    "permissions": [
+      "settings.view"
+    ],
+    "authorization": "settings",
+    "body": "none",
+    "ownership": "granular RBAC plus settings delegation/category/secret permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Both existing permission systems must authorize; writes validate candidate settings.",
+    "area": "Admin/CMS",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/settingsRoutes.js:81"
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff/notifications",
+    "access": "STAFF",
+    "permissions": [
+      "notifications.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/staffRoutes.js:70"
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff/dashboard",
+    "access": "STAFF",
+    "permissions": [
+      "requests.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/staffRoutes.js:83"
+  },
+  {
+    "method": "GET",
+    "path": "/api/staff/applications/:id",
+    "access": "STAFF",
+    "permissions": [
+      "requests.view"
+    ],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "not applicable",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_staff",
+    "rateLimits": [
+      {
+        "rate": 2400,
+        "windowMs": 60000,
+        "burst": 400
+      }
+    ],
+    "source": "server/src/services/staffRoutes.js:111"
+  },
+  {
+    "method": "POST",
+    "path": "/api/staff/applications/:id/documents",
+    "access": "STAFF",
+    "permissions": [
+      "documents.process"
+    ],
+    "authorization": "rbac",
+    "body": "mixed",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "uploads",
+    "rateLimits": [
+      {
+        "rate": 12,
+        "windowMs": 60000,
+        "burst": 4
+      }
+    ],
+    "source": "server/src/services/staffRoutes.js:128"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/staff/applications/:id",
+    "access": "STAFF",
+    "permissions": [
+      "requests.update"
+    ],
+    "authorization": "rbac",
+    "body": "json",
+    "ownership": "legacy resource policies or active department membership plus operation permission",
+    "csrf": "cookie token + origin",
+    "validation": "boundary structural constraints + handler field rules",
+    "notes": "Permission plus resource scope; a CMS role alone does not grant access.",
+    "area": "Staff",
+    "public": false,
+    "authentication": "Required: current account + valid non-revoked session",
+    "rate": "admin_sensitive",
+    "rateLimits": [
+      {
+        "rate": 120,
+        "windowMs": 60000,
+        "burst": 30
+      }
+    ],
+    "source": "server/src/services/staffRoutes.js:153"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/csrf",
+    "access": "AUTH_FLOW",
+    "permissions": [],
+    "authorization": "rbac",
+    "body": "none",
+    "ownership": "server session or single-use challenge/state; no client-chosen authenticated principal",
+    "csrf": "token issuance",
+    "validation": "boundary structure",
+    "notes": "Route-specific credential/challenge validation; me/csrf/logout inspect cookie state; OAuth verifies state.",
+    "area": "Authentication",
+    "public": false,
+    "authentication": "No session required; handler state/credentials where applicable",
+    "rate": "public",
+    "rateLimits": [
+      {
+        "rate": 240,
+        "windowMs": 60000,
+        "burst": 40
+      }
+    ],
+    "source": "server/index.js:281"
+  }
+]

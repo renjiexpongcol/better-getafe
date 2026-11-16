@@ -1,3 +1,4 @@
+import { securityFetch as fetch } from '../services/securityFetch.js'
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import { Check, Eye, EyeOff, X } from "lucide-react";

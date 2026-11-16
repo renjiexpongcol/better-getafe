@@ -1,30 +1,18 @@
+import { securityFetch as fetch } from '../../services/securityFetch.js'
 import { useEffect, useState } from 'react'
 import { MapPin, Mail, Clock, Send, User, Building2, MessageSquare, Landmark, CheckCircle2, Phone } from 'lucide-react'
 import { usePublicConfig } from '../../context/PublicConfig'
-
-const CONTACT_EMAIL = 'lgugetafe@yahoo.com'
-const CONTACT_PHONE = '(038) 502-9088'
-const CATEGORY_OPTIONS = [
-  'General inquiry',
-  'Business permits',
-  'Civil registry',
-  'Real property / taxation',
-  'Social services',
-  'Engineering / building permits',
-  'Tourism',
-  'Complaint or feedback',
-  'Other',
-]
-
-const contactCards = [
-  { icon: MapPin, title: 'Visit us', lines: ['Municipal Hall, Poblacion', 'Getafe, Bohol, Philippines'] },
-  { icon: Mail, title: 'E-mail', lines: [CONTACT_EMAIL] },
-  { icon: Phone, title: 'Call us', lines: [CONTACT_PHONE] },
-  { icon: Clock, title: 'Office hours', lines: ['Monday – Friday', '8:00 AM – 5:00 PM'] },
-]
-
 export default function Contact() {
   const settings = usePublicConfig() || {}
+  const CONTACT_EMAIL = settings['contact.email'] || settings['general.supportEmail'] || ''
+  const CONTACT_PHONE = settings['contact.phone'] || ''
+  const CATEGORY_OPTIONS = String(settings['contact.categories'] || '').split('\n').map(value => value.trim()).filter(Boolean)
+  const contactCards = [
+    { icon: MapPin, title: 'Visit us', lines: [settings['contact.address']] },
+    { icon: Mail, title: 'E-mail', lines: [CONTACT_EMAIL] },
+    { icon: Phone, title: 'Call us', lines: [CONTACT_PHONE] },
+    { icon: Clock, title: 'Office hours', lines: [settings['contact.hours']] },
+  ].map(card => ({ ...card, lines: card.lines.filter(Boolean) }))
   const [form, setForm] = useState({ name: '', email: '', category: '', subject: '', message: '', website: '' })
   const [errors, setErrors] = useState({})
   const [sending, setSending] = useState(false)
@@ -34,22 +22,28 @@ export default function Contact() {
   const [submitError, setSubmitError] = useState('')
   const [captchaToken, setCaptchaToken] = useState('')
   const captchaEnabled = settings['security.contactCaptcha'] === true && Boolean(settings['security.recaptchaSiteKey'])
+  const captchaV3 = settings['security.recaptchaVersion'] === 'v3'
+  const captchaEnterprise = settings['security.recaptchaProvider'] === 'google-enterprise'
 
   useEffect(() => {
     if (!captchaEnabled) return undefined
+    setCaptchaToken('')
     let script = document.querySelector('script[data-recaptcha]')
     if (!script) {
       script = document.createElement('script')
-      script.src = 'https://www.google.com/recaptcha/api.js?render=explicit'
+      script.src = captchaEnterprise ? `https://www.google.com/recaptcha/enterprise.js?render=${encodeURIComponent(settings['security.recaptchaSiteKey'])}` : captchaV3 ? `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(settings['security.recaptchaSiteKey'])}` : 'https://www.google.com/recaptcha/api.js?render=explicit'
       script.async = true
       script.defer = true
       script.dataset.recaptcha = 'true'
+      script.dataset.recaptchaVersion = captchaV3 ? 'v3' : 'v2'
+      script.dataset.recaptchaProvider = captchaEnterprise ? 'google-enterprise' : 'google-standard'
       document.head.appendChild(script)
     }
     const render = () => {
       const node = document.getElementById('contact-recaptcha-widget')
-      if (window.grecaptcha && node && !node.dataset.rendered) {
-        window.grecaptcha.render(node, {
+      const api = captchaEnterprise ? window.grecaptcha?.enterprise : window.grecaptcha
+      if (!captchaV3 && api && node && !node.dataset.rendered) {
+        api.render(node, {
           sitekey: settings['security.recaptchaSiteKey'],
           callback: setCaptchaToken,
           'expired-callback': () => setCaptchaToken(''),
@@ -61,7 +55,7 @@ export default function Contact() {
     script.addEventListener('load', render)
     const timer = window.setInterval(render, 250)
     return () => { script.removeEventListener('load', render); window.clearInterval(timer) }
-  }, [captchaEnabled, settings['security.recaptchaSiteKey']])
+  }, [captchaEnabled, captchaV3, captchaEnterprise, settings['security.recaptchaSiteKey']])
 
   const validateField = (key, value) => {
     const trimmed = value.trim()
@@ -114,16 +108,16 @@ export default function Contact() {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (sending || !validate()) return
-    if (captchaEnabled && !captchaToken) {
+    if (captchaEnabled && !captchaV3 && !captchaToken) {
       setErrors((current) => ({ ...current, captcha: 'Please complete the verification.' }))
       return
     }
     setSubmitError('')
     setSending(true)
-    fetch('/api/contact', {
+    const submit = token => fetch('/api/contact', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'GetafeCitizenPortal' },
-      body: JSON.stringify({ ...form, captchaToken }),
+      body: JSON.stringify({ ...form, captchaToken: token }),
     })
       .then(async (response) => {
         const body = await response.json().catch(() => ({}))
@@ -137,6 +131,13 @@ export default function Contact() {
       })
       .catch((error) => setSubmitError(error.message || 'We couldn’t send your message right now. Please try again.'))
       .finally(() => setSending(false))
+    if (captchaEnabled && captchaV3) {
+      const api = captchaEnterprise ? window.grecaptcha?.enterprise : window.grecaptcha
+      if (!api) { setSending(false); setSubmitError('Verification is loading. Please try again.'); return }
+      api.ready(() => api.execute(settings['security.recaptchaSiteKey'], { action: 'contact' }).then(submit).catch(() => { setSending(false); setSubmitError('Verification failed. Please try again.') }))
+      return
+    }
+    submit(captchaToken)
   }
 
   return (
@@ -158,7 +159,7 @@ export default function Contact() {
                 <Icon size={20} aria-hidden="true" />
               </span>
               <h3>{title}</h3>
-              {lines.map((l) => (
+              {!lines.length && <p>Not published</p>}{lines.map((l) => (
                 l === CONTACT_EMAIL
                   ? <a key={l} href={`mailto:${l}`}>{l}</a>
                   : l === CONTACT_PHONE
@@ -170,7 +171,7 @@ export default function Contact() {
         </div>
 
         <div className="contact-main">
-          <section className="contact-form-card">
+          <section className="contact-form-card" id="contact-message">
             <div className="contact-form-heading">
               <div>
                 <p className="contact-section-kicker">We’re here to help</p>
@@ -228,7 +229,7 @@ export default function Contact() {
                 </div>
                 {captchaEnabled && <div className="contact-captcha contact-field"><div id="contact-recaptcha-widget" aria-label="Verification" />{errors.captcha && <small className="contact-field-error" role="alert">{errors.captcha}</small>}</div>}
                 {submitError && <p className="contact-submit-error" role="alert" aria-live="assertive">{submitError}</p>}
-                <button type="submit" className="contact-submit" disabled={sending}><Send size={16} /> {sending ? 'Sending…' : 'Send message'}</button>
+                {!CATEGORY_OPTIONS.length && <p role="status">Contact inquiry options have not been published.</p>}<button type="submit" className="contact-submit" disabled={sending || !CATEGORY_OPTIONS.length || settings.unavailable}><Send size={16} /> {sending ? 'Sending…' : 'Send message'}</button>
               </form>
             )}
           </section>
@@ -237,13 +238,12 @@ export default function Contact() {
             <div className="contact-aside-card">
               <span className="contact-aside-icon"><Landmark size={20} /></span>
               <h3>Municipal Hall</h3>
-              <p>Municipal Hall, Poblacion, Getafe, Bohol</p>
+              <p>{settings['contact.address'] || 'Address not published'}</p>
             </div>
             <div className="contact-aside-card">
               <span className="contact-aside-icon"><Clock size={20} /></span>
               <h3>Office hours</h3>
-              <p>Monday – Friday, 8:00 AM – 5:00 PM</p>
-              <p>Closed on weekends and holidays.</p>
+              <p>{settings['contact.hours'] || 'Office hours not published'}</p>
             </div>
             <p className="contact-aside-note">
               For emergencies, please call <strong>911</strong> or visit the{' '}

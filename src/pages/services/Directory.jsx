@@ -1,127 +1,45 @@
+import { useDataRevision } from '../../hooks/usePublicResource'
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, ArrowUpRight, Building2, ClipboardCheck, FileCheck2, HeartHandshake, Landmark, Map, Search, Users, WalletCards } from 'lucide-react'
+import { ArrowRight, Building2, FileCheck2, Search } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { citizenServices, serviceCategories } from '../../data/citizenServices'
 import { publicApi } from '../../services/apiClient'
-
-const fallbackServices = [
-  ['Executive', 'The Office of the Mayor and executive offices coordinate municipal programs, policy, and public service delivery.', Landmark],
-  ['Engineering', 'Find municipal engineering information, infrastructure coordination, and public works support.', Building2],
-  ['Zoning/Planning', 'Get guidance on land use, development planning, zoning clearances, and local planning requirements.', Map],
-  ['Treasury', 'Access local tax, payment, business, and revenue-related information from the Municipal Treasurer.', WalletCards],
-  ['Assessment', 'Learn about property assessment, tax declarations, and assessment office transactions.', ClipboardCheck],
-  ['Civil Registry', 'Find information about birth, marriage, death, and other civil registry document requests.', FileCheck2],
-  ['Health', 'Connect with municipal health programs, public health services, rural health support, and the Getafe RHU.', HeartHandshake],
-  ['Social Welfare', 'Find assistance programs and social welfare support for families, children, senior citizens, and vulnerable residents.', Users],
-].map(([title, excerpt, Icon]) => ({ title, excerpt, Icon, slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-') }))
-const matchesQuery = (value, query) => {
-  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
-  const haystack = value.toLowerCase()
-  return words.every(word => haystack.includes(word))
-}
+import { matchesDirectory } from '../../services/directorySearch'
 
 export default function Directory() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const selected = searchParams.get('department') || searchParams.get('search') || ''
-  const [services, setServices] = useState([])
-  const [query, setQuery] = useState(selected.replace(/-/g, ' '))
+  const dataRevision = useDataRevision()
+  const [params, setParams] = useSearchParams()
+  const query = params.get('search') || params.get('department')?.replace(/-/g, ' ') || ''
+  const [offices, setOffices] = useState([])
+  const [catalog, setCatalog] = useState([])
   const [loading, setLoading] = useState(true)
-
+  const [unavailable, setUnavailable] = useState(false)
+  const [attempt, setAttempt] = useState(0)
   useEffect(() => {
-    publicApi('/news?category=services&limit=24')
-      .then((data) => {
-        const items = data.items || []
-        setServices(items.length ? items : fallbackServices)
-      })
-      .catch(() => {
-        setServices(fallbackServices)
-      })
-      .finally(() => setLoading(false))
-  }, [])
-
-  const filteredServices = useMemo(() => {
-    return query.trim() ? services.filter((service) => matchesQuery(`${service.title} ${service.excerpt} ${service.slug || ''}`, query)) : services
-  }, [query, services])
-
-  const filteredCitizenServices = useMemo(() => {
-    if (!query.trim()) return []
-    return citizenServices.filter((service) => {
-      const category = serviceCategories.find((item) => item.id === service.category)
-      return matchesQuery(`${service.name} ${category?.name || ''} ${category?.description || ''}`, query)
+    let active = true
+    setLoading(true)
+    Promise.allSettled([
+      publicApi('/departments', { force: attempt > 0 || dataRevision > 0, persist: false }),
+      publicApi('/services', { force: attempt > 0 || dataRevision > 0, persist: false }),
+    ]).then(([officeResult, serviceResult]) => {
+      if (!active) return
+      setOffices(officeResult.status === 'fulfilled' ? officeResult.value.items || [] : [])
+      setCatalog(serviceResult.status === 'fulfilled' ? serviceResult.value.items || [] : [])
+      setUnavailable(officeResult.status === 'rejected' || serviceResult.status === 'rejected')
+      setLoading(false)
     })
-  }, [query])
-
-  const serviceHref = (service) => {
-    if (service.id === 'barangay-clearance') return '/services/barangay-clearance'
-    if (service.category === 'business') return '/services/business-trade'
-    if (service.category === 'treasury') return '/services/offices/treasury'
-    return `/services/${service.category}`
-  }
-
-  const officeHref = (service) => `/departments/${encodeURIComponent(service.slug)}`
-
-  const chooseDepartment = (value) => {
-    setQuery(value)
-    setSearchParams(value ? { department: value.toLowerCase().replace(/[^a-z0-9]+/g, '-') } : {})
-  }
-
-  return (
-    <main className="service-directory-page">
-      <div className="page-header">
-        <div className="container page-header-inner">
-          <div>
-            <p className="service-directory-kicker">Municipal offices</p>
-            <h1 className="page-title">Services &amp; departments</h1>
-            <p className="page-subtitle">Find the right municipal office, requirements, and service information for your next transaction.</p>
-          </div>
-        </div>
-      </div>
-      <section className="service-directory-content section">
-        <div className="container">
-          <div className="service-directory-toolbar">
-            <label className="service-directory-search"><Search size={18} /><span className="sr-only">Search departments</span><input value={query} onChange={(event) => chooseDepartment(event.target.value)} placeholder="Search departments" /></label>
-            {query && <button type="button" className="service-directory-clear" onClick={() => chooseDepartment('')}>Show all departments</button>}
-          </div>
-          {loading ? <p>Loading municipal departments…</p> : (filteredCitizenServices.length || filteredServices.length) ? <>
-            {filteredCitizenServices.length > 0 && <div className="service-directory-grid">
-              {filteredCitizenServices.map((service) => {
-                const category = serviceCategories.find((item) => item.id === service.category)
-                return <article className="service-directory-card" key={service.id}>
-                  <div className="service-directory-icon"><FileCheck2 size={22} aria-hidden="true" /></div>
-                  <p className="service-directory-label">Municipal service</p>
-                  <h2>{service.name}</h2>
-                  <p>{category?.description || 'Municipal service information and requirements.'}</p>
-                  <Link to={serviceHref(service)} className="service-directory-link">View service information <ArrowUpRight size={15} /></Link>
-                </article>
-              })}
-            </div>}
-            {filteredServices.length > 0 && <section className="service-directory-offices" aria-labelledby="related-offices-title"><h2 id="related-offices-title">Related municipal offices</h2><div className="service-directory-grid service-directory-office-grid">
-              {filteredServices.map((service) => {
-                const Icon = service.Icon || Building2
-                const destination = officeHref(service)
-                const officeLink = <>View office information <ArrowRight size={15} aria-hidden="true" /></>
-                return <article className="service-directory-card service-directory-office-card" key={service.id || service.slug}>
-                  <div className="service-directory-office-identity">
-                    <div className="service-directory-icon"><Icon size={20} aria-hidden="true" /></div>
-                    <div className="service-directory-office-heading">
-                      <p className="service-directory-label">Municipal office</p>
-                      <h2>{service.title}</h2>
-                    </div>
-                  </div>
-                  <p>{service.excerpt}</p>
-                  <Link to={destination} className="service-directory-link">{officeLink}</Link>
-                </article>
-              })}
-            </div></section>}
-          </> : <div className="service-directory-empty" role="status">
-            {query ? <>
-              <h2>No services found for “{query}”</h2>
-              <p>Try another search or browse all municipal services.</p>
-              <Link to="/services" className="service-directory-link">Browse all services <ArrowRight size={15} aria-hidden="true" /></Link>
-            </> : <p>No municipal services are available right now.</p>}
-          </div>}
-        </div>
-      </section>
-    </main>
-  )
+    return () => { active = false }
+  }, [attempt, dataRevision])
+  const services = useMemo(() => catalog.map(service => ({ ...service, href: `/services/e-services/${encodeURIComponent(service.slug)}`, description: service.short_description })).filter(service => matchesDirectory(`${service.name} ${service.description || ''} ${service.department_name || ''}`, query)), [catalog, query])
+  const results = offices.filter(office => matchesDirectory(`${office.name} ${office.shortDescription || ''} ${office.slug}`, query))
+  return <main className="service-directory-page"><div className="page-header"><div className="container page-header-inner"><div><h1 className="page-title">Services &amp; offices</h1><p className="page-subtitle">Find requirements, service guidance, and the right municipal office.</p></div></div></div>
+    <section className="service-directory-content section"><div className="container">
+      <div className="service-directory-toolbar"><label className="service-directory-search"><span>Search services and offices</span><span className="service-directory-search-field"><Search size={18} aria-hidden="true" /><input value={query} onChange={event => setParams(event.target.value ? { search: event.target.value } : {}, { replace: true })} placeholder="e.g. business permit or RHU" type="search" /></span></label>{query && <button type="button" className="service-directory-clear" onClick={() => setParams({})}>Clear search</button>}</div>
+      {loading && <p role="status">Loading published services and offices…</p>}
+      {unavailable && <div className="homepage-state" role="status"><p>Live service or office information is unavailable. Please try again to load the published records.</p><button type="button" onClick={() => setAttempt(value => value + 1)}>Try again</button></div>}
+      {query && !loading && <p className="service-directory-result-count" role="status">{services.length} {services.length === 1 ? 'service' : 'services'} and {results.length} {results.length === 1 ? 'office' : 'offices'} found</p>}
+      {services.length > 0 && <section aria-labelledby="directory-services"><h2 id="directory-services">Services</h2><div className="service-directory-grid">{services.map(service => <article className="service-directory-card" key={service.id}><FileCheck2 size={22} aria-hidden="true" /><h3>{service.name}</h3><p>{service.description}</p>{typeof service.online_available === 'boolean' ? <p className="service-directory-availability">{service.online_available ? 'Start online' : 'Contact the office for availability'}</p> : <p className="service-directory-availability">Service guidance · confirm availability with the office</p>}<Link to={service.href} className="service-directory-link">View service information <ArrowRight size={16} aria-hidden="true" /></Link></article>)}</div></section>}
+      {results.length > 0 && <section className="service-directory-offices" aria-labelledby="directory-offices"><h2 id="directory-offices">Offices</h2><div className="service-directory-grid service-directory-office-grid">{results.map(office => <article className="service-directory-card service-directory-office-card" key={office.id}><Building2 size={22} aria-hidden="true" /><h3>{office.name}</h3><p>{office.shortDescription}</p><Link to={`/departments/${encodeURIComponent(office.slug)}`} className="service-directory-link">View office information <ArrowRight size={16} aria-hidden="true" /></Link></article>)}</div></section>}
+      {!loading && !unavailable && !services.length && !results.length && <div className="service-directory-empty" role="status"><h2>No results for “{query}”</h2><p>Try a service name, office name, or abbreviation such as RHU or BPLO.</p><button type="button" onClick={() => setParams({})}>Browse all</button> <Link to="/contact">Contact the municipality</Link></div>}
+    </div></section>
+  </main>
 }

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { requestJson } from './apiTransport.js'
 import { cachedRequest } from './requestCache.js'
+import {routeRequest} from './routeRequests.js'
+import {isPublicApiRequest} from './securitySurfaces.js'
 export async function destinationRequest(url, options = {}) {
+  if (!options.method || options.method === 'GET') return routeRequest(url, {scope:isPublicApiRequest(url)?'public':'cms',...options})
   return requestJson(url, options)
 }
 export function useDestinations(url) {

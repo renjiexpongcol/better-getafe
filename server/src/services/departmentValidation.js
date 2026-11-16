@@ -1,6 +1,5 @@
-import { citizenServices } from '../../../src/data/citizenServices.js';
 
-export function validateDepartment(input) {
+export function validateDepartment(input, availableServiceIds = []) {
   const text = (key, max = 200) => String(input[key] || '').trim().slice(0, max);
   const slug = text('slug', 120);
   const name = text('name');
@@ -11,7 +10,7 @@ export function validateDepartment(input) {
   };
   if (input.icon && !['Building2','Landmark','WalletCards','HeartHandshake','Users','Map','ClipboardCheck','FileCheck2'].includes(input.icon)) throw new Error('Choose a supported department icon.');
   const serviceIds = list('serviceIds');
-  if (serviceIds.some(id => !citizenServices.some(service => service.id === id))) throw new Error('Choose services from the existing service catalogue.');
+  if (serviceIds.some(id => !availableServiceIds.includes(id))) throw new Error('Choose services from the existing service catalogue.');
   const email = text('email', 254);
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid email address.');
   const displayOrder = Number(input.displayOrder || 0);

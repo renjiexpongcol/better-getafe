@@ -1,0 +1,36 @@
+.integration-hub { color:var(--color-text,#172c44); min-width:0; }
+.hub-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.hub-heading h1 { display:flex; align-items:center; gap:8px; margin:0; font-size:24px; }
+.hub-heading p,.hub-note { color:#536174; font-size:13px; }
+.integration-hub button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:40px; padding:8px 12px; border:1px solid #bcc5ce; border-radius:6px; background:#fffdf5; color:#16324f; font:inherit; font-size:13px; cursor:pointer; }
+.integration-hub button:disabled { opacity:.55; cursor:default; }
+.integration-hub button:focus-visible,.integration-hub input:focus-visible { outline:3px solid #1c5b96; outline-offset:2px; }
+.hub-metrics { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; margin:12px 0; }
+.hub-metrics div { padding:12px; border:1px solid #d6d9db; background:#fffdf5; border-radius:6px; }
+.hub-metrics dt { font-size:12px; text-transform:capitalize; }
+.hub-metrics dd { margin:4px 0 0; font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; }
+.hub-search { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:14px 0; font-size:13px; }
+.hub-search input { flex:1; max-width:360px; min-width:130px; }
+.integration-hub input { padding:10px; border:1px solid #abb8c4; border-radius:5px; background:white; color:#172c44; min-width:0; font:inherit; }
+.hub-table { overflow-x:auto; border:1px solid #d6d9db; border-radius:6px; margin:12px 0; }
+.hub-table table { width:100%; border-collapse:collapse; font-size:13px; }
+.hub-table caption { text-align:left; background:#16324f; color:white; padding:12px; font-weight:600; }
+.hub-table th,.hub-table td { padding:10px 12px; border-bottom:1px solid #e3e5e7; text-align:left; vertical-align:top; }
+.hub-table thead { background:#f4f0e5; }
+.hub-table th small { display:block; font-weight:400; margin-top:5px; color:#536174; max-width:290px; }
+.hub-table p { padding:0 12px; }
+.hub-catalog th[scope=row] { min-width:190px; }
+.hub-actions { display:flex; flex-wrap:wrap; gap:6px; }
+.hub-status { display:inline-block; padding:4px 8px; border-radius:4px; background:#eef0f2; white-space:nowrap; text-transform:capitalize; }
+.hub-status-connected { background:#e4f1e8; color:#215c37; }
+.hub-status-degraded,.hub-status-pending_authorization { background:#fff0ca; color:#674b00; }
+.hub-status-failed,.hub-error { color:#9f2727; background:#fff0ed; }
+.hub-error { padding:10px; border-radius:5px; }
+.hub-notice { font-size:13px; color:#215c37; }
+.hub-dialog { box-sizing:border-box; padding:20px; width:min(820px,calc(100vw - 48px)); max-height:calc(100dvh - 48px); overflow:auto; background:var(--color-surface,#fffdf5); border:1px solid #d6d9db; border-radius:var(--radius-panel,8px); text-align:left; }
+.hub-dialog label { display:flex; flex-direction:column; gap:6px; margin:12px 0; font-size:14px; }
+.hub-dialog fieldset { border:1px solid #d6d9db; padding:12px; margin:16px 0; }
+.integration-hub h2 { font-size:18px; margin:20px 0 10px; }
+@media(max-width:900px) { .hub-metrics { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media(max-width:700px) { .hub-catalog { overflow:visible; } .hub-catalog table,.hub-catalog tbody,.hub-catalog tr,.hub-catalog caption { display:block; } .hub-catalog thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); } .hub-catalog th[scope=row],.hub-catalog td { display:block; min-width:0; border:0; padding:6px 12px; } .hub-catalog tr { padding:10px 0; border-bottom:1px solid #d6d9db; } .hub-catalog td[data-label]::before { content:attr(data-label); display:block; color:#536174; font-size:12px; margin-bottom:4px; } .hub-catalog .hub-actions { margin-top:4px; } }
+@media(max-width:500px) { .hub-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .hub-heading { align-items:flex-start; } .hub-heading h1 { font-size:20px; } .hub-table th,.hub-table td { padding:8px; } .hub-dialog { padding:14px; width:calc(100vw - 44px); } .integration-hub button { min-height:44px; } }

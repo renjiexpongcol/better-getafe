@@ -1,0 +1,208 @@
+[
+  {
+    "width": 390,
+    "path": "/missing-audit-page",
+    "calls": []
+  },
+  {
+    "width": 390,
+    "path": "/auth/login",
+    "calls": [
+      "/api/auth/me",
+      "/api/public/config"
+    ]
+  },
+  {
+    "width": 390,
+    "path": "/auth/forgot-password",
+    "calls": [
+      "/api/public/config",
+      "/api/auth/me"
+    ]
+  },
+  {
+    "width": 390,
+    "path": "/auth/not-a-route",
+    "calls": []
+  },
+  {
+    "width": 390,
+    "path": "/app",
+    "calls": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 390,
+    "path": "/app/services",
+    "calls": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 390,
+    "path": "/app/staff",
+    "calls": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/staff/dashboard"
+    ]
+  },
+  {
+    "width": 390,
+    "path": "/admin",
+    "calls": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/categories",
+      "/api/admin/news?limit=100"
+    ]
+  },
+  {
+    "width": 390,
+    "path": "/admin/users",
+    "calls": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/access"
+    ]
+  },
+  {
+    "width": 390,
+    "path": "/admin/settings",
+    "calls": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/admin/settings/general"
+    ]
+  },
+  {
+    "width": 390,
+    "path": "/admin/content",
+    "calls": [
+      "/api/public/config",
+      "/api/auth/me"
+    ]
+  },
+  {
+    "width": 1440,
+    "path": "/missing-audit-page",
+    "calls": []
+  },
+  {
+    "width": 1440,
+    "path": "/auth/login",
+    "calls": [
+      "/api/auth/me",
+      "/api/public/config"
+    ]
+  },
+  {
+    "width": 1440,
+    "path": "/auth/forgot-password",
+    "calls": [
+      "/api/auth/me",
+      "/api/public/config"
+    ]
+  },
+  {
+    "width": 1440,
+    "path": "/auth/not-a-route",
+    "calls": []
+  },
+  {
+    "width": 1440,
+    "path": "/app",
+    "calls": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 1440,
+    "path": "/app/services",
+    "calls": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 1440,
+    "path": "/app/staff",
+    "calls": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/staff/dashboard"
+    ]
+  },
+  {
+    "width": 1440,
+    "path": "/admin",
+    "calls": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/categories",
+      "/api/admin/news?limit=100"
+    ]
+  },
+  {
+    "width": 1440,
+    "path": "/admin/users",
+    "calls": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/access"
+    ]
+  },
+  {
+    "width": 1440,
+    "path": "/admin/settings",
+    "calls": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/settings/general"
+    ]
+  },
+  {
+    "width": 1440,
+    "path": "/admin/content",
+    "calls": [
+      "/api/auth/me",
+      "/api/public/config"
+    ]
+  },
+  {
+    "path": "/missing-audit-page",
+    "observedSeconds": 180,
+    "backgroundRequests": 0
+  },
+  {
+    "path": "/auth/login",
+    "observedSeconds": 180,
+    "backgroundRequests": 0
+  },
+  {
+    "path": "/admin",
+    "observedSeconds": 180,
+    "backgroundRequests": 0
+  },
+  {
+    "path": "/app/staff",
+    "observedSeconds": 180,
+    "backgroundRequests": 0
+  }
+]

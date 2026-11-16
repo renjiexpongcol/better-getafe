@@ -1,7 +1,7 @@
+import { useDataRevision } from '../../hooks/usePublicResource'
 import { useEffect, useState } from 'react'
 import { ArrowLeft } from 'lucide-react';
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { barangays as fallback } from '../../data/barangays'
 import { ErrorPage, ResourceNotFound } from '../../components/RouteStatusPages'
 import { publicApi } from '../../services/apiClient'
 const PLACEHOLDER = '/assets/brgy-user-vector/profile-circle.svg'
@@ -10,8 +10,9 @@ const slug = (value) => String(value || '').toLowerCase().trim().replace(/[^a-z0
 const matchesBarangay = (item, id) => slug(item?.id) === slug(id) || slug(item?.name) === slug(id)
 
 export default function BarangayOfficial() {
+  const dataRevision = useDataRevision()
   const { id } = useParams()
-  const [barangay, setBarangay] = useState(() => fallback.find((item) => matchesBarangay(item, id)) || null)
+  const [barangay, setBarangay] = useState(null)
   const [official, setOfficial] = useState(null)
   const [loading, setLoading] = useState(Boolean(id) && !barangay)
   const [loadError, setLoadError] = useState(false)
@@ -20,14 +21,14 @@ export default function BarangayOfficial() {
     setLoading(true)
     let active = true
     Promise.all([publicApi('/barangays'), publicApi('/officials')]).then(async ([items, officials]) => {
-      const nextBarangay = items.find((item) => matchesBarangay(item, id)) || fallback.find((item) => matchesBarangay(item, id)) || null
+      const nextBarangay = items.find((item) => matchesBarangay(item, id)) || null
       const nextOfficial = (officials.punongBarangays || []).find((item) => String(item.role || '').toLowerCase().trim() === String(nextBarangay?.name || '').toLowerCase().trim()) || null
       if (!active) return
       setBarangay(nextBarangay)
       setOfficial(nextOfficial)
-    }).catch(() => { if (active) setLoadError(!fallback.find((item) => matchesBarangay(item, id))) }).finally(() => { if (active) setLoading(false) })
+    }).catch(() => { if (active) setLoadError(true) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [id])
+  }, [id, dataRevision])
   if (!id) return <Navigate to="/barangays" replace />
   if (loading) return <main className="section"><div className="container"><p>Loading official details…</p></div></main>
   if (loadError) return <ErrorPage code="503" title="Official details are temporarily unavailable" message="Please try again later." secondaryAction={{ label: 'Browse Barangays', to: '/barangays' }} />

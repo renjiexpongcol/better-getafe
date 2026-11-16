@@ -1,4 +1,5 @@
 import { config } from '../config/index.js';
+import { safeRequest } from '../integrationHub/security.js';
 export async function integrationRequest(resource, payload) {
   if (!config.get('integrations.enabled')) throw new Error('Integration is disabled.');
   const base = config.get('integrations.baseUrl');
@@ -9,7 +10,6 @@ export async function integrationRequest(resource, payload) {
   const headers = { 'Content-Type': 'application/json' };
   if (config.get('integrations.apiKey')) headers.Authorization = `Bearer ${config.get('integrations.apiKey')}`;
   else if (config.get('integrations.clientId')) headers.Authorization = `Basic ${Buffer.from(`${config.get('integrations.clientId')}:${config.get('integrations.clientSecret') || config.get('integrations.oauthClientSecret')}`).toString('base64')}`;
-  const response = await fetch(url, { method: payload === undefined ? 'GET' : 'POST', headers, body: payload === undefined ? undefined : JSON.stringify(payload), redirect: 'error', signal: AbortSignal.timeout(10000) });
-  if (!response.ok) throw new Error('Integration request failed.');
-  return response;
+  const response = await safeRequest(url.href, { allowedHosts: (process.env.INTEGRATION_ALLOWED_HOSTS || '').split(',').map(host => host.trim().toLowerCase()), method: payload === undefined ? 'GET' : 'POST', headers, body: payload === undefined ? undefined : JSON.stringify(payload) });
+  return new Response(response.text, { status: response.status });
 }

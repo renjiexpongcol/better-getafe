@@ -1,7 +1,7 @@
-import dotenv from 'dotenv';
+import '../../config/bootstrap.js';
+import { dependencyReason } from '../../services/startupDiagnostics.js';
 import { createClient } from 'redis';
 
-if (process.env.NODE_ENV !== 'production') dotenv.config();
 
 const parseBoolean = (value, fallback) => {
   if (value === undefined || value === '') return fallback;
@@ -30,7 +30,7 @@ const redis = createClient({
 let connectionPromise = null;
 
 redis.on('error', error => {
-  console.error('[REDIS] Error:', error?.message || error);
+  console.error('[REDIS] Error:', dependencyReason(error));
 });
 redis.on('connect', () => console.log('[REDIS] Connected'));
 redis.on('ready', () => console.log('[REDIS] Ready'));
@@ -51,7 +51,7 @@ export async function connectRedis() {
     connectionPromise = redis.connect()
       .then(() => redis.isReady)
       .catch(error => {
-        console.error('[REDIS] Connection failed:', error?.message || error);
+        console.error('[REDIS] Connection failed:', dependencyReason(error));
         return false;
       })
       .finally(() => { connectionPromise = null; });

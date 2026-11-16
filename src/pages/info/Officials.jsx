@@ -1,15 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { usePublicResource } from '../../hooks/usePublicResource'
+import { LoadingState, ErrorState, EmptyState } from '../../components/ui/Primitives'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Landmark, Users, MapPin, Building2 } from 'lucide-react'
-import { barangays } from '../../data/barangays'
-import { publicApi } from '../../services/apiClient'
 
 const PLACEHOLDER = '/assets/brgy-user-vector/profile-circle.svg'
 const officialId = (name) => String(name || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-const fallback = [
-  { name: 'Cary M. Camacho, MPM', role: 'Municipal Mayor', position: { slug: 'municipal-mayor' }, jurisdiction: { type: 'municipal' }, term: { status: 'unknown' } },
-  { name: 'Casey Shaun M. Camacho', role: 'Municipal Vice-Mayor', position: { slug: 'municipal-vice-mayor' }, jurisdiction: { type: 'municipal' }, term: { status: 'unknown' } },
-]
 const officialKey = (official, index = 0) => official?.publicKey || official?.slug || `${officialId(official?.name)}-${official?.position?.slug || official?.role || 'official'}-${index}`
 const formatDate = value => {
   if (!value) return null
@@ -36,15 +32,9 @@ function OfficialCard({ official, lead = false }) {
 }
 
 export default function Officials() {
-  const [directory, setDirectory] = useState({ items: fallback, meta: {} })
+  const resource = usePublicResource('/officials/directory')
+  const directory = resource.data || { items: [], meta: {} }
   const [view, setView] = useState('current')
-  useEffect(() => {
-    let active = true
-    publicApi('/officials/directory').then(value => {
-      if (active && Array.isArray(value?.items) && value.items.length) setDirectory(value)
-    }).catch(() => {})
-    return () => { active = false }
-  }, [])
   const all = directory.items || []
   const current = useMemo(() => all.filter(item => item.term?.status === 'current'), [all])
   const previous = useMemo(() => all.filter(item => item.term?.status === 'previous'), [all])
@@ -56,11 +46,14 @@ export default function Officials() {
   const leaders = elected.filter(item => ['municipal-mayor', 'municipal-vice-mayor'].includes(item.position?.slug))
   const council = elected.filter(item => !['municipal-mayor', 'municipal-vice-mayor'].includes(item.position?.slug))
   const departmentHeads = municipal.filter(item => !elected.includes(item))
-  const shownBarangays = barangayOfficials.length ? barangayOfficials : (view === 'current' ? barangays.map(item => ({ name: item.captain, role: item.name, jurisdiction: { type: 'barangay' }, term: { status: 'unknown' } })) : [])
+  const shownBarangays = barangayOfficials
 
   return <main id="officials">
     <section className="about-hero officials-hero"><div className="about-hero-bg"><img src="/assets/pages/bg/Municipal-Officials.png" alt="Getafe Municipal Hall" /><div className="about-hero-overlay" /></div><div className="container about-hero-inner"><p className="about-hero-kicker">Municipality of Getafe • Bohol</p><h1>Municipal Officials</h1><p className="about-hero-sub">Current and historical public officeholders, with verified term information where available.</p></div></section>
     <div className="content-page container">
+      {resource.loading && <LoadingState />}
+      {resource.error && <ErrorState message={resource.error} onRetry={resource.reload} />}
+      {!resource.loading && !resource.error && !all.length && <EmptyState title="No officials published yet" />}
       <div className="official-view-toggle" role="group" aria-label="Officials shown"><button className={view === 'current' ? 'active' : ''} type="button" onClick={() => setView('current')}>Current</button><button className={view === 'previous' ? 'active' : ''} type="button" onClick={() => setView('previous')}>Previous</button></div>
       {municipal.length ? <>
         <section className="history-block"><div className="history-head"><span className="history-head-icon"><Landmark size={22} /></span><div><h2>{view === 'current' ? 'Current Municipal Officials' : 'Previous Municipal Officials'}</h2><p>{view === 'current' ? 'The executive and legislative leadership of Getafe.' : 'Historical officeholders retained by the Municipality of Getafe.'}</p></div></div>

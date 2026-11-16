@@ -1,4 +1,4 @@
-import { getCmsPool, getPortalPool } from './cloudSql.js';
+import { getCmsPool, getPortalPool } from './database.js';
 import { hashPassword } from './passwordHashing.js';
 export async function replacePassword(id, kind, password, { touchUpdatedAt = true } = {}) {
 

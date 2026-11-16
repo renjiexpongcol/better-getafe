@@ -54,8 +54,8 @@ async function fetchJson(url, options = {}) {
 
 export function providerKeys(values = {}) {
   return {
-    openWeatherApiKey: String(values.openWeatherApiKey || process.env.OPENWEATHER_API_KEY || '').trim(),
-    accuWeatherApiKey: String(values.accuWeatherApiKey || process.env.ACCUWEATHER_API_KEY || '').trim(),
+    openWeatherApiKey: String(values.openWeatherApiKey || '').trim(),
+    accuWeatherApiKey: String(values.accuWeatherApiKey || '').trim(),
   }
 }
 

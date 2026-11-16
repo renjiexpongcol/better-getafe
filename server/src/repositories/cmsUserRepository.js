@@ -1,5 +1,5 @@
 import { provisionEmployee } from '../services/employeeProvisioning.js';
-import { getCmsPool } from '../services/cloudSql.js';
+import { getCmsPool } from '../services/database.js';
 import { getLocalDb, saveLocalDb, isGcp } from './postgresCompatibility.js';
 
 export async function getCmsUsers() {
@@ -10,7 +10,7 @@ export async function getCmsUsers() {
       return rows;
     } catch (error) {
       if (process.env.NODE_ENV === 'production' || process.env.AUTH_LOCAL_FALLBACK !== 'true') throw error;
-      console.warn('Cloud SQL unavailable; using local development accounts.');
+      console.warn('PostgreSQL unavailable; using local development accounts.');
       return (await getLocalDb()).users;
     }
   } else {

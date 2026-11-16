@@ -1,5 +1,12 @@
-import ServicesSection from '../../components/ServicesSection';
-import ServiceCatalog from '../../components/ServiceCatalog';
+import ServiceCatalog from '../../components/ServiceCatalog'
+import PopularServiceLinks from '../../components/PopularServiceLinks'
+
 export default function Services() {
-  return <main id="services-page"><div className="page-header"><div className="container page-header-inner"><div><h1 className="page-title">Municipal Services</h1><p className="page-subtitle">Official LGU services of the Municipality of Getafe, Bohol</p></div></div></div><section className="es-workspace" aria-labelledby="service-catalog-title"><h2 id="service-catalog-title">Service catalog</h2><ServiceCatalog /></section><ServicesSection /></main>;
+  return <main id="services-page">
+    <div className="page-header"><div className="container page-header-inner"><div><h1 className="page-title">Municipal Services</h1><p className="page-subtitle">Official LGU services of the Municipality of Getafe, Bohol</p></div></div></div>
+    <div className="services-page-content container">
+      <ServiceCatalog heading="Service catalog"/>
+      <PopularServiceLinks/>
+    </div>
+  </main>
 }

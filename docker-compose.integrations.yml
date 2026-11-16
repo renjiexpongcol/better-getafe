@@ -1,0 +1,10 @@
+services:
+  integration-worker:
+    build: .
+    command: ["node", "server/integration-worker.js"]
+    restart: "on-failure:3"
+    env_file: .env
+    environment:
+      NODE_ENV: production
+    stop_grace_period: 40s
+    # No published port. Readiness is the database heartbeat shown in the CMS.

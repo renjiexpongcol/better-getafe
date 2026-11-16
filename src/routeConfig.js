@@ -1,4 +1,9 @@
-const routeOverrides = {
+import { accessState } from '@getafe/auth-client'
+
+export const routeOverrides = {
+  './pages/search/Search.jsx': '/search',
+  './pages/newsletter/Subscribe.jsx': '/newsletter/subscribe/:token',
+  './pages/newsletter/Unsubscribe.jsx': '/newsletter/unsubscribe/:token',
   './pages/services/Eservice.jsx': '/services/e-services/:slug',
   './pages/app/Eservice.jsx': '/app/services/:slug',
   './pages/app/Erequests.jsx': '/app/e-requests',
@@ -72,12 +77,7 @@ export function buildPageRouteManifest(files) {
 }
 
 export function getProtectedRouteState({ user, requiredRole }) {
-  if (!user) return 'unauthenticated'
-  const role = user.role
-  if (requiredRole === 'admin') return ['admin', 'super_admin'].includes(role) ? 'allowed' : 'forbidden'
-  if (requiredRole === 'staff') return ['staff', 'it_support', 'content_manager'].includes(role) ? 'allowed' : 'forbidden'
-  if (requiredRole === 'citizen') return role === 'resident' ? 'allowed' : 'forbidden'
-  return 'allowed'
+  return accessState(user, requiredRole)
 }
 
 export function resolveResourceResponse(status) {

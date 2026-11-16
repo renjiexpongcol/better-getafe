@@ -1,10 +1,21 @@
+import { saveCmsMfa, consumeCmsRecoveryCode } from './src/services/cmsMfa.js';
+import { pipeline } from 'node:stream/promises';
+import { activeAzureImageKey, openAzureArticleImage } from './src/services/storage.js';
+import { validatePasswordLogin } from '../src/services/loginValidation.js';
+import { sendStartupPage } from './src/services/startupPage.js';
+import { drainStaffNotifications, markStaffEmailDelivery, validateStaffEmailDelivery } from './src/services/staffNotifications.js';
+import { createCsrfProtection } from './src/services/csrf.js';
+import { requirePermission as requireSettingsPermission } from './src/config/permissions.js';
 import { checkRequestOrigin } from './src/services/requestOrigin.js';
 import { authDiagnostics } from './src/services/authDiagnostics.js';
+import { registerManagedContentRoutes } from './src/services/managedContentRoutes.js';
 import { registerDepartmentRoutes } from './src/services/departmentRoutes.js';
 import { installEserviceRoutes, drainEserviceOutbox } from './src/services/eserviceRoutes.js';
 import { registerDestinationRoutes } from './src/services/destinationRoutes.js';
 import { rememberGoogleProfile, googleOnboarding } from './src/services/googleOnboarding.js';
 import { installCitizenRoutes } from './src/services/citizenRoutes.js';
+import { homepageMetadata } from './src/services/homepageMetadata.js';
+import { safeReturnPath, loginDestination, resolvePostAuthDestination } from '../src/authNavigation.js';
 // Continuing to serve requests after an uncaught exception or unhandled
 // rejection can leave shared state partially updated. Log the fatal error and
 // terminate so the process supervisor can start a clean worker.
@@ -19,10 +30,13 @@ process.on('unhandledRejection', (error) => {
 });
 
 import express from "express";
+import { createServer } from 'node:http';
 import { getGetafeWeather } from './src/services/getafeWeather.js';
+import { getHeaderExchangeRates } from './src/services/headerExchangeRates.js';
 import { getAggregatedCurrent, getAggregatedForecast, providerKeys } from './src/services/weatherAggregator.js';
 import { normalizeWeather } from './src/services/weatherNormalizer.js';
-import { closeCloudSql, databaseHealth, getPortalPool, getCmsPool } from './src/services/cloudSql.js';
+import { closeDatabaseConnection, databaseHealth, getPortalPool, getCmsPool, getActiveDatabaseConnectionOptions, getDatabaseRuntimeStatus } from './src/services/database.js';
+import { getDataApiCategories } from './src/services/supabaseDataApi.js';
 import path from "path";
 
 import crypto from "crypto";
@@ -36,10 +50,14 @@ import { installStaffRoutes } from './src/services/staffRoutes.js';
 import { installAccessManagementRoutes } from './src/services/accessManagementRoutes.js';
 import { effectiveAccessFor, hasAccess, requireAccess, audit } from './src/services/authorizationService.js';
 import { loginThrottle, passwordResetEmailThrottle, issueCode, resendCode, verifyCode, actionThrottle, verificationCodeDigest } from './src/services/authSecurity.js';
+import { enrichWithPsgc, getLocalGetafePsgc, normalizeName as normalizePsgcName, startPsgcSyncSchedule, stopPsgcSyncSchedule, syncGetafePsgc } from './src/services/psgcSyncService.js';
 import { stateKey, stateTransaction, putState, consumeState, readState } from './src/services/authState.js';
 import { replacePassword } from './src/services/passwords.js';
 import { integrationRequest } from './src/services/integrations.js';
+import { registerIntegrationHubRoutes } from './src/integrationHub/routes.js';
+import { installExternalApiRoutes } from './src/services/externalApiRoutes.js';
 import { sendEmail } from './src/services/email.js';
+import { createNewsletterHandlers, newsletterPublicOrigin } from './src/services/newsletterRoutes.js';
 import { AdaptiveTrafficProtector, isTrustedProxyAddress, resolveClient, resolveClientAddress } from './src/services/trafficProtection.js';
 import { installContactRoutes } from './src/services/contactRoutes.js';
 import { cacheService } from './src/services/cacheService.js';
@@ -51,15 +69,22 @@ import { assertSessionRegistryAvailable, extendRedisKeyExpiry, sessionTtlSeconds
 import { passwordMeetsPolicy } from './src/services/passwordPolicy.js';
 import { safeUser } from './src/services/authPayload.js';
 import { hashPassword, verifyPassword } from './src/services/passwordHashing.js';
+import { selectLoginAccount } from './src/services/loginAccount.js';
 
 import { fileURLToPath } from "url";
 import { initializeServices, serviceStatus } from "./src/services/initialization.js";
-import { createUploadUrl, uploadObject, createDownloadUrl, deleteObject, getObjectMetadata, readObject, imageSignatureMatches, validateImageUpload, validateObjectKey, storageIsLocal, storageHealth, initializeStorage, writePrivateFile, readPrivateFile, deletePrivateFile, isStorageNotFoundError } from "./src/services/storage.js";
+import { syncVerifiedAzureCutover } from "./src/services/mediaMigration.js";
+import { systemStatus } from './src/services/runtimeConfiguration.js';
+import { emailHealth } from './src/services/email.js';
+import { evaluateDependencies, reportStartup, dependencyReason } from './src/services/startupDiagnostics.js';
+import { createUploadUrl, uploadObject, createDownloadUrl, deleteObject, getObjectMetadata, readObject, imageSignatureMatches, validateImageUpload, validateObjectKey, storageIsLocal, storageLocation, storageHealth, initializeStorage, writePrivateFile, readPrivateFile, deletePrivateFile, isStorageNotFoundError } from "./src/services/storage.js";
 
 import { getCategories, createCategory, updateCategory, deleteCategory } from "./src/repositories/categoryRepository.js";
 import { getPopularServices } from "./src/repositories/popularServicesRepository.js";
 import { getNewsArticles, getNewsArticleBySlug, createNewsArticle, updateNewsArticle, deleteNewsArticle, bulkUpdateNewsArticles } from "./src/repositories/newsRepository.js";
-import { getMediaPage, finalizePendingUpload, createPendingUpload, deletePendingUpload, getMediaByStoragePath, getMediaByChecksum, getPendingUpload } from "./src/repositories/mediaRepository.js";
+import { getMedia, getMediaPage, finalizePendingUpload, createPendingUpload, deletePendingUpload, getMediaByStoragePath, getMediaByStorageIdentity, getMediaByChecksum, getPendingUpload, registerAzureMedia } from "./src/repositories/mediaRepository.js";
+import { listAzureMediaFolder, readAzureMediaVersion, mediaWriteRoute } from './src/services/storage.js';
+import { publicMediaAccess } from './src/services/publicMediaAccess.js';
 import { getContentMedia } from './src/repositories/contentMediaRepository.js';
 import { cleanupExpiredPendingUploads, deleteMediaAsset, mediaErrorPayload } from './src/services/mediaService.js';
 import { getCmsUsers, getCmsUserById, getCmsUserByEmail, saveCmsAvatar } from "./src/repositories/cmsUserRepository.js";
@@ -69,14 +94,18 @@ import { getOfficials, saveOfficials } from "./src/repositories/officialsReposit
 import { getBarangays, saveBarangays } from "./src/repositories/barangaysRepository.js";
 import { decorateLegacyOfficials, getOfficialDirectory, syncLegacyOfficials, syncBarangayTerms, findElectionMatches, connectElectionRecord, disconnectElectionRecord, rejectElectionRecord, refreshElectionRecord, officialsDataQuality, getOfficeholder, createHistoricalOfficeAssignment } from './src/repositories/governmentOfficialsRepository.js';
 import { getPostgresRuntime } from './src/repositories/postgresRuntime.js';
-import { sanitizeRichText, sanitizeOfficials, sanitizeBarangays } from './src/services/sanitizeHtml.js';
+import { renderNewsMedia, sanitizeRichText, sanitizeOfficials, sanitizeBarangays } from './src/services/sanitizeHtml.js';
 import { id as createId, now as dbNow } from './src/services/identifiers.js';
-import { createPkcePair, getGoogleRedirectUri } from './src/services/googleOAuth.js';
-import { isMediaUploadPath } from './src/services/mediaUploadPath.js';
-import { createApiCorsMiddleware, createApiSecurityMiddleware, resolveApiRoutePolicy } from './src/services/apiRoutePolicy.js';
-import { toPublicBarangays, toPublicCategory, toPublicNews, toPublicOfficials, toPublicOfficialsDirectory, toPublicPopularService } from './src/services/publicApiDtos.js';
+import { createPkcePair, getGoogleRedirectUri, googleRedirectFromState } from './src/services/googleOAuth.js';
+import { verifyRecaptchaToken } from './src/services/recaptchaVerification.js';
+import { isMediaUploadPath, isMediaFolderKey, isAzureMediaUploadPath } from './src/services/mediaUploadPath.js';
+import { createApiCorsMiddleware, createApiSecurityMiddleware, installApiRegistrationGuard, resolveApiRoutePolicy } from './src/services/apiRoutePolicy.js';
+import { publicConfigKeys, toPublicBarangays, toPublicCategory, toPublicNews, toPublicOfficials, toPublicOfficialsDirectory, toPublicPopularService } from './src/services/publicApiDtos.js';
 import { installResponseSanitizer, sendPublicError, recordDiagnosticError, redactDiagnostic } from './src/services/errorHandling.js';
 import { installErrorCenterRoutes } from './src/services/errorCenterRoutes.js';
+import { installApiVersionAliases } from './src/services/apiVersioning.js';
+import { registerSearchRoutes } from './src/services/searchRoutes.js';
+import { registerWebsiteAnalyticsRoutes, recordPublicNotFound, recordServerOperation, isAnalyticsCollectionEnabled, rejectDisabledAnalytics } from './src/services/websiteAnalyticsRoutes.js';
 
 const invalidatePublicNewsCaches = async () => {
   await Promise.all([
@@ -89,9 +118,38 @@ const invalidatePublicNewsCaches = async () => {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
+let viteDevServer;
+installApiRegistrationGuard(app);
+installApiVersionAliases(app);
 let lifecycle = 'STARTING', initialized = false, coreReady = false;
 let lifecycleTimer, lifecycleCheck;
+let dependencySnapshot = [];
 app.disable('x-powered-by');
+app.use((req, res, next) => {
+  const started = Date.now()
+  res.once('finish', () => {
+    if (res.statusCode !== 404) return
+    const pathname = String(req.path || '').split('?')[0]
+    if (/^\/(?:admin|app|auth|portal-auth)(?:\/|$)/i.test(pathname)) return
+    const first = pathname.split('/').filter(Boolean)[0] || ''
+    const sections = { services: 'services', data: 'data', news: 'news', events: 'events', barangays: 'barangays' }
+    const referringSections = { services: 'services', data: 'data', news: 'news', events: 'events', barangays: 'barangays' }
+    const root = sections[first] || 'other'
+    const routeFamily = /^\/api(?:\/|$)/i.test(pathname) ? 'api' : /\.[A-Za-z0-9]{1,12}$/.test(pathname) ? 'asset' : root
+    let referringSection = 'unknown'
+    try {
+      const referer = req.get('referer')
+      if (referer) {
+        const refRoot = new URL(referer).pathname.split('/').filter(Boolean)[0] || 'home'
+        referringSection = refRoot === 'home' || refRoot === '' ? 'home' : referringSections[refRoot] || 'other'
+      }
+    } catch { /* Store only the allowlisted section bucket. */ }
+    const synthetic = req.get?.('x-analytics-synthetic') === 'true'
+    void recordPublicNotFound(routeFamily, referringSection, synthetic)
+    void recordServerOperation({ operation: 'public_404', datasetId: 'none', outcome: 'failure', category: 'not_found', cacheStatus: 'none', durationMs: Date.now() - started, synthetic })
+  })
+  next()
+})
 const adminAvatarFailures = new Map();
 // Production is behind one trusted proxy. Do not trust forwarded
 // client-IP headers during local development, where they can be forged.
@@ -108,8 +166,8 @@ app.use((req, res, next) => {
 installResponseSanitizer(app);
 app.use((req, res, next) => {
   const pathname = String(req.originalUrl || req.url || '').split('?')[0];
-  const policy = pathname.startsWith('/api/') ? resolveApiRoutePolicy(req.method, pathname) : null;
-  req.publicSurface = !pathname.startsWith('/api/') || policy?.access === 'PUBLIC';
+  const policy = /^\/api\//i.test(pathname) ? resolveApiRoutePolicy(req.method, pathname) : null;
+  req.publicSurface = !/^\/api\//i.test(pathname) || policy?.access === 'PUBLIC';
   if (policy && policy.access !== 'PUBLIC') {
     res.set('Cache-Control', 'no-store, private');
     res.vary('Cookie'); res.vary('Authorization');
@@ -118,7 +176,7 @@ app.use((req, res, next) => {
 });
 // Liveness must not wait on configuration, rate limiting, or a dependency.
 app.get(['/health', '/healthz', '/health/live', '/api/health/live'], (_req, res) => {
-  res.status(200).json({ status: 'ok', service: 'better-getafe', lifecycle });
+  res.set('Cache-Control', 'no-store').status(200).json({ status: 'ok', service: 'better-getafe' });
 });
 const checkLifecycle = () => {
   if (lifecycleCheck) return lifecycleCheck;
@@ -126,22 +184,45 @@ const checkLifecycle = () => {
   if (!initialized || lifecycle === 'SHUTTING_DOWN') return;
   await config.load();
   const databases = await Promise.all([databaseHealth('database'), databaseHealth('portalDatabase')]);
-  coreReady = config.available && databases.every(item => item.status === 'healthy') && (process.env.NODE_ENV !== 'production' || isRedisReady());
-  if (lifecycle !== 'SHUTTING_DOWN') lifecycle = coreReady && storageHealth().status === 'healthy' && isRedisReady() ? 'READY' : 'DEGRADED';
-  })().catch(error => { coreReady = false; if (lifecycle !== 'SHUTTING_DOWN') lifecycle = 'DEGRADED'; console.error(JSON.stringify({ event: 'readiness_failed', code: error.code || error.name })); }).finally(() => { lifecycleCheck = null; });
+  for (const [index, category] of ['database', 'portalDatabase'].entries()) systemStatus[category] = { ...systemStatus[category], status: databases[index].status === 'healthy' ? 'connected' : 'degraded', reason: databases[index].reason };
+  systemStatus.redis = { status: isRedisReady() ? 'healthy' : 'degraded' };
+  systemStatus.storage = { ...systemStatus.storage, status: storageHealth().status === 'healthy' ? 'connected' : 'degraded' };
+  const email = emailHealth();
+  if (email.status === 'disabled' && systemStatus.email?.status === 'degraded') { email.status = 'degraded'; email.reason = systemStatus.email.reason; }
+  dependencySnapshot = [
+    { name: 'CMS_DB', required: true, ...databases[0] },
+    { name: 'USER_DB', required: true, ...databases[1] },
+    { name: 'RUNTIME_CONFIG', required: true, status: config.available ? 'healthy' : 'unhealthy', reason: config.failureReason },
+    { name: 'REDIS', required: process.env.NODE_ENV === 'production', status: isRedisReady() ? 'healthy' : 'degraded', reason: isRedisReady() ? undefined : 'Redis is not ready' },
+    { name: 'B2', required: false, status: storageHealth().status, reason: storageHealth().status === 'healthy' ? undefined : systemStatus.storage?.reason || 'Media storage is unavailable' },
+    { name: 'EMAIL', required: Boolean(config.get('authentication.mfaEnabled') || config.get('authentication.requireEmailVerification')), ...email },
+  ];
+  const result = evaluateDependencies(dependencySnapshot);
+  coreReady = result.ready;
+  if (lifecycle !== 'SHUTTING_DOWN') lifecycle = result.status === 'healthy' ? 'READY' : result.ready ? 'DEGRADED' : 'FAILED';
+  })().catch(error => { coreReady = false; if (lifecycle !== 'SHUTTING_DOWN') lifecycle = 'FAILED'; dependencySnapshot = [{ name: error.subsystem || 'RUNTIME_CONFIG', required: true, status: 'unhealthy', reason: dependencyReason(error) }]; console.error(JSON.stringify({ event: 'readiness_failed', subsystem: error.subsystem || 'RUNTIME_CONFIG', reason: dependencyReason(error) })); }).finally(() => { lifecycleCheck = null; });
   return lifecycleCheck;
 };
 const readiness = async (_req, res) => {
   await checkLifecycle();
   if (!coreReady) res.set('Retry-After', '2');
-  res.set('Cache-Control', 'no-store').status(coreReady && lifecycle !== 'SHUTTING_DOWN' ? 200 : 503).json({ status: coreReady ? 'ready' : 'not_ready', lifecycle });
+  const ready = coreReady && lifecycle !== 'SHUTTING_DOWN';
+  res.set('Cache-Control', 'no-store').status(ready ? 200 : 503).json({ service: 'better-getafe', status: !initialized ? 'initializing' : !ready ? 'unhealthy' : lifecycle === 'DEGRADED' ? 'degraded' : 'healthy', ready });
 };
 app.get(['/ready', '/health/ready', '/api/ready'], readiness);
 // No application handler can run until the initial security/configuration
 // snapshot has been activated. Liveness and readiness bypass this gate.
 app.use((req, res, next) => {
   if (initialized && coreReady && config.available && lifecycle !== 'SHUTTING_DOWN') return next();
-  res.set({ 'Retry-After': '2', 'Cache-Control': 'no-store' }).status(503).json({ code: lifecycle === 'STARTING' ? 'APPLICATION_STARTING' : 'SERVICE_UNAVAILABLE', error: 'The service is temporarily unavailable. Please try again shortly.' });
+  if (req.method === 'POST' && /^\/api\/analytics\/events\/?$/i.test(req.path)) {
+    console.warn(JSON.stringify({ event: 'website_analytics_ingest_failed', request_id: req.requestId, reason: 'application_not_ready' }));
+  }
+  const starting = lifecycle === 'STARTING';
+  res.set({ 'Retry-After': '2', 'Cache-Control': 'no-store' }).status(503);
+  res.vary('Accept');
+  res.vary('Sec-Fetch-Mode');
+  if (sendStartupPage(req, res, { starting })) return;
+  res.json({ code: starting ? 'APPLICATION_STARTING' : 'SERVICE_UNAVAILABLE', error: 'The service is temporarily unavailable. Please try again shortly.' });
 });
 
 async function configuredWeatherProviders() {
@@ -152,15 +233,12 @@ async function configuredWeatherProviders() {
   });
 }
 
-import dotenv from 'dotenv';
-if (process.env.NODE_ENV !== 'production') {
-  dotenv.config();
-}
-
 const secret = process.env.AUTH_SESSION_SECRET || process.env.CMS_SESSION_SECRET || process.env.SESSION_SECRET || (
   process.env.NODE_ENV === "production" ? null : "change-this-local-development-session-secret"
 );
-if (process.env.NODE_ENV === 'production' && (!secret || secret.length < 32)) throw new Error('A random AUTH_SESSION_SECRET of at least 32 characters is required in production.');
+if (process.env.NODE_ENV === 'production' && (!secret || secret.length < 32 || /^(replace-with|change-this|example|test-secret)/i.test(secret))) throw new Error('A random AUTH_SESSION_SECRET of at least 32 characters is required in production.');
+
+const csrf = createCsrfProtection(secret);
 
 const trafficProtector = new AdaptiveTrafficProtector({
   // The callback is evaluated at request time, after authenticated() below is
@@ -177,7 +255,7 @@ const trafficProtector = new AdaptiveTrafficProtector({
 // development remains available over localhost HTTP for convenience.
 app.use((req, res, next) => {
   const secure = req.secure;
-  if (process.env.NODE_ENV === 'production' && !secure && (req.path.startsWith('/api/auth') || req.path.startsWith('/api/portal-auth'))) {
+  if (process.env.NODE_ENV === 'production' && !secure && /^\/api\/(auth|portal-auth)(\/|$)/i.test(req.path)) {
     return res.status(400).json({ error: 'Secure HTTPS connection required for sign-in.' });
   }
   next();
@@ -188,6 +266,7 @@ app.use(trafficProtector.middleware());
 // parsing capacity after a client has already been rejected.
 app.use(async (req, res, next) => {
   try { await config.load(); } catch { /* Keep the last known working snapshot; status reports degraded. */ }
+  if (serviceStatus.cmsDatabase === 'connected') void syncVerifiedAzureCutover()?.catch(() => {});
   if (config.get('security.frameProtection')) res.setHeader('X-Frame-Options', 'DENY');
   if (config.get('security.contentTypeProtection')) res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -199,17 +278,19 @@ app.use(async (req, res, next) => {
     if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     res.setHeader('Content-Security-Policy', "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; child-src 'self' https://www.facebook.com https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/; frame-src 'self' https://www.facebook.com https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https:; script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; connect-src 'self' https:; font-src 'self' data: https:; form-action 'self'");
   }
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && req.path.startsWith('/api/')) {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && /^\/api\//i.test(req.path)) {
     const cookies = readCookies(req.headers.cookie);
-    const hasCookieSession = !req.publicSurface && Boolean(cookies[SESSION_COOKIE] || cookies.getafe_password_reset);
-    const bearer = req.headers.authorization?.startsWith('Bearer ');
+    const hasCookieSession = csrf.requiresToken(req, resolveApiRoutePolicy(req.method, req.originalUrl) || { access: 'PROTECTED' });
 
     const decision = checkRequestOrigin(req, () => config.get('general.url'), { isTrustedProxy: isTrustedProxyAddress });
-    const blocked = hasCookieSession && !bearer && !decision.allowed;
-    if (req.authDiagnostic) { req.authDiagnostic.csrf = blocked ? 'rejected' : hasCookieSession && !bearer ? 'accepted' : 'not_required'; if (blocked) req.authDiagnostic.rejection_reason = 'csrf_origin'; }
+    const blocked = hasCookieSession && (!decision.allowed || !csrf.verify(req));
+    if (req.authDiagnostic) { req.authDiagnostic.csrf = blocked ? 'rejected' : hasCookieSession ? 'accepted' : 'not_required'; if (blocked) req.authDiagnostic.rejection_reason = 'csrf_origin'; }
     if (blocked) return res.status(403).json({ error: 'Cross-site request blocked.' });
   }
-  if (config.get('maintenance.enabled') && !req.path.startsWith('/api/auth/') && !req.path.startsWith('/auth/') && !req.path.startsWith('/assets/') && !req.path.startsWith('/admin') && req.path !== '/api/public/config' && !req.path.startsWith('/api/admin/settings') && !['/health', '/healthz', '/ready', '/api/health', '/api/health/storage'].includes(req.path)) {
+  if (config.get('maintenance.enabled') && !req.path.startsWith('/admin') && !req.path.startsWith('/api/auth/') && !req.path.startsWith('/api/portal-auth/') && req.path !== '/api/public/config' && !['/health', '/healthz', '/ready', '/api/health', '/api/health/storage'].includes(req.path)) {
+    if (req.method === 'POST' && /^\/api\/(?:analytics\/events|search\/complete)\/?$/i.test(req.path)) {
+      return rejectDisabledAnalytics(req, res, 'maintenance');
+    }
     const session = authenticated(req);
     if (session?.kind === 'cms') {
       try {
@@ -220,15 +301,13 @@ app.use(async (req, res, next) => {
     }
     res.setHeader('Retry-After', '60');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
-    const message = escapeHtml(config.get('maintenance.message'));
-    const expected = config.get('maintenance.expectedCompletion');
-    const expectedText = expected ? `<p class="expected">Expected completion: ${escapeHtml(new Date(expected).toLocaleString(config.get('general.locale'), { timeZone: config.get('general.timezone') }) )}</p>` : '';
-    if (req.path.startsWith('/api/')) {
-      return res.status(503).json({ error: config.get('maintenance.message'), expectedCompletion: expected });
-    }
-    res.status(503).type('html').send(`<!doctype html><html lang="${escapeHtml(config.get('general.language'))}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(config.get('general.name'))} · Maintenance</title><style>html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#17324d;background:#f4f8fb}body{display:grid;place-items:center;padding:24px;box-sizing:border-box}.card{max-width:640px;width:100%;text-align:center;background:white;border:1px solid #d9e5ed;border-radius:18px;padding:48px 32px;box-shadow:0 16px 45px #17324d18}h1{margin:0 0 14px;font-size:clamp(28px,5vw,44px)}p{font-size:18px;line-height:1.6;margin:10px 0}.expected{font-size:15px;color:#557086;margin-top:24px}.mark{display:inline-grid;place-items:center;width:64px;height:64px;border-radius:50%;background:#e0f0f5;color:#17617a;font-size:32px;margin-bottom:20px}</style></head><body><main class="card" role="main"><div class="mark" aria-hidden="true">↻</div><h1>${escapeHtml(config.get('general.name'))} is temporarily unavailable</h1><p>${message}</p>${expectedText}<p class="expected">Please check back shortly.</p></main></body></html>`);
-    return;
+    // A document navigation and the frontend assets it needs are the only
+    // public requests that continue during maintenance. The React app then
+    // renders the shared 503 page. All application endpoints remain closed.
+    const frontendAsset = req.path.startsWith('/assets/') || req.path.startsWith('/packages/') || (process.env.NODE_ENV !== 'production' && (/^\/(?:src|@vite|@react-refresh|node_modules)\//.test(req.path) || ['/favicon.ico', '/vite.svg'].includes(req.path)));
+    const frontendNavigation = !/^\/api\//i.test(req.path) && ['GET', 'HEAD'].includes(req.method) && !req.path.includes('.') && req.accepts(['html']) === 'html';
+    if (frontendAsset || frontendNavigation) return next();
+    return res.status(503).json({ error: config.get('maintenance.message'), expectedCompletion: config.get('maintenance.expectedCompletion') });
   }
   next();
 });
@@ -243,8 +322,13 @@ app.use('/api/contact', (req, res, next) => {
   next();
 });
 app.use('/api/contact', express.json({ limit: '16kb' }));
+app.use('/api/analytics/events', express.json({ limit: '8kb' }));
+app.use('/api/search/complete', express.json({ limit: '8kb' }));
 app.use(['/api/auth', '/api/portal-auth'], express.json({ limit: '32kb' }));
 app.use('/api/eservices/payment-webhooks', express.json({ limit: '64kb', verify: (req, _res, bytes) => { req.rawBody = Buffer.from(bytes); } }));
+app.use('/api/integrations/webhooks', express.json({ limit: '64kb', verify: (req, _res, bytes) => { req.rawBody = Buffer.from(bytes); } }));
+// Large open-data selections are split into provider-sized batches after parsing.
+app.use('/api/public-data/datasets', express.json({ limit: '64mb' }));
 app.use(express.json({ limit: '8mb' }));
 app.use((req, res, next) => { if (req.body === undefined || req.body === null) req.body = {}; next(); });
 app.use((error, req, res, next) => {
@@ -259,7 +343,21 @@ app.use((error, req, res, next) => {
 app.use('/api', createApiSecurityMiddleware({
   authenticate: authenticated,
   isRevoked: (...args) => tokenIsRevoked(...args),
+  validateAccount: async (req, session) => {
+    const user = await (session.kind === 'cms' ? getCmsUserById : getPortalUserById)(session.id);
+    if (!user || user.role === 'disabled' || user.role !== session.role || !session.updatedAt || session.updatedAt !== sessionUpdatedAt(user)) return false;
+    req.apiAccount = user;
+    return true;
+  },
+  authorize: async (req, name, type) => {
+    await requireAccess(req.apiAccount, name);
+    if (type === 'settings') {
+      try { requireSettingsPermission(req.apiAccount, name); } catch { throw Object.assign(new Error('Access denied.'), { status: 403 }); }
+    }
+  },
 }));
+
+app.get('/api/auth/csrf', (req, res) => { res.set('Cache-Control', 'no-store, private').json({ token: csrf.issue(req) }); });
 
 app.post('/api/client-errors', async (req, res) => {
   const message = String(req.body?.message || '').slice(0, 2000);
@@ -271,6 +369,15 @@ app.post('/api/client-errors', async (req, res) => {
   error.stack = [stack, componentStack].filter(Boolean).join('\n\n');
   await recordDiagnosticError({ req, error, status: 500, context: 'unknown', service: 'Frontend' });
   res.status(202).json({ ok: true });
+});
+
+app.get('/api/public/exchange-rates', async (req, res) => {
+  try {
+    const rates = await getHeaderExchangeRates();
+    res.set('Cache-Control', rates.stale ? 'public, max-age=300' : 'public, max-age=3600').json(rates);
+  } catch {
+    res.set('Cache-Control', 'no-store').status(503).json({ error: 'Exchange rates are temporarily unavailable.' });
+  }
 });
 
 app.get('/api/weather/getafe', async (req, res) => {
@@ -345,13 +452,16 @@ function authenticated(req) {
   // even when a legacy root cookie or an Authorization header is supplied.
   if (req.publicSurface) return null;
   try {
-    const authorization = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '';
+    if (req.headers.authorization && !/^Bearer \S+$/i.test(req.headers.authorization)) return null;
+    const authorization = req.headers.authorization ? req.headers.authorization.slice(7) : '';
     const token = authorization || readCookies(req.headers.cookie)[SESSION_COOKIE] || '';
+    if (token.length > 4096 || token.split('.').length !== 2) return null;
     const [payload, signature] = token.split(".");
     if (!payload || !signature || !secret) return null;
     const expected = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
     if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
     const data = JSON.parse(Buffer.from(payload, "base64url").toString());
+    if (!data.id || !data.sid || !Number.isFinite(data.iat) || data.iat > Date.now() || !Number.isFinite(data.exp)) return null;
     if (!(data.exp > Date.now() && (data.iat || 0) + (data.remember ? config.get('authentication.rememberDays') * 86400000 : config.get('authentication.sessionMinutes') * 60000) > Date.now())) return null;
     data.signature = signature;
     return data;
@@ -365,9 +475,9 @@ const tokenIsRevoked = async session => {
   if (!session.sid) return true;
   const registryReady = isRedisReady();
   assertSessionRegistryAvailable(registryReady);
-  if (!registryReady) return false;
   if (session.signature && await readState(stateKey('revoked-token', session.signature))) return true;
   if (session.sid && await readState(stateKey('revoked-session', session.sid))) return true;
+  if (!registryReady) return false;
   const key = redisKeys.session(session.sid);
   try {
     const raw = await redis.get(key);
@@ -376,7 +486,7 @@ const tokenIsRevoked = async session => {
       return true;
     }
     const metadata = JSON.parse(raw);
-    const idleMinutes = Math.max(5, Number(process.env.AUTH_SESSION_IDLE_MINUTES) || 30);
+    const idleMinutes = config.get('authentication.sessionIdleMinutes');
     if (Date.now() - metadata.lastActivityAt > idleMinutes * 60_000) {
       await putState(stateKey('revoked-session', session.sid), true, Math.max(1, session.exp - Date.now()));
       await redis.del(key);
@@ -421,6 +531,20 @@ const safeClientError = (error, fallback) => [400, 401, 403, 404, 409, 422].incl
   ? String(error.message || fallback)
   : fallback;
 
+const permissionAny = permissionIds => async (req, res, next) => {
+  for (const permissionId of permissionIds) {
+    try {
+      await requireAccess(req.admin, permissionId);
+      return next();
+    } catch (error) {
+      if (Number(error?.status) === 403) continue;
+      const status = [400, 401, 404, 409, 422].includes(Number(error?.status)) ? error.status : 503;
+      return res.status(status).json({ error: safeClientError(error, status === 503 ? 'Authorization service is temporarily unavailable.' : 'Access denied.') });
+    }
+  }
+  return res.status(403).json({ error: 'Access denied.' });
+};
+
 const dependencyUnavailable = error => {
   const code = String(error?.code || '').toUpperCase();
   return ['ECONNREFUSED', 'ENOTFOUND', 'EHOSTUNREACH', 'ETIMEDOUT', '57P01', '53300', '3D000'].includes(code)
@@ -449,7 +573,7 @@ const resident = async (req, res, next) => {
     req.resident = await getPortalUserById(session.id);
     if (!req.resident || req.resident.role !== 'resident' || session.role !== req.resident.role || (session.updatedAt && session.updatedAt !== sessionUpdatedAt(req.resident))) return res.status(401).json({ error: 'Resident account unavailable.' });
     const onboarding = await googleOnboarding(req.resident);
-    if (onboarding.setupRequired && !req.path.startsWith('/api/citizen/onboarding/') && !['/api/citizen/profile', '/api/citizen/profile/avatar'].includes(req.path)) return res.status(403).json({ error: 'Complete your account information before using the app.', setupRequired: true });
+    if (onboarding.setupRequired && !req.path.startsWith('/api/citizen/onboarding/') && !req.path.startsWith('/api/citizen/mobile-verification/') && !['/api/citizen/profile', '/api/citizen/profile/avatar'].includes(req.path)) return res.status(403).json({ error: 'Complete your account information before using the app.', setupRequired: true });
     next();
   } catch (error) {
     console.error('Resident authentication lookup failed:', error.message);
@@ -496,7 +620,8 @@ const setGoogleOAuthStateCookie = (res, value, secure) => {
   res.append('Set-Cookie', `google_oauth_state=${encodeURIComponent(value)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=600${secure ? '; Secure' : ''}`);
 };
 const setPasswordResetCookie = (res, token, maxAge = 600) => {
-  res.append('Set-Cookie', `getafe_password_reset=${encodeURIComponent(token)}; HttpOnly; Path=/api/auth/renew-password; SameSite=Strict; Max-Age=${maxAge}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+  res.append('Set-Cookie', `getafe_password_reset=; HttpOnly; Path=/api/auth/renew-password; SameSite=Strict; Max-Age=0${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+  res.append('Set-Cookie', `getafe_password_reset=${encodeURIComponent(token)}; HttpOnly; Path=/api/auth; SameSite=Strict; Max-Age=${maxAge}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
 };
 
 const clearGoogleOAuthStateCookie = (res, secure) => {
@@ -598,7 +723,14 @@ const siteUrl = (req) => {
   return configured.replace(/\/$/, '');
 };
 
-const decorate = async (article, lookups = null) => {
+const articleImageUrl = async (fallback, relationship) => {
+  if (relationship && relationship.media_status !== 'active') return null;
+  return relationship
+    ? createDownloadUrl(relationship.storage_path, relationship.storage_bucket, relationship.storage_provider)
+    : createDownloadUrl(fallback);
+};
+
+const decorate = async (article, lookups = null, publicRequest = false) => {
   const { categories, users } = lookups || await (async () => ({
     categories: await getCategories(),
     users: await getCmsUsers(),
@@ -606,6 +738,15 @@ const decorate = async (article, lookups = null) => {
   const relationships = article.id ? await getContentMedia('news', article.id) : [];
   const featuredRelationship = relationships.find((item) => item.role === 'featured');
   const galleryRelationships = new Map(relationships.filter((item) => item.role === 'gallery').map((item) => [item.storage_path, item]));
+  const publicImageUrl = (url, selector) => publicRequest && activeAzureImageKey(url)
+    ? `/api/news/${encodeURIComponent(article.slug || article.id)}?image=${selector}`
+    : url;
+  const content = sanitizeRichText(String(article.content || '').replace(/^\s*```(?:html)?\s*/i, '').replace(/\s*```\s*$/, ''));
+  const inlineUrls = publicRequest && content.includes('data-news-media')
+    ? new Map(await Promise.all(relationships.filter(item => item.role === 'inline' && item.media_status === 'active').map(async item => [
+      item.media_id, publicImageUrl(await articleImageUrl(null, item).catch(() => ''), `inline-${encodeURIComponent(item.media_id)}`),
+    ])))
+    : null;
   return {
     ...article,
     is_important: article.is_important === true || article.is_important === 1,
@@ -613,16 +754,22 @@ const decorate = async (article, lookups = null) => {
     show_in_upcoming: article.show_in_upcoming === true || article.show_in_upcoming === 1,
     show_in_events: article.show_in_events === true || article.show_in_events === 1,
     show_on_homepage: article.show_on_homepage === true || article.show_on_homepage === 1,
-    content: sanitizeRichText(String(article.content || '').replace(/^\s*```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '')),
-    featured_image: await createDownloadUrl(article.featured_image),
+    content: inlineUrls ? renderNewsMedia(content, inlineUrls) : content,
+    featured_image: publicImageUrl(await articleImageUrl(article.featured_image, featuredRelationship), 'featured'),
     featured_image_path: article.featured_image,
     featured_media_id: featuredRelationship?.media_id || null,
-    gallery_images: await Promise.all((Array.isArray(article.gallery_images) ? article.gallery_images : []).map(async (image, index) => ({
-      ...image,
-      media_id: image.media_id || galleryRelationships.get(image.storage_path)?.media_id || null,
-      position: Number.isInteger(image.position) ? image.position : index,
-      url: await createDownloadUrl(image.storage_path || image.url || ''),
-    }))),
+    gallery_images: await Promise.all((Array.isArray(article.gallery_images) ? article.gallery_images : []).map(async (image, index) => {
+      const relationship = galleryRelationships.get(image.storage_path) || relationships.find(item => item.role === 'gallery' && item.media_id === image.media_id);
+      const download = await articleImageUrl(image.storage_path || image.url || '', relationship);
+      const url = publicImageUrl(download, `gallery-${index}`);
+      return {
+        ...image,
+        media_id: image.media_id || relationship?.media_id || null,
+        position: Number.isInteger(image.position) ? image.position : index,
+        url,
+        thumbnail_url: !url || url !== download ? url : image.thumbnail_url,
+      };
+    })),
     category: categories.find((c) => c.id === article.category_id) || null,
     author: (() => {
       const u = users.find((u) => u.id === article.author_id);
@@ -654,6 +801,17 @@ function parseNewsQuery(query, { admin: isAdmin = false } = {}) {
   if (page === null) return { error: `page must be an integer between 1 and ${NEWS_PAGE_MAX}.` };
 
   const normalized = { limit, page };
+  if (query.month !== undefined) {
+    const month = queryValue(query.month);
+    if (!/^[1-9]\d{3}-(?:0[1-9]|1[0-2])$/.test(month)) return { error: 'month must use YYYY-MM.' };
+    normalized.month = month;
+  }
+  if (query.day !== undefined) {
+    const day = queryValue(query.day);
+    const parsedDay = new Date(`${day}T00:00:00Z`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(parsedDay.getTime()) || parsedDay.toISOString().slice(0, 10) !== day) return { error: 'day must use YYYY-MM-DD.' };
+    normalized.day = day;
+  }
   const booleanKeys = ['public', 'important', 'homepage'];
   for (const key of booleanKeys) {
     if (query[key] === undefined || query[key] === '') continue;
@@ -755,12 +913,19 @@ const loginUser = async (req, res) => {
   try {
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
-    if (!isValidEmail(email) || email.length > 254) { loginDecision('login', 'invalid_input', { reason: 'invalid_email' }); return res.status(422).json({ error: 'Enter a valid email address.' }); }
-    if (password.length > 1024) { loginDecision('login', 'invalid_input', { reason: 'password_too_long' }); return res.status(422).json({ error: 'Password must be 1,024 characters or fewer.' }); }
+    const validation = validatePasswordLogin(email, password);
+    if (validation) {
+      loginDecision('login', 'invalid_input', { reason: validation.code });
+      return res.status(422).json({ error: validation.message, code: validation.code });
+    }
     const remember = req.body.remember === true;
     const requestIdentity = resolveClient(req).value;
     const accountIdentity = crypto.createHmac('sha256', secret).update(email).digest('hex');
     const combinationIdentity = crypto.createHmac('sha256', secret).update(`${requestIdentity}:${email}`).digest('hex');
+    const domainIdentities = Object.fromEntries(['cms', 'portal'].map(kind => [kind, {
+      account: crypto.createHmac('sha256', secret).update(`${kind}:${email}`).digest('hex'),
+      combination: crypto.createHmac('sha256', secret).update(`${kind}:${requestIdentity}:${email}`).digest('hex'),
+    }]));
     const throttle = await loginThrottle({ ip: requestIdentity, account: accountIdentity, combination: combinationIdentity });
     if (!throttle.allowed) {
       loginDecision('login', 'rate_limited', { client_id: requestIdentity.slice(0, 12), account_id: accountIdentity.slice(0, 12) });
@@ -769,20 +934,25 @@ const loginUser = async (req, res) => {
       return res.status(429).json({ error: 'Too many attempts. Please try again later.', retryAfter });
     }
     const [cmsUser, portalUser] = await Promise.all([getCmsUserByEmail(email), getPortalUserByEmail(email)]);
-    const user = cmsUser || portalUser;
     const dummyPasswordHash = await DUMMY_LOGIN_PASSWORD_HASH;
-    const passwordCheck = await verifyPassword(password, user?.password, dummyPasswordHash);
-    const passwordMatches = passwordCheck.valid;
-    const eligibleAccount = cmsUser
-      ? ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(cmsUser.role)
-      : portalUser?.role === 'resident';
-    if (!user || !eligibleAccount || !passwordMatches) {
+    const selected = await selectLoginAccount(password, cmsUser, portalUser, dummyPasswordHash);
+    if (!selected) {
       loginDecision('login', 'failed', { reason: 'invalid_credentials', client_id: requestIdentity.slice(0, 12), account_id: accountIdentity.slice(0, 12) });
       await loginThrottle({ ip: requestIdentity, account: accountIdentity, combination: combinationIdentity }, true);
+      // Failed proof counts against both possible domains. A successful
+      // resident login must never clear a CMS account's brute-force budget.
+      for (const identity of Object.values(domainIdentities)) await loginThrottle(identity, true);
       return res.status(401).json({ error: "Invalid email or password." });
     }
+    const domainThrottle = await loginThrottle(domainIdentities[selected.kind]);
+    if (!domainThrottle.allowed) {
+      loginDecision('login', 'rate_limited', { kind: selected.kind, reason: 'account_domain_lockout', account_id: accountIdentity.slice(0, 12) });
+      res.set('Retry-After', String(domainThrottle.retryAfter));
+      return res.status(429).json({ error: 'Too many attempts. Please try again later.', retryAfter: domainThrottle.retryAfter });
+    }
     await loginThrottle({ ip: requestIdentity, account: accountIdentity, combination: combinationIdentity }, false);
-    const kind = cmsUser ? 'cms' : 'portal';
+    await loginThrottle(domainIdentities[selected.kind], false);
+    const { user, kind, passwordCheck } = selected;
     if (passwordCheck.needsRehash) {
       try { await replacePassword(user.id, kind, password, { touchUpdatedAt: false }); }
       catch (error) { console.warn(JSON.stringify({ event: 'password_hash_upgrade_failed', account_kind: kind, error: error?.name || 'Error' })); }
@@ -796,10 +966,10 @@ const loginUser = async (req, res) => {
       setPasswordResetCookie(res, token);
       return res.json({ passwordExpired: true });
     }
-    if (kind === 'portal' && (user.mfa_enabled === true || user.mfa_enabled === 1)) {
+    if (user.mfa_enabled === true || user.mfa_enabled === 1) {
       loginDecision('login', 'mfa_challenge', { kind, account_id: accountIdentity.slice(0, 12) });
       const challengeId = crypto.randomBytes(32).toString('hex');
-      await putState(stateKey('mfa-login', challengeId), { id: user.id, updatedAt: sessionUpdatedAt(user), remember, attempts: 0, expiresAt: Date.now() + 5 * 60 * 1000 }, 5 * 60 * 1000);
+      await putState(stateKey('mfa-login', challengeId), { id: user.id, kind, updatedAt: sessionUpdatedAt(user), remember, attempts: 0, expiresAt: Date.now() + 5 * 60 * 1000 }, 5 * 60 * 1000);
       return res.json({ mfaRequired: true, mfaChallengeId: challengeId });
     }
     const verified = await stateTransaction(stateKey('verified', user.id), async value => ({ value, expires: 3250368000000000, result: value }));
@@ -836,8 +1006,9 @@ app.post('/api/auth/mfa/verify', async (req, res) => {
     const key = stateKey('mfa-login', challengeId);
     const challenge = await readState(key);
     if (!challenge) return res.status(401).json({ error: 'This MFA challenge has expired. Sign in again.' });
-    const user = await getPortalUserById(challenge.id);
-    if (!user || user.role !== 'resident' || (challenge.updatedAt && challenge.updatedAt !== sessionUpdatedAt(user)) || !(user.mfa_enabled === true || user.mfa_enabled === 1) || !user.mfa_secret_encrypted) return res.status(401).json({ error: 'MFA is unavailable for this account.' });
+    const kind = challenge.kind === 'cms' ? 'cms' : 'portal';
+    const user = kind === 'cms' ? await getCmsUserById(challenge.id) : await getPortalUserById(challenge.id);
+    if (!user || (kind === 'portal' ? user.role !== 'resident' : !['staff','it_support','content_manager','admin','super_admin'].includes(user.role)) || (challenge.updatedAt && challenge.updatedAt !== sessionUpdatedAt(user)) || !(user.mfa_enabled === true || user.mfa_enabled === 1) || !user.mfa_secret_encrypted) return res.status(401).json({ error: 'MFA is unavailable for this account.' });
     const secretValue = decryptMfaSecret(user.mfa_secret_encrypted);
     let completedChallenge = null;
     let recoveryValid = false;
@@ -853,7 +1024,7 @@ app.post('/api/auth/mfa/verify', async (req, res) => {
       completedChallenge = result.challenge;
       if (!completedChallenge) return res.status(401).json({ error: result.attempts >= 5 ? 'Too many attempts. Sign in again.' : 'Invalid authenticator or recovery code.' });
     } else {
-      recoveryValid = await consumePortalRecoveryCode(user.id, code, recoveryCodeMatches);
+      recoveryValid = await (kind === 'cms' ? consumeCmsRecoveryCode : consumePortalRecoveryCode)(user.id, code, recoveryCodeMatches);
       if (recoveryValid) {
         const consumed = await consumeState(key);
         completedChallenge = consumed?.id === user.id ? consumed : null;
@@ -868,34 +1039,43 @@ app.post('/api/auth/mfa/verify', async (req, res) => {
       return res.status(401).json({ error: attempts >= 5 ? 'Too many attempts. Sign in again.' : 'Invalid authenticator or recovery code.' });
     }
     if (!completedChallenge) return res.status(401).json({ error: 'This MFA challenge has expired. Sign in again.' });
-    const sessionUser = recoveryValid ? await getPortalUserById(user.id) : user;
+    const sessionUser = recoveryValid ? await (kind === 'cms' ? getCmsUserById : getPortalUserById)(user.id) : user;
     if (!sessionUser) return res.status(503).json({ error: 'MFA verification is temporarily unavailable.' });
-    await setSessionCookie(res, makeToken(sessionUser, 'portal', completedChallenge.remember), completedChallenge.remember);
-    res.json({ user: safeUser(sessionUser), admin: false, recoveryCodeUsed: recoveryValid });
+    await setSessionCookie(res, makeToken(sessionUser, kind, completedChallenge.remember), completedChallenge.remember);
+    res.json({ user: safeUser(sessionUser), admin: kind === 'cms', recoveryCodeUsed: recoveryValid });
   } catch (error) {
     console.error('MFA verification failed:', error.code || error.name || 'Error');
     res.status(503).json({ error: 'MFA verification is temporarily unavailable.' });
   }
 });
 
+// OAuth initiation, token exchange, and Admin → Settings all use the same
+// resolved configuration snapshot. Bootstrap environment values are fallback
+// inputs only; they must not silently replace a saved admin credential here.
+const googleCredentialsFor = () => ({
+  clientId: config.get('google.clientId'),
+  clientSecret: config.get('google.clientSecret'),
+  redirectUri: config.get('google.redirectUri'),
+});
+
 app.get('/api/auth/google', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
-  const clientId = config.get('google.clientId');
-  if (!clientId) return res.status(503).json({ error: 'Google sign-in is not configured.' });
+  const { clientId, clientSecret, redirectUri } = googleCredentialsFor();
+  if (!clientId || !clientSecret) return res.status(503).json({ error: 'Google sign-in is not configured.' });
   const intent = req.query.intent === 'signup' ? 'signup' : 'signin';
   const state = crypto.randomBytes(24).toString('hex');
   const pkce = createPkcePair();
-  try { await putState(stateKey('google-oauth-state', state), { intent, codeVerifier: pkce.verifier }, 10 * 60 * 1000); }
-  catch { return res.status(503).json({ error: 'Google sign-in is temporarily unavailable.' }); }
-  setGoogleOAuthStateCookie(res, `${state}.${intent}`, req.secure);
+  const remember = intent === 'signup' ? true : req.query.remember === 'true';
   try {
     const redirect = getGoogleRedirectUri({
-      configured: config.get('google.redirectUri'),
+      configured: redirectUri,
       publicSiteUrl: config.get('general.url'),
       protocol: req.protocol,
       host: req.get('host'),
       production: process.env.NODE_ENV === 'production',
     });
+    await putState(stateKey('google-oauth-state', state), { intent, codeVerifier: pkce.verifier, redirectUri: redirect, clientId, returnUrl: safeReturnPath(req.query.returnUrl), remember }, 10 * 60 * 1000);
+    setGoogleOAuthStateCookie(res, `${state}.${intent}`, req.secure);
     const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     url.search = new URLSearchParams({ client_id: clientId, redirect_uri: redirect, response_type: 'code', scope: 'openid email profile', state, prompt: 'select_account', code_challenge: pkce.challenge, code_challenge_method: 'S256' });
     res.redirect(url.toString());
@@ -908,50 +1088,69 @@ app.get('/api/auth/google', async (req, res) => {
 app.get('/api/auth/google/callback', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   clearGoogleOAuthStateCookie(res, req.secure);
+  let intended = null;
   try {
     const cookies = readCookies(req.headers.cookie);
     const [savedState, cookieIntent = 'signin'] = String(cookies.google_oauth_state || '').split('.');
-    if (!req.query.code || !req.query.state || !/^[a-f0-9]{48}$/.test(String(req.query.state)) || savedState !== req.query.state) return res.status(400).send('Invalid Google sign-in state.');
+    if (!req.query.state || !/^[a-f0-9]{48}$/.test(String(req.query.state)) || savedState !== req.query.state) return res.status(400).send('Invalid Google sign-in state.');
     const oauthState = await consumeState(stateKey('google-oauth-state', String(req.query.state)));
     if (!oauthState || oauthState.intent !== cookieIntent) return res.status(400).send('Invalid Google sign-in state.');
+    intended = safeReturnPath(oauthState.returnUrl);
+    if (req.query.error) return res.redirect(loginDestination(intended, { google: req.query.error === 'access_denied' ? 'cancelled' : 'unavailable' }));
+    if (!req.query.code) return res.status(400).send('Invalid Google sign-in state.');
     const intent = oauthState.intent;
-    const redirect = getGoogleRedirectUri({
-      configured: config.get('google.redirectUri'),
+    const { clientId, clientSecret, redirectUri } = googleCredentialsFor();
+    if (!clientId || !clientSecret || (oauthState.clientId && oauthState.clientId !== clientId)) {
+      return res.redirect(loginDestination(intended, { google: 'unavailable' }));
+    }
+    const redirect = googleRedirectFromState({
+      redirectUri: oauthState.redirectUri,
+      configured: redirectUri,
       publicSiteUrl: config.get('general.url'),
       protocol: req.protocol,
       host: req.get('host'),
       production: process.env.NODE_ENV === 'production',
     });
     if (typeof oauthState.codeVerifier !== 'string' || oauthState.codeVerifier.length < 43) return res.status(400).send('Invalid Google sign-in state.');
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ code: req.query.code, client_id: config.get('google.clientId'), client_secret: config.get('google.clientSecret'), redirect_uri: redirect, grant_type: 'authorization_code', code_verifier: oauthState.codeVerifier }), signal: AbortSignal.timeout(10_000) });
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ code: req.query.code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirect, grant_type: 'authorization_code', code_verifier: oauthState.codeVerifier }), signal: AbortSignal.timeout(10_000) });
     const token = await tokenResponse.json(); if (!tokenResponse.ok) throw new Error('Google token exchange failed.');
     const profileResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo', { headers: { Authorization: `Bearer ${token.access_token}` }, signal: AbortSignal.timeout(10_000) });
     const profile = await profileResponse.json(); if (!profileResponse.ok || !profile.email_verified || typeof profile.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) throw new Error('Google account email is not verified.');
     const cmsUser = await getCmsUserByEmail(profile.email);
     if (cmsUser) {
-      if (intent === 'signup') return res.redirect('/auth/login?google=existing');
-      if (!['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(cmsUser.role)) return res.redirect('/auth/login?google=unavailable');
-      await setSessionCookie(res, makeToken(cmsUser, 'cms', true), true, true);
-      return res.redirect('/admin');
+      if (intent === 'signup') return res.redirect(loginDestination(intended, { google: 'unavailable' }));
+      if (!['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(cmsUser.role)) return res.redirect(loginDestination(intended, { google: 'unavailable' }));
+      await setSessionCookie(res, makeToken(cmsUser, 'cms', oauthState.remember === true), oauthState.remember === true, true);
+      return res.redirect(loginDestination(intended));
     }
     let user = await getPortalUserByEmail(profile.email);
-    if (user && intent === 'signup') return res.redirect('/auth/login?google=existing');
+    if (user && intent === 'signup') return res.redirect(loginDestination(intended, { google: 'unavailable' }));
     if (!user) { user = await createPortalUser(profile.name || profile.email, profile.email, crypto.randomBytes(32).toString('hex')); }
-    if (user.role !== 'resident') return res.redirect('/auth/login?google=unavailable');
+    if (user.role !== 'resident') return res.redirect(loginDestination(intended, { google: 'unavailable' }));
     await rememberGoogleProfile(user, profile);
     const onboarding = await googleOnboarding(user);
     if (user.mfa_enabled === true || user.mfa_enabled === 1) {
       const challengeId = crypto.randomBytes(32).toString('hex');
-      await putState(stateKey('mfa-login', challengeId), { id: user.id, updatedAt: sessionUpdatedAt(user), remember: true, attempts: 0, expiresAt: Date.now() + 5 * 60 * 1000 }, 5 * 60 * 1000);
+      await putState(stateKey('mfa-login', challengeId), { id: user.id, updatedAt: sessionUpdatedAt(user), remember: oauthState.remember === true, attempts: 0, expiresAt: Date.now() + 5 * 60 * 1000 }, 5 * 60 * 1000);
       // Keep the one-use pre-auth challenge out of query strings, proxy logs,
       // and Referer headers; the login page consumes and clears the fragment.
-      return res.redirect(`/auth/login#mfa=${encodeURIComponent(challengeId)}`);
+      return res.redirect(`${loginDestination(intended)}#mfa=${encodeURIComponent(challengeId)}`);
     }
-    await setSessionCookie(res, makeToken(user, 'portal', true), true); res.redirect(onboarding.setupRequired ? '/app/setup' : '/app/dashboard');
-  } catch (error) { console.error('Google OAuth callback failed:', error.message); res.status(503).send('Google sign-in is temporarily unavailable.'); }
+    await setSessionCookie(res, makeToken(user, 'portal', oauthState.remember === true), oauthState.remember === true);
+    res.redirect(resolvePostAuthDestination({ ...user, ...onboarding }, intended));
+  } catch (error) { console.error('Google OAuth callback failed:', error.message); res.redirect(loginDestination(intended, { google: 'unavailable' })); }
+});
+
+// Google returns to this browser-facing callback. The exchange remains
+// centralized in the API handler above so state, PKCE, cookies, and errors
+// are handled in one place.
+app.get(['/auth/callback', '/auth/callback/'], (req, res) => {
+  const query = String(req.originalUrl || req.url || '').split('?')[1];
+  res.redirect(302, `/api/auth/google/callback${query ? `?${query}` : ''}`);
 });
 
 app.get("/api/auth/me", async (req, res) => {
+  let stage = 'read_session';
   try {
     const session = authenticated(req);
     const cookies = readCookies(req.headers.cookie);
@@ -969,10 +1168,12 @@ app.get("/api/auth/me", async (req, res) => {
       clearSessionCookie(res);
       return res.json({ user: null });
     }
+    stage = 'check_revocation';
     if (await tokenIsRevoked(session)) {
       clearSessionCookie(res);
       return res.json({ user: null });
     }
+    stage = 'load_account';
     const user = session.kind === 'cms' ? await getCmsUserById(session.id) : await getPortalUserById(session.id);
     if (!user || session.role !== user.role || (session.updatedAt && session.updatedAt !== sessionUpdatedAt(user))
       || (session.kind === 'cms' && !['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role))
@@ -980,7 +1181,9 @@ app.get("/api/auth/me", async (req, res) => {
       clearSessionCookie(res);
       return res.json({ user: null });
     }
+    stage = 'load_account_access';
     const authorization = session.kind === 'cms' ? await effectiveAccessFor(user) : null;
+    stage = 'build_session_response';
     res.json({
       user: {
         ...safeUser(user),
@@ -993,7 +1196,7 @@ app.get("/api/auth/me", async (req, res) => {
       admin: session.kind === 'cms' && ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role),
     });
   } catch (error) {
-    console.error('Authentication session lookup failed:', error.message);
+    logApiFailure(req, `authentication_session_${stage}`, error, 503);
     res.status(503).json({ error: "The sign-in service is temporarily unavailable." });
   }
 });
@@ -1011,7 +1214,8 @@ app.patch('/api/account/password', admin, async (req, res) => {
     }
 
     const account = await getCmsUserById(req.admin.id);
-    if (!account || !matches(currentPassword, account.password)) return res.status(401).json({ error: 'Current password is incorrect.' });
+    const passwordCheck = await verifyPassword(currentPassword, account?.password, await DUMMY_LOGIN_PASSWORD_HASH);
+    if (!account || !passwordCheck.valid) return res.status(401).json({ error: 'Current password is incorrect.' });
     if (!passwordIsStrong(newPassword) || newPassword.length < config.get('authentication.passwordMinLength')) {
       return res.status(422).json({ error: 'Your new password does not meet the password requirements.' });
     }
@@ -1027,7 +1231,7 @@ app.patch('/api/account/password', admin, async (req, res) => {
     await setSessionCookie(res, makeToken(updatedAccount, 'cms', session.remember), session.remember);
     res.json({ ok: true });
   } catch (error) {
-    console.error('CMS password change failed:', error.message);
+    console.error(JSON.stringify({ event: 'cms_password_change_failed', error: error?.name || 'Error' }));
     res.status(503).json({ error: 'Unable to change your password. Please try again.' });
   }
 });
@@ -1076,7 +1280,10 @@ app.get('/api/account/avatar', admin, async (req, res) => {
     const bytes = await readPrivateFile(account.avatar_storage_path);
     const contentType = account.avatar_storage_path.endsWith('.png') ? 'image/png' : account.avatar_storage_path.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
     adminAvatarFailures.delete(account.id);
-    res.set({ 'Cache-Control': 'no-store, private', 'Content-Type': contentType }).send(bytes);
+    // This URL carries the account's updated_at version, so private browser
+    // caching avoids re-downloading a large avatar on every admin route while
+    // an avatar change naturally produces a new URL.
+    res.set({ 'Cache-Control': 'private, max-age=300', 'Content-Type': contentType }).send(bytes);
   } catch (error) {
     if (isStorageNotFoundError(error)) {
       await saveCmsAvatar(req.admin.id, null).catch(() => {});
@@ -1090,6 +1297,65 @@ app.get('/api/account/avatar', admin, async (req, res) => {
   }
 });
 
+const cmsMfaAccount = async (req,res) => {
+  const account=await getCmsUserById(req.admin.id);
+  if (!account || !['staff','it_support','content_manager','admin','super_admin'].includes(account.role)) {res.status(401).json({error:'Authentication required.'});return null;}
+  const throttle=await actionThrottle('cms-mfa',account.id,10,15*60*1000);
+  if(!throttle.allowed){res.set('Retry-After',String(throttle.retryAfter));res.status(429).json({error:'Too many attempts. Try again later.'});return null;}
+  return account;
+};
+app.get('/api/account/mfa',admin,async(req,res)=>{
+  res.set('Cache-Control','no-store, private');
+  try {const account=await getCmsUserById(req.admin.id);res.json({enabled:Boolean(account.mfa_enabled),verifiedAt:account.mfa_verified_at||null});}
+  catch {res.status(503).json({error:'Security settings are unavailable.'});}
+});
+app.post('/api/account/mfa/setup',admin,async(req,res)=>{
+  res.set('Cache-Control','no-store, private');
+  try {
+    const account=await cmsMfaAccount(req,res);if(!account)return;
+    if(account.mfa_enabled)return res.status(409).json({error:'Authenticator verification is already enabled.'});
+    if(!(await verifyPassword(String(req.body.password||''),account.password,await DUMMY_LOGIN_PASSWORD_HASH)).valid)return res.status(401).json({error:'Current password is incorrect.'});
+    const secret=generateTotpSecret(),enrollmentId=crypto.randomBytes(32).toString('hex');
+    await putState(stateKey('cms-mfa-enrollment',enrollmentId),{userId:account.id,updatedAt:sessionUpdatedAt(account),secret:encryptMfaSecret(secret),attempts:0,expiresAt:Date.now()+600000},600000);
+    const issuer=config.get('general.name')||'Municipality of Getafe';
+    const uri=`otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(account.email)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
+    res.json({enrollmentId,qrCode:await QRCode.toDataURL(uri,{width:240,margin:1}),expiresIn:600});
+  } catch {res.status(503).json({error:'Authenticator setup is unavailable.'});}
+});
+app.post('/api/account/mfa/activate',admin,async(req,res)=>{
+  res.set('Cache-Control','no-store, private');
+  try {
+    const account=await cmsMfaAccount(req,res);if(!account)return;
+    if(account.mfa_enabled)return res.status(409).json({error:'Authenticator verification is already enabled.'});
+    const key=stateKey('cms-mfa-enrollment',String(req.body.enrollmentId||''));
+    const result=await stateTransaction(key,async current=>{
+      if(!current||current.userId!==account.id||current.updatedAt!==sessionUpdatedAt(account))return{value:null,result:null};
+      if(verifyTotp(decryptMfaSecret(current.secret),req.body.code))return{value:null,result:current};
+      current.attempts++;return{value:current.attempts>=5?null:current,expires:current.expiresAt,result:null};
+    });
+    if(!result)return res.status(401).json({error:'Invalid or expired code. Start setup again after five attempts.'});
+    const recoveryCodes=generateRecoveryCodes();
+    await saveCmsMfa(account.id,{enabled:true,secret:result.secret,recoveryCodes:recoveryCodes.map(code=>hashRecoveryCode(code)),verifiedAt:new Date().toISOString(),expectedUpdatedAt:account.updated_at});
+    const updated=await getCmsUserById(account.id),session=authenticated(req);
+    await setSessionCookie(res,makeToken(updated,'cms',session?.remember===true),session?.remember===true);
+    res.json({enabled:true,recoveryCodes});
+  }catch{res.status(503).json({error:'Authenticator verification could not be enabled.'});}
+});
+app.post('/api/account/mfa/disable',admin,async(req,res)=>{
+  res.set('Cache-Control','no-store, private');
+  try {
+    const account=await cmsMfaAccount(req,res);if(!account)return;
+    if(!account.mfa_enabled)return res.status(409).json({error:'Authenticator verification is already disabled.'});
+    if(!(await verifyPassword(String(req.body.password||''),account.password,await DUMMY_LOGIN_PASSWORD_HASH)).valid)return res.status(401).json({error:'Current password is incorrect.'});
+    const code=String(req.body.code||'');
+    if(!verifyTotp(decryptMfaSecret(account.mfa_secret_encrypted),code)&&!await consumeCmsRecoveryCode(account.id,code,recoveryCodeMatches))return res.status(401).json({error:'Invalid authenticator or recovery code.'});
+    await saveCmsMfa(account.id,{enabled:false,secret:null,recoveryCodes:[],verifiedAt:null,expectedUpdatedAt:account.updated_at});
+    const updated=await getCmsUserById(account.id),session=authenticated(req);
+    await setSessionCookie(res,makeToken(updated,'cms',session?.remember===true),session?.remember===true);
+    res.json({enabled:false});
+  }catch{res.status(503).json({error:'Authenticator verification could not be disabled.'});}
+});
+
 app.get('/api/auth/mfa/status', resident, (req, res) => {
   res.setHeader('Cache-Control', 'no-store, private');
   res.json({ enabled: req.resident.mfa_enabled === true || req.resident.mfa_enabled === 1, verifiedAt: req.resident.mfa_verified_at || null });
@@ -1099,10 +1365,11 @@ app.post('/api/auth/change-password', resident, async (req, res) => {
   try {
     const currentPassword = typeof req.body?.currentPassword === 'string' ? req.body.currentPassword : '';
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    if (!currentPassword || !password) return res.status(422).json({ error: 'Enter your current password and a new password.' });
     if (currentPassword.length > 1024 || password.length > 1024) return res.status(422).json({ error: 'Passwords must be 1,024 characters or fewer.' });
     const throttle = await actionThrottle('portal-password-change', `${req.resident.id}:${resolveClient(req).value}`, 5, 15 * 60 * 1000);
     if (!throttle.allowed) { res.set('Retry-After', String(throttle.retryAfter)); return res.status(429).json({ error: 'Too many attempts. Please try again later.', retryAfter: throttle.retryAfter }); }
-    if (!matches(currentPassword, req.resident.password)) return res.status(401).json({ error: 'Current password is incorrect.' });
+    if (!(await verifyPassword(currentPassword, req.resident.password, await DUMMY_LOGIN_PASSWORD_HASH)).valid) return res.status(401).json({ error: 'Current password is incorrect.' });
     if (!passwordIsStrong(password) || password.length < config.get('authentication.passwordMinLength')) return res.status(422).json({ error: 'Choose a stronger password with uppercase and lowercase letters, a number, and a special character.' });
     if (password === currentPassword) return res.status(422).json({ error: 'Choose a different password.' });
     await replacePassword(req.resident.id, 'portal', password);
@@ -1111,7 +1378,7 @@ app.post('/api/auth/change-password', resident, async (req, res) => {
     if (!updated || !session) return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
     await setSessionCookie(res, makeToken(updated, 'portal', session.remember === true), session.remember === true);
     res.json({ ok: true });
-  } catch (error) { console.error('Password change failed:', error.message); res.status(503).json({ error: 'Password could not be changed.' }); }
+  } catch (error) { console.error(JSON.stringify({ event: 'password_change_failed', error: error?.name || 'Error' })); res.status(503).json({ error: 'Password could not be changed.' }); }
 });
 
 app.post('/api/auth/mfa/setup', resident, async (req, res) => {
@@ -1410,11 +1677,8 @@ app.post("/api/portal-auth/register", async (req, res) => {
     }
     if (config.get('security.registrationCaptcha')) {
       const token = String(req.body.captchaToken || '');
-      const secretKey = config.get('security.recaptchaSecretKey');
-      if (!secretKey || !token) return res.status(422).json({ error: 'Please complete the reCAPTCHA verification.' });
-      const verification = await fetch(`https://www.google.com/recaptcha/api/siteverify?secret=${encodeURIComponent(secretKey)}&response=${encodeURIComponent(token)}&remoteip=${encodeURIComponent(resolveClientAddress(req))}`);
-      const result = await verification.json();
-      if (!verification.ok || !result.success) return res.status(422).json({ error: 'reCAPTCHA verification failed. Please try again.' });
+      if (!token) return res.status(422).json({ error: 'Please complete the reCAPTCHA verification.' });
+      if (!(await verifyRecaptchaToken(token, 'register'))) return res.status(422).json({ error: 'reCAPTCHA verification failed. Please try again.' });
     }
     const name = String(req.body.name || "").trim(),
       email = String(req.body.email || "").trim().toLowerCase(),
@@ -1423,7 +1687,7 @@ app.post("/api/portal-auth/register", async (req, res) => {
     if (!name || name.length > 160 || email.length > 255 || !isValidEmail(email) || !passwordIsStrong(password) || password.length < config.get('authentication.passwordMinLength'))
       return res.status(422).json({ error: `Enter a name, a valid email address, and a stronger password of at least ${config.get('authentication.passwordMinLength')} characters.` });
 
-    if (await getCmsUserByEmail(email)) {
+    if (await getCmsUserByEmail(email) || await getPortalUserByEmail(email)) {
       return res.status(409).json({ error: "An account with that email already exists." });
     }
 
@@ -1437,30 +1701,49 @@ app.post("/api/portal-auth/register", async (req, res) => {
     await setSessionCookie(res, makeToken(user, 'portal', true), true);
     res.status(201).json({ user: safeUser(user), admin: false });
   } catch (error) {
-    res.status(error?.code === "ER_DUP_ENTRY" ? 409 : 503).json({
-      error: error?.code === "ER_DUP_ENTRY" ? "An account with that email already exists." : "Portal account service is unavailable.",
+    const duplicate = error?.code === "ER_DUP_ENTRY" || error?.code === "23505";
+    res.status(duplicate ? 409 : 503).json({
+      error: duplicate ? "An account with that email already exists." : "Portal account service is unavailable.",
     });
   }
 });
 
-installSettingsRoutes(app, admin);
+installSettingsRoutes(app, admin, { isTrustedProxy: isTrustedProxyAddress });
 installAdminUsersRoutes(app, admin);
 installStaffRoutes(app, admin);
 installAccessManagementRoutes(app, admin);
 installErrorCenterRoutes(app, admin);
-installCitizenRoutes(app, resident, safeUser);
+installCitizenRoutes(app, resident, safeUser, { rotateSession: async (req, res) => {
+  const updated = await getPortalUserById(req.resident.id), session = authenticated(req);
+  await setSessionCookie(res, makeToken(updated, 'portal', session?.remember === true), session?.remember === true);
+} });
 installEserviceRoutes(app, { resident, admin, permission });
 let eserviceWorkerBusy = false;
 const eserviceWorker = setInterval(async () => {
   if (eserviceWorkerBusy) return;
   eserviceWorkerBusy = true;
-  try { await drainEserviceOutbox(); }
+  try { await drainEserviceOutbox(); await drainStaffNotifications(); }
   catch { /* Durable events remain pending; health monitoring reports database/Redis outages. */ }
   finally { eserviceWorkerBusy = false; }
 }, 30000);
 eserviceWorker.unref();
 installPublicDataRoutes(app);
 installContactRoutes(app);
+
+const newsletterHandlers = createNewsletterHandlers({
+  getPortalPool,
+  sendWelcome: ({ to, subject, text, html }) => sendEmail(to, subject, text, undefined, config.values, [], html),
+  getPublicOrigin: () => newsletterPublicOrigin({
+    publicSiteUrl: process.env.PUBLIC_SITE_URL,
+    configuredUrl: config.get('general.url'),
+    production: process.env.NODE_ENV === 'production',
+  }),
+  getPortalName: () => config.get('general.name') || 'Municipality of Getafe',
+  getLogoUrl: () => config.get('general.logo'),
+});
+app.post('/api/newsletter/subscriptions', newsletterHandlers.subscribe);
+app.get('/api/newsletter/confirm/:token', newsletterHandlers.confirm);
+app.get('/api/newsletter/unsubscribe/:token', newsletterHandlers.unsubscribe);
 
 app.get('/api/public/config', async (req, res) => {
   // This response contains only intentionally public bootstrap settings. Do
@@ -1472,8 +1755,11 @@ app.get('/api/public/config', async (req, res) => {
     // Settings can be saved by a different application instance. Refresh the
     // shared settings snapshot before returning it to public pages.
     try { await config.load(true); } catch { /* Keep the last known working snapshot. */ }
-    const publicKeys = Object.keys(config.values).filter(key => key.startsWith('general.') || key.startsWith('features.') || key.startsWith('publicData.') || ['authentication.registrationEnabled', 'authentication.passwordMinLength', 'security.registrationCaptcha', 'security.contactCaptcha', 'security.recaptchaProvider', 'security.recaptchaSiteKey', 'notifications.enabled', 'maintenance.enabled', 'maintenance.message', 'maintenance.expectedCompletion'].includes(key));
-    res.json(Object.fromEntries(publicKeys.map(key => [key, config.get(key)])));
+    const publicKeys = publicConfigKeys.filter(key => Object.hasOwn(config.values, key));
+    res.json({
+      ...Object.fromEntries(publicKeys.map(key => [key, config.get(key)])),
+      'analytics.collectionEnabled': isAnalyticsCollectionEnabled() && !config.get('maintenance.enabled'),
+    });
   } catch (error) {
     console.error('Public configuration unavailable:', error.message);
     // Keep the public site usable while the settings store is recovering.
@@ -1483,12 +1769,14 @@ app.get('/api/public/config', async (req, res) => {
       'general.url': '',
       'general.timezone': 'Asia/Manila',
       'general.locale': 'en-PH',
-      'authentication.registrationEnabled': true,
+      'authentication.registrationEnabled': false,
       'authentication.passwordMinLength': 12,
-      'notifications.enabled': true,
-      'features.uploads': true,
-      'features.publicRegistration': true,
-      'maintenance.enabled': false,
+      'notifications.enabled': false,
+      'features.uploads': false,
+      'features.publicRegistration': false,
+      'analytics.collectionEnabled': false,
+      // A fallback may restrict access, never disable authoritative maintenance.
+      'maintenance.enabled': config.values?.['maintenance.enabled'] === true,
     });
   }
 });
@@ -1566,7 +1854,8 @@ app.get(['/api/news', '/api/admin/news'], async (req, res) => {
     const query = parsed.value;
     const publicRequest = !isAdmin;
     const cacheMode = publicRequest ? (isRedisReady() ? 'stale_read_through' : 'database_fallback') : 'database';
-    logPublicNews('request_received', { cache_mode: cacheMode, query });
+    const { search: _searchText, ...safeQuery } = query;
+    logPublicNews('request_received', { cache_mode: cacheMode, query: { ...safeQuery, has_search: Boolean(_searchText) } });
 
     const buildResponse = async () => {
       failureStage = publicRequest ? 'public_database' : 'database';
@@ -1586,6 +1875,13 @@ app.get(['/api/news', '/api/admin/news'], async (req, res) => {
       const displayField = { news: 'show_in_news', upcoming: 'show_in_upcoming', events: 'show_in_events', homepage: 'show_on_homepage' }[query.display];
       if (displayField) items = items.filter((n) => n[displayField] === true || n[displayField] === 1);
       if (query.homepage === true) items = items.filter((n) => n.show_on_homepage === true || n.show_on_homepage === 1);
+      if (query.month) {
+        const [year, month] = query.month.split('-').map(Number);
+        const from = new Date(`${query.month}-01T00:00:00+08:00`);
+        const until = new Date(Date.UTC(year, month, 1) - 8 * 60 * 60 * 1000);
+        items = items.filter(n => ['event', 'meeting'].includes(n.content_type) && n.event_start_at && new Date(n.event_start_at) < until && new Date(n.event_end_at || n.event_start_at) >= from);
+      }
+      if (query.day) items = items.filter(n => String(n.published_at || '').slice(0, 10) === query.day);
       if (query.temporal === 'upcoming') {
         items = items.filter((n) => ['event', 'meeting'].includes(n.content_type) && n.event_start_at && new Date(n.event_end_at || n.event_start_at) >= now);
       } else if (query.temporal === 'past') {
@@ -1606,10 +1902,11 @@ app.get(['/api/news', '/api/admin/news'], async (req, res) => {
       else items.sort((a, b) => new Date(b.published_at || 0) - new Date(a.published_at || 0));
 
       const pages = Math.ceil(items.length / query.limit) || 1;
+      const statusCounts = isAdmin ? items.reduce((counts, item) => { counts[item.status] = (counts[item.status] || 0) + 1; return counts; }, { published: 0, draft: 0 }) : undefined;
       const page = Math.min(query.page, pages);
       const paginated = items.slice((page - 1) * query.limit, page * query.limit);
       failureStage = 'content_decoration';
-      const decorated = await Promise.all(paginated.map(n => decorate(n, { categories, users })));
+      const decorated = await Promise.all(paginated.map(n => decorate(n, { categories, users }, publicRequest)));
       const responseItems = publicRequest ? decorated.map(toPublicNews) : decorated;
       return {
         items: responseItems,
@@ -1619,13 +1916,15 @@ app.get(['/api/news', '/api/admin/news'], async (req, res) => {
         limit: query.limit,
         hasNext: page < pages,
         hasPrevious: page > 1,
+        ...(statusCounts ? { statusCounts } : {}),
       };
     };
 
-    const result = publicRequest
+    const cachePublicNews = publicRequest && storageLocation().provider !== 'azure';
+    const result = cachePublicNews
       ? await cacheService.getOrSetStale('news-public', JSON.stringify(query), buildResponse, { ttlSeconds: 300, staleSeconds: 900 })
       : await buildResponse();
-    if (publicRequest) res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400');
+    if (cachePublicNews) res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400');
     else res.set('Cache-Control', 'no-store, max-age=0');
     logPublicNews('response_ready', { cache_mode: cacheMode, total: result.total, returned: result.items.length });
     res.json(result);
@@ -1635,6 +1934,48 @@ app.get(['/api/news', '/api/admin/news'], async (req, res) => {
   }
 });
 
+async function sendPublishedArticleImage(req, res, article, selector) {
+  if (storageLocation().provider !== 'azure' || article.status !== 'published' || !article.published_at || new Date(article.published_at) > new Date()) return res.sendStatus(404);
+  const relationships = await getContentMedia('news', article.id);
+  let url;
+  if (selector === 'featured') {
+    url = await articleImageUrl(article.featured_image, relationships.find(item => item.role === 'featured'));
+  } else if (/^gallery-\d{1,4}$/.test(selector)) {
+    const item = article.gallery_images?.[Number(selector.slice(8))];
+    if (!item) return res.sendStatus(404);
+    url = await articleImageUrl(item.storage_path || item.url, relationships.find(media =>
+      media.role === 'gallery' && (media.storage_path === item.storage_path || (item.media_id && media.media_id === item.media_id))));
+  } else if (/^inline-[\w-]{1,120}$/.test(selector)) {
+    const item = relationships.find(media => media.role === 'inline' && media.media_id === selector.slice(7));
+    if (!item) return res.sendStatus(404);
+    url = await articleImageUrl(null, item);
+  }
+  const key = activeAzureImageKey(url);
+  if (!key) return res.sendStatus(404);
+  const controller = new AbortController();
+  res.once('close', () => controller.abort());
+  const deadline = setTimeout(() => controller.abort(), 15000);
+  let source;
+  try {
+    const blob = await openAzureArticleImage(key, controller.signal);
+    source = blob.readableStreamBody;
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(blob.contentType) || !source) {
+      source?.destroy();
+      return res.sendStatus(404);
+    }
+    res.set({ 'Content-Type': blob.contentType, 'Cache-Control': 'public, max-age=60', 'X-Content-Type-Options': 'nosniff' });
+    if (Number.isSafeInteger(blob.contentLength)) res.set('Content-Length', String(blob.contentLength));
+    if (req.method === 'HEAD') { source.destroy(); return res.end(); }
+    await pipeline(source, res);
+  } catch (error) {
+    if (res.headersSent || res.destroyed) return;
+    if (isStorageNotFoundError(error)) return res.sendStatus(404);
+    logApiFailure(req, 'published_article_image', error, 503);
+    res.removeHeader('Content-Length');
+    res.set('Cache-Control', 'no-store').status(503).json({ error: 'The article image is temporarily unavailable.' });
+  } finally { clearTimeout(deadline); }
+}
+
 app.get(['/api/news/:slug', '/api/admin/news/:slug'], async (req, res) => {
   const identifier = queryValue(req.params.slug).trim();
   if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$/.test(identifier)) return res.status(404).json({ error: 'Article not found.' });
@@ -1642,7 +1983,8 @@ app.get(['/api/news/:slug', '/api/admin/news/:slug'], async (req, res) => {
     // Public links normally use slugs, but older feeds stored the article UUID
     // in their URL. Accept both forms without changing the public contract.
     const session = authenticated(req);
-    const requestedPublic = queryValue(req.query.public).toLowerCase() === 'true';
+    const imageRequested = !req.path.startsWith('/api/admin/') && Object.hasOwn(req.query, 'image');
+    const requestedPublic = imageRequested || queryValue(req.query.public).toLowerCase() === 'true';
     const cmsUser = !requestedPublic && session?.kind === 'cms' && !(await tokenIsRevoked(session)) ? await getCmsUserById(session.id) : null;
     const isAdmin = Boolean(cmsUser && await hasAccess(cmsUser, 'content.news.manage'));
     const publicRequest = !isAdmin;
@@ -1655,10 +1997,15 @@ app.get(['/api/news/:slug', '/api/admin/news/:slug'], async (req, res) => {
     };
     const loadPublicArticle = async () => {
       const found = await loadArticle();
-      return found ? toPublicNews(await decorate(found)) : null;
+      return found ? toPublicNews(await decorate(found, null, true)) : null;
     };
+    if (imageRequested) {
+      const found = await loadArticle();
+      if (!found) return res.sendStatus(404);
+      return await sendPublishedArticleImage(req, res, found, queryValue(req.query.image));
+    }
     const article = publicRequest
-      ? await cacheService.getOrSetNegative('news-article-public', identifier, loadPublicArticle, 600, 45)
+      ? await cacheService.getOrSetNegative('news-article-public', `portal-media:${identifier}`, loadPublicArticle, 600, 45)
       : await loadArticle();
     if (!article) return res.status(404).json({ error: 'Article not found.' });
     if (publicRequest) res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400');
@@ -1763,11 +2110,19 @@ app.post("/api/news/bulk", admin, permission('content.news.manage'), async (req,
 // -- CMS Categories --
 app.get("/api/categories", async (req, res) => {
   try {
-    const categories = await cacheService.getOrSetStale('categories-public', 'public', async () => (await getCategories()).map(toPublicCategory).filter(Boolean), { ttlSeconds: 300, staleSeconds: 900 });
+    const categories = await cacheService.getOrSetStale('categories-public', 'public', async () => {
+      const connectionString = getActiveDatabaseConnectionOptions('database')?.connectionString;
+      const dataApiRows = await getDataApiCategories(connectionString).catch(() => {
+        console.warn(JSON.stringify({ event: 'supabase_category_read_failed', request_id: req.requestId }));
+        return null;
+      });
+      return (dataApiRows ?? await getCategories()).map(toPublicCategory).filter(Boolean);
+    }, { ttlSeconds: 300, staleSeconds: 900 });
     res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400').json(categories);
   } catch (error) {
-    console.error('Categories lookup failed:', error.message);
-    res.status(503).json({ error: 'Categories are temporarily unavailable.' });
+    logApiFailure(req, 'categories_lookup', error, 503);
+    res.set({ 'Cache-Control': 'no-store', 'Retry-After': '2' }).status(503)
+      .json({ error: 'Categories are temporarily unavailable.', request_id: req.requestId });
   }
 });
 
@@ -1919,7 +2274,11 @@ app.get('/api/barangays', async (req, res) => {
   try {
     const decorated = await cacheService.getOrSetStale('barangays-public', 'public', async () => {
     const records = sanitizeBarangays(await getBarangays());
-    const publicRecords = await Promise.all(records.map(async (item) => ({
+    const psgcReferences = await getLocalGetafePsgc();
+    const psgcByName = new Map(psgcReferences.map(item => [normalizePsgcName(item.name), item]));
+    const publicRecords = await Promise.all(records.map(async (rawItem) => {
+      const item = enrichWithPsgc(rawItem, psgcByName.get(normalizePsgcName(rawItem.name)));
+      return ({
       ...item,
       slug: item.slug || item.id,
       more_information: item.more_information || '',
@@ -1929,11 +2288,17 @@ app.get('/api/barangays', async (req, res) => {
       cover_image: /^media\/[a-zA-Z0-9_\/-]+\.(?:jpg|png|webp)$/i.test(item.cover_image || '')
         ? await createDownloadUrl(item.cover_image)
         : item.cover_image || '',
-    })));
+    })}));
     return toPublicBarangays(publicRecords);
     }, { ttlSeconds: 300, staleSeconds: 900 });
     res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400').json(decorated);
   } catch (error) { console.error('Barangays lookup failed:', error.message); res.status(503).json({ error: 'Barangays are temporarily unavailable.' }); }
+});
+app.post('/api/admin/psgc/sync', admin, permission('directory.manage'), async (req, res) => {
+  startPsgcSyncSchedule();
+  const result = await syncGetafePsgc({ force: true });
+  if (!result.synced) return res.status(502).json({ error: result.error, requestedVersion: result.requestedVersion, activeVersion: result.activeVersion });
+  return res.json({ synced: true, source: 'PSA official release workbook', version: result.version, requestedVersion: result.requestedVersion, activeVersion: result.activeVersion, recordCount: result.recordCount });
 });
 app.put('/api/barangays', admin, permission('directory.manage'), async (req, res) => {
   try {
@@ -2000,8 +2365,98 @@ app.delete("/api/categories/:id", admin, permission('content.categories.manage')
 
 registerDestinationRoutes(app, { admin, permission });
 registerDepartmentRoutes(app, { admin, permission });
+registerManagedContentRoutes(app, { admin, permission });
+registerSearchRoutes(app, { admin, permission, permissionAny });
+registerWebsiteAnalyticsRoutes(app, { admin, permission });
+registerIntegrationHubRoutes(app, { admin, permission });
+installExternalApiRoutes(app, { admin, permission, permissionAny });
 
 // -- CMS Media --
+const mediaImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+app.get('/api/media/folders', admin, permission('content.media.manage'), async (req, res) => {
+  const root = config.get('storage.prefix');
+  const folder = req.query.folder ?? root;
+  const cursor = req.query.cursor;
+  const opened = req.query.folder !== undefined;
+  const kind = req.query.kind || 'images';
+  const location = storageLocation();
+  if (!isMediaFolderKey(folder, root) || !['images', 'documents', 'all'].includes(kind)) return res.status(422).json({ error: 'Invalid media folder.' });
+  res.set('Cache-Control', 'private, no-store');
+  try {
+    const prefix = folder + '/';
+    const validFile = key => validateObjectKey(key) && key.startsWith(prefix) && !key.slice(prefix.length).includes('/');
+    const accepts = type => kind === 'all' || (kind === 'images' ? mediaImageTypes.has(type) : !type?.startsWith('image/'));
+    let folders, items, next, rootFiles;
+    if (location.provider === 'azure') {
+      const page = await listAzureMediaFolder(prefix, cursor || undefined);
+      folders = page.folders.filter(key => isMediaFolderKey(key, root));
+      const files = page.files.filter(blob => validFile(blob.name) && accepts(blob.properties.contentType));
+      rootFiles = !opened && files.length > 0;
+      next = page.next;
+      items = opened ? await Promise.all(files.map(async blob => {
+        const record = await getMediaByStorageIdentity('azure', location.bucket, blob.name);
+        if (record ? record.status !== 'active' : !mediaImageTypes.has(blob.properties.contentType)) return null;
+        return {
+          ...record, storage_path: blob.name, content_type: blob.properties.contentType,
+          original_filename: record?.original_filename || blob.name.split('/').at(-1),
+          preview_url: await createDownloadUrl(blob.name, location.bucket),
+        };
+      })) : [];
+    } else {
+      if (!['backblaze', 'local'].includes(location.provider)) throw new Error('Media provider unavailable.');
+      const offset = cursor === undefined ? 0 : Number(cursor);
+      if (!Number.isSafeInteger(offset) || offset < 0) return res.status(422).json({ error: 'Invalid media page.' });
+      const paths = new Map();
+      for (const record of await getMedia()) {
+        const key = record.storage_path;
+        if (record.status !== 'active' || !validateObjectKey(key) || !key.startsWith(prefix)
+            || record.storage_provider !== location.provider || record.storage_bucket !== (location.bucket || 'local')) continue;
+        const rest = key.slice(prefix.length);
+        const slash = rest.indexOf('/');
+        if (slash >= 0) paths.set(prefix + rest.slice(0, slash), null);
+        else if (accepts(record.content_type)) paths.set(key, record);
+      }
+      rootFiles = !opened && [...paths.values()].some(Boolean);
+      const entries = [...paths].filter(([, record]) => opened || !record).sort(([a], [b]) => a.localeCompare(b));
+      const page = entries.slice(offset, offset + 40);
+      folders = page.filter(([, record]) => !record).map(([key]) => key);
+      items = await Promise.all(page.filter(([, record]) => record).map(async ([key, record]) =>
+        ({ ...record, preview_url: await createDownloadUrl(key) })));
+      next = offset + 40 < entries.length ? String(offset + 40) : null;
+    }
+    res.json({ root, folder, provider: location.provider, folders, rootFiles, items: items.filter(Boolean), next });
+  } catch {
+    res.status(503).json({ error: 'Could not load this media folder. Try again.' });
+  }
+});
+
+app.post('/api/media/register', admin, permission('content.media.manage'), async (req, res) => {
+  const key = req.body?.key;
+  const root = config.get('storage.prefix');
+  const location = storageLocation();
+  if (location.provider !== 'azure') return res.status(409).json({ error: 'Azure is not the active media provider.' });
+  if (!validateObjectKey(key) || !key.startsWith(root + '/')) return res.status(422).json({ error: 'Invalid media key.' });
+  res.set('Cache-Control', 'private, no-store');
+  try {
+    const metadata = await getObjectMetadata(key, location.bucket);
+    if (!metadata) return res.status(404).json({ error: 'This image is no longer in the folder.' });
+    const existing = await getMediaByStorageIdentity('azure', location.bucket, key);
+    if (existing?.status === 'active') return res.json({ ...existing, preview_url: await createDownloadUrl(key, location.bucket) });
+    const size = Number(metadata.ContentLength);
+    const type = metadata.ContentType;
+    const limit = config.get('storage.maxUploadMb') * 1024 * 1024;
+    if (!mediaImageTypes.has(type) || !Number.isSafeInteger(size) || size < 1 || size > limit
+        || !validateImageUpload(await readAzureMediaVersion(key, size, metadata.ETag), type, limit)) {
+      return res.status(422).json({ error: 'This blob is not a supported image within the media size limit.' });
+    }
+    const item = await registerAzureMedia({ key, bucket: location.bucket, contentType: type, size, uploadedBy: req.admin.id });
+    if (!item || item.status !== 'active') return res.status(409).json({ error: 'This key conflicts with another media record. Verify its migration before registering it.' });
+    res.json({ ...item, preview_url: await createDownloadUrl(key, location.bucket) });
+  } catch {
+    res.status(503).json({ error: 'Could not register this media file. Try again.' });
+  }
+});
+
 app.get("/api/media", admin, permission('content.media.manage'), async (req, res) => {
   try {
     const page = await getMediaPage({
@@ -2011,13 +2466,21 @@ app.get("/api/media", admin, permission('content.media.manage'), async (req, res
       usage: req.query.usage,
       sort: req.query.sort,
     });
+    const activeLocation = storageLocation();
+    const activeBucket = activeLocation.bucket || 'local';
     const decoratedMedia = await Promise.all(page.items.map(async (m) => {
       const result = {
         ...m,
+        storage_provider: m.storage_provider || (m.storage_bucket === activeBucket ? activeLocation.provider : 'legacy'),
         preview_url: null,
         preview_status: 'unknown',
         storage_status: 'unknown',
       };
+      if (result.storage_provider !== activeLocation.provider || m.storage_bucket !== activeBucket) {
+        result.preview_status = 'provider_mismatch';
+        result.storage_status = 'provider_mismatch';
+        return result;
+      }
       try {
         const metadata = await getObjectMetadata(m.storage_path, m.storage_bucket);
         if (!metadata) {
@@ -2046,7 +2509,8 @@ app.get("/api/media", admin, permission('content.media.manage'), async (req, res
   }
 });
 
-app.post("/api/storage/upload-url", admin, permission('content.media.manage'), async (req, res) => {
+app.post("/api/storage/upload-url", admin, permission('content.media.manage'), mediaWriteRoute(async (req, res) => {
+  if (process.env.MEDIA_MIGRATION_FREEZE === 'true') return res.status(503).json({ error: 'Media writes are paused for Azure migration.' });
   if (!config.get('features.uploads')) return res.status(403).json({ error: 'File uploads are disabled.' });
   const filename = String(req.body.filename || '').trim();
   const contentType = String(req.body.contentType || '').trim().toLowerCase();
@@ -2060,6 +2524,9 @@ app.post("/api/storage/upload-url", admin, permission('content.media.manage'), a
   if (checksumSha256 && !/^[a-f0-9]{64}$/.test(checksumSha256)) {
     return res.status(422).json({ error: 'The file checksum is invalid.' });
   }
+  const requestedStorage = storageLocation();
+  const requestedStorageProvider = requestedStorage.provider;
+  const requestedStorageBucket = requestedStorage.bucket || 'local';
 
   if (filename.length > 255 || /[\\/\0\r\n]/.test(filename)) {
     return res.status(422).json({ error: "Invalid filename." });
@@ -2084,8 +2551,12 @@ app.post("/api/storage/upload-url", admin, permission('content.media.manage'), a
     return res.status(422).json({ error: "File size exceeds the configured upload limit." });
   }
 
-  if (checksumSha256) {
-    const existing = await getMediaByChecksum(checksumSha256);
+  const folder = req.body.folder;
+  if (folder !== undefined && (requestedStorageProvider !== 'azure' || !isMediaFolderKey(folder, config.get('storage.prefix')))) {
+    return res.status(422).json({ error: 'Invalid Azure upload folder.' });
+  }
+  if (checksumSha256 && requestedStorageProvider !== 'azure') {
+    const existing = await getMediaByChecksum(checksumSha256, requestedStorageProvider, requestedStorageBucket);
     if (existing) {
       return res.json({
         reused: true,
@@ -2103,16 +2574,15 @@ app.post("/api/storage/upload-url", admin, permission('content.media.manage'), a
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, '0');
 
-  const storagePath = `${config.get('storage.prefix')}/${yyyy}/${mm}/${uuid}.${ext}`;
+  const storagePath = `${folder ?? `${config.get('storage.prefix')}/${yyyy}/${mm}`}/${uuid}.${ext}`;
   const createdAt = new Date();
   const expiresAt = new Date(createdAt.getTime() + config.get('storage.signedUrlMinutes') * 60000);
-
   try {
-    if (config.get('storage.provider') === 'backblaze') await createPendingUpload({
-      id: uuid, storagePath, originalFilename: filename, contentType, fileSize,
+    await createPendingUpload({
+      id: uuid, storagePath, storageProvider: requestedStorageProvider, storageBucket: requestedStorageBucket, originalFilename: filename, contentType, fileSize,
       uploadedBy: req.admin.id, context, expiresAt, createdAt, checksumSha256,
     });
-    const uploadUrl = process.env.NODE_ENV !== 'production' && config.get('storage.provider') === 'backblaze'
+    const uploadUrl = process.env.NODE_ENV !== 'production' && requestedStorageProvider === 'backblaze'
       ? `/api/media/upload-proxy?storagePath=${encodeURIComponent(storagePath)}&contentType=${encodeURIComponent(contentType)}`
       : await createUploadUrl(storagePath, contentType, fileSize);
     res.json({
@@ -2122,20 +2592,24 @@ app.post("/api/storage/upload-url", admin, permission('content.media.manage'), a
       expiresIn: config.get('storage.signedUrlMinutes') * 60
     });
   } catch (error) {
-    if (config.get('storage.provider') === 'backblaze') await deletePendingUpload(storagePath).catch(() => {});
+    await deletePendingUpload(storagePath).catch(() => {});
     console.error('Error generating upload URL:', error);
     res.status(500).json({ error: "Failed to generate upload URL." });
   }
-});
+}));
 
-app.put('/api/media/upload-proxy', admin, permission('content.media.manage'), express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '25mb' }), async (req, res) => {
+app.put('/api/media/upload-proxy', admin, permission('content.media.manage'), express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '25mb' }), mediaWriteRoute(async (req, res) => {
   const storagePath = String(req.query.storagePath || '');
   const contentType = String(req.query.contentType || '');
-  if (!validateObjectKey(storagePath) || !isMediaUploadPath(storagePath, config.get('storage.prefix')) || !['image/jpeg', 'image/png', 'image/webp'].includes(contentType) || !Buffer.isBuffer(req.body)) return res.status(400).json({ error: 'Invalid upload request.' });
+  const validPath = storageLocation().provider === 'azure' ? isAzureMediaUploadPath : isMediaUploadPath;
+  if (!validateObjectKey(storagePath) || !validPath(storagePath, config.get('storage.prefix')) || !['image/jpeg', 'image/png', 'image/webp'].includes(contentType) || !Buffer.isBuffer(req.body)) return res.status(400).json({ error: 'Invalid upload request.' });
   if (!validateImageUpload(req.body, contentType, config.get('storage.maxUploadMb') * 1024 * 1024)) return res.status(422).json({ error: 'The uploaded file is not a valid supported image.' });
+  // Authorization is outside the storage retry: a failed lookup must never
+  // enter a retry that writes bytes without a validated upload grant.
+  const location = storageLocation();
+  const pending = await getPendingUpload(storagePath, req.admin.id, location.provider, location.bucket || 'local');
+  if (!pending || pending.content_type !== contentType || Number(pending.file_size) !== req.body.length) return res.status(403).json({ error: 'Upload was not issued to this administrator or has expired.' });
   try {
-    const pending = await getPendingUpload(storagePath, req.admin.id);
-    if (!pending || pending.content_type !== contentType || Number(pending.file_size) !== req.body.length) return res.status(403).json({ error: 'Upload was not issued to this administrator or has expired.' });
     await uploadObject(storagePath, req.body, contentType);
     res.sendStatus(200);
   } catch (error) {
@@ -2150,14 +2624,18 @@ app.put('/api/media/upload-proxy', admin, permission('content.media.manage'), ex
       res.status(502).json({ error: 'Remote storage upload failed.' });
     }
   }
-});
+}));
 
-app.post("/api/media/complete", admin, permission('content.media.manage'), async (req, res) => {
+app.post("/api/media/complete", admin, permission('content.media.manage'), mediaWriteRoute(async (req, res) => {
+  if (process.env.MEDIA_MIGRATION_FREEZE === 'true') return res.status(503).json({ error: 'Media writes are paused for Azure migration.' });
   const storagePath = String(req.body.storagePath || '');
   const relatedRecordId = req.body.relatedRecordId || null;
   const requestedChecksum = String(req.body.checksumSha256 || '').trim().toLowerCase();
 
-  if (!storagePath || !validateObjectKey(storagePath) || !/^[a-zA-Z0-9_\/-]+\/[0-9a-f-]{36}\.(jpg|png|webp)$/i.test(storagePath)) {
+  const azureUpload = storageLocation().provider === 'azure';
+  if (!storagePath || !validateObjectKey(storagePath) || (azureUpload
+    ? !isAzureMediaUploadPath(storagePath, config.get('storage.prefix'))
+    : !/^[a-zA-Z0-9_\/-]+\/[0-9a-f-]{36}\.(jpg|png|webp)$/i.test(storagePath))) {
     return res.status(422).json({ error: "Invalid storage path." });
   }
   if (relatedRecordId && !/^[0-9a-f-]{36}$/i.test(String(relatedRecordId))) {
@@ -2167,22 +2645,20 @@ app.post("/api/media/complete", admin, permission('content.media.manage'), async
     return res.status(422).json({ error: 'The file checksum is invalid.' });
   }
 
-  const bucketName = config.get('storage.bucket');
+  const storageLocationInfo = storageLocation();
+  const storageProviderName = storageLocationInfo.provider;
+  const bucketName = storageLocationInfo.bucket || 'local';
   const isLocalStorage = storageIsLocal();
 
   // Guard against duplicate completion
-  const existing = await getMediaByStoragePath(storagePath);
+  const existing = await getMediaByStorageIdentity(storageProviderName, bucketName, storagePath);
   if (existing) {
     if (existing.uploaded_by !== req.admin.id) return res.status(403).json({ error: "You do not own this upload." });
     await deletePendingUpload(storagePath).catch(() => {});
     return res.status(200).json({ ...existing, preview_url: await createDownloadUrl(storagePath) });
   }
 
-  const pending = isLocalStorage ? {
-    original_filename: String(req.body.originalFilename || 'upload'),
-    content_type: String(req.body.contentType || ''),
-    file_size: Number(req.body.fileSize || 0),
-  } : await getPendingUpload(storagePath, req.admin.id);
+  const pending = await getPendingUpload(storagePath, req.admin.id, storageProviderName, bucketName);
   if (!pending) return res.status(403).json({ error: "Upload was not issued to this administrator or has expired." });
 
   // Verify the object exists and read the authoritative bytes. Hashing the
@@ -2196,7 +2672,7 @@ app.post("/api/media/complete", admin, permission('content.media.manage'), async
     } catch { return res.status(404).json({ error: "Uploaded file not found. Upload may have failed." }); }
   }
   if (!isLocalStorage && !storageMetadata) {
-    return res.status(404).json({ error: "Backblaze object not found. Upload may have failed." });
+    return res.status(404).json({ error: "Uploaded object not found. Upload may have failed." });
   }
 
   const verifiedContentType = isLocalStorage ? pending.content_type : (storageMetadata.ContentType || 'application/octet-stream');
@@ -2226,12 +2702,13 @@ app.post("/api/media/complete", admin, permission('content.media.manage'), async
     id: crypto.randomUUID(),
     originalFilename: pending.original_filename,
     storageBucket: bucketName,
+    storageProvider: storageProviderName,
     storagePath,
     contentType: verifiedContentType,
     fileSize: verifiedFileSize,
     uploadedBy: req.admin.id,
     relatedRecordId,
-    checksumSha256: actualChecksum,
+    checksumSha256: azureUpload ? null : actualChecksum,
     createdAt: new Date().toISOString().slice(0, 23).replace('T', ' '),
   });
 
@@ -2248,13 +2725,14 @@ app.post("/api/media/complete", admin, permission('content.media.manage'), async
     ...item,
     storage_path: item.storage_path || item.storagePath,
     storage_bucket: item.storage_bucket || item.storageBucket,
+    storage_provider: item.storage_provider || storageProviderName,
     original_filename: item.original_filename || item.originalFilename,
     content_type: item.content_type || item.contentType,
     file_size: item.file_size ?? item.fileSize,
     preview_url: await createDownloadUrl(canonicalStoragePath, item.storage_bucket || bucketName),
     reused: Boolean(item.reused),
   });
-});
+}));
 
 app.delete('/api/media', admin, permission('content.media.manage'), async (req, res) => {
   const ids = req.body?.ids;
@@ -2322,13 +2800,19 @@ app.get("/api/health/storage", admin, permission('system.infrastructure.view'), 
   res.status(healthy ? 200 : 503).json({ status: healthy ? 'healthy' : 'degraded', provider: health.provider });
 });
 
-app.get("/api/health", admin, permission('system.infrastructure.view'), (req, res) => {
-  const healthy = serviceStatus.cmsDatabase === 'connected' || serviceStatus.cmsDatabase === 'local';
-  res.status(healthy ? 200 : 503).json({
-    status: healthy ? 'ok' : 'degraded',
+app.get("/api/health", admin, permission('system.infrastructure.view'), async (_req, res) => {
+  await checkLifecycle();
+  const ready = coreReady && lifecycle !== 'SHUTTING_DOWN';
+  const healthy = ready && lifecycle !== 'DEGRADED';
+  res.status(ready ? 200 : 503).json({
+    status: !ready ? 'unhealthy' : healthy ? 'ok' : 'degraded',
+    ready,
     cmsDatabase: serviceStatus.cmsDatabase,
     portalDatabase: serviceStatus.portalDatabase,
     redis: trafficProtector.health(),
+    // The detailed dependency names are protected by the same infrastructure
+    // permission as this endpoint; public readiness continues exposing status only.
+    dependencies: dependencySnapshot.map(({ name, required, status }) => ({ name, required, status })),
   });
 });
 
@@ -2340,10 +2824,13 @@ app.get('/api/health/database', admin, permission('system.infrastructure.view'),
 app.put(/^\/api\/storage\/local-upload\/(.+)$/, admin, permission('content.media.manage'), express.raw({ type: '*/*', limit: '50mb' }), async (req, res) => {
   const relative = req.params[0];
   if (!relative || relative.includes('..') || relative.includes('\\') || !/^[a-zA-Z0-9_\/-]+\.(jpg|png|webp)$/.test(relative)) return res.status(400).json({ error: 'Invalid upload path.' });
+  if (!isMediaUploadPath(relative, config.get('storage.prefix'))) return res.status(403).json({ error: 'Upload path was not issued by the server.' });
+  const pending = await getPendingUpload(relative, req.admin.id);
   const contentType = relative.endsWith('.jpg') ? 'image/jpeg' : relative.endsWith('.png') ? 'image/png' : 'image/webp';
+  if (!pending || pending.content_type !== contentType || Number(pending.file_size) !== req.body?.length) return res.status(403).json({ error: 'Upload was not issued to this administrator or has expired.' });
   if (!Buffer.isBuffer(req.body) || req.body.length > config.get('storage.maxUploadMb') * 1024 * 1024 || !imageSignatureMatches(req.body, contentType)) return res.status(422).json({ error: 'The uploaded file is not a valid supported image.' });
   try {
-    if (config.get('storage.provider') === 'backblaze') {
+    if (!storageIsLocal()) {
       await uploadObject(relative, req.body, contentType);
       return res.status(200).json({ ok: true });
     }
@@ -2375,7 +2862,8 @@ app.use('/uploads', (req, res, next) => {
   catch { return res.sendStatus(400); }
   next();
 });
-app.use('/uploads', express.static(path.resolve(config.get('storage.localPath') || 'data/uploads')));
+app.use('/uploads', publicMediaAccess({ getMediaByStoragePath, validateObjectKey }));
+app.use('/uploads', express.static(path.resolve(config.values['storage.localPath'] || 'data/uploads')));
 const crawlableRoutes = ['/', '/info/about', '/accessibility', '/info/history', '/officials', '/info/sitemap', '/contact', '/legal/privacy', '/legal/terms', '/services', '/services/directory', '/barangays', '/services/hotlines', '/services/business-trade', '/services/certificates', '/services/education', '/services/health', '/weather', '/news', '/discover', '/tourism', '/events'];
 app.get('/sitemap.xml', async (req, res) => {
   const origin = `${req.protocol}://${req.get('host')}`;
@@ -2389,7 +2877,7 @@ app.get('/sitemap.xml', async (req, res) => {
 });
 app.get('/robots.txt', (req, res) => {
   const origin = `${req.protocol}://${req.get('host')}`;
-  res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /auth/\nDisallow: /admin/\nDisallow: /api/\nDisallow: /uploads/\nSitemap: ${origin}/sitemap.xml\n`);
+  res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /auth\nDisallow: /app\nDisallow: /admin\nDisallow: /api/\nDisallow: /uploads/\nSitemap: ${origin}/sitemap.xml\n`);
 });
 // server/index.js lives one directory below the Vite output directory in
 // both the repository and the production image.
@@ -2412,6 +2900,14 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use((req, res, next) => {
+  if (/^\/(auth|app|admin)(\/|$)/.test(req.path)) res.set('X-Robots-Tag', 'noindex, nofollow');
+  next();
+});
+app.use((req, res, next) => {
+  if (viteDevServer) return viteDevServer.middlewares(req, res, next);
+  next();
+});
 // Keep the SPA fallback from turning missing JavaScript, CSS, and image files
 // into HTML responses. Browsers report that as a misleading MIME-type error
 // and dynamic imports fail much later than the actual missing asset request.
@@ -2423,6 +2919,12 @@ app.use('/assets', express.static(path.join(distDirectory, 'assets'), {
     if (readCookies(res.req.headers.cookie).getafe_cache === 'off') res.set('Cache-Control', 'no-store, max-age=0');
   },
 }));
+app.get('/', async (req, res, next) => {
+  try {
+    const html = await (await import('node:fs/promises')).readFile(path.join(distDirectory, 'index.html'), 'utf8');
+    res.set('Cache-Control', 'no-store').type('html').send(homepageMetadata(html, siteUrl(req), Object.fromEntries(publicConfigKeys.map(key => [key, config.get(key)]))));
+  } catch (error) { next(error); }
+});
 app.use(express.static(distDirectory, {
   maxAge: process.env.NODE_ENV === 'production' ? '1y' : 0,
   immutable: process.env.NODE_ENV === 'production',
@@ -2446,7 +2948,7 @@ app.use((req, res) => {
 // route registration so errors from every endpoint reach the same handler.
 app.use((error, req, res, next) => {
   if (res.headersSent) return next(error);
-  const apiRequest = String(req.originalUrl || req.url || '').split('?')[0].startsWith('/api/');
+  const apiRequest = /^\/api\//i.test(String(req.originalUrl || req.url || ''));
   if (error instanceof SyntaxError && error.status === 400 && Object.hasOwn(error, 'body')) {
     return res.status(400).json({ error: 'Request body must be valid JSON.' });
   }
@@ -2466,13 +2968,26 @@ async function startServer() {
     const isProd = process.env.NODE_ENV === 'production';
     console.log(`[STARTUP 2/8] Environment: ${process.env.NODE_ENV || 'development'}`);
 
-    console.log('[STARTUP 3/8] Validating production configuration');
+    console.log(`[STARTUP 3/8] Validating ${isProd ? 'production' : 'development'} configuration`);
+    for (const key of ['CMS_SUPABASE_DATABASE_URL', 'REDIS_URL', 'B2_ENDPOINT', 'B2_BUCKET_NAME', 'B2_KEY_ID', 'B2_APPLICATION_KEY']) console.info(`[STARTUP][ENV] ${key}: ${process.env[key] ? 'configured' : 'unset'}`);
     if (isProd && (!secret || /^(change-this-|replace-with-|your-)/.test(secret))) throw new Error('A bootstrap session signing secret is required.');
-    const PORT = Number(process.env.BACKEND_PORT || process.env.PORT || 8080);
+    const unifiedDevelopment = !isProd && process.env.PORTAL_UNIFIED_DEV_SERVER === 'true';
+    const PORT = Number(isProd ? process.env.PORT || 8080 : unifiedDevelopment ? process.env.VITE_PORT || 5173 : process.env.PORT || process.env.VITE_PORT || 5173);
     if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) throw new Error('Backend port must be an integer between 1 and 65535.');
-    const server = app.listen(PORT, '0.0.0.0');
+    const HOST = isProd ? '0.0.0.0' : process.env.HOST || '127.0.0.1';
+    const server = createServer(app);
+    if (process.env.PORTAL_UNIFIED_DEV_SERVER === 'true') {
+      const { createServer: createViteServer } = await import('vite');
+      viteDevServer = await createViteServer({
+        configFile: path.resolve(__dirname, '..', 'vite.config.js'),
+        appType: 'spa',
+        server: { middlewareMode: true, ws: { server } },
+      });
+    }
+    server.listen(PORT, HOST);
     await new Promise((resolve, reject) => { server.once('listening', resolve); server.once('error', reject); });
-    console.log(`[SERVER] Listening on 0.0.0.0:${PORT}`);
+    console.log(`[SERVER] Listening on ${HOST}:${PORT}`);
+    if (viteDevServer) console.info(`[STARTUP] Vite middleware attached to the application server on ${HOST}:${PORT}`);
     console.log('[STARTUP] Application initializing');
     server.requestTimeout = 30_000;
     server.headersTimeout = 15_000;
@@ -2482,35 +2997,42 @@ async function startServer() {
     const shutdown = () => {
       if (stopping) return;
       stopping = true; lifecycle = 'SHUTTING_DOWN'; coreReady = false;
-      clearInterval(lifecycleTimer); clearInterval(orphanCleanupTimer);
+      clearInterval(lifecycleTimer); clearInterval(orphanCleanupTimer); stopPsgcSyncSchedule();
       const deadline = setTimeout(() => process.exit(1), 25000);
       server.close(async () => {
-        try { await initialization; await stopEmailWorker(); await trafficProtector.stop(); await closeCloudSql(); await closeConfigStore(); }
+        try { await viteDevServer?.close(); await initialization; await stopEmailWorker(); await trafficProtector.stop(); await closeDatabaseConnection(); await closeConfigStore(); }
         catch { process.exitCode = 1; }
         finally { clearTimeout(deadline); }
       });
     };
     process.once('SIGTERM', shutdown); process.once('SIGINT', shutdown);
 
-    console.log('[STARTUP 4/8] Initializing CMS database (and User database)');
-    console.log('[STARTUP 5/8] Initializing user database');
-    console.log('[STARTUP 6/8] Initializing Backblaze B2 storage');
+    console.log('[STARTUP 4/8] Initializing runtime settings and CMS database');
 
     // We already do timeouts internally in initializeServices
     const initialization = Promise.all([initializeServices(), trafficProtector.start()]);
     await initialization;
+    console.info(`[STARTUP][DATABASE] Active provider: ${getDatabaseRuntimeStatus('database').provider || 'unavailable'}`);
     if (stopping) return;
     initialized = true;
+    startPsgcSyncSchedule();
+    console.log('[STARTUP 7/8] Checking dependency readiness');
     await checkLifecycle();
-    console.log(`[STARTUP] Application ${lifecycle.toLowerCase()}`);
+    console.info(`[STARTUP] HTTP Server READY :${PORT}`);
+    const startupResult = reportStartup(dependencySnapshot);
+    console.info(`[STARTUP] Startup complete; server is running on port ${PORT}.`);
+    if (startupResult.status === 'degraded') console.info('[STARTUP] Optional services may recover in the background; the API is available now.');
     lifecycleTimer = setInterval(() => { void checkLifecycle(); }, 5000);
     lifecycleTimer.unref?.();
     if (isRedisReady()) await recoverEmailJobs().catch(error => console.error('[EMAIL] Queue recovery failed:', error.message));
-    startEmailWorker(async ({ to, subject, text, html, attachments, deliveryId }) => {
+    startEmailWorker(async ({ to, subject, text, html, attachments, deliveryId, staffNotificationId }) => {
       if (deliveryId && !await validateQueuedNotification(deliveryId)) return;
+      if (staffNotificationId && !await validateStaffEmailDelivery(staffNotificationId,to)) return;
       await sendEmail(to, subject, text, undefined, undefined, attachments || [], html);
+      await markStaffEmailDelivery(staffNotificationId,true).catch(error=>console.error('[EMAIL] Staff delivery log update failed:',error.message));
       await markNotificationDeliverySent(deliveryId).catch(error => console.error('[EMAIL] Delivery log update failed:', error.message));
-    }, async ({ deliveryId }, _job, error) => {
+    }, async ({ deliveryId,staffNotificationId }, _job, error) => {
+      await markStaffEmailDelivery(staffNotificationId,false).catch(()=>{});
       await markNotificationDeliveryFailed(deliveryId, error).catch(() => {});
     });
 
@@ -2521,8 +3043,9 @@ async function startServer() {
   } catch (error) {
     console.error('\n[STARTUP FAILED]');
     console.error('Stage: Service initialization');
+    console.error(`Subsystem: ${error.subsystem || 'BOOTSTRAP'}; Required: true; Reason: ${dependencyReason(error)}`);
     console.error(`Message: ${redactDiagnostic(error.message || 'Unknown error')}`);
-    console.error(`Stack: ${redactDiagnostic(error.stack)}`);
+    reportStartup([{ name: error.subsystem || 'BOOTSTRAP', required: true, status: 'unhealthy', reason: dependencyReason(error) }]);
     console.error('Local fallback: DISABLED\n');
     process.exit(1);
   }

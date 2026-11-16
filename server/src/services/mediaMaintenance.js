@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { getCmsPool } from './cloudSql.js';
+import { getCmsPool } from './database.js';
 import { deleteObject, readObject } from './storage.js';
 import { getMedia } from '../repositories/mediaRepository.js';
 

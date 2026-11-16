@@ -1,13 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { securityFetch as fetch } from '../services/securityFetch.js'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Search, RefreshCw, X, CheckCircle2, CircleAlert, Clock3 } from 'lucide-react'
 import { normalizePublicError } from '../services/publicError'
+import {routeRequest} from '../services/routeRequests'
 import './AdminErrorLogs.css'
+import ModalDialog from './ModalDialog'
+import { Alert } from './ui/Primitives'
 
 const stateLabels = { open: 'Open', acknowledged: 'Acknowledged', resolved: 'Resolved' }
 const formatDate = value => value ? new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—'
 const formatStatus = value => Number.isFinite(Number(value)) ? String(value) : '—'
 
 async function request(url, options = {}) {
+  if (!options.method || options.method === 'GET') return routeRequest(url, {scope:'cms',...options})
   const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'GetafeCitizenPortal', ...options.headers } })
   const body = await response.json().catch(() => ({}))
   if (!response.ok) {
@@ -35,6 +40,8 @@ export default function AdminErrorLogs({ canManage = false }) {
   const [refreshKey, setRefreshKey] = useState(0)
   const [saving, setSaving] = useState(false)
   const [note, setNote] = useState('')
+  const [detailError, setDetailError] = useState(''), [saved, setSaved] = useState(false)
+  const savingRef = useRef(false)
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams()
@@ -59,21 +66,25 @@ export default function AdminErrorLogs({ canManage = false }) {
     try {
       const detail = await request(`/api/admin/system/errors/${encodeURIComponent(item.referenceId)}`)
       setSelected(detail)
+      setDetailError(''); setSaved(false)
       setNote(detail.adminNote || '')
     } catch (cause) { setError(cause.message) }
   }
 
   const saveDetail = async event => {
     event.preventDefault()
-    if (!selected || !canManage) return
+    if (!selected || !canManage || savingRef.current) return
+    savingRef.current = true
+    setDetailError(''); setSaved(false)
     setSaving(true)
     setError('')
     try {
       const detail = await request(`/api/admin/system/errors/${encodeURIComponent(selected.referenceId)}`, { method: 'PATCH', body: JSON.stringify({ state: selected.state, adminNote: note }) })
       setSelected(detail)
+      setSaved(true)
       setResult(current => ({ ...current, items: current.items.map(item => item.referenceId === detail.referenceId ? { ...item, state: detail.state, adminNote: detail.adminNote } : item) }))
-    } catch (cause) { setError(cause.message) }
-    finally { setSaving(false) }
+    } catch (cause) { setDetailError(cause.message) }
+    finally { savingRef.current = false; setSaving(false) }
   }
 
   const updateFilter = (key, value) => setFilters(current => ({ ...current, [key]: value }))
@@ -91,8 +102,8 @@ export default function AdminErrorLogs({ canManage = false }) {
     {error && <p className="portal-error error-center-feedback" role="alert">{error}</p>}
     <div className="citizen-panel error-center-table-panel">
       <div className="citizen-panel-head"><div><h2>Issues</h2><p className="portal-muted">{result.pagination?.total || 0} grouped issue{result.pagination?.total === 1 ? '' : 's'}</p></div></div>
-      {loading ? <p className="portal-muted" role="status">Loading error records…</p> : result.items?.length ? <div className="error-table-wrap"><table className="error-table"><thead><tr><th>Reference</th><th>Last seen</th><th>Service</th><th>Route</th><th>Status</th><th>Occurrences</th><th>State</th></tr></thead><tbody>{result.items.map(item => <tr key={item.referenceId}><td><button type="button" className="error-reference" onClick={() => openDetail(item)}>{item.referenceId}</button></td><td>{formatDate(item.lastSeen)}</td><td>{item.service}</td><td><code>{item.method} {item.route}</code></td><td><span className={`error-status status-${item.status}`}>{formatStatus(item.status)}</span></td><td>{item.occurrenceCount}</td><td><StateBadge state={item.state} /></td></tr>)}</tbody></table></div> : <div className="error-empty"><h3>No matching issues</h3><p>New grouped failures will appear here when they are recorded.</p></div>}
+      {loading ? <p className="portal-muted" role="status">Loading error records…</p> : result.items?.length ? <div className="error-table-wrap" role="region" aria-label="System issues" tabIndex={0}><table className="error-table"><caption className="sr-only">System issues</caption><thead><tr><th>Reference</th><th>Last seen</th><th>Service</th><th>Route</th><th>Status</th><th>Occurrences</th><th>State</th></tr></thead><tbody>{result.items.map(item => <tr key={item.referenceId}><td><button type="button" className="error-reference" onClick={() => openDetail(item)}>{item.referenceId}</button></td><td>{formatDate(item.lastSeen)}</td><td>{item.service}</td><td><code>{item.method} {item.route}</code></td><td><span className={`error-status status-${item.status}`}>{formatStatus(item.status)}</span></td><td>{item.occurrenceCount}</td><td><StateBadge state={item.state} /></td></tr>)}</tbody></table></div> : <div className="error-empty"><h3>No matching issues</h3><p>New grouped failures will appear here when they are recorded.</p></div>}
     </div>
-    {selected && <div className="app-modal-backdrop error-detail-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelected(null) }}><section className="app-modal error-detail-modal" role="dialog" aria-modal="true" aria-labelledby="error-detail-title"><header className="error-detail-header"><div><p className="portal-date">Diagnostic record</p><h2 id="error-detail-title">{selected.referenceId}</h2><StateBadge state={selected.state} /></div><button type="button" className="profile-form-close" aria-label="Close issue details" onClick={() => setSelected(null)} data-icon-button="ghost"><X size={18} /></button></header><div className="error-detail-grid"><div><span>First seen</span><strong>{formatDate(selected.firstSeen)}</strong></div><div><span>Last seen</span><strong>{formatDate(selected.lastSeen)}</strong></div><div><span>Occurrences</span><strong>{selected.occurrenceCount}</strong></div><div><span>Status</span><strong>{selected.status}</strong></div><div><span>Service</span><strong>{selected.service}</strong></div><div><span>Route</span><strong><code>{selected.method} {selected.route}</code></strong></div><div><span>Internal code</span><strong><code>{selected.internalCode}</code></strong></div><div><span>Upstream dependency</span><strong>{selected.upstreamDependency || 'Not recorded'}</strong></div></div><div className="error-detail-copy"><h3>Technical message</h3><p>{selected.technicalMessage || 'Not recorded'}</p><h3>Stack trace</h3><pre>{selected.stackTrace || 'Not recorded'}</pre></div>{canManage && <form className="error-detail-actions" onSubmit={saveDetail}><label>Issue state<select value={selected.state} onChange={event => setSelected(current => ({ ...current, state: event.target.value }))}>{Object.entries(stateLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label>Admin note<textarea value={note} onChange={event => setNote(event.target.value)} maxLength={2000} placeholder="Add a private note for the team" /></label><button className="citizen-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save issue'}</button></form>}</section></div>}
+    {selected && <ModalDialog backdropClass="app-modal-backdrop error-detail-backdrop" themeClass="cms admin-portal" labelledBy="error-detail-title" busy={saving} onClose={() => setSelected(null)}><section className="app-modal error-detail-modal"><header className="error-detail-header"><div><p className="portal-date">Diagnostic record</p><h2 id="error-detail-title">{selected.referenceId}</h2><StateBadge state={selected.state} /></div><button type="button" className="profile-form-close" aria-label="Close issue details" disabled={saving} onClick={() => setSelected(null)} data-icon-button="ghost"><X size={18} /></button></header><div className="error-detail-grid"><div><span>First seen</span><strong>{formatDate(selected.firstSeen)}</strong></div><div><span>Last seen</span><strong>{formatDate(selected.lastSeen)}</strong></div><div><span>Occurrences</span><strong>{selected.occurrenceCount}</strong></div><div><span>Status</span><strong>{selected.status}</strong></div><div><span>Service</span><strong>{selected.service}</strong></div><div><span>Route</span><strong><code>{selected.method} {selected.route}</code></strong></div><div><span>Internal code</span><strong><code>{selected.internalCode}</code></strong></div><div><span>Upstream dependency</span><strong>{selected.upstreamDependency || 'Not recorded'}</strong></div></div><div className="error-detail-copy"><h3>Technical message</h3><p>{selected.technicalMessage || 'Not recorded'}</p><h3>Stack trace</h3><pre>{selected.stackTrace || 'Not recorded'}</pre></div>{detailError && <Alert tone="danger">{detailError}</Alert>}{saved && <Alert tone="success">Issue saved.</Alert>}{canManage && <form className="error-detail-actions" onSubmit={saveDetail}><label>Issue state<select disabled={saving} value={selected.state} onChange={event => setSelected(current => ({ ...current, state: event.target.value }))}>{Object.entries(stateLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label>Admin note<textarea disabled={saving} value={note} onChange={event => setNote(event.target.value)} maxLength={2000} placeholder="Add a private note for the team" /></label><button className="citizen-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save issue'}</button></form>}</section></ModalDialog>}
   </section>
 }

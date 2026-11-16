@@ -1,0 +1,78 @@
+[
+  {
+    "name": "direct protected URL preserves path, multiple parameters and fragment",
+    "result": "PASS"
+  },
+  {
+    "name": "public service apply uses the shared login destination",
+    "result": "PASS"
+  },
+  {
+    "name": "failed password preserves destination for successful retry",
+    "result": "PASS"
+  },
+  {
+    "name": "password MFA completes through the shared resolver",
+    "result": "PASS"
+  },
+  {
+    "name": "email verification completes through the shared resolver",
+    "result": "PASS"
+  },
+  {
+    "name": "no intent uses resident dashboard",
+    "result": "PASS"
+  },
+  {
+    "name": "non-service route preserves complete query and fragment",
+    "result": "PASS"
+  },
+  {
+    "name": "unsafe destination falls back: https://evil.example",
+    "result": "PASS"
+  },
+  {
+    "name": "unsafe destination falls back: /admin/users",
+    "result": "PASS"
+  },
+  {
+    "name": "unsafe destination falls back: /auth/login",
+    "result": "PASS"
+  },
+  {
+    "name": "unsafe destination falls back: /removed",
+    "result": "PASS"
+  },
+  {
+    "name": "already authenticated login restores requested service",
+    "result": "PASS"
+  },
+  {
+    "name": "staff login uses actual staff role",
+    "result": "PASS"
+  },
+  {
+    "name": "Google button passes full intent to OAuth initiation",
+    "result": "PASS"
+  },
+  {
+    "name": "Google cancellation permits password retry",
+    "result": "PASS"
+  },
+  {
+    "name": "Google MFA callback restores query and fragment",
+    "result": "PASS"
+  },
+  {
+    "name": "registration verification and required setup defer consumption",
+    "result": "PASS"
+  },
+  {
+    "name": "already signed-in resident retains guarded destination during setup",
+    "result": "PASS"
+  },
+  {
+    "name": "explicit sign-out clears stale tab intent",
+    "result": "PASS"
+  }
+]

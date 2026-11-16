@@ -1,4 +1,4 @@
-import { getCmsPool } from '../services/cloudSql.js';
+import { getCmsPool } from '../services/database.js';
 
 export async function getPopularServices(limit = 3) {
   const pool = await getCmsPool();

@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Wrong current password incorrectly emits session-expired",
+    "evidence": "A valid session must remain signed in when the current password is wrong\n+ actual - expected\n\n+ [\n+   'auth-session-expired'\n+ ]\n- []\n"
+  },
+  {
+    "name": "Password success can reuse the in-flight anonymous session request",
+    "evidence": "Session checks: 1; page: Log In\nMunicipality of Getafe\nBohol • Philippines\nSign in\nCreate account\nWelcome back\n\nEnter your credentials to access the Getafe e-services portal.\n\nThe sign-in session could not be established. Please try again.\nEmail address\nPassword\nForgot password?\nRemember me\nSign in\nor continue with\nGoogle\neGovPH\n\nNew to Getafe e-services? Create an account\n+ actual - expected\n\n+ '/auth/login'\n- '/app/documents'\n     ^\n"
+  },
+  {
+    "name": "Admin settings query can change a validated return URL into an unknown route",
+    "evidence": "The resolver accepted settings, then canonical navigation selected an unregistered category"
+  },
+  {
+    "name": "Admin settings root loses return-query parameters and fragment",
+    "evidence": "Actual destination: /admin/settings/general\n+ actual - expected\n\n+ ''\n- '?config=general.name#details'\n"
+  }
+]

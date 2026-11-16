@@ -4,6 +4,7 @@ import dns from 'node:dns/promises';
 import https from 'node:https';
 import net from 'node:net';
 import { config } from '../src/config/index.js';
+import { closeConfigStore } from '../src/config/DatabaseSettingsProvider.js';
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -16,12 +17,11 @@ import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { createBackblazeHttpsAgent } from '../src/services/b2HttpAgent.js';
 
 const lifecycle = process.argv.includes('--lifecycle');
-const values = config.values;
-const endpointValue = String(values['storage.endpoint'] || '').trim();
-const region = String(values['storage.region'] || '').trim();
-const bucket = String(values['storage.bucket'] || '').trim();
-const accessKeyId = values['storage.keyId'];
-const secretAccessKey = values['storage.applicationKey'];
+let endpointValue;
+let region;
+let bucket;
+let accessKeyId;
+let secretAccessKey;
 
 function summarizeProxy(value) {
   if (!value) return 'not configured';
@@ -65,6 +65,16 @@ let key;
 let failure;
 let uploaded = false;
 try {
+  // Diagnose the same effective settings the server loads, including saved
+  // CMS settings and decrypted credentials. Environment-only checks can pass
+  // while the running application is using stale database overrides.
+  const stored = await config.provider.read();
+  const { values } = await config.resolve(stored);
+  endpointValue = String(values['storage.endpoint'] || '').trim();
+  region = String(values['storage.region'] || '').trim();
+  bucket = String(values['storage.bucket'] || '').trim();
+  accessKeyId = values['storage.keyId'];
+  secretAccessKey = values['storage.applicationKey'];
   if (!endpointValue || !region || !bucket || !accessKeyId || !secretAccessKey) throw new Error('B2_ENDPOINT, B2_REGION, B2_BUCKET_NAME, B2_KEY_ID and B2_APPLICATION_KEY must all be configured.');
   const endpoint = new URL(endpointValue);
   const expectedHost = `s3.${region}.backblazeb2.com`;
@@ -80,10 +90,10 @@ try {
     console.log(`[Storage] ${name}: ${name === 'NO_PROXY' ? (value ? 'configured' : 'not configured') : summarizeProxy(value)}`);
   }
 
-  let ipv4 = [];
-  let ipv6 = [];
-  try { ipv4 = await dns.resolve4(endpoint.hostname); } catch {}
-  try { ipv6 = await dns.resolve6(endpoint.hostname); } catch {}
+  let addresses = [];
+  try { addresses = await dns.lookup(endpoint.hostname, { all: true, verbatim: false }); } catch {}
+  const ipv4 = addresses.filter(address => address.family === 4).map(address => address.address);
+  const ipv6 = addresses.filter(address => address.family === 6).map(address => address.address);
   if (!ipv4.length && !ipv6.length) throw Object.assign(new Error('B2 endpoint DNS lookup failed.'), { code: 'ENOTFOUND' });
   console.log('[Storage] DNS: OK');
   console.log(`[Storage] DNS IPv4: ${ipv4.length ? ipv4.join(', ') : 'none'}`);
@@ -162,6 +172,7 @@ try {
     }
   }
   client?.destroy();
+  await closeConfigStore();
 }
 
 if (failure) process.exitCode = 1;

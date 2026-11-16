@@ -1,0 +1,7 @@
+.mobile-verification { display: grid; gap: .65rem; margin-block: .75rem; padding: 1rem; border: 1px solid var(--border-color, #dce2e8); border-radius: .75rem; background: var(--surface, #fff); color: var(--text-color, #17202c); }
+.mobile-verification p { margin: 0; font-size: .875rem; line-height: 1.5; overflow-wrap: anywhere; }
+.mobile-verification [role="alert"] { color: #b42318; }
+.mobile-verification button { justify-self: start; min-height: 44px; white-space: normal; }
+.mobile-verification-code { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; }
+.mobile-verification-code label { display: grid; gap: .4rem; max-width: 100%; font-size: .875rem; }
+.mobile-verification-code input { width: 100%; max-width: 14rem; min-height: 44px; padding: .65rem .75rem; border: 1px solid #c6ced8; border-radius: .4rem; font: inherit; }

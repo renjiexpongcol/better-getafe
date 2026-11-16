@@ -1,4 +1,4 @@
-import { getPortalPool } from '../services/cloudSql.js';
+import { getPortalPool } from '../services/database.js';
 import { getLocalDb, saveLocalDb, isPortalGcp, id, now } from './postgresCompatibility.js';
 import { hashPassword } from '../services/passwordHashing.js';
 

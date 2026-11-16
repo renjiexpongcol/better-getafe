@@ -2,29 +2,30 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import pg from 'pg';
 import { installPoolErrorHandler } from '../services/dependencyFailures.js';
+import { DATABASE_MIGRATION_FREEZE_LOCK_ID, supabaseConnectionOptions } from '../services/postgres.js';
 let pool;
 function postgresPool() {
-  const pool = new pg.Pool({
-    ...(process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL } : { host: process.env.DB_HOST || '127.0.0.1', port: Number(process.env.DB_PORT || 5432), database: process.env.DB_NAME || 'getafe_portal', user: process.env.DB_USER || 'getafe_app', password: process.env.DB_PASSWORD }),
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  const next = new pg.Pool({
+    ...supabaseConnectionOptions('database'),
     max: Number(process.env.DB_CONNECTION_LIMIT || 5), connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS || 10000), idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS || 60000),
     query_timeout: Number(process.env.DB_QUERY_TIMEOUT_MS || 10000),
   });
-  installPoolErrorHandler(pool, 'settings');
+  installPoolErrorHandler(next, 'settings');
   const adapt = sql => { let i = 0; return String(sql).replace(/\?/g, () => `$${++i}`); };
-  pool.driver = 'postgresql';
-  pool.execute = async (sql, params = []) => { const result = await pool.query(adapt(sql), params); return [result.rows, result]; };
-  const getConnection = pool.connect.bind(pool);
-  pool.getConnection = async () => { const client = await getConnection(); client.execute = async (sql, params = []) => { const result = await client.query(adapt(sql), params); return [result.rows, result]; }; client.beginTransaction = () => client.query('BEGIN'); client.commit = () => client.query('COMMIT'); client.rollback = () => client.query('ROLLBACK'); return client; };
-  return pool;
+  next.driver = 'postgresql';
+  next.execute = async (sql, params = []) => { const result = await next.query(adapt(sql), params); return [result.rows, result]; };
+  const getConnection = next.connect.bind(next);
+  next.getConnection = async () => { const client = await getConnection(); client.execute = async (sql, params = []) => { const result = await client.query(adapt(sql), params); return [result.rows, result]; }; client.beginTransaction = () => client.query('BEGIN'); client.commit = () => client.query('COMMIT'); client.rollback = () => client.query('ROLLBACK'); return client; };
+  return next;
 }
 export async function getConfigPool() {
-  if (!pool) {
-    pool = postgresPool();
-  }
-  return pool;
+  return pool ??= postgresPool();
 }
-export async function closeConfigStore() { if (pool) await pool.end(); }
+export async function closeConfigStore() {
+  const current = pool;
+  pool = undefined;
+  await current?.end();
+}
 export class DatabaseSettingsProvider {
   constructor({ file = process.env.CONFIG_LOCAL_FILE || path.resolve('data/settings.json'), poolProvider = getConfigPool } = {}) { this.file = file; this.poolProvider = poolProvider; this.pending = Promise.resolve(); }
   async readFileSettings({ storageOnly = false } = {}) {
@@ -47,9 +48,10 @@ export class DatabaseSettingsProvider {
     const db = await this.poolProvider();
     if (db) {
       const [rows] = await db.execute('SELECT setting_key, value FROM system_settings');
+      const current=Object.fromEntries(rows.map(row=>[row.setting_key,JSON.parse(row.value)]));
       // A fresh database can exist before the saved settings have been
       // imported. Keep the configured B2 credentials usable in that state.
-      return rows.length ? Object.fromEntries(rows.map(row => [row.setting_key, JSON.parse(row.value)])) : await this.readFileSettings({ storageOnly: true });
+      return rows.length ? current : await this.readFileSettings({ storageOnly: true });
     }
     return this.readFileSettings();
   }
@@ -75,12 +77,14 @@ export class DatabaseSettingsProvider {
           await fs.writeFile(temporary, JSON.stringify(document, null, 2), { mode: 0o600 });
           await fs.rename(temporary, this.file);
         } catch (error) { await result.discard?.(); throw error; }
-        result.activate?.();
+        await result.activate?.();
         return;
       }
       const connection = await db.getConnection();
       let result;
+      let freezeLock = false;
       try {
+        await connection.query('SELECT pg_advisory_lock_shared($1)',[DATABASE_MIGRATION_FREEZE_LOCK_ID]);freezeLock=true
         await connection.beginTransaction();
         // This existing singleton row serializes saves across application replicas.
         await connection.execute('SELECT id FROM settings_lock WHERE id = 1 FOR UPDATE');
@@ -93,9 +97,9 @@ export class DatabaseSettingsProvider {
           await connection.execute('INSERT INTO audit_logs (id,user_id,action,category,setting_key,old_value,new_value,ip_address) VALUES (?,?,?,?,?,?,?,?)', [entry.id, entry.user_id, entry.action, entry.category, entry.setting_key, JSON.stringify(entry.old_value), JSON.stringify(entry.new_value), entry.ip_address]);
         }
         await connection.commit();
-        result.activate?.();
+        await result.activate?.();
       } catch (error) { await connection.rollback().catch(() => {}); await result?.discard?.(); throw error; }
-      finally { connection.release(); }
+      finally { if(freezeLock)await connection.query('SELECT pg_advisory_unlock_shared($1)',[DATABASE_MIGRATION_FREEZE_LOCK_ID]).catch(()=>{});connection.release(); }
     });
     this.pending = run.catch(() => {});
     return run;

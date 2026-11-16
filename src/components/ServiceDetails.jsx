@@ -1,9 +1,11 @@
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
+import { loginDestination } from '../authNavigation';
 import { useEffect, useRef, useState } from 'react';
 import { useOptionalAuth } from '../context/AuthContext';
 import { esApi, useEservice, money } from './EserviceUI';
 import { publicStatus } from '../data/serviceApplication';
 import { publicErrorMessage } from '../services/publicError';
+import { trackServiceJourneyStep, trackContentView } from '../services/websiteAnalytics.js';
 import ServiceCatalog from './ServiceCatalog';
 import './ServiceDetails.css';
 
@@ -17,13 +19,26 @@ const closedStatuses = ['COMPLETED', 'REJECTED', 'CANCELLED'];
 
 export default function ServiceDetails() {
   const { slug } = useParams(), { user } = useOptionalAuth(), navigate = useNavigate();
+  const location = useLocation();
   const state = useEservice(signal => esApi(`/services/${slug}`, 'GET', null, null, { signal, errorContext: 'services' }), [slug]);
   const [selection, setSelection] = useState({ slug, userId: user?.id, id: '' });
   const businessId = selection.slug === slug && selection.userId === user?.id ? selection.id : '';
   const [busy, setBusy] = useState(false), [startError, setStartError] = useState('');
   const [businessRevision, setBusinessRevision] = useState(0);
-  const operationRef = useRef(null), startingRef = useRef(false);
+  const operationRef = useRef(null), startingRef = useRef(false), requirementsRef = useRef(null);
   const service = state.data;
+  useEffect(() => { if (service?.id) trackServiceJourneyStep(service.id, 'service_viewed') }, [service?.id]);
+  useEffect(() => { if (service?.id && !location.pathname.startsWith('/app/')) trackContentView(service.id, 'service', location.key) }, [service?.id, location.key, location.pathname]);
+  useEffect(() => {
+    const node = requirementsRef.current
+    if (!service?.id || !node) return undefined
+    if (!('IntersectionObserver' in window)) { trackServiceJourneyStep(service.id, 'requirements_opened'); return undefined }
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) { trackServiceJourneyStep(service.id, 'requirements_opened'); observer.disconnect() }
+    }, { threshold: 0.25 })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [service?.id]);
   const billing = service?.settings?.workflow_type === 'ASSESSMENT_PAYMENT';
   const requiresBusiness = service?.kind === 'BUSINESS_RENEWAL' || billing;
   const apply = ['APPLICATION', 'BUSINESS_NEW', 'BUSINESS_RENEWAL', 'BUSINESS'].includes(service?.kind) && !['INFORMATION', 'PAYMENT'].includes(service?.settings?.workflow_type);
@@ -40,7 +55,7 @@ export default function ServiceDetails() {
   const selectedBusiness = items.find(business => business.id === businessId);
   const existing = (applications.data?.items || []).find(request => request.service_id === service?.id && !closedStatuses.includes(request.status) && (!requiresBusiness || selectedBusiness && request.business_id === businessId));
   const start = async () => {
-    if (!user) { navigate(`/auth/login?returnUrl=${encodeURIComponent(`/app/services/${slug}`)}`); return; }
+    if (!user) { navigate(loginDestination(`/app/services/${encodeURIComponent(slug)}${location.search}${location.hash}`)); return; }
     if (startingRef.current || requiresBusiness && (!selectedBusiness || businesses.loading)) return;
     startingRef.current = true; setBusy(true); setStartError('');
     const payload = { service_id: service.id, ...(requiresBusiness ? { business_id: businessId } : {}) };
@@ -75,11 +90,11 @@ export default function ServiceDetails() {
         {apply && resident && applications.error && <div className="sd-inline-error"><p>We couldn’t check your existing applications. Check My Requests before starting another.</p><Link to="/app/e-requests">View My Requests</Link><button type="button" className="es-secondary" onClick={applications.refresh}>Try again</button></div>}
         {existing && <div className="sd-existing" role="status"><strong>{existing.status === 'DRAFT' ? 'You have a saved application' : 'You already have an application'}</strong><p>{existing.payment_pending ? 'Payment pending. Your payment is awaiting confirmation.' : existing.status === 'AWAITING_PAYMENT' ? 'Payment required. Review the assessment in your request.' : existing.status === 'FOR_ASSESSMENT' ? 'Assessment required. The office is reviewing applicable charges.' : publicStatus(existing.status)}</p><Link to={`/app/e-requests/${existing.id}`}>{existing.status === 'DRAFT' ? 'Resume application' : 'View existing application'}</Link></div>}
         {startError && <p className="sd-inline-error" role="alert">{startError}</p>}
-        {apply ? <><button type="button" className="sd-primary" onClick={start} disabled={busy || !!blockedReason} aria-describedby={blockedReason ? 'service-action-help' : undefined}>{busy ? 'Starting application…' : !user ? 'Sign in to apply' : 'Start application'}</button>{blockedReason && <p id="service-action-help" className="sd-helper">{blockedReason}</p>}</> : service.settings?.workflow_type === 'PAYMENT' || ['BUSINESS', 'REAL_PROPERTY', 'WATER', 'PAYMENT_ORDER'].includes(service.kind) ? <Link className="es-button sd-primary" to="/app/e-billing/all">View payable assessments</Link> : <p className="sd-helper">{service.online_available ? 'Contact the office for assistance with this service.' : 'This service is available through the municipal office.'}</p>}
+        {apply ? <><button type="button" className="sd-primary" onClick={() => { trackServiceJourneyStep(service.id, 'service_apply_clicked'); start() }} disabled={busy || !!blockedReason} aria-describedby={blockedReason ? 'service-action-help' : undefined}>{busy ? 'Starting application…' : !user ? 'Sign in to apply' : 'Start application'}</button>{blockedReason && <p id="service-action-help" className="sd-helper">{blockedReason}</p>}</> : service.settings?.workflow_type === 'PAYMENT' || ['BUSINESS', 'REAL_PROPERTY', 'WATER', 'PAYMENT_ORDER'].includes(service.kind) ? <Link className="es-button sd-primary" onClick={() => trackServiceJourneyStep(service.id, 'service_apply_clicked')} to="/app/e-billing/all">View payable assessments</Link> : <p className="sd-helper">{service.online_available ? 'Contact the office for assistance with this service.' : 'This service is available through the municipal office.'}</p>}
       </aside>
       <div className="sd-information">
         {service.eligibility && <section className="sd-section"><h2>Who may apply</h2><p className="es-preserve-lines">{service.eligibility}</p></section>}
-        <section className="sd-section"><h2>Requirements</h2>{requirements.length ? <ul className="sd-requirements">{requirements.map((requirement, index) => <li key={requirement.id || index}><div><strong>{requirement.label}</strong><span className="sd-required">{requirement.required ? 'Required' : 'Optional'}</span></div>{requirement.help_text && <p>{requirement.help_text}</p>}</li>)}</ul> : <p>No additional documents are currently required for this service.</p>}</section>
+        <section ref={requirementsRef} className="sd-section"><h2>Requirements</h2>{requirements.length ? <ul className="sd-requirements">{requirements.map((requirement, index) => <li key={requirement.id || index}><div><strong>{requirement.label}</strong><span className="sd-required">{requirement.required ? 'Required' : 'Optional'}</span></div>{requirement.help_text && <p>{requirement.help_text}</p>}</li>)}</ul> : <p>No additional documents are currently required for this service.</p>}</section>
         <section className="sd-section"><h2>Fees</h2>{fees.length ? <dl className="sd-fees">{fees.map((fee, index) => <div key={fee.id || fee.code || index}><dt>{fee.description}</dt><dd>{money(fee.fee_type === 'CREDIT' ? -Number(fee.amount) : fee.amount)}</dd></div>)}</dl> : <p>{service.payment_required ? 'The office will confirm applicable fees after assessment.' : 'No fees are currently listed for this service.'}</p>}{service.payment_required && <p className="sd-fee-note">Any outstanding assessment will be available in your request before payment.</p>}</section>
         {service.description && service.short_description && service.description !== service.short_description && <section className="sd-section"><h2>About this service</h2><p className="es-preserve-lines">{service.description}</p></section>}
         {service.instructions && <section className="sd-section"><h2>Instructions</h2><p className="es-preserve-lines">{service.instructions}</p></section>}

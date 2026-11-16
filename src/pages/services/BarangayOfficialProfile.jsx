@@ -1,7 +1,7 @@
+import { useDataRevision } from '../../hooks/usePublicResource'
 import { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowRight, UserRound } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { barangays as fallback } from '../../data/barangays'
 import { ErrorPage, ResourceNotFound } from '../../components/RouteStatusPages'
 import { publicApi } from '../../services/apiClient'
 
@@ -11,23 +11,24 @@ const matches = (item, id) => slug(item?.id) === slug(id) || slug(item?.name) ==
 const dateLabel = value => value ? new Intl.DateTimeFormat('en-PH', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(`${value}T00:00:00Z`)) : '—'
 
 export default function BarangayOfficialProfile() {
+  const dataRevision = useDataRevision()
   const { id, officialSlug } = useParams()
-  const [barangay, setBarangay] = useState(() => fallback.find(item => matches(item, id)) || null)
+  const [barangay, setBarangay] = useState(null)
   const [official, setOfficial] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   useEffect(() => {
     let active = true
     Promise.all([publicApi('/barangays'), publicApi('/officials/directory?barangay=' + encodeURIComponent(slug(id)))]).then(async ([items, directory]) => {
-      const nextBarangay = items.find(item => matches(item, id)) || fallback.find(item => matches(item, id)) || null
+      const nextBarangay = items.find(item => matches(item, id)) || null
 
       if (!active) return
       setBarangay(nextBarangay)
       setOfficial((directory.items || []).find(item => item.slug === officialSlug) || null)
       setLoadError(false)
-    }).catch(() => { if (active) setLoadError(!fallback.find(item => matches(item, id))) }).finally(() => { if (active) setLoading(false) })
+    }).catch(() => { if (active) setLoadError(true) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [id, officialSlug])
+  }, [id, officialSlug, dataRevision])
   if (loading) return <main className="section"><div className="container"><p>Loading official profile…</p></div></main>
   if (loadError) return <ErrorPage code="503" title="Official profiles are temporarily unavailable" message="Please try again later." secondaryAction={{ label: 'Back to Barangay Officials', to: `/barangays/${id}/officials` }} />
   if (!barangay) return <ResourceNotFound type="barangay" />

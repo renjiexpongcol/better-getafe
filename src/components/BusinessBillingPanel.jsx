@@ -18,7 +18,7 @@ export default function BusinessBillingPanel({
   onApplication,
 }) {
   const state = useEservice(
-    () => esApi(`/requests/${request.id}/business-billing`),
+    (signal) => esApi(`/requests/${request.id}/business-billing`, "GET", undefined, undefined, {signal}),
     [request.id, request.version],
   );
   const [busy, setBusy] = useState(false),
@@ -28,8 +28,8 @@ export default function BusinessBillingPanel({
     [amount, setAmount] = useState("");
   const selected = state.data?.selected_order_id;
   const order = useEservice(
-    () =>
-      selected ? esApi(`/payment-orders/${selected}`) : Promise.resolve(null),
+    (signal) =>
+      selected ? esApi(`/payment-orders/${selected}`, "GET", undefined, undefined, {signal}) : Promise.resolve(null),
     [selected, request.version],
   );
   const pending = order.data?.attempts?.find((a) => a.status === "PENDING");

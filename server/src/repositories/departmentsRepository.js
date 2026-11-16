@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { getCmsPool } from '../services/cloudSql.js';
+import { getCmsPool } from '../services/database.js';
 
 const view = row => ({ ...row.content, id: row.id, slug: row.slug, name: row.name, published: row.published, displayOrder: row.display_order });
 export async function listDepartments(admin = false) {

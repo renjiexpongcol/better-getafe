@@ -14,6 +14,6 @@ export function checkRequestOrigin(req, configuredOrigin, { isTrustedProxy, envi
   const allowed = [configured, process.env.PUBLIC_SITE_URL, ...(process.env.API_CORS_ORIGINS || '').split(',')].map(originOf).filter(Boolean);
   const effective = effectiveRequestOrigin(req, isTrustedProxy);
   const localDev = environment !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1):5173$/.test(source);
-  const sameOrigin = !!source && source !== 'null' && source === effective;
+  const sameOrigin = environment !== 'production' && !!source && source !== 'null' && source === effective;
   return { source, effective, allowed: !!source && source !== 'null' && (sameOrigin || allowed.includes(source) || localDev), reason: sameOrigin ? 'same_origin' : allowed.includes(source) ? 'configured_origin' : localDev ? 'local_dev_origin' : 'untrusted_origin' };
 }

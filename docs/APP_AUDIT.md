@@ -1,5 +1,17 @@
 # E-Getafe application audit
 
+## Follow-up UI audit — 4 October 2026
+
+Reproduced and fixed these interaction bugs:
+
+- Staff e-service navigation retained the previous request's selected section, unsaved message and success notice. Each request and the queue now own separate screen state, so switching records cannot carry a draft or notice into another request.
+- Saving employee personnel information erased unsaved account edits, and saving account information erased unsaved personnel edits. Reloading a saved section now updates that section and the profile summary while preserving the other form's draft. A synchronous guard also prevents overlapping saves.
+- A failed employee-profile read left the dialog stuck with an error. An explicit retry now recovers the profile without closing and reopening the dialog. Employee screen state is also isolated by employee ID.
+
+Validation used browser fixtures (no changes to live employee or request records): 27 resident/staff routes at 320, 390, 768 and 1440px; public, authentication, resident, staff and admin icon controls at 390 and 1440px; keyboard focus and announcement navigation; anonymous/resident/staff/admin authentication isolation. Employee, staff-processing, assessment and department-queue regression checks cover desktop and mobile. Production build and lint passed. These checks cover the tested states and do not certify every live CMS configuration.
+
+## Original audit
+
 Audit date: 3 October 2026. Primary scope: resident `/app/*`, staff `/app/staff/*`, and shared public/admin components affected by changes.
 
 This report describes this audit's changes. The checkout already contained substantial changes from other work; those were preserved. The earlier announcement redesign and ghost icon-button work were also preserved and retested.

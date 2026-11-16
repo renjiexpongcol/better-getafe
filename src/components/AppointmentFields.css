@@ -1,0 +1,32 @@
+/* Scope shared field geometry and interaction states to both booking flows. */
+.appointment-fields { display: grid; gap: 22px; width: 100%; min-width: 0; align-content: start; }
+.portal-appointment-scheduler > .appointment-fields { margin: 22px 0; }
+.appointment-date-time { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.appointment-fields .appointment-field { display: grid; gap: 7px; min-width: 0; position: relative; align-content: start; }
+.appointment-fields .appointment-field > label { display: block; font-size: 14px; font-weight: 600; margin: 0; padding: 0; color: inherit; }
+.appointment-fields .appointment-control { display: block; width: 100%; min-width: 0; height: 44px; min-height: 44px; margin: 0; padding: 10px 12px; border: 1px solid var(--border, var(--color-border-strong)); border-radius: var(--radius-control); background: var(--surface, var(--color-surface)); color: inherit; font: inherit; font-size: 16px; line-height: 22px; box-sizing: border-box; box-shadow: none; transition: border-color .15s; }
+.appointment-fields .appointment-control:hover:not(:disabled) { border-color: #73859b; }
+.appointment-fields .appointment-control:focus { border-color: var(--border, var(--color-border-strong)); box-shadow: none; }
+.appointment-fields .appointment-control[aria-invalid="true"] { border-color: #b42318; }
+.appointment-fields .appointment-control:disabled { background: var(--surface-muted, var(--color-bg)); color: #667085; cursor: not-allowed; opacity: 1; }
+.appointment-fields .appointment-date-trigger { display: flex; align-items: center; justify-content: space-between; text-align: left; gap: 10px; cursor: pointer; font-weight: 400; }
+.appointment-fields select.appointment-control { appearance: none; padding-right: 36px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+.appointment-date-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.appointment-date-trigger svg { flex-shrink: 0; color: #667085; }
+.appointment-fields textarea.appointment-control { height: auto; min-height: 88px; resize: vertical; }
+.appointment-fields .appointment-hint, .appointment-fields .appointment-field-error { display: block; font-size: 12px; line-height: 1.5; margin: 0; font-weight: 400; }
+.appointment-hint { color: var(--text-secondary, #667085); }
+.appointment-fields .appointment-field-error { color: #b42318; }
+.appointment-fields .appointment-location, .appointment-fields .appointment-support { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text-secondary, var(--color-text-secondary)); }
+.appointment-location { display: flex; flex-wrap: wrap; gap: 8px; }
+.appointment-location span { overflow-wrap: anywhere; }
+.appointment-calendar { position: absolute; top: 100%; left: 0; z-index: 30; width: min(310px, calc(100vw - 64px)); padding: 12px; margin-top: 6px; border: 1px solid var(--border, var(--color-border-strong)); border-radius: var(--radius-control); background: var(--surface, var(--color-surface)); box-shadow: 0 8px 24px #172b3a20; }
+.appointment-calendar header { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.appointment-calendar header strong { font-size: 14px; }
+.appointment-calendar-weekdays, .appointment-calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; text-align: center; }
+.appointment-calendar-weekdays { font-size: 12px; color: #667085; padding: 10px 0 6px; }
+.appointment-fields .appointment-calendar-days button { height: 38px; min-height: 38px; min-width: 0; padding: 0; border: 0; border-radius: 4px; background: transparent; color: inherit; font-size: 14px; cursor: pointer; }
+.appointment-fields .appointment-calendar-days button:disabled { color: #7a8594; opacity: .5; cursor: not-allowed; }
+.appointment-fields .appointment-calendar-days button:hover:not(:disabled) { background: #e9f2f7; }
+.appointment-fields .appointment-calendar-days button[aria-pressed="true"] { background: #102f59; color: #fff; }
+@media (max-width: 600px) { .appointment-date-time { grid-template-columns: minmax(0, 1fr); gap: 22px; } }

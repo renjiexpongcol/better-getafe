@@ -1,21 +1,194 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { Download, ExternalLink } from 'lucide-react';
-import { publicData, apiData, collection, label } from '../../services/publicDataApi';
-import './publicData.css';
-import './publicDataPalette.css';
-const dimensionsOf = dataset => collection(dataset?.dimensions || dataset?.dimensionDefinitions);
-const valuesOf = value => collection(value?.values || value);
-function displayResultValue(value, column) {
-  if (value === null || value === undefined || value === '' || value === '..' || value === '...') return <em>{column === 'status' ? 'No observation' : 'Missing data'}</em>;
-  return Array.isArray(value) ? value.join(' · ') : String(value);
+import { useEffect, useState } from 'react'
+import { ExternalLink } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
+import StatisticalReportTable from '../../components/StatisticalReportTable'
+import { publicData, apiData, collection, label } from '../../services/publicDataApi'
+import { trackOpenDataActivity } from '../../services/websiteAnalytics.js'
+import './publicData.css'
+import './publicDataPalette.css'
+
+const dimensionsOf = dataset => collection(dataset?.dimensions || dataset?.dimensionDefinitions || dataset?.dimension_definitions)
+const valuesOf = value => Array.isArray(value) ? value : collection(value?.values || value)
+const dimensionCode = dimension => dimension.code || dimension.id || dimension.name
+const valueCode = value => typeof value === 'string' || typeof value === 'number'
+  ? String(value)
+  : String(value?.code ?? value?.id ?? value?.value ?? '')
+const valueLabel = value => typeof value === 'string' || typeof value === 'number' ? String(value) : label(value)
+
+export default function DatasetDetail() {
+  const { id } = useParams()
+  const [record, setRecord] = useState(null)
+  const [values, setValues] = useState({})
+  const [selection, setSelection] = useState({})
+  const [outcome, setOutcome] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setRecord(null)
+    setValues({})
+    setSelection({})
+    setOutcome(null)
+    setError('')
+    publicData(`/datasets/${encodeURIComponent(id)}`, { signal: controller.signal })
+      .then(setRecord)
+      .catch(cause => {
+        if (!controller.signal.aborted && cause.name !== 'AbortError') setError(cause.message)
+      })
+    return () => controller.abort()
+  }, [id])
+
+  const dataset = apiData(apiData(record))
+  const currentRecord = Boolean(record && dataset.id && String(dataset.id) === String(id))
+  const dimensions = dimensionsOf(dataset)
+  useEffect(() => { if (currentRecord) trackOpenDataActivity(String(dataset.id), 'dataset_view') }, [currentRecord, dataset.id])
+
+  useEffect(() => {
+    const sampleQuery = dataset.sampleQuery || dataset.sample_query
+    if (!currentRecord || !sampleQuery?.selection) return undefined
+    let active = true
+    const initialSelection = Object.fromEntries(Object.entries(sampleQuery.selection).map(([code, selected]) => [code, Array.isArray(selected) ? String(selected[0] ?? '') : String(selected ?? '')]))
+    setSelection(initialSelection)
+    setError('')
+    publicData(`/datasets/${encodeURIComponent(id)}/query`, {
+      method: 'POST',
+      body: JSON.stringify(sampleQuery),
+    }).then(result => {
+      if (active) setOutcome(result)
+    }).catch(cause => {
+      if (active && cause.name !== 'AbortError') setError(cause.message)
+    })
+    return () => { active = false }
+  }, [record, id])
+
+  useEffect(() => {
+    if (!currentRecord) return undefined
+    let active = true
+    const release = dataset.release || dataset.version || ''
+    Promise.all(dimensions.map(async dimension => {
+      const code = dimensionCode(dimension)
+      try {
+      const allValues = []
+      let page = 1
+      while (true) {
+        const response = await publicData(`/datasets/${encodeURIComponent(id)}/values?${new URLSearchParams({ dimension: code, release, pageSize: '200', page: String(page) })}`)
+        const payload = apiData(apiData(response))
+        const pageValues = valuesOf(payload)
+        allValues.push(...pageValues)
+        const pagination = payload?.pagination
+        if (!pageValues.length || (pagination && Object.hasOwn(pagination, 'nextOffset') && pagination.nextOffset === null) || pageValues.length < 200) break
+        page = Number.isFinite(Number(pagination?.nextOffset)) ? Math.floor(Number(pagination.nextOffset) / 200) + 1 : page + 1
+      }
+      return [code, allValues]
+      } catch {
+        return [code, []]
+      }
+    })).then(entries => {
+      if (active) setValues(Object.fromEntries(entries))
+    })
+    return () => { active = false }
+  }, [record, id])
+
+  const applySelection = async event => {
+    event.preventDefault()
+    setError('')
+    setOutcome(null)
+    try {
+      const selectionPayload = Object.fromEntries(dimensions.map(dimension => {
+        const code = dimensionCode(dimension)
+        const chosen = selection[code]
+        const available = values[code] || []
+        const selectedValues = chosen ? [chosen] : available.map(valueCode).filter(Boolean)
+        return [code, selectedValues]
+      }))
+      if (Object.values(selectionPayload).some(selectedValues => !selectedValues.length)) {
+        throw new Error('Dimension values are still loading. Please wait, then generate the report again.')
+      }
+      trackOpenDataActivity(String(id), 'query_request')
+      const result = await publicData(`/datasets/${encodeURIComponent(id)}/query`, {
+        method: 'POST',
+        body: JSON.stringify({ selection: selectionPayload, release: dataset.release || dataset.version }),
+      })
+      setOutcome(result)
+    } catch (cause) {
+      setError(cause.message)
+    }
+  }
+
+  const queryPayload = outcome ? apiData(apiData(outcome)) : null
+  const queryData = outcome ? { ...queryPayload, retrievedAt: outcome.retrievedAt || apiData(outcome)?.retrievedAt || queryPayload?.retrievedAt } : null
+  const results = collection(queryData?.observations || queryData?.results || queryData?.rows)
+  const updateDimension = (code, value) => {
+    setSelection(current => ({ ...current, [code]: value }))
+    setOutcome(null)
+    setError('')
+  }
+
+  if (error && !currentRecord) return <main className="public-data-page"><section className="container data-section"><div className="data-empty">{error}</div></section></main>
+
+  return (
+    <main className="public-data-page">
+      <section className="data-page-title">
+        <div className="container">
+          <Link className="breadcrumb" to="/data/datasets">Dataset Explorer</Link>
+          <p className="data-eyebrow">DATASET DETAILS</p>
+          <h1>{currentRecord ? label(dataset) : 'Loading dataset…'}</h1>
+          <p>{dataset.description || dataset.summary || dataset.abstract || 'Public statistical data and metadata from the Philippine Statistics Authority.'}</p>
+        </div>
+      </section>
+      {currentRecord && <>
+        <section className="container metadata-grid">
+          <dl>
+            <dt>Topic</dt><dd>{dataset.topic || dataset.domain || '—'}</dd>
+            <dt>Source organization</dt><dd>{dataset.sourceName || dataset.sourceOrganization || dataset.organization || 'Philippine Statistics Authority'}</dd>
+            <dt>Release / version</dt><dd>{dataset.release || dataset.version || 'Available dataset release'}</dd>
+          </dl>
+          <dl>
+            <dt>Retrieved</dt><dd>{record.retrievedAt ? new Date(record.retrievedAt).toLocaleString('en-PH') : dataset.retrieved ? new Date(dataset.retrieved).toLocaleString('en-PH') : '—'}</dd>
+            <dt>Unit</dt><dd>{dataset.unit || '—'}</dd>
+            <dt>Coverage</dt><dd>{dataset.coverage || dataset.geography || '—'}</dd>
+          </dl>
+          <dl>
+            <dt>Availability</dt><dd>{dataset.status || dataset.availability || 'Ready'}</dd>
+            <dt>Dimensions</dt><dd>{dimensions.map(label).join(', ') || '—'}</dd>
+            <dt>Source URL</dt><dd>{dataset.source_url || dataset.source || dataset.url ? <a href={dataset.source_url || dataset.source || dataset.url} target="_blank" rel="noreferrer">View source &amp; methodology <ExternalLink size={13} aria-hidden="true" /></a> : '—'}</dd>
+          </dl>
+        </section>
+
+        <section className="container data-section query-layout">
+          <div>
+            <p className="data-eyebrow">STATISTICAL REPORT</p>
+            <h2>Choose observations</h2>
+            <p className="muted">Choose values for this dataset’s dimensions, then generate a grouped report.</p>
+            <form className="query-form" onSubmit={applySelection}>
+              {dimensions.map(dimension => {
+                const code = dimensionCode(dimension)
+                return <label key={code}>{label(dimension)}
+                  <select value={selection[code] || ''} onChange={event => updateDimension(code, event.target.value)}>
+                    <option value="">All available values</option>
+                    {(values[code] || []).map((value, index) => <option key={valueCode(value) || index} value={valueCode(value)}>{valueLabel(value)}</option>)}
+                  </select>
+                </label>
+              })}
+              <button type="submit">Generate report</button>
+            </form>
+          </div>
+          <aside className="query-provenance">
+            <h3>Provenance</h3>
+            <p><strong>Dataset:</strong> {label(dataset)}</p>
+            <p><strong>Release:</strong> {dataset.release || dataset.version || 'Available dataset release'}</p>
+            <p><strong>Unit:</strong> {dataset.unit || '—'}</p>
+            <p><strong>Retrieved:</strong> {record.retrievedAt ? new Date(record.retrievedAt).toLocaleString('en-PH') : '—'}</p>
+          </aside>
+        </section>
+
+        {error && <section className="container"><div className="data-empty" role="alert">{error}</div></section>}
+        {outcome && <section className="container data-section">
+          {results.length > 0
+            ? <StatisticalReportTable dataset={dataset} query={queryData} selection={{ ...selection, values }} datasetId={id} />
+            : <div className="data-empty">No observation is available for this exact selection.</div>}
+        </section>}
+      </>}
+    </main>
+  )
 }
-const resultColumnLabel = column => column.replace(/_/g, ' ').replace(/\b\w/g, character => character.toUpperCase());
-export default function DatasetDetail() { const { id } = useParams(); const [record, setRecord] = useState(null); const [values, setValues] = useState({}); const [selection, setSelection] = useState({}); const [outcome, setOutcome] = useState(null); const [error, setError] = useState('');
- useEffect(() => { const controller = new AbortController(); setRecord(null); setError(''); publicData(`/datasets/${encodeURIComponent(id)}`, { signal: controller.signal }).then(setRecord).catch(e => { if (!controller.signal.aborted && e.name !== 'AbortError') setError(e.message); }); return () => controller.abort(); }, [id]);
- const dataset = apiData(apiData(record)); const dimensions = dimensionsOf(dataset);
- useEffect(() => { if (!record) return; let active = true; const release = dataset.release || dataset.version || ''; Promise.all(dimensions.map(async dimension => { const code = dimension.code || dimension.id || dimension.name; try { const response = await publicData(`/datasets/${encodeURIComponent(id)}/values?dimension=${encodeURIComponent(code)}&release=${encodeURIComponent(release)}&pageSize=100`); return [code, valuesOf(apiData(response))]; } catch { return [code, []]; } })).then(entries => { if (active) setValues(Object.fromEntries(entries)); }); return () => { active = false; }; }, [record, id]);
- const query = async event => { event.preventDefault(); setError(''); setOutcome(null); try { const selectionPayload = Object.fromEntries(dimensions.map(dimension => { const code = dimension.code || dimension.id || dimension.name; const chosen = selection[code]; const validValues = values[code] || []; const selectedValues = chosen ? [chosen] : validValues.map(value => value.code || value.id || value.value).filter(Boolean); return [code, selectedValues]; }).filter(([, selectedValues]) => selectedValues.length)); setOutcome(await publicData(`/datasets/${encodeURIComponent(id)}/query`, { method: 'POST', body: JSON.stringify({ selection: selectionPayload, release: dataset.release || dataset.version }) })); } catch (e) { setError(e.message); } };
- const queryData = apiData(apiData(outcome)); const results = collection(queryData?.observations || queryData?.results || queryData?.rows || queryData); const exportCsv = () => { const rows = results; if (!rows.length) return; const columns = [...new Set(rows.flatMap(row => Object.keys(row)))]; const csv = [columns.join(','), ...rows.map(row => columns.map(column => JSON.stringify(row[column] ?? '')).join(','))].join('\n'); const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${id}-selection.csv`; anchor.click(); URL.revokeObjectURL(url); };
- if (error && !record) return <main className="public-data-page"><section className="container data-section"><div className="data-empty">{error}</div></section></main>;
- return <main className="public-data-page"><section className="data-page-title"><div className="container"><Link className="breadcrumb" to="/data/datasets">Dataset Explorer</Link><p className="data-eyebrow">DATASET DETAILS</p><h1>{record ? label(dataset) : 'Loading dataset…'}</h1><p>{dataset.description || 'Dataset metadata is being retrieved from the public statistics service.'}</p></div></section>{record && <><section className="container metadata-grid"><dl><dt>Topic</dt><dd>{dataset.topic || '—'}</dd><dt>Source organization</dt><dd>{dataset.source || dataset.organization || '—'}</dd><dt>Release / version</dt><dd>{dataset.release || dataset.version || 'Available dataset release'}</dd></dl><dl><dt>Retrieved</dt><dd>{record.retrievedAt ? new Date(record.retrievedAt).toLocaleString('en-PH') : '—'}</dd><dt>Unit</dt><dd>{dataset.unit || '—'}</dd><dt>Coverage</dt><dd>{dataset.coverage || '—'}</dd></dl><dl><dt>Availability</dt><dd>{dataset.status || dataset.availability || 'Ready'}</dd><dt>Dimensions</dt><dd>{dimensions.map(label).join(', ') || '—'}</dd><dt>Source URL</dt><dd>{dataset.source_url || dataset.url ? <a href={dataset.source_url || dataset.url} target="_blank" rel="noreferrer">View source &amp; methodology <ExternalLink size={13} /></a> : '—'}</dd></dl></section><section className="container data-section query-layout"><div><p className="data-eyebrow">QUERY BUILDER</p><h2>Choose observations</h2><p className="muted">Controls are generated from this dataset’s available dimensions. Codes are kept exactly as provided by the source.</p><form className="query-form" onSubmit={query}>{dimensions.map(dimension => { const code = dimension.code || dimension.id || dimension.name; return <label key={code}>{label(dimension)}<select value={selection[code] || ''} onChange={e => setSelection(current => ({ ...current, [code]: e.target.value }))}><option value="">All available values</option>{(values[code] || []).map((value, index) => <option key={value.code || value.id || index} value={value.code || value.id || value.value}>{label(value)}</option>)}</select></label>; })}<button>Apply selection</button></form></div><aside className="query-provenance"><h3>Provenance</h3><p><strong>Dataset:</strong> {label(dataset)}</p><p><strong>Release:</strong> {dataset.release || dataset.version || 'Available dataset release'}</p><p><strong>Unit:</strong> {dataset.unit || '—'}</p><p><strong>Retrieved:</strong> {record.retrievedAt ? new Date(record.retrievedAt).toLocaleString('en-PH') : '—'}</p></aside></section>{error && <section className="container"><div className="data-empty">{error}</div></section>}{outcome && <section className="container data-section"><div className="results-heading"><div><p className="data-eyebrow">RESULTS</p><h2>Selected observations</h2></div>{results.length > 0 && <button className="download-button" onClick={exportCsv}><Download size={16} /> Download CSV</button>}</div>{results.length === 0 ? <div className="data-empty">No observation is available for this exact selection.</div> : <div className="dataset-table-wrap"><table className="dataset-table"><thead><tr>{Object.keys(results[0]).map(column => <th key={column}>{resultColumnLabel(column)}</th>)}</tr></thead><tbody>{results.map((row, index) => <tr key={index}>{Object.entries(row).map(([key, value]) => <td key={key}>{displayResultValue(value, key)}</td>)}</tr>)}</tbody></table></div>}<p className="table-note">A zero is shown as 0. “Missing data” represents an unavailable observation, not zero.</p></section>}</>}</main>; }

@@ -1,13 +1,17 @@
+import ResidentBarangayField from '../../components/ResidentBarangayField'
+import { securityFetch as fetch } from '../../services/securityFetch.js'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Camera, Save } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useCitizen } from '../../context/CitizenContext'
 import { citizenApi } from '../../services/citizenData'
-import { barangays } from '../../data/barangays'
+import { useBarangays } from '../../hooks/usePublicResource'
 import { ROUTES } from '../../routeRegistry'
 import StableAvatar from '../../components/StableAvatar'
 import ResidentBusinesses from '../../components/ResidentBusinesses'
+import MobileVerification from '../../components/MobileVerification'
+import { normalizeMobile } from '../../data/residentContact'
 
 // Kept as a route component for old bookmarks and legacy links. Resident
 // profile is now owned by CitizenLayout and opens as a modal on the current
@@ -24,6 +28,7 @@ function profileFormFromData(data, fallbackName) {
 }
 
 export const ProfileForm = forwardRef(function ProfileForm({ onClose }, ref) {
+  const barangayResource = useBarangays()
   const { user, updateUser } = useAuth()
   const { data, loading, error: dataError, reload } = useCitizen()
   const initialFormRef = useRef(emptyForm)
@@ -73,8 +78,10 @@ export const ProfileForm = forwardRef(function ProfileForm({ onClose }, ref) {
     setError('')
     setBusy(true)
     try {
-      await citizenApi('/profile', { method: 'PUT', body: JSON.stringify(form) })
-      initialFormRef.current = { ...form }
+      const result = await citizenApi('/profile', { method: 'PUT', body: JSON.stringify(form) })
+      const savedForm = profileFormFromData({ profile: result.profile }, user.name)
+      setForm(savedForm)
+      initialFormRef.current = savedForm
       updateUser?.({ name: form.full_name })
       await reload()
       setSaved(true)
@@ -128,9 +135,9 @@ export const ProfileForm = forwardRef(function ProfileForm({ onClose }, ref) {
         <div className="portal-form-grid">
           <label>Full name<input aria-label="Full name" value={form.full_name} onChange={update('full_name')} required maxLength={160} /></label>
           <label>Email address<input aria-label="Email address" value={user.email || ''} readOnly /></label>
-          <label>Mobile number<input aria-label="Mobile number" type="tel" value={form.mobile} onChange={update('mobile')} maxLength={32} /></label>
+          <label>Mobile number<input aria-label="Mobile number" type="tel" value={form.mobile} onChange={update('mobile')} maxLength={32} /><small>Use 10–15 digits, such as 0917 123 4567.</small></label>
           <label>Gender<select aria-label="Gender" value={form.gender} onChange={update('gender')} required><option value="">Select gender</option><option value="male">Male</option><option value="female">Female</option></select></label>
-          <label>Barangay<select aria-label="Barangay" value={form.barangay} onChange={update('barangay')} required><option value="">Select your barangay</option>{barangays.map(item => <option value={item.name} key={item.name}>{item.name}</option>)}</select></label>
+          <ResidentBarangayField value={form.barangay} onChange={update('barangay')} resource={barangayResource} />
           <label>House/lot number<input aria-label="House/lot number" value={form.house_lot} onChange={update('house_lot')} maxLength={160} /></label>
           <label>Street<input aria-label="Street" value={form.street} onChange={update('street')} maxLength={160} /></label>
         </div>
@@ -142,6 +149,8 @@ export const ProfileForm = forwardRef(function ProfileForm({ onClose }, ref) {
           <button type="submit" className="citizen-primary" disabled={busy || avatarBusy}><Save size={16} aria-hidden="true" />{busy ? 'Saving…' : 'Save changes'}</button>
         </div>
       </form>
+      {dirty && <p className="portal-muted">Save your changes before verifying your mobile number.</p>}
+      <MobileVerification mobile={form.mobile} verified={Boolean(data.profile?.mobile_verified_at) && normalizeMobile(form.mobile) === normalizeMobile(data.profile?.mobile)} disabled={busy || avatarBusy || dirty} onVerified={reload}/>
       <ResidentBusinesses onDirtyChange={setBusinessDirty} onBusyChange={setBusinessBusy} />
       {confirmDiscard && <div className="profile-discard-confirmation" role="alertdialog" aria-labelledby="discard-profile-title" aria-describedby="discard-profile-description"><div><h3 id="discard-profile-title">Discard unsaved changes?</h3><p id="discard-profile-description">Your edits will be lost if you close your account profile now.</p></div><div><button type="button" className="citizen-secondary" onClick={() => { pendingActionRef.current = null; setConfirmDiscard(false) }}>Keep editing</button><button type="button" className="citizen-primary" onClick={() => { const action = pendingActionRef.current || onClose; pendingActionRef.current = null; setConfirmDiscard(false); action?.() }}>Discard changes</button></div></div>}
     </section>

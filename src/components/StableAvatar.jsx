@@ -13,5 +13,5 @@ export default function StableAvatar({ src, initials, alt = '', className = '', 
   }, [source])
 
   if (!source || failed) return <span className={className} aria-label={alt || undefined}>{initials}</span>
-  return <img className={imageClassName || className} src={source} alt={alt} onError={() => { failedSources.set(source, Date.now() + FAILURE_COOLDOWN_MS); setFailedSource(source); onFailure?.() }} />
+  return <img className={imageClassName || className} src={source} alt={alt} width="48" height="48" decoding="async" onError={() => { failedSources.set(source, Date.now() + FAILURE_COOLDOWN_MS); setFailedSource(source); onFailure?.() }} />
 }

@@ -1,3 +1,5 @@
+import {routeRequest} from '../../services/routeRequests'
+import ModalDialog from '../../components/ModalDialog'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Activity, AlertTriangle, CalendarDays, ChevronDown, CircleHelp, CloudRain, Droplets, Eye, Gauge, MapPin, Sun, Sunrise, Thermometer, Wind, X } from 'lucide-react'
 
@@ -374,19 +376,19 @@ function FiveDayOutlook({ days = [], location }) {
 }
 
 function AlertDetails({ alerts, onClose, timezone }) {
-  return <div className="weather-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}><section className="weather-modal weather-alert-modal" role="dialog" aria-modal="true" aria-labelledby="weather-alert-modal-title"><button type="button" className="weather-modal-close" onClick={onClose} aria-label="Close weather alerts" data-icon-button="ghost"><X size={19} /></button><p className="eyebrow">Official weather advisories</p><h2 id="weather-alert-modal-title">Weather alerts ({alerts.length})</h2><div className="weather-alert-list">{alerts.map((alert, index) => <article className={`weather-alert-detail ${alert.severity ? `severity-${String(alert.severity).toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : ''}`} key={`${alert.type || alert.headline || 'alert'}-${alert.effective || index}`}>
+  return <ModalDialog backdropClass="weather-modal-backdrop" labelledBy="weather-alert-modal-title" onClose={onClose}><section className="weather-modal weather-alert-modal"><button type="button" className="weather-modal-close" onClick={onClose} aria-label="Close weather alerts" data-icon-button="ghost"><X size={19} /></button><p className="eyebrow">Official weather advisories</p><h2 id="weather-alert-modal-title">Weather alerts ({alerts.length})</h2><div className="weather-alert-list">{alerts.map((alert, index) => <article className={`weather-alert-detail ${alert.severity ? `severity-${String(alert.severity).toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : ''}`} key={`${alert.type || alert.headline || 'alert'}-${alert.effective || index}`}>
     <div className="weather-alert-detail-heading"><div>{alert.type && <span className="weather-alert-type">{alert.type}</span>}<h3>{alert.headline || alert.type || 'Weather alert'}</h3></div>{alert.severity && <b>{alert.severity}</b>}</div>
     <MetricList rows={[
       ['Urgency', alert.urgency], ['Certainty', alert.certainty], ['Effective', localDateTime(alert.effective, timezone, { dateStyle: 'medium', timeStyle: 'short' })],
       ['Expires', localDateTime(alert.expires, timezone, { dateStyle: 'medium', timeStyle: 'short' })], ['Affected areas', alert.areas], ['Source', alert.source],
     ]} className="weather-alert-meta" />
     {alert.description && <p>{alert.description}</p>}{alert.instructions && <p className="weather-alert-instructions"><strong>Instructions:</strong> {alert.instructions}</p>}
-  </article>)}</div></section></div>
+  </article>)}</div></section></ModalDialog>
 }
 
 function WeatherDetailsModal({ weather, onClose }) {
   const { location, current } = weather
-  return <div className="weather-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}><section className="weather-modal weather-details-modal" role="dialog" aria-modal="true" aria-labelledby="weather-details-title"><button type="button" className="weather-modal-close" onClick={onClose} aria-label="Close weather details" data-icon-button="ghost"><X size={19} /></button><div className="weather-modal-heading"><div><p className="eyebrow">Current conditions</p><h2 id="weather-details-title">{location.name}</h2>{current.description && <p>{current.description}</p>}</div><WeatherIcon weather={current} /></div><div className="weather-modal-temp">{hasValue(current.temperature) && <strong>{compactNumber(current.temperature, 0)}°</strong>}{hasValue(current.feelsLike) && <span>Feels like {compactNumber(current.feelsLike, 0)}°C</span>}</div><MetricList rows={currentDetailRows(weather)} className="weather-modal-weather-list" /></section></div>
+  return <ModalDialog backdropClass="weather-modal-backdrop" labelledBy="weather-details-title" onClose={onClose}><section className="weather-modal weather-details-modal"><button type="button" className="weather-modal-close" onClick={onClose} aria-label="Close weather details" data-icon-button="ghost"><X size={19} /></button><div className="weather-modal-heading"><div><p className="eyebrow">Current conditions</p><h2 id="weather-details-title">{location.name}</h2>{current.description && <p>{current.description}</p>}</div><WeatherIcon weather={current} /></div><div className="weather-modal-temp">{hasValue(current.temperature) && <strong>{compactNumber(current.temperature, 0)}°</strong>}{hasValue(current.feelsLike) && <span>Feels like {compactNumber(current.feelsLike, 0)}°C</span>}</div><MetricList rows={currentDetailRows(weather)} className="weather-modal-weather-list" /></section></ModalDialog>
 }
 
 function CurrentWeatherCard({ weather, now, onOpenAlerts }) {
@@ -426,21 +428,40 @@ export default function Weather() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const hourlyPanelRef = useRef(null)
+  const weatherController = useRef(null)
+  const lastWeatherLoad = useRef(0)
   const load = () => {
+    if (document.visibilityState === 'hidden') return
+    weatherController.current?.abort()
+    const controller = new AbortController()
+    weatherController.current = controller
     setLoading(true)
     setError('')
-    fetch('/api/weather')
-      .then(response => response.ok ? response.json() : response.json().then(value => Promise.reject(new Error(value.error))))
-      .then(setLocations)
-      .catch(value => setError(value.message || 'Weather data is unavailable right now.'))
-      .finally(() => setLoading(false))
+    routeRequest('/api/weather', {signal:controller.signal})
+      .then(value => {
+        if (controller.signal.aborted) return
+        if (!Array.isArray(value) || !value.some(item => item?.location && item?.current)) throw new Error('The weather feed returned no current conditions.')
+        setLocations(value.filter(item => item?.location && item?.current))
+        lastWeatherLoad.current = Date.now()
+      })
+      .catch(value => { if (!controller.signal.aborted) setError(value.message || 'Weather data is unavailable right now.') })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
   }
 
   useEffect(() => {
     load()
     const refresh = setInterval(load, 15 * 60 * 1000)
-    const clock = setInterval(() => setNow(new Date()), 60 * 1000)
-    return () => { clearInterval(refresh); clearInterval(clock) }
+    const clock = setInterval(() => { if (document.visibilityState === 'visible') setNow(new Date()) }, 60 * 1000)
+    const resume = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastWeatherLoad.current >= 15 * 60 * 1000) load()
+    }
+    document.addEventListener('visibilitychange', resume)
+    return () => {
+      weatherController.current?.abort()
+      document.removeEventListener('visibilitychange', resume)
+      clearInterval(refresh)
+      clearInterval(clock)
+    }
   }, [])
   useEffect(() => {
     if (!selectedLocation && !alertsOpen) return undefined

@@ -1,0 +1,982 @@
+[
+  {
+    "key": "hotlines",
+    "title": "Emergency hotlines",
+    "kind": "hotlines",
+    "published": false,
+    "version": 0,
+    "content": {
+      "items": [
+        {
+          "category": "Emergency",
+          "name": "National Emergency Hotline",
+          "description": "Nationwide emergency hotline for police, fire, and medical assistance.",
+          "numbers": [
+            "911"
+          ],
+          "icon": "Siren",
+          "urgent": true,
+          "id": "hotline-1"
+        },
+        {
+          "category": "Disaster",
+          "name": "National Disaster Risk Reduction and Management Council (NDRRMC)",
+          "description": "Coordinates disaster preparedness, response, and recovery efforts.",
+          "numbers": [
+            "(02) 8911-5061 to 65 local 100",
+            "(02) 8911-1406",
+            "(02) 8912-2665",
+            "(02) 8912-5668",
+            "(02) 8911-1873"
+          ],
+          "icon": "AlertTriangle",
+          "id": "hotline-2"
+        },
+        {
+          "category": "Social Services",
+          "name": "Department of Social Welfare and Development",
+          "description": "Social services, disaster relief, and assistance for affected families and communities.",
+          "numbers": [
+            "0918-912-2813 · Text Hotline",
+            "(02) 8931-8101 to 07",
+            "(02) 8856-3665 · Disaster Response Unit",
+            "(02) 8852-8081 · Disaster Response Unit"
+          ],
+          "icon": "HeartHandshake",
+          "id": "hotline-3"
+        },
+        {
+          "category": "Emergency",
+          "name": "Philippine Red Cross",
+          "description": "Emergency response, disaster relief, and blood donation services.",
+          "numbers": [
+            "143 · Hotline",
+            "(02) 8527-8385 to 95 · National Blood Center",
+            "(02) 8527-0000",
+            "(02) 8790-2300"
+          ],
+          "icon": "HeartHandshake",
+          "id": "hotline-4"
+        },
+        {
+          "category": "Security",
+          "name": "Philippine National Police (PNP)",
+          "description": "Law enforcement hotline for crimes, threats, and public safety concerns.",
+          "numbers": [
+            "117 · Emergency Hotline",
+            "(02) 8722-0650",
+            "0917-847-5757 · Text Hotline"
+          ],
+          "icon": "ShieldAlert",
+          "id": "hotline-5"
+        },
+        {
+          "category": "Emergency",
+          "name": "Bureau of Fire Protection (BFP)",
+          "description": "Fire prevention, rescue, and related emergencies.",
+          "numbers": [
+            "(02) 8426-0219",
+            "(02) 8426-0246"
+          ],
+          "icon": "Siren",
+          "id": "hotline-6"
+        },
+        {
+          "category": "Emergency",
+          "name": "Philippine Coast Guard",
+          "description": "Maritime safety, rescue, and law enforcement services in Philippine waters.",
+          "numbers": [
+            "(02) 8527-8481 to 89",
+            "(02) 8527-3877",
+            "(02) 8527-3880 to 85",
+            "0917-724-3682 · Text Hotline",
+            "0918-967-4697 · Text Hotline"
+          ],
+          "icon": "Waves",
+          "id": "hotline-7"
+        },
+        {
+          "category": "Transport",
+          "name": "Metro Manila Development Authority (MMDA)",
+          "description": "Traffic management, road safety, and emergency response within Metro Manila.",
+          "numbers": [
+            "136 · Hotline",
+            "(02) 8882-4151 to 77"
+          ],
+          "icon": "Ambulance",
+          "id": "hotline-8"
+        },
+        {
+          "category": "Transport",
+          "name": "Department of Transportation (DOTr)",
+          "description": "National transport authority for public transportation services and passenger complaints.",
+          "numbers": [
+            "7890 · Action Center Hotline",
+            "(02) 8790-8300",
+            "(02) 8726-4925"
+          ],
+          "icon": "Ambulance",
+          "id": "hotline-9"
+        },
+        {
+          "category": "Transport",
+          "name": "Land Transportation Office (LTO)",
+          "description": "Vehicle registration, licensing, and road safety enforcement.",
+          "numbers": [
+            "Text LTOHELP to 2600 · All networks",
+            "(02) 8922-9061 to 63"
+          ],
+          "icon": "Ambulance",
+          "id": "hotline-10"
+        },
+        {
+          "category": "Transport",
+          "name": "Land Transportation Franchising and Regulatory Board (LTFRB)",
+          "description": "Regulates public utility vehicles and addresses transport-related complaints.",
+          "numbers": [
+            "1342 · 24/7 Hotline",
+            "(02) 8426-2515",
+            "(02) 8426-2534",
+            "0921-448-7777 · Text Hotline"
+          ],
+          "icon": "Ambulance",
+          "id": "hotline-11"
+        },
+        {
+          "category": "Weather",
+          "name": "PAGASA",
+          "description": "Weather forecasts, flood warnings, and typhoon advisories.",
+          "numbers": [
+            "(02) 8284-0800"
+          ],
+          "icon": "CloudSun",
+          "id": "hotline-12"
+        },
+        {
+          "category": "Disaster",
+          "name": "PHIVOLCS",
+          "description": "Warnings for earthquakes, tsunamis, and volcanic eruptions.",
+          "numbers": [
+            "(02) 8426-1468 to 79"
+          ],
+          "icon": "AlertTriangle",
+          "id": "hotline-13"
+        },
+        {
+          "category": "Utilities",
+          "name": "Manila Water",
+          "description": "Water supply concerns in the East Zone of Metro Manila.",
+          "numbers": [
+            "1627"
+          ],
+          "icon": "Droplets",
+          "id": "hotline-14"
+        },
+        {
+          "category": "Utilities",
+          "name": "Maynilad",
+          "description": "Water supply concerns in the West Zone of Metro Manila.",
+          "numbers": [
+            "1626",
+            "0998-864-1446 · Text Hotline"
+          ],
+          "icon": "Droplets",
+          "id": "hotline-15"
+        },
+        {
+          "category": "Social Services",
+          "name": "Violence Against Women and Children (VAWC)",
+          "description": "Report and seek help for abuse or violence against women and children.",
+          "numbers": [
+            "(02) 8931-8101 to 07 · DSWD",
+            "(02) 8734-8639 · DSWD-NCR",
+            "(02) 8723-0401 to 20 · PNP",
+            "(02) 3410-3213 · PNP-WCPC"
+          ],
+          "icon": "HeartHandshake",
+          "id": "hotline-16"
+        },
+        {
+          "category": "Social Services",
+          "name": "National Center for Mental Health (NCMH)",
+          "description": "24/7 crisis hotline and mental health support services.",
+          "numbers": [
+            "0917-899-8727 · USAP",
+            "989-8727 · USAP",
+            "(02) 8531-9001 to 10 local 201"
+          ],
+          "icon": "HeartHandshake",
+          "id": "hotline-17"
+        }
+      ],
+      "quickDial": [
+        {
+          "number": "911",
+          "name": "National Emergency",
+          "note": "Police, fire, and medical",
+          "tel": "tel:911"
+        },
+        {
+          "number": "117",
+          "name": "PNP Hotline",
+          "note": "Philippine National Police",
+          "tel": "tel:117"
+        },
+        {
+          "number": "143",
+          "name": "Philippine Red Cross",
+          "note": "Emergency & blood services",
+          "tel": "tel:143"
+        }
+      ],
+      "tips": [
+        {
+          "icon": "MapPin",
+          "title": "Know your exact location",
+          "text": "Be ready to describe your street, barangay, and nearby landmarks when you call for help."
+        },
+        {
+          "icon": "Phone",
+          "title": "Save these numbers now",
+          "text": "Add 911, 117, and 143 to your phone today — before an emergency happens."
+        },
+        {
+          "icon": "ShieldCheck",
+          "title": "Stay calm and clear",
+          "text": "Speak slowly, answer the dispatcher’s questions, and stay on the line until told otherwise."
+        },
+        {
+          "icon": "Package",
+          "title": "Keep an emergency kit",
+          "text": "Prepare water, non-perishable food, a flashlight, batteries, and first-aid supplies at home."
+        }
+      ],
+      "emergency": {
+        "number": "911",
+        "label": "National Emergency",
+        "tel": "tel:911"
+      }
+    }
+  },
+  {
+    "key": "navigation",
+    "title": "Public navigation",
+    "kind": "navigation",
+    "published": false,
+    "version": 0,
+    "content": {
+      "menus": [
+        {
+          "label": "Services",
+          "key": "services",
+          "items": [
+            {
+              "name": "Executive",
+              "url": "/departments/executive",
+              "description": "Mayor's office and municipal leadership.",
+              "icon": "Landmark"
+            },
+            {
+              "name": "Engineering",
+              "url": "/departments/engineering",
+              "description": "Infrastructure and public works support.",
+              "icon": "Building2"
+            },
+            {
+              "name": "Zoning/Planning",
+              "url": "/departments/zoning-planning",
+              "description": "Land use and development planning.",
+              "icon": "Map"
+            },
+            {
+              "name": "Treasury",
+              "url": "/departments/treasury",
+              "description": "Local payments, taxes, and revenue services.",
+              "icon": "WalletCards"
+            },
+            {
+              "name": "Assessment",
+              "url": "/departments/assessment",
+              "description": "Property assessment and tax declarations.",
+              "icon": "ClipboardCheck"
+            },
+            {
+              "name": "Civil Registry",
+              "url": "/departments/civil-registry",
+              "description": "Birth, marriage, death, and other civil registry records.",
+              "icon": "FileCheck2"
+            },
+            {
+              "name": "Health",
+              "url": "/departments/health",
+              "description": "Public health and rural health services.",
+              "icon": "HeartHandshake"
+            },
+            {
+              "name": "Social Welfare",
+              "url": "/departments/social-welfare",
+              "description": "Assistance programs for residents and families.",
+              "icon": "Users"
+            }
+          ]
+        },
+        {
+          "label": "Business",
+          "key": "business",
+          "items": [
+            {
+              "name": "Business Services",
+              "url": "/services/e-services/business-services",
+              "description": "Permits, clearances, and local business requirements.",
+              "icon": "Building2"
+            },
+            {
+              "name": "Business Online Billing and Payment",
+              "url": "/services/e-services/business-billing",
+              "description": "Business billing and payment information.",
+              "icon": "WalletCards"
+            },
+            {
+              "name": "New Business Application",
+              "url": "/services/e-services/new-business-application",
+              "description": "Start a new business application.",
+              "icon": "ClipboardCheck"
+            },
+            {
+              "name": "Renew Business Application",
+              "url": "/services/e-services/renew-business-application",
+              "description": "Renew an existing business application.",
+              "icon": "FileCheck2"
+            },
+            {
+              "name": "Realty Tax Online Billing and Payment",
+              "url": "/services/e-services/realty-billing",
+              "description": "Real property tax billing and payment information.",
+              "icon": "Landmark"
+            },
+            {
+              "name": "Online Payment Order",
+              "url": "/services/e-services/online-payment-order",
+              "description": "View online payment order guidance.",
+              "icon": "WalletCards"
+            },
+            {
+              "name": "Water Online Billing and Payment",
+              "url": "/services/e-services/water-billing",
+              "description": "Water billing and payment information.",
+              "icon": "CloudSun"
+            }
+          ]
+        },
+        {
+          "label": "Residents",
+          "key": "residents",
+          "items": [
+            {
+              "name": "Citizen Services",
+              "url": "/services",
+              "description": "Common requests for Getafe residents.",
+              "icon": "Users"
+            },
+            {
+              "name": "Other Services",
+              "url": "/services/e-services/other-services",
+              "description": "Requirements and applications for other municipal services.",
+              "icon": "ClipboardCheck"
+            },
+            {
+              "name": "Emergency Hotlines",
+              "url": "/services/hotlines",
+              "description": "Fast access to urgent public numbers.",
+              "icon": "Siren"
+            },
+            {
+              "name": "Accessibility",
+              "url": "/accessibility",
+              "description": "Inclusive access information.",
+              "icon": "Accessibility"
+            }
+          ]
+        },
+        {
+          "label": "Information",
+          "key": "information",
+          "items": [
+            {
+              "name": "About Us",
+              "url": "/info/about",
+              "description": "Mission, vision, and who we serve.",
+              "icon": "Info"
+            },
+            {
+              "name": "Municipal Officials",
+              "url": "/officials",
+              "description": "Elected leaders, barangay captains, and department heads.",
+              "icon": "Landmark"
+            },
+            {
+              "name": "History & Hymn",
+              "url": "/info/history",
+              "description": "The story, seal, and song of Getafe.",
+              "icon": "BookOpen"
+            },
+            {
+              "name": "Tourism",
+              "url": "/tourism",
+              "description": "Explore Getafe destinations, islands, and coastal places.",
+              "icon": "Compass"
+            },
+            {
+              "name": "Gallery of Events",
+              "url": "/events",
+              "description": "See the celebrations and milestones of Getafe.",
+              "icon": "CalendarDays"
+            },
+            {
+              "name": "Contact Us",
+              "url": "/contact",
+              "description": "Reach the municipal offices.",
+              "icon": "Mail"
+            },
+            {
+              "name": "News and Updates",
+              "url": "/news",
+              "description": "Latest local announcements.",
+              "icon": "Newspaper"
+            },
+            {
+              "name": "Weather Updates",
+              "url": "/weather",
+              "description": "Live conditions and forecasts.",
+              "icon": "CloudSun"
+            },
+            {
+              "name": "Data & Statistics",
+              "url": "/data",
+              "description": "Public datasets and official statistical releases.",
+              "icon": "ChartNoAxesCombined"
+            },
+            {
+              "name": "Emergency Hotlines",
+              "url": "/services/hotlines",
+              "description": "Police, fire, medical, and public services.",
+              "icon": "PhoneCall"
+            }
+          ]
+        }
+      ],
+    "explore": [
+      { "name": "Discover Getafe", "url": "/discover" },
+      { "name": "Tourism", "url": "/tourism" },
+      { "name": "News", "url": "/news" },
+      { "name": "Events", "url": "/events" },
+      { "name": "Weather", "url": "/weather" },
+      { "name": "Public data", "url": "/data" }
+    ],
+    "government": [
+      { "name": "Municipal services", "url": "/services" },
+      { "name": "Service directory", "url": "/services/directory" },
+      { "name": "Municipal officials", "url": "/officials" },
+      { "name": "Departments and offices", "url": "/departments" },
+      { "name": "Barangays", "url": "/barangays" },
+      { "name": "About the Municipality", "url": "/info/about" },
+      { "name": "Contact", "url": "/contact" },
+      { "name": "Accessibility", "url": "/accessibility" },
+      { "name": "Site map", "url": "/info/sitemap" }
+    ],
+    "judiciary": [
+      { "name": "Supreme Court of the Philippines", "url": "https://sc.judiciary.gov.ph/" },
+      { "name": "Official Gazette", "url": "https://www.officialgazette.gov.ph/" }
+    ],
+    "social": [
+      { "name": "Facebook", "url": "https://www.facebook.com/profile.php?id=61577786097184&locale=en_US" }
+    ]
+    }
+  },
+  {
+    "key": "actions",
+    "title": "Resident action shortcuts",
+    "kind": "actions",
+    "published": false,
+    "version": 0,
+    "content": {
+      "items": [
+        {
+          "title": "Apply for a service",
+          "description": "Find municipal services and requirements.",
+          "url": "/services/directory",
+          "icon": "FileText"
+        },
+        {
+          "title": "Get a permit",
+          "description": "Business, building, and other permits.",
+          "url": "/services/business-trade",
+          "icon": "Building2"
+        },
+        {
+          "title": "Request a document",
+          "description": "Certificates, records, and official documents.",
+          "url": "/services/certificates",
+          "icon": "ShieldCheck"
+        },
+        {
+          "title": "Report an issue",
+          "description": "Send an inquiry or concern to the municipality.",
+          "url": "/contact",
+          "icon": "MessageSquare"
+        },
+        {
+          "title": "Contact the LGU",
+          "description": "Find office contact information and hours.",
+          "url": "/contact",
+          "icon": "HelpCircle"
+        },
+        {
+          "title": "Events & meetings",
+          "description": "View published government activities.",
+          "url": "/events",
+          "icon": "CalendarDays"
+        }
+      ]
+    }
+  },
+  {
+    "key": "page-health",
+    "title": "Health Services",
+    "kind": "page",
+    "content": {
+      "service": {
+        "kicker": "Popular services · Health",
+        "title": "Health Services",
+        "backLabel": "Back to all services",
+        "subtitle": "Health programs and assistance from the Municipal Health Office of Getafe.",
+        "variant": "health-services",
+        "intro": "The Municipal Health Office provides accessible primary health care and social health programs to protect and improve the well-being of every resident.",
+        "services": [
+          {
+            "name": "Health Cards / PhilHealth",
+            "desc": "Registration and renewal of health card benefits and PhilHealth membership.",
+            "requirements": [
+              "Valid government ID",
+              "Proof of residency",
+              "PhilHealth membership documents"
+            ]
+          },
+          {
+            "name": "Vaccination Programs",
+            "desc": "Immunization for infants, children, and adults, including routine and catch-up vaccines.",
+            "requirements": [
+              "Child health book / vaccination record",
+              "Valid government ID"
+            ]
+          },
+          {
+            "name": "Medical Assistance",
+            "desc": "Financial assistance for medical treatment, consultations, and hospitalization.",
+            "requirements": [
+              "Barangay Clearance",
+              "Certificate of Indigency",
+              "Medical certificate or hospital bill"
+            ]
+          },
+          {
+            "name": "Maternal & Child Health",
+            "desc": "Prenatal, natal, and postnatal care for mothers and their children.",
+            "requirements": [
+              "Valid government ID",
+              "Pregnancy / child health record"
+            ]
+          },
+          {
+            "name": "Senior Citizen & PWD Benefits",
+            "desc": "Health and social benefits for senior citizens and persons with disabilities.",
+            "requirements": [
+              "Senior Citizen ID or PWD ID",
+              "Valid government ID"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "n": 1,
+            "text": "Visit the Municipal Health Office (MHO) or the Rural Health Unit."
+          },
+          {
+            "n": 2,
+            "text": "Present your ID and the required documents."
+          },
+          {
+            "n": 3,
+            "text": "Register for the program or service you need."
+          },
+          {
+            "n": 4,
+            "text": "Receive guidance on your benefits and schedule."
+          }
+        ],
+        "office": {
+          "name": "Municipal Health Office (MHO)",
+          "location": "Getafe Rural Health Unit, Poblacion, Getafe, Bohol",
+          "hours": "Monday – Friday, 8:00 AM – 5:00 PM"
+        },
+        "contact": {
+          "phone": "(038) 502-9088",
+          "email": "lgugetafe@yahoo.com"
+        },
+        "related": [
+          {
+            "name": "Getafe Rural Health Unit (RHU)",
+            "desc": "The official Facebook page of the Getafe RHU — health programs, schedules, and announcements.",
+            "url": "https://www.facebook.com/GetafeRHU",
+            "img": "/assets/getafe-default/profiles/RHU-getafe.jpg"
+          }
+        ]
+      }
+    },
+    "published": false,
+    "version": 0
+  },
+  {
+    "key": "page-certificates",
+    "title": "Certificates & IDs",
+    "kind": "page",
+    "content": {
+      "service": {
+        "title": "Certificates & IDs",
+        "subtitle": "Official certificates, clearances, and identification documents for residents.",
+        "intro": "From barangay clearances to resident certificates, the municipality issues the documents you need for work, school, and personal transactions.",
+        "services": [
+          {
+            "name": "Barangay Clearance",
+            "desc": "A certification that you are a resident of the barangay with no derogatory record.",
+            "requirements": [
+              "Valid government ID",
+              "Proof of residency",
+              "Payment of barangay clearance fee"
+            ]
+          },
+          {
+            "name": "Barangay ID",
+            "desc": "An identification card issued to verified residents of the barangay.",
+            "requirements": [
+              "Valid government ID",
+              "Barangay Clearance",
+              "Proof of residency",
+              "1x1 ID picture"
+            ]
+          },
+          {
+            "name": "Certificate of Indigency",
+            "desc": "A certification that you qualify for financial assistance or government programs.",
+            "requirements": [
+              "Barangay Clearance",
+              "Proof of income",
+              "Recommendation from a barangay official"
+            ]
+          },
+          {
+            "name": "Local Residency Certificate",
+            "desc": "Certifies that you have been residing in Getafe for a given period.",
+            "requirements": [
+              "Valid government ID",
+              "Proof of residence (billing statement or lease)"
+            ]
+          },
+          {
+            "name": "Community Tax Certificate (Cedula)",
+            "desc": "The annual residence and occupation tax certificate issued by the municipality.",
+            "requirements": [
+              "Valid government ID",
+              "Previous cedula (if renewing)"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "n": 1,
+            "text": "Visit your barangay hall or the Municipal Civil Registrar’s Office."
+          },
+          {
+            "n": 2,
+            "text": "Present the required documents and fill out the application form."
+          },
+          {
+            "n": 3,
+            "text": "Pay the applicable certification or processing fee."
+          },
+          {
+            "n": 4,
+            "text": "Receive your certificate or ID."
+          }
+        ],
+        "office": {
+          "name": "Municipal Civil Registrar’s Office",
+          "location": "Municipal Hall, Poblacion, Getafe, Bohol",
+          "hours": "Monday – Friday, 8:00 AM – 5:00 PM"
+        },
+        "contact": {
+          "phone": "(038) 502-9088",
+          "email": "lgugetafe@yahoo.com"
+        }
+      }
+    },
+    "published": false,
+    "version": 0
+  },
+  {
+    "key": "page-education",
+    "title": "Education & Scholarships",
+    "kind": "page",
+    "content": {
+      "service": {
+        "kicker": "Popular services · Education",
+        "title": "Education & Scholarships",
+        "subtitle": "Financial assistance, scholarships, and skills training programs for Getafe residents.",
+        "intro": "The municipality invests in its students and workforce through scholarships, financial aid, and skills training designed to open more opportunities for every Getafe\\u00f1o.",
+        "services": [
+          {
+            "name": "Municipal Scholarship Program",
+            "desc": "Financial support for deserving college students who are residents of Getafe.",
+            "requirements": [
+              "Proof of residency in Getafe",
+              "Certificate of enrollment or admission",
+              "Academic records / grades",
+              "Certificate of Indigency (if applying for aid)"
+            ]
+          },
+          {
+            "name": "School Assistance / Financial Aid",
+            "desc": "One-time assistance for school needs such as uniforms, supplies, and transportation.",
+            "requirements": [
+              "Barangay Clearance",
+              "Proof of enrollment",
+              "Certificate of Indigency"
+            ]
+          },
+          {
+            "name": "Skills Training Programs",
+            "desc": "Short-term skills and livelihood training, including TESDA-accredited courses.",
+            "requirements": [
+              "Valid government ID",
+              "Proof of residency",
+              "Completed registration form"
+            ]
+          },
+          {
+            "name": "Alternative Learning System",
+            "desc": "A program for out-of-school youth and adults to continue their basic education.",
+            "requirements": [
+              "Valid government ID",
+              "Enrollment in the ALS program"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "n": 1,
+            "text": "Secure a Barangay Clearance from your barangay."
+          },
+          {
+            "n": 2,
+            "text": "Visit the Municipal Social Welfare and Development (MSWD) office."
+          },
+          {
+            "n": 3,
+            "text": "Submit the scholarship or assistance requirements and application form."
+          },
+          {
+            "n": 4,
+            "text": "Await evaluation and the release of benefits or training schedule."
+          }
+        ],
+        "office": {
+          "name": "Municipal Social Welfare and Development (MSWD)",
+          "location": "Municipal Hall, Poblacion, Getafe, Bohol",
+          "hours": "Monday – Friday, 8:00 AM – 5:00 PM"
+        },
+        "contact": {
+          "phone": "(038) 502-9088",
+          "email": "lgugetafe@yahoo.com"
+        },
+        "related": [
+          {
+            "name": "Colegio de Getafe",
+            "desc": "The official Facebook page of Colegio de Getafe — admissions, announcements, and campus updates.",
+            "url": "https://www.facebook.com/cdgetafe/",
+            "email": "colegiodegetafe@gmail.com",
+            "img": "/assets/cdg-getafe/309577993_205055401874207_4310045809763569344_n.jpg"
+          }
+        ]
+      }
+    },
+    "published": false,
+    "version": 0
+  },
+  {
+    "key": "page-barangay-clearance",
+    "title": "Barangay Clearance",
+    "kind": "page",
+    "content": {
+      "service": {
+        "variant": "barangay-service",
+        "backLabel": "Back to services",
+        "showBackLink": false,
+        "kicker": "Public service · Barangay documents",
+        "title": "Barangay Clearance",
+        "subtitle": "Certificate & Clearance · All barangays in Getafe",
+        "intro": "A Barangay Clearance confirms that you are a resident or have a stated purpose within the barangay. Prepare the items below before visiting your barangay hall.",
+        "requirementsTitle": "What to bring",
+        "stepsTitle": "Get your clearance",
+        "services": [
+          {
+            "name": "Required documents",
+            "desc": "Bring the following items for verification. The barangay office may request additional documents depending on your purpose.",
+            "requirements": [
+              "Valid government-issued ID",
+              "Proof of residency, if requested",
+              "Clear purpose for the clearance",
+              "Payment for the applicable barangay fee"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "n": 1,
+            "text": "Visit your barangay Barangay Hall during office hours."
+          },
+          {
+            "n": 2,
+            "text": "Ask for the Barangay Clearance application form and complete it accurately."
+          },
+          {
+            "n": 3,
+            "text": "Submit your ID and any supporting document for verification."
+          },
+          {
+            "n": 4,
+            "text": "Confirm the applicable fee and pay through the barangay office."
+          },
+          {
+            "n": 5,
+            "text": "Review the details on your clearance before receiving it."
+          }
+        ],
+        "office": {
+          "name": "Your Barangay Hall",
+          "location": "Getafe, Bohol",
+          "hours": "Monday – Friday, 8:00 AM – 5:00 PM"
+        },
+        "contact": {
+          "phone": "(038) 502-9088",
+          "email": "lgugetafe@yahoo.com"
+        }
+      }
+    },
+    "published": false,
+    "version": 0
+  },
+  {
+    "key": "page-privacy",
+    "title": "Privacy Policy",
+    "kind": "page",
+    "content": {
+      "title": "Privacy Policy",
+      "sections": [
+        {
+          "title": "Information we collect",
+          "body": "We may collect personal information that you voluntarily provide when you use our online services, such as your name, contact details, and information required to process applications for permits, certificates, and other government transactions."
+        },
+        {
+          "title": "How we use your information",
+          "body": "Information collected is used solely to deliver, process, and improve government services, respond to inquiries, and comply with legal and regulatory obligations. We do not sell, rent, or trade your personal information."
+        },
+        {
+          "title": "Data protection",
+          "body": "The Municipality of Getafe is committed to protecting your personal data in accordance with the Data Privacy Act of 2012 (RA 10173). We implement appropriate technical and organizational measures to safeguard your information against unauthorized access, disclosure, alteration, or destruction."
+        },
+        {
+          "title": "Cookies and analytics",
+          "body": "Our website may use cookies and similar technologies to improve your browsing experience and gather aggregate statistics about site usage. You may adjust your browser settings to refuse cookies; however, some features may not function properly as a result."
+        },
+        {
+          "title": "Third-party links",
+          "body": "Our website may contain links to external websites, including national government portals. We are not responsible for the privacy practices or content of these external sites and encourage you to review their respective privacy policies."
+        },
+        {
+          "title": "Your rights",
+          "body": "Under the Data Privacy Act, you have the right to be informed, to access, to object, to rectify, and to erase your personal data, as well as to file a complaint with the National Privacy Commission. To exercise these rights, you may contact our Data Protection Officer."
+        }
+      ]
+    },
+    "published": false,
+    "version": 0
+  },
+  {
+    "key": "page-terms",
+    "title": "Terms of Use",
+    "kind": "page",
+    "content": {
+      "title": "Terms of Use",
+      "sections": [
+        {
+          "title": "Acceptance of terms",
+          "body": "By accessing or using the official web portal of the Municipality of Getafe, you agree to be bound by these Terms of Use. If you do not agree with any part of these terms, please discontinue use of the portal."
+        },
+        {
+          "title": "Use of the portal",
+          "body": "The portal is provided for lawful purposes, including accessing government information and availing of municipal services. You agree not to misuse the portal, attempt to gain unauthorized access, or use it in any way that disrupts its operation."
+        },
+        {
+          "title": "Accuracy of information",
+          "body": "The Municipality of Getafe strives to keep the information on this portal accurate and up to date. However, information is provided \"as is\" without warranties of any kind. Users should verify critical information with the concerned municipal office."
+        },
+        {
+          "title": "Intellectual property",
+          "body": "Content published on this portal, including text, graphics, logos, and the municipal seal, is the property of the Municipality of Getafe unless otherwise stated and may not be reproduced without appropriate authorization."
+        },
+        {
+          "title": "External links",
+          "body": "This portal may contain links to third-party websites. The Municipality of Getafe does not endorse and is not responsible for the content or practices of external sites."
+        },
+        {
+          "title": "Limitation of liability",
+          "body": "The Municipality of Getafe shall not be held liable for any loss or damage arising from the use of, or reliance on, information obtained through this portal, to the fullest extent permitted by law."
+        },
+        {
+          "title": "Changes to these terms",
+          "body": "We may update these Terms of Use from time to time. Continued use of the portal after any changes constitutes acceptance of the revised terms."
+        }
+      ]
+    },
+    "published": false,
+    "version": 0
+  },
+  {
+    "key": "page-cookies",
+    "title": "Cookie policy",
+    "kind": "page",
+    "content": {
+      "title": "Cookie policy",
+      "sections": [
+        {
+          "title": "Essential cookies",
+          "body": "The portal uses an essential session cookie to keep you signed in and protect authenticated requests. It is HttpOnly and is not used for advertising or cross-site tracking. Sign-in and citizen services may not work if essential cookies are blocked."
+        },
+        {
+          "title": "Google sign-in",
+          "body": "If you choose Google sign-in or sign-up, Google and this portal use temporary authentication state to complete the secure sign-in exchange. The temporary state is cleared when the exchange finishes or expires."
+        },
+        {
+          "title": "Caching and private data",
+          "body": "Public, versioned website assets may be cached to improve loading speed. Account pages, authentication responses, citizen records, and other private API responses are marked no-store so browsers and shared caches should not retain them."
+        },
+        {
+          "title": "Your choices",
+          "body": "You can manage cookies through your browser settings. Blocking essential cookies may prevent sign-in, account access, and other protected services from working. The portal does not require non-essential advertising cookies."
+        }
+      ]
+    },
+    "published": false,
+    "version": 0
+  }
+]

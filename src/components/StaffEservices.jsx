@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { StatusBadge } from './ui/Primitives'
+import { useEffect, useRef, useState } from "react";
 import { REQUEST_STATUSES } from "../data/eserviceWorkflow";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import StaffRequestProcessing from "./StaffRequestProcessing";
+import "./StaffRequestDetail.css";
+import StaffAssessment from "./StaffAssessment";
 import StaffBillingOperations from "./StaffBillingOperations";
 import {
   esApi,
@@ -10,34 +14,55 @@ import {
   RequestTable,
   DynamicFields,
   Activity,
-  OrderView,
   label,
   date,
 } from "./EserviceUI";
 export default function StaffEservices() {
+  const { id } = useParams();
+  return <StaffEservicesPage key={id || "queue"} />;
+}
+
+function StaffEservicesPage() {
   const { id } = useParams(),
     [params, setParams] = useSearchParams(),
     { user } = useAuth();
   const [tab, setTab] = useState("Application"),
     [message, setMessage] = useState(""),
+    [documentMessage, setDocumentMessage] = useState(""),
     [internal, setInternal] = useState(true),
-    [assigned, setAssigned] = useState(""),
-    [target, setTarget] = useState(""),
     [due, setDue] = useState(""),
     [busy, setBusy] = useState(false),
-    [notice, setNotice] = useState(""),
-    [order, setOrder] = useState(null);
-  const [feeCodes,setFeeCodes] = useState([]),[billingPeriod,setBillingPeriod] = useState('');
+    [notice, setNotice] = useState("");
+  const mutationPending = useRef(false), contentRef = useRef(null);
+  const openTab = value => {
+    setTab(value);
+    if (window.matchMedia("(max-width: 1100px)").matches) window.requestAnimationFrame(() => contentRef.current?.scrollIntoView({ block: "start" }));
+  };
+  const [queueRevision, setQueueRevision] = useState(0);
+  const [search,setSearch] = useState(params.get('search')||'');
+  const routeSearch = params.get('search')||'';
+  useEffect(()=>setSearch(routeSearch),[routeSearch]);
+  useEffect(()=>{if(search===routeSearch)return;const timer=setTimeout(()=>{const next=new URLSearchParams(params);next.set('search',search);next.set('page','1');setParams(next,{replace:true})},350);return()=>clearTimeout(timer)},[search,routeSearch,params,setParams]);
+  const queueStatus = params.get('status') ?? 'SUBMITTED';
+  const queueParams = new URLSearchParams(params);
+  if (!queueParams.has('status')) queueParams.set('status', 'SUBMITTED');
+  useEffect(() => {
+    if (id) return;
+    const refresh = () => { if (document.visibilityState === 'visible') setQueueRevision(value => value + 1); };
+    const timer = window.setInterval(refresh, 5000);
+    window.addEventListener('focus', refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, [id]);
   const state = useEservice(
-    () =>
+    (signal) =>
       esApi(
         id
           ? `/staff/eservices/requests/${id}`
-          : `/staff/eservices/requests?${params.toString()}`,
-      ),
-    [id, params.toString()],
+          : `/staff/eservices/requests?${queueParams.toString()}`,
+        "GET", undefined, undefined, {signal}),
+    [id, params.toString(), queueRevision],
   );
-  const options = useEservice(() => esApi("/staff/eservices/options"), []);
+  const options = useEservice((signal) => esApi("/staff/eservices/options", "GET", undefined, undefined, {signal}), []);
   const filter = (key, value) => {
     const next = new URLSearchParams(params);
     next.set(key, value);
@@ -45,6 +70,8 @@ export default function StaffEservices() {
     setParams(next);
   };
   const act = async (path, data) => {
+    if (mutationPending.current) return false;
+    mutationPending.current = true;
     setBusy(true);
     state.setError("");
     setNotice("");
@@ -57,45 +84,46 @@ export default function StaffEservices() {
       );
       await state.refresh();
       setNotice("Request updated.");
+      return true;
     } catch (e) {
       state.setError(e.message);
+      return false;
     } finally {
+      mutationPending.current = false;
       setBusy(false);
-    }
-  };
-  const loadOrder = async (oid) => {
-    try {
-      setOrder(await esApi(`/staff/eservices/payment-orders/${oid}`));
-    } catch (e) {
-      state.setError(e.message);
     }
   };
   const can = (permission) => user?.permissions?.includes(permission),
     request = id ? state.data : null;
+  const closed = ["COMPLETED", "REJECTED", "CANCELLED"].includes(request?.status);
   return (
-    <main className="es-workspace">
-      <h1>
-        {id ? request?.request_number || "Request" : "E-service requests"}
-      </h1>
+    <main className={`es-workspace ${id ? "staff-request-detail" : ""}`}>
+      {!id && <h1>E-service requests</h1>}
       <Feedback error={state.error} loading={state.loading} notice={notice} />
       {!id ? (
         <>
+          <p>Submitted requests are routed to their servicing office. The incoming queue shows the earliest submissions first and refreshes every 5 seconds.</p>
+          <div className="es-toolbar" aria-label="Department request views"><label>Sort<select value={params.get('sort')|| (queueStatus==='SUBMITTED'?'submitted_asc':'submitted_desc')} onChange={event=>filter('sort',event.target.value)}><option value="submitted_asc">Oldest submitted</option><option value="submitted_desc">Newest submitted</option><option value="updated_desc">Recently updated</option><option value="updated_asc">Least recently updated</option><option value="priority">Priority / due date</option></select></label>
+            <button type="button" className="es-secondary" aria-pressed={queueStatus === 'SUBMITTED'} onClick={() => filter('status', 'SUBMITTED')}>Incoming queue</button>
+            <button type="button" className="es-secondary" aria-pressed={queueStatus === ''} onClick={() => filter('status', '')}>All submitted requests</button>
+            <button type="button" className="es-secondary" disabled={state.loading} onClick={() => setQueueRevision(value => value + 1)}>Refresh queue</button>
+          </div>
           <div className="es-toolbar">
             <label>
               Search
               <input
                 placeholder="Reference, business, owner or staff EID"
-                value={params.get("search") || ""}
-                onChange={(e) => filter("search", e.target.value)}
+                value={search} maxLength={100}
+                onChange={(e) => setSearch(e.target.value)}
               />
             </label>
             <label>
               Status
               <select
-                value={params.get("status") || ""}
+                value={queueStatus}
                 onChange={(e) => filter("status", e.target.value)}
               >
-                <option value="">All requests</option>
+                <option value="">All submitted requests</option>
                 {REQUEST_STATUSES.filter((s) => s !== "DRAFT").map((s) => (
                   <option key={s} value={s}>{label(s)}</option>
                 ))}
@@ -191,8 +219,8 @@ export default function StaffEservices() {
       ) : (
         request && (
           <>
-            <Link to="/app/staff/e-requests">All requests</Link>
-            <h2>{request.service.name}</h2>
+            <Link to="/app/staff/e-requests">Back to incoming queue</Link>
+            <header className="staff-request-header"><div><p className="staff-request-kicker">Service request</p><h1>{request.request_number}</h1><h2>{request.service.name}</h2></div><StatusBadge value={request.status} audience="staff"/></header>
             <dl className="es-metadata">
               <div>
                 <dt>Status</dt>
@@ -211,7 +239,8 @@ export default function StaffEservices() {
                 <dd>{request.assigned_user_name || "Unassigned"}</dd>
               </div>
             </dl>
-            <nav className="es-tabs">
+            <div className="staff-request-layout"><div className="staff-request-content" ref={contentRef}>
+            <nav className="es-tabs" aria-label="Request sections">
               {[
                 "Application",
                 "Documents",
@@ -221,9 +250,9 @@ export default function StaffEservices() {
               ].map((t) => (
                 <button
                   className="es-secondary"
-                  aria-selected={tab === t}
+                  aria-pressed={tab === t}
                   key={t}
-                  onClick={() => setTab(t)}
+                  onClick={() => openTab(t)}
                 >
                   {t}
                 </button>
@@ -231,93 +260,23 @@ export default function StaffEservices() {
             </nav>
             {tab === "Application" && (
               <>
-                {request.business && <section className="es-section"><h2>{request.business.business_name}</h2><p>{request.business.business_reference} · {request.business.ownership_type}</p><p>{Object.values(request.business.address || {}).filter(v=>typeof v==='string').join(', ')}</p></section>}
+                {request.appointment && <section className="es-section"><h2>Appointment</h2><dl className="es-metadata"><div><dt>Date and time</dt><dd>{date(request.appointment.appointment_at)}</dd></div><div><dt>Contact number</dt><dd>{request.appointment.contact_number}</dd></div><div><dt>Status</dt><dd>{label(request.appointment.status)}</dd></div></dl><p><strong>Reason:</strong> {request.appointment.reason}</p></section>}
+                {request.business && <section className="es-section"><h2>Business details</h2><dl className="es-metadata"><div><dt>Business name</dt><dd>{request.business.business_name}</dd></div><div><dt>Reference</dt><dd>{request.business.business_reference}</dd></div><div><dt>Ownership</dt><dd>{request.business.ownership_type}</dd></div><div><dt>Address</dt><dd>{Object.values(request.business.address || {}).filter(v=>typeof v==='string').join(', ') || "—"}</dd></div></dl></section>}
+                <section className="es-section"><h2>Application details</h2>
+                {!request.fields.length && <p>No additional application fields.</p>}
                 <DynamicFields
                   fields={request.fields}
                   values={request.values}
                   disabled
                   setValues={() => {}}
-                />
-                {can("requests.department.assign") && (
-                  <section className="es-section">
-                    <label>
-                      Assigned staff
-                      <select
-                        value={assigned}
-                        onChange={(e) => setAssigned(e.target.value)}
-                      >
-                        <option value="">Assign to me</option>
-                        {options.data?.members
-                          .filter(
-                            (m) => m.department_id === request.department_id,
-                          )
-                          .map((m) => (
-                            <option key={m.user_id} value={m.user_id}>
-                              {m.staff_label || 'Staff member'}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                    <div className="es-toolbar">
-                      <button
-                        disabled={busy}
-                        onClick={() =>
-                          act("assign", {
-                            assigned_user_id: assigned || user.id,
-                          })
-                        }
-                      >
-                        {assigned ? "Assign staff" : "Assign to me"}
-                      </button>
-                    </div>
-                  </section>
-                )}
-                <section className="es-section">
-                  <label>
-                    Next status
-                    <select
-                      value={target}
-                      onChange={(e) => setTarget(e.target.value)}
-                    >
-                      <option value="">Choose…</option>
-                      {request.steps
-                        .find((s) => s.status === request.status)
-                        ?.next_statuses.filter(
-                          (s) =>
-                            ![
-                              "AWAITING_PAYMENT",
-                              "PAID",
-                              "NEEDS_INFORMATION",
-                            ].includes(s),
-                        )
-                        .map((s) => (
-                          <option key={s} value={s}>{label(s)}</option>
-                        ))}
-                    </select>
-                  </label>
-                  <label>
-                    Reason
-                    <textarea
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                    />
-                  </label>
-                  <button
-                    disabled={busy || !target}
-                    onClick={() =>
-                      act(target === "APPROVED" ? "approve" : "status", {
-                        status: target,
-                        reason: message,
-                      })
-                    }
-                  >
-                    Update status
-                  </button>
-                </section>
+                /></section>
               </>
             )}
             {tab === "Documents" && (
               <section>
+                <h2>Documents</h2>
+                {!request.requirements.length && <p>No documents are required for this service.</p>}
+                {can("documents.process") && !closed && <label>Document review reason<textarea value={documentMessage} onChange={event => setDocumentMessage(event.target.value)} /></label>}
                 {request.requirements.map((r) => (
                   <section className="es-section" key={r.id}>
                     <h2>{r.label}</h2>
@@ -336,7 +295,7 @@ export default function StaffEservices() {
                             · {label(d.status)} · {label(d.scan_status)}
                           </p>
                           <p>{d.review_reason}</p>
-                          {!request.documents.some(
+                          {can("documents.process") && !closed && !request.documents.some(
                             (n) => n.replaces_id === d.id,
                           ) && (
                             <div className="es-toolbar">
@@ -353,7 +312,7 @@ export default function StaffEservices() {
                                     act("documents", {
                                       document_id: d.id,
                                       status,
-                                      reason: message,
+                                      reason: documentMessage,
                                     })
                                   }
                                 >
@@ -366,11 +325,13 @@ export default function StaffEservices() {
                       ))}
                   </section>
                 ))}
+                {can("requests.department.process") && request.steps?.find(step => step.status === request.status)?.next_statuses?.includes("NEEDS_INFORMATION") && <>
+                <h3>Request applicant corrections</h3>
                 <label>
-                  Reason for replacement or rejection
+                  Instructions for the applicant
                   <textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
+                    value={documentMessage}
+                    onChange={(e) => setDocumentMessage(e.target.value)}
                   />
                 </label>
                 <label>
@@ -382,78 +343,22 @@ export default function StaffEservices() {
                   />
                 </label>
                 <button
-                  disabled={busy || !message}
+                  disabled={busy || !documentMessage.trim()}
                   onClick={() =>
                     act("request-information", {
-                      message,
+                      message: documentMessage,
                       due_at: due ? `${due}+08:00` : null,
                     })
                   }
                 >
                   Request information
-                </button>
+                </button></>}
               </section>
             )}
-            {tab === "Assessment & payment" && (
-              <section>
-                {can("assessments.adjust") &&
-                  request.status === "AWAITING_PAYMENT" && (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        act("adjust-assessment", { reason: message });
-                      }}
-                    >
-                      <label>
-                        Reason for applying the current authorized fee schedule
-                        <textarea
-                          required
-                          value={message}
-                          onChange={(e) => setMessage(e.target.value)}
-                        />
-                      </label>
-                      <button disabled={busy || !message}>
-                        Replace unpaid assessment
-                      </button>
-                    </form>
-                  )}
-                {can("assessments.create") &&
-                  request.status === "FOR_ASSESSMENT" && (
-                    <div className="es-form"><label>Assessment due date<input type="datetime-local" value={due} onChange={e=>setDue(e.target.value)} /></label>
-                    <label>Billing period<input maxLength={100} value={billingPeriod} onChange={e=>setBillingPeriod(e.target.value)} placeholder="e.g. Q4 2026" /></label>
-                    {request.business && <fieldset><legend>Applicable configured charges</legend>{request.fees?.map(fee=><label key={fee.code}><input type="checkbox" checked={feeCodes.includes(fee.code)} onChange={e=>setFeeCodes(e.target.checked?[...feeCodes,fee.code]:feeCodes.filter(c=>c!==fee.code))} />{fee.description} · ₱{fee.amount}</label>)}</fieldset>}
-                    <button
-                      disabled={busy}
-                      onClick={() => act("assessment", {fee_codes:feeCodes,billing_period:billingPeriod,due_at:due?`${due}+08:00`:null})}
-                    >
-                      Issue assessment and payment order
-                    </button>
-                    </div>
-                  )}
-                {request.orders.map((o) => (
-                  <p key={o.id}>
-                    <button
-                      className="es-secondary"
-                      onClick={() => loadOrder(o.id)}
-                    >
-                      {o.order_number} · {label(o.status)}
-                    </button>
-                  </p>
-                ))}
-                {order && (
-                  <OrderView
-                    order={order}
-                    staff={can("payments.verify")}
-                    onRefresh={async () => {
-                      await loadOrder(order.id);
-                      await state.refresh();
-                    }}
-                  />
-                )}
-              </section>
-            )}
+            {tab === "Assessment & payment" && <StaffAssessment key={request.id} request={request} can={can} busy={busy} act={act} refresh={state.refresh} />}
             {tab === "Messages & notes" && (
-              <section>
+              <section><h2>Messages & notes</h2>
+                {!request.notes.length && <p>No messages or notes yet.</p>}
                 {request.notes.map((n) => (
                   <section className="es-section" key={n.id}>
                     <strong>
@@ -465,6 +370,7 @@ export default function StaffEservices() {
                     <p>{n.message}</p>
                   </section>
                 ))}
+                {can("requests.department.process") && !["COMPLETED", "REJECTED", "CANCELLED"].includes(request.status) && <>
                 <label>
                   Message
                   <textarea
@@ -490,7 +396,7 @@ export default function StaffEservices() {
                   }
                 >
                   Add {internal ? "internal note" : "applicant message"}
-                </button>
+                </button></>}
               </section>
             )}
             {tab === "Activity" && (
@@ -505,6 +411,7 @@ export default function StaffEservices() {
                 ))}
               </>
             )}
+            </div><StaffRequestProcessing key={`${request.id}:${request.status}:${request.assigned_user_id || "unassigned"}`} request={request} options={options} can={can} user={user} busy={busy} act={act} openTab={openTab} /></div>
           </>
         )
       )}

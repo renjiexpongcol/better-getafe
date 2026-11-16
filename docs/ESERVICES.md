@@ -328,20 +328,19 @@ and e-service audit entries. Internal notes are excluded from resident APIs.
 
 ## Backups and deployment
 
-`npm run backups:up` starts the supplied local PostgreSQL backup sidecar without
-recreating the existing database container. It connects through
-`BACKUP_DB_HOST` (default `host.docker.internal`), takes an immediate custom-format
-dump, verifies the archive listing, repeats every `BACKUP_INTERVAL_SECONDS`
+`npm run backups:up` starts the Supabase PostgreSQL backup sidecar. It reads
+`CMS_SUPABASE_DATABASE_URL` from `.env`, takes a custom-format dump over TLS,
+repeats every `BACKUP_INTERVAL_SECONDS`
 (default 86400) and retains `BACKUP_RETENTION_DAYS` (default 30). Archives are stored
 in the named `getafe-backups` Docker volume with restrictive file permissions.
 The health check requires a recent successful archive. Adjust its freshness
 threshold when changing the interval. Configure separate backup connections/jobs
 for separate CMS/portal databases. Database connection pools are reused.
 
-The sidecar was started locally, produced a verified archive, and the supplied
-`scripts/eservices-restore-check.sh` successfully restored it into a newly created,
-disposable database. The check refuses to replace an existing database of that
-name and cleans up only the database it created.
+The backup container does not start or depend on local PostgreSQL. Keep the old
+local database volume intact as a separate migration backup. Restore drills
+should target a separately provisioned Supabase project and must never overwrite
+the active project.
 
 Production deployment still needs encrypted off-site backup copies, monitored
 alerts, an approved retention policy, separate private object-storage backup and

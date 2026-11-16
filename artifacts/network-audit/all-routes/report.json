@@ -1,0 +1,1364 @@
+[
+  {
+    "width": 390,
+    "url": "/",
+    "overflow": 0,
+    "title": "Municipality of Getafe, Bohol | Services & Information",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/news?important=true&limit=1",
+      "/api/news?category=announcements&limit=1",
+      "/api/popular-services?limit=3",
+      "/api/news?display=news&homepage=true&public=true&page=1&limit=5",
+      "/api/news?display=events&limit=100&public=true",
+      "/api/discover?featured=true"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/auth/login",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Sign in",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/auth/forgot-password",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Reset Password",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News & Updates",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/categories"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/events",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Gallery of Events",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/news?display=events&limit=24&public=true"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Discover Getafe",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/discover?offset=0"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/tourism",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Tourism in Getafe",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/discover?offset=0"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Officials",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/officials/directory"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Barangays of Getafe",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/barangays"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Departments & Offices",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/departments"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/data",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Philippines Open Data & Statistics",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/public-data/coverage"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/contact",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Contact Us",
+    "apiRequests": [
+      "/api/public/config"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/legal/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Privacy Policy",
+    "apiRequests": [
+      "/api/public/config"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/services"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Your Service Requests",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard",
+      "/api/requests?page=1&status="
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/payments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payments",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/e-billing/all",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Billing and Payment Orders",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard",
+      "/api/billing/accounts",
+      "/api/payment-orders",
+      "/api/businesses",
+      "/api/requests?business=true&limit=100"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/staff",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff workspace",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/staff/dashboard"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin Portal",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/news?limit=100",
+      "/api/categories"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · News & Events",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/admin/news?limit=100",
+      "/api/categories"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/categories",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Categories",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/categories"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/access",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Access Management",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/admin/access"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/settings/general",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · System Settings",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/settings/general"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/weather",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Weather Updates",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/news/qa-article",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News Article",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/news/qa-article",
+      "/api/news?limit=8"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/services/e-services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/services/qa-service"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/info/about",
+    "overflow": 0,
+    "title": "Municipality of Getafe | About Us",
+    "apiRequests": [
+      "/api/public/config"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/legal/terms",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Terms of Use",
+    "apiRequests": [
+      "/api/public/config"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/requests/qa-application",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Application Details",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/applications/qa-application",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/services/qa-service",
+      "/api/citizen/dashboard",
+      "/api/requests?service_id=qa-service&limit=100"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Request Details",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard",
+      "/api/requests/qa-request"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/appointments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Appointments",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/documents",
+    "overflow": 0,
+    "title": "Municipality of Getafe | My Documents",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Notifications",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/profile",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/citizen/dashboard",
+      "/api/businesses"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/citizen/dashboard",
+      "/api/businesses"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/help",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Help & Support",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/e-payment/qa-order",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payment Details",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard",
+      "/api/payment-orders/qa-order"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/staff/requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff service requests",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/staff/dashboard"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/staff/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Queue",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/staff/eservices/requests?status=SUBMITTED",
+      "/api/staff/eservices/options"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/staff/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Request Details",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/staff/eservices/requests/qa-request",
+      "/api/staff/eservices/options"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/staff/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff system parameters",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/admin/settings"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/app/staff/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff notifications",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/staff/notifications"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/editor",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Content Editor",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/news?limit=100",
+      "/api/categories"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/media",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Media Library",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/media"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Officials",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/officials/data-quality",
+      "/api/officials",
+      "/api/barangays"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Barangays",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/officials",
+      "/api/barangays"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Departments",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/departments"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Discover Getafe",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/destinations?offset=0"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/service-catalog",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Service Catalog",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/services/options",
+      "/api/admin/services?q=&department=&published=&page=1&limit=20"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/users",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Users",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/admin/access"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/access/groups",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Groups",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/admin/access"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/access/permissions",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Permissions",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/access"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/access/policies",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Policies",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/admin/access"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/audit",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Audit Log",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/access"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Privacy Requests",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/privacy-requests"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/admin/system/errors",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Error Center",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/system/errors?limit=50"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/",
+    "overflow": 0,
+    "title": "Municipality of Getafe, Bohol | Services & Information",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/news?important=true&limit=1",
+      "/api/news?category=announcements&limit=1",
+      "/api/popular-services?limit=3",
+      "/api/news?display=news&homepage=true&public=true&page=1&limit=5",
+      "/api/news?display=events&limit=100&public=true",
+      "/api/discover?featured=true"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/auth/login",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Sign in",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/auth/forgot-password",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Reset Password",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News & Updates",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/categories",
+      "/api/news?page=1&limit=9&display=news&public=true"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/events",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Gallery of Events",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/news?display=events&limit=24&public=true"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Discover Getafe",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/discover?offset=0"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/tourism",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Tourism in Getafe",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/discover?offset=0"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Officials",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/officials/directory"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Barangays of Getafe",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/barangays"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Departments & Offices",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/departments"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/data",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Philippines Open Data & Statistics",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/public-data/coverage"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/contact",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Contact Us",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/legal/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Privacy Policy",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/services"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Your Service Requests",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard",
+      "/api/requests?page=1&status="
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/payments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payments",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/e-billing/all",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Billing and Payment Orders",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard",
+      "/api/billing/accounts",
+      "/api/payment-orders",
+      "/api/businesses",
+      "/api/requests?business=true&limit=100"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/staff",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff workspace",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/staff/dashboard"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin Portal",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/categories",
+      "/api/admin/news?limit=100"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · News & Events",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/categories",
+      "/api/admin/news?limit=100"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/categories",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Categories",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/categories"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/access",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Access Management",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/admin/access"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/settings/general",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · System Settings",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/settings/general"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/weather",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Weather Updates",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/weather"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/news/qa-article",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News Article",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/news/qa-article",
+      "/api/news?limit=8"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/services/e-services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/services/qa-service"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/info/about",
+    "overflow": 0,
+    "title": "Municipality of Getafe | About Us",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/legal/terms",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Terms of Use",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/requests/qa-application",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Application Details",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/users/me/preferences",
+      "/api/citizen/applications/qa-application",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/services/qa-service",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Details",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/services/qa-service",
+      "/api/citizen/dashboard",
+      "/api/requests?service_id=qa-service&limit=100"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Service Request Details",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard",
+      "/api/requests/qa-request"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/appointments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Appointments",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/documents",
+    "overflow": 0,
+    "title": "Municipality of Getafe | My Documents",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Notifications",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/profile",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/citizen/dashboard",
+      "/api/businesses"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Resident Portal",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/citizen/dashboard",
+      "/api/businesses"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/help",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Help & Support",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/e-payment/qa-order",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Payment Details",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/citizen/dashboard",
+      "/api/payment-orders/qa-order"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/staff/requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff service requests",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/staff/dashboard"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/staff/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Queue",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/staff/eservices/requests?status=SUBMITTED",
+      "/api/staff/eservices/options"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/staff/e-requests/qa-request",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Request Details",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/staff/eservices/requests/qa-request",
+      "/api/staff/eservices/options"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/staff/settings",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff system parameters",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/settings"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/app/staff/notifications",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff notifications",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/staff/notifications"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/editor",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Content Editor",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/categories",
+      "/api/admin/news?limit=100"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/media",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Media Library",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/media"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/officials",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Officials",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/officials/data-quality",
+      "/api/officials",
+      "/api/barangays"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/barangays",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Barangays",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/officials",
+      "/api/barangays"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/departments",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Departments",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/departments"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/discover",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Discover Getafe",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/destinations?offset=0"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/service-catalog",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Service Catalog",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/admin/services/options",
+      "/api/admin/services?q=&department=&published=&page=1&limit=20"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/users",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Users",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/access"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/access/groups",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Groups",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/access"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/access/permissions",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Permissions",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/access"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/access/policies",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Policies",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/access"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/audit",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Audit Log",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/admin/access"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/privacy",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Privacy Requests",
+    "apiRequests": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/privacy-requests"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/admin/system/errors",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Admin · Error Center",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/admin/system/errors?limit=50"
+    ]
+  }
+]

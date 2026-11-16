@@ -5,6 +5,9 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+ARG VITE_WEBSITE_ANALYTICS_ENABLED=true
+ENV VITE_WEBSITE_ANALYTICS_ENABLED=$VITE_WEBSITE_ANALYTICS_ENABLED
+
 # Copy dependency files first for better Docker layer caching
 COPY package*.json ./
 
@@ -36,6 +39,7 @@ RUN npm ci --omit=dev
 # Copy Express server
 COPY server.js ./
 COPY server ./server
+COPY scripts ./scripts
 COPY src ./src
 
 # Copy the Vite production build

@@ -1,4 +1,5 @@
+import { PageHeader } from '../../components/ui/Primitives'
 import CitizenLayout from '../../components/CitizenLayout'
-export default function AppPage({ title, children }) {
-  return <CitizenLayout title={title}><h1 className="portal-page-title">{title}</h1>{children}</CitizenLayout>
+export default function AppPage({ title, description, actions, children }) {
+  return <CitizenLayout title={title}><PageHeader title={title} description={description} actions={actions}/>{children}</CitizenLayout>
 }

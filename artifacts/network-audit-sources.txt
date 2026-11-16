@@ -1,0 +1,89 @@
+src\hooks\useOpenStats.js:74:          fetch(url, {
+src\context\AuthContext.jsx:58:          response = await apiFetch('/api/auth/me', { credentials: 'include', cache: 'no-store', headers: { 'X-Requested-With': 'GetafeCitizenPortal' } })
+src\context\AuthContext.jsx:134:    const timer = window.setInterval(() => {
+src\context\AuthContext.jsx:142:      const response = await apiFetch('/api/auth/login', {
+src\context\AuthContext.jsx:165:      const response = await apiFetch('/api/portal-auth/register', {
+src\context\AuthContext.jsx:189:      response = await apiFetch('/api/auth/logout', {
+src\context\AuthContext.jsx:230:      const response = await apiFetch('/api/auth/mfa/verify', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'GetafeCitizenPortal' }, body: JSON.stringify({ challengeId, code }) })
+src\context\PublicConfig.jsx:22:   return cachedRequest(cacheKey, () => requestJson('/api/public/config', { cache: 'no-store', timeoutMs: 3000 }), { ...cacheOptions, persist: publicCacheEnabled(), force: force || !publicCacheEnabled(), coalesce: true })
+src\context\PublicConfig.jsx:32:  const timer = setInterval(refresh, 30000)
+src\pages\admin\Admin.jsx:55:const api = (url, _token, options = {}) => requestJson(url, options);
+src\pages\admin\Admin.jsx:150:      const response = await apiFetch('/api/account/avatar', { method: 'POST', credentials: 'include', headers: { 'Content-Type': file.type, 'X-Requested-With': 'GetafeCitizenPortal' }, body: file });
+src\pages\admin\Admin.jsx:728:      const urlRes = await apiFetch("/api/storage/upload-url", {
+src\pages\admin\Admin.jsx:765:      const completeRes = await apiFetch("/api/media/complete", {
+src\pages\admin\Admin.jsx:816:        const urlResponse = await apiFetch('/api/storage/upload-url', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: file.name, contentType: file.type, fileSize: file.size, checksumSha256, context: 'media' }) });
+src\pages\admin\Admin.jsx:824:          const completeResponse = await apiFetch('/api/media/complete', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ storagePath: urlData.storagePath, originalFilename: file.name, contentType: file.type, fileSize: file.size, checksumSha256, name: file.name }) });
+src\pages\admin\Admin.jsx:1759:      const response = await apiFetch("/api/storage/upload-url", {
+src\pages\admin\Admin.jsx:1781:      const complete = await apiFetch("/api/media/complete", {
+src\pages\admin\Admin.jsx:2161:      const response = await apiFetch("/api/storage/upload-url", {
+src\pages\admin\Admin.jsx:2181:      const complete = await apiFetch("/api/media/complete", {
+src\components\AdminAccessManagement.jsx:10:  const response = await fetch(url, { ...options, credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'GetafeCitizenPortal', ...options.headers } })
+src\components\AdminErrorLogs.jsx:14:  const response = await fetch(url, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'GetafeCitizenPortal', ...options.headers } })
+src\pages\auth\ForgotPassword.jsx:11:  useEffect(() => { if (!resendAfter) { setError(value => /^Please wait \d+ seconds/.test(value) ? '' : value); return undefined }; const timer = window.setInterval(() => setResendAfter(value => Math.max(0, value - 1)), 1000); return () => window.clearInterval(timer) }, [resendAfter])
+src\pages\auth\ForgotPassword.jsx:12:  const requestCode = async (isResend = false) => { if (actionInFlight.current || resendAfter > 0) return; actionInFlight.current = true; setLoading(true); setError(''); try { const response = await fetch('/api/auth/forgot-password', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) }); const data = await response.json(); if (!response.ok) { if (data.retryAfter) setResendAfter(data.retryAfter); throw new Error(data.error) } if (data.challengeId) { setChallenge(data.challengeId); setCode(''); setResendAfter(data.retryAfter || 300); setMessage(isResend ? 'A new verification code has been sent to your email address.' : 'If an account is registered with this email, a six-digit verification code has been sent.') } else { setMessage('If an account is registered with this email, instructions have been sent.') } } catch (e) { setError(e.message) } finally { actionInFlight.current = false; setLoading(false) } }
+src\pages\auth\ForgotPassword.jsx:14:  const submit = async (event) => { event.preventDefault(); if (actionInFlight.current || loading) return; if (!challenge && !resetAuthorized) return requestCode(); actionInFlight.current = true; setLoading(true); setError(''); setMessage(''); try { if (resetAuthorized && !Object.values(checks).every(Boolean)) throw new Error('Choose a stronger password that meets all the requirements.'); if (resetAuthorized && password !== confirmPassword) throw new Error('Passwords do not match.'); const endpoint = resetAuthorized ? '/api/auth/renew-password' : '/api/auth/forgot-password/verify'; const body = resetAuthorized ? { password } : { challengeId: challenge, code }; const response = await fetch(endpoint, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); if (resetAuthorized) { setMessage('Password updated. You can now sign in.'); setTimeout(() => navigate('/auth/login'), 900); } else { setResetAuthorized(data.verified === true); } } catch (e) { setError(e.message); } finally { actionInFlight.current = false; setLoading(false); } }
+src\pages\auth\Login.jsx:101:    const timer = window.setInterval(update, 1000)
+src\pages\auth\Login.jsx:107:    const timer = setInterval(() => setCooldown(value => Math.max(0, value - 1)), 1000)
+src\pages\auth\Login.jsx:138:      const response = await fetch(renewal ? '/api/auth/renew-password' : '/api/auth/verify-code', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(renewal ? { password: newPassword } : { challengeId: challenge, code }) })
+src\pages\auth\Login.jsx:164:      const response = await fetch('/api/auth/resend-code', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'GetafeCitizenPortal' }, body: JSON.stringify({ challengeId: challenge }) })
+src\pages\auth\Login.jsx:200:    script.addEventListener('load', render); const timer = setInterval(render, 250)
+src\services\citizenData.js:9:    const body = await requestJson(path, { errorContext: 'services', ...options })
+src\services\apiTransport.js:24:export async function apiFetch(path, options = {}) {
+src\services\apiTransport.js:36:    response = await fetch(apiPath(path), { ...rest, credentials: publicRequest ? 'omit' : rest.credentials || 'include', signal, headers })
+src\services\apiTransport.js:62:export async function requestJson(path, options = {}) {
+src\services\apiTransport.js:64:  const response = await apiFetch(path, { ...rest, headers: { 'Content-Type': 'application/json', ...rest.headers } })
+src\pages\app\Documents.jsx:22:      await requestJson(`/citizen/documents?application_id=${encodeURIComponent(selectedApplication.id)}&name=${encodeURIComponent(file.name)}`, { method: 'POST', headers: { 'Content-Type': file.type }, body: file })
+src\services\apiClient.js:11:  return cachedJson(apiPath(path), {
+src\components\AdminPrivacyRequests.jsx:27:const api = (url, options = {}) => fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...options }).then(async response => { const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(normalizePublicError({ status: response.status, body }, 'unknown').message); return body })
+src\services\securityFetch.js:9:  if (!pathname.startsWith('/api/')) return globalThis.fetch(input, options)
+src\services\securityFetch.js:15:    const response = await globalThis.fetch('/api/auth/csrf', { credentials, signal: options.signal, cache: 'no-store', headers: { Accept: 'application/json' } })
+src\services\securityFetch.js:21:  return globalThis.fetch(input, { ...options, headers, credentials })
+src\services\publicError.js:82:  void fetch('/api/client-errors', {
+src\services\publicDataApi.js:8:    response = await fetch(`/api/public-data${path}`, { ...options, headers: { ...headers, ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers } });
+src\services\requestCache.js:97:    const response = await apiFetch(url, requestOptions)
+src\services\requestCache.js:117:export function cachedJson(url, options = {}) {
+src\pages\weather\Weather.jsx:434:    fetch('/api/weather')
+src\pages\weather\Weather.jsx:443:    const refresh = setInterval(load, 15 * 60 * 1000)
+src\pages\weather\Weather.jsx:444:    const clock = setInterval(() => setNow(new Date()), 60 * 1000)
+src\services\destinations.js:5:  return requestJson(url, options)
+src\components\AdminSettings.jsx:14:  const response = await fetch(`/api/admin/settings${path}`, {
+src\pages\news\Article.jsx:57:  const sample = [{ id: 'sample-about', path: '/info/about', category: 'Announcements', title: 'Learn more about the Municipality of Getafe' }, { id: 'sample-events', path: '/events', category: 'Events', title: 'Explore events and community activities' }, { id: 'sample-news', path: '/news', category: 'Announcements', title: 'Browse the latest Getafe updates' }]; const cards = related.length ? related.map(item => ({ ...item, path: item.content_type === 'Event' ? `/events/${item.slug}` : `/news/${item.slug}`, category: item.category?.name || (item.content_type === 'Event' ? 'Events' : 'Announcements'), meta: item.published_at ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(item.published_at)) : '', image: item.featured_image || '' })) : sample; const body = String(article.content || '').replace(/^\s*<h[1-3][^>]*>\s*.*?<\/h[1-3]>\s*/i, ''); const narrationText = buildArticleNarrationText({ title: article.title, excerpt: article.excerpt, content: body }); const toggleReason = reason => setSelectedReasons(current => current.includes(reason) ? current.filter(item => item !== reason) : [...current, reason]); const submitReport = async event => { event.preventDefault(); if (!selectedReasons.length && !feedback.trim()) return; if (includeScreenshot && !screenshotPreview) { setScreenshotError('Capture a screenshot before sending the report.'); return } setSending(true); try { const response = await fetch('/api/feedback/article', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ articleTitle: article.title, articleUrl: window.location.href, reasons: selectedReasons, feedback, includeScreenshot, screenshotData: screenshotPreview, userAgent: navigator.userAgent }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); setReportOpen(false); setSelectedReasons([]); setFeedback(''); setIncludeScreenshot(false); setScreenshotPreview(''); setNotice(data.message || 'Your report was sent successfully.') } catch (e) { setNotice(e.message) } finally { setSending(false) } }; const share = async () => { try { if (navigator.share) await navigator.share({ title: article.title, url: window.location.href }); else { await navigator.clipboard.writeText(window.location.href); setNotice('Article link copied.') } } catch {} }
+src\pages\info\Contact.jsx:66:    const timer = window.setInterval(render, 250)
+src\pages\info\Contact.jsx:127:    fetch('/api/contact', {
+src\pages\dashboard\Profile.jsx:96:      const response = await fetch('/api/citizen/profile/avatar', { method: 'POST', credentials: 'include', headers: { 'Content-Type': file.type }, body: file })
+src\pages\app\StaffSysparm.jsx:59:      const body = await requestJson('/staff/dashboard')
+src\pages\app\StaffSysparm.jsx:74:    requestJson(`/staff/applications/${encodeURIComponent(id)}`, { signal: controller.signal })
+src\pages\app\StaffSysparm.jsx:125:      const body = await requestJson(`/staff/applications/${encodeURIComponent(selectedRequest.id)}`, { method: 'PATCH', body: JSON.stringify({ status: requestStatus, previous_status: selectedRequest.status, fulfillment }) })
+src\pages\app\StaffSysparm.jsx:149:      await requestJson(`/staff/applications/${encodeURIComponent(selectedRequest.id)}/documents?name=${encodeURIComponent(nextFile.name)}`, { method: 'POST', headers: { 'Content-Type': nextFile.type }, body: nextFile })
+src\pages\app\StaffSysparm.jsx:154:        const refreshed = await requestJson(`/staff/applications/${encodeURIComponent(recordId)}`)
+src\pages\app\Setup.jsx:100:        const response = await fetch('/api/citizen/profile/avatar', { method: 'POST', credentials: 'include', headers: { 'Content-Type': photo.file.type }, body: photo.file })
+src\pages\app\Settings.jsx:297:      const response = await fetch('/api/auth/sessions', { credentials: 'include', headers })
+src\pages\app\Settings.jsx:307:      const response = await fetch(path, { method: 'DELETE', credentials: 'include', headers, body: body ? JSON.stringify(body) : undefined })
+src\pages\app\Settings.jsx:438:      const response = await fetch("/api/auth/mfa/setup", {
+src\pages\app\Settings.jsx:458:      const response = await fetch("/api/auth/mfa/activate", {
+src\pages\app\Settings.jsx:700:      const response = await fetch("/api/auth/mfa/disable/request", {
+src\pages\app\Settings.jsx:721:      const response = await fetch("/api/auth/mfa/disable/confirm", {
+src\components\CitizenWidgets.jsx:39:      const response = await apiFetch(`/api/citizen/documents/${encodeURIComponent(item.id)}/download`, { credentials: 'include', headers: { 'X-Requested-With': 'GetafeCitizenPortal' } })
+src\components\CommentsModeration.jsx:6:  const load = () => { setLoading(true); fetch('/api/admin/comments', { credentials: 'include' }).then(r => r.json()).then(data => setItems(data.items || [])).catch(e => onNotice(e.message || 'Comments unavailable.')).finally(() => setLoading(false)) }
+src\components\CommentsModeration.jsx:8:  const moderate = async (id, status) => { const r = await fetch(`/api/admin/comments/${id}`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }); const data = await r.json(); if (!r.ok) return onNotice(data.error); onNotice(`Comment ${status}.`); load() }
+src\components\EmergencyAlert.jsx:18:    const interval = setInterval(loadNotice, 60000)
+src\components\EmployeeProfile.jsx:17:    const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/profile`, { credentials:'include' });
+src\components\EmployeeProfile.jsx:24:  useEffect(() => { fetch('/api/admin/users', { credentials:'include' }).then(response => response.ok ? response.json() : { users:[] }).then(body => setDirectory(body.users || [])).catch(() => {}); }, [canEdit]);
+src\components\EmployeeProfile.jsx:28:      const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, { method:'PATCH',credentials:'include',headers:{ 'Content-Type':'application/json' },body:JSON.stringify(account) });
+src\components\EmployeeProfile.jsx:36:      const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/profile`, { method:'PATCH',credentials:'include',headers:{ 'Content-Type':'application/json' },body:JSON.stringify(form) });
+src\components\EmployeeSelect.jsx:12:    fetch('/api/admin/users/options', { credentials: 'include', signal: controller.signal }).then(async response => {
+src\components\EserviceUI.jsx:10:  requestJson(path, {
+src\components\EserviceUI.jsx:589:  const response = await apiFetch(`/requests/${request.id}/documents`, {
+src\components\Header.jsx:64:    const interval = setInterval(updateTime, 1000)
+src\components\HeaderWeather.jsx:39:        const response = await fetch('/api/weather/getafe', { signal: controller.signal })
+src\components\HeaderWeather.jsx:59:    const refresh = setInterval(load, 15 * 60 * 1000)
+src\components\HeaderWeather.jsx:74:    const timer = setInterval(() => setIndex(value => (value + 1) % slides.length), 5000)
+src\components\ImportantAnnouncement.jsx:59:    const interval = setInterval(load, 60000)
+src\components\PasswordChangeModal.jsx:124:      const response = await fetch(endpoint, {
+src\components\RouteStatusPages.jsx:180:    const timer = window.setInterval(() => {
+src\components\SettingsPermissions.jsx:9:  fetch('/api/admin/settings/principals', { credentials: 'include' }).then(async response => { if (!response.ok) throw new Error('Administrator list is unavailable.'); return response.json() }).then(setUsers).catch(error => setError(error.message))
+src\components\StaffDepartmentAccess.jsx:63:const searchStaff = async (query, signal) => query ? (await requestJson(`/admin/eservices/staff-search?q=${encodeURIComponent(query)}&limit=10`, { signal })).items : [];
+src\components\StaffDepartmentAccess.jsx:79:    requestJson(`/admin/eservices/department-members?user_id=${encodeURIComponent(staff.id)}`, { signal: controller.signal })
+src\components\StaffEservices.jsx:48:    const timer = window.setInterval(refresh, 30000);
+src\components\StaffUtilityPages.jsx:10:    ? requestJson('/staff/notifications', { signal })
+src\components\StaffUtilityPages.jsx:11:    : module === 'system-settings' ? requestJson('/admin/settings', { signal }) : Promise.resolve({}), [module])

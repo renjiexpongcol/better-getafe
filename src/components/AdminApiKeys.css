@@ -1,0 +1,25 @@
+.api-key-management { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--color-border, #dbe5ed); }
+.api-key-management .hub-heading h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 20px; }
+.api-key-management .hub-heading p { margin: 5px 0 0; color: var(--color-text-secondary); font-size: 13px; }
+.api-key-management small { display: block; margin-top: 3px; color: var(--color-text-secondary); font-weight: 400; }
+.api-key-management .hub-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.api-key-docs { display: flex; gap: 12px; margin-top: 18px; padding: 15px; border: 1px solid #cfe1ef; border-radius: 9px; background: #f5faff; color: var(--color-text); }
+.api-key-docs > svg { flex: 0 0 auto; color: #1769a8; }
+.api-key-docs p { margin: 5px 0 9px; color: var(--color-text-secondary); font-size: 13px; }
+.api-key-docs code { display: block; margin-top: 4px; color: #173b61; font-size: 12px; }
+.api-key-modal { position: fixed; inset: 0; z-index: 2100; display: grid; place-items: center; padding: 20px; background: rgb(11 36 71 / 55%); }
+.api-key-modal form, .api-key-secret { width: min(540px, 100%); max-height: calc(100vh - 40px); overflow: auto; padding: 22px; border-radius: 12px; background: var(--color-surface, #fff); box-shadow: 0 20px 60px rgb(16 47 74 / 24%); }
+.api-key-modal header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+.api-key-modal h3 { margin: 0; color: var(--color-text); }
+.api-key-modal header p { margin: 5px 0 0; color: var(--color-text-secondary); font-size: 13px; }
+.api-key-modal header button { border: 0; background: transparent; color: var(--color-text-secondary); cursor: pointer; }
+.api-key-modal label { display: grid; gap: 6px; margin: 12px 0; color: var(--color-text); font-size: 13px; font-weight: 600; }
+.api-key-modal input, .api-key-modal textarea { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid #b9cddd; border-radius: 6px; background: #fff; color: var(--color-text); font: inherit; }
+.api-key-modal textarea { min-height: 70px; resize: vertical; }
+.api-key-modal fieldset { display: grid; gap: 8px; margin: 16px 0; padding: 12px; border: 1px solid #d6e1ea; }
+.api-key-modal fieldset label { display: flex; grid-template-columns: none; align-items: center; gap: 8px; margin: 0; font-weight: 400; }
+.api-key-modal fieldset input { width: auto; }
+.api-key-modal footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.api-key-modal footer button { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 8px 13px; border: 1px solid #b9cddd; border-radius: 6px; background: #fff; color: #173b61; cursor: pointer; }
+.api-key-modal footer button:last-child { border-color: #163f6a; background: #163f6a; color: #fff; }
+.api-key-secret > code { display: block; overflow-wrap: anywhere; padding: 13px; border: 1px solid #c8d8e6; border-radius: 6px; background: #f4f8fb; color: #173b61; font-size: 12px; }

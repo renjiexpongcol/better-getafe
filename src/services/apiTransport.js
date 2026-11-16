@@ -1,5 +1,6 @@
 import { normalizePublicError } from './publicError.js'
 import { isPublicApiRequest } from './securitySurfaces.js'
+import { securityFetch as fetch } from './securityFetch.js'
 
 export const apiPath = path => {
   const value = String(path)
@@ -7,6 +8,7 @@ export const apiPath = path => {
   return value.startsWith('/api/') ? value : '/api' + (value.startsWith('/') ? value : '/' + value)
 }
 const categoryFor = status => ({ 0: 'NETWORK_UNAVAILABLE', 401: 'UNAUTHORIZED', 403: 'FORBIDDEN', 404: 'NOT_FOUND', 429: 'RATE_LIMITED' })[status] || (status >= 500 ? 'SERVER_ERROR' : 'VALIDATION_ERROR')
+const abortReason = signal => signal?.reason || new DOMException('The request was aborted.', 'AbortError')
 export class ApiRequestError extends Error {
   constructor(message, status = 0, body = {}, retryAfter = 0) {
     super(message)
@@ -34,8 +36,10 @@ export async function apiFetch(path, options = {}) {
     if (publicRequest) headers.delete('Authorization')
     response = await fetch(apiPath(path), { ...rest, credentials: publicRequest ? 'omit' : rest.credentials || 'include', signal, headers })
     } catch (error) {
-      if (rest.signal?.aborted) throw error
-      failure = new ApiRequestError("The server couldn't be reached. Try again.")
+      if (rest.signal?.aborted) throw abortReason(rest.signal)
+      failure = timeout.aborted
+        ? new ApiRequestError('The request timed out. Please try again.', 0, { code: 'REQUEST_TIMEOUT' })
+        : new ApiRequestError("The server couldn't be reached. Try again.")
     }
     const retryable = failure || (startupSensitive && [502, 503, 504].includes(response.status))
     if (!retryable || attempt === attempts - 1) {
@@ -51,7 +55,7 @@ export async function apiFetch(path, options = {}) {
     const delay = Math.min(30000, Math.max(afterMs, (startupSensitive ? 2000 : 250) * 2 ** attempt))
     await response?.body?.cancel().catch(() => {})
     await new Promise((resolve, reject) => {
-      const abort = () => { clearTimeout(timer); reject(rest.signal.reason) }
+      const abort = () => { clearTimeout(timer); reject(abortReason(rest.signal)) }
       const timer = setTimeout(() => { rest.signal?.removeEventListener('abort', abort); resolve() }, delay)
       if (rest.signal?.aborted) abort()
       else rest.signal?.addEventListener('abort', abort, { once: true })

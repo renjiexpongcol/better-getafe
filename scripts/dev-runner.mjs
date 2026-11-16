@@ -1,70 +1,103 @@
-import { spawn } from 'node:child_process'
-import { backendConnection, loadLocalEnvironment } from './backend-connection.mjs'
-loadLocalEnvironment()
-const { port, target } = backendConnection()
-const preview = process.argv.includes('--preview')
-const frontendOnly = process.argv.includes('--frontend-only')
-const forwarded = process.argv.slice(2).filter(arg => !['--preview', '--frontend-only'].includes(arg))
-const children = new Set()
-let stopping = false, monitor
-const env = { ...process.env, NODE_ENV: 'development', PORT: String(port), VITE_BACKEND_URL: target, CMS_DATABASE_PROVIDER: 'postgresql', PORTAL_DATABASE_PROVIDER: 'postgresql' }
-const stop = (code = 0) => {
-  if (stopping) return
-  stopping = true
-  clearInterval(monitor)
-  for (const child of children) {
-    if (process.platform === 'win32' && child.pid) spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
-    else child.kill()
-  }
-  process.exitCode = code
-}
-const start = args => {
-  const child = spawn(process.execPath, args, { stdio: 'inherit', env })
-  children.add(child)
-  child.once('error', () => { console.error('[Portal] Unable to start a required process.'); stop(1) })
-  child.once('exit', (code, signal) => {
-    children.delete(child)
-    if (!stopping) { console.error('[Portal] Required process stopped (' + (signal || code) + ').'); stop(code || 1) }
-  })
-  return child
-}
-const reachable = async () => {
-  try {
-    const response = await fetch(target + '/health', { signal: AbortSignal.timeout(1500) })
-    const body = await response.json()
-    return response.ok && body.service === 'better-getafe'
-  } catch { return false }
-}
-process.on('SIGINT', () => stop())
-process.on('SIGTERM', () => stop())
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import { loadLocalEnvironment, ensureSupabaseConfigured, checkBetterGetafeSchema } from '../server/src/config/supabaseSetup.js';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const setupOnly = process.argv.includes('--setup-only');
+const port = Number(process.env.VITE_PORT || process.env.PORT || 5173);
+if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('VITE_PORT must be a valid TCP port.');
+await loadLocalEnvironment();
+
+let setup;
 try {
-  if (!await reachable()) {
-    if (!frontendOnly) {
-      if (new URL(target).hostname !== '127.0.0.1' || Number(new URL(target).port || 80) !== port) throw new Error('Start the configured remote API before launching the frontend.')
-      start(['scripts/backend-watch.mjs'])
-    }
-    if (!frontendOnly) {
-      const deadline = Date.now() + 90000
-      while (!stopping && !await reachable()) {
-        if (Date.now() > deadline) throw new Error('API startup failed. Review backend startup messages; the frontend was not started.')
-        await new Promise(resolve => setTimeout(resolve, 400))
-      }
-    }
-  } else console.info('[Portal] Using the already running, healthy API.')
-  if (!stopping) {
-    console.info('[Portal] Starting ' + (preview ? 'built preview' : 'frontend') + '; API target ' + target + '.')
-    start(['node_modules/vite/bin/vite.js', ...(preview ? ['preview'] : []), '--strictPort', ...forwarded])
-    // A temporary health-check failure must never kill the frontend/backend.
-    let unavailable = false, checking = false
-    monitor = setInterval(async () => {
-      if (checking || stopping) return
-      checking = true
-      try {
-        const healthy = await reachable()
-        if (!healthy && !unavailable) console.error('[Portal] API temporarily unavailable; keeping development processes running.')
-        if (healthy && unavailable) console.info('[Portal] API recovered.')
-        unavailable = !healthy
-      } finally { checking = false }
-    }, 5000)
+  setup = await ensureSupabaseConfigured();
+  if (setup.cancelled) {
+    console.info('[Supabase] Setup cancelled; no application process was started.');
+    process.exit(0);
   }
-} catch (error) { console.error('[Portal] ' + error.message); stop(1) }
+  console.info('[Supabase] Connection verified.');
+  await checkBetterGetafeSchema(setup.url);
+  console.info('[Supabase] Better Getafe database ready.');
+} catch (error) {
+  console.error(`[Supabase] ${error.message}`);
+  process.exit(1);
+}
+if (setupOnly) process.exit(0);
+
+const env = {
+  ...process.env,
+  NODE_ENV: 'development',
+  HOST: '127.0.0.1',
+  PORT: String(port),
+  VITE_PORT: String(port),
+  BACKEND_PORT: String(port),
+  PORTAL_UNIFIED_DEV_SERVER: 'true',
+  CMS_SUPABASE_DATABASE_URL: setup.url,
+};
+delete env.VITE_BACKEND_URL;
+
+const children = new Set();
+let stopping = false;
+let workerStarted = false;
+let monitor;
+function stop(code = 0) {
+  if (stopping) return;
+  stopping = true;
+  clearInterval(monitor);
+  for (const child of children) child.kill('SIGTERM');
+  process.exitCode = code;
+}
+function start(args, required = true) {
+  const child = spawn(process.execPath, args, { cwd: root, env, stdio: 'inherit', windowsHide: true });
+  children.add(child);
+  child.once('error', () => { console.error('[Portal] Unable to start a required process.'); if (required) stop(1); });
+  child.once('exit', (code, signal) => {
+    children.delete(child);
+    if (required && !stopping) {
+      console.error(`[Portal] Backend stopped (${signal || code}).`);
+      stop(code || 1);
+    }
+    if (!required && code !== 0 && !stopping) console.error('[Portal] Integration worker stopped. Restart it after checking its startup logs.');
+  });
+  return child;
+}
+async function ready() {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/ready`, { signal: AbortSignal.timeout(1500) });
+    const body = await response.json();
+    return { ready: response.ok && body.ready === true, httpStatus: response.status, status: body.status || 'unknown' };
+  } catch (error) { return { ready: false, httpStatus: null, status: error.name === 'TimeoutError' ? 'probe-timeout' : 'unreachable' }; }
+}
+process.on('SIGINT', () => stop());
+process.on('SIGTERM', () => stop());
+console.info(`[Portal] Starting Better Getafe on http://localhost:${port}.`);
+const backend = start(['server.js']);
+const deadline = Date.now() + 60_000;
+let lastReadiness = { ready: false, httpStatus: null, status: 'initializing' };
+while (!stopping && children.has(backend) && Date.now() < deadline) {
+  lastReadiness = await ready();
+  if (lastReadiness.ready) break;
+  await new Promise(resolve => setTimeout(resolve, 500));
+}
+if (!stopping && children.has(backend) && lastReadiness.ready) {
+  console.info(`[Portal] Backend ready at http://localhost:${port}.`);
+  start(['server/integration-worker.js'], false);
+  workerStarted = true;
+}
+if (!stopping && !workerStarted) {
+  console.error(`[Portal] Backend did not become ready within 60 seconds (last check: ${lastReadiness.status}${lastReadiness.httpStatus ? `, HTTP ${lastReadiness.httpStatus}` : ''}). Review the backend startup stage above; database-dependent workers were not started.`);
+  stop(1);
+}
+let failedReadinessChecks = 0;
+monitor = setInterval(async () => {
+  if (stopping || children.size === 0) return stop(1);
+  const state = await ready();
+  if (state.ready) { failedReadinessChecks = 0; return; }
+  failedReadinessChecks++;
+  if (failedReadinessChecks === 1) console.error(`[Portal] Backend readiness check failed (${state.status}${state.httpStatus ? `, HTTP ${state.httpStatus}` : ''}); retrying for up to 15 seconds.`);
+  if (failedReadinessChecks >= 3) {
+    console.error('[Portal] Backend remained unready for 15 seconds. Stopping the app; database-dependent workers will not run.');
+    stop(1);
+  }
+}, 5000);

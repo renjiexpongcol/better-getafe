@@ -1,10 +1,13 @@
+import { permissionQueryScope, eservicePolicyFields, validatedStaffQuery } from './staffQueryScope.js';
+import { createStaffNotification } from './staffNotifications.js';
+import { getCmsUserById } from '../repositories/cmsUserRepository.js';
 import crypto from "node:crypto";
-import { barangays } from "../../../src/data/barangays.js";
+import { getBarangays } from '../repositories/barangaysRepository.js';
 import { PUBLIC_STATUS, publicStatus, PROFILE_SOURCES, fieldProfileSource, profileValues } from '../../../src/data/serviceApplication.js';
 import { businessBillingMethods } from './businessBilling.js';
 import { BILLING_STEPS, WORKFLOW_TYPES, PAYMENT_METHODS } from '../../../src/data/businessBillingWorkflow.js';
 import { APPLICATION_STEPS, WORKFLOW_PERMISSIONS } from "../../../src/data/eserviceWorkflow.js";
-import { getPortalPool, getCmsPool } from "./cloudSql.js";
+import { getPortalPool, getCmsPool } from "./database.js";
 import { requireAccess } from "./authorizationService.js";
 import { appointmentAvailability, appointmentSlotLockValues, isExactAppointmentMinute } from "./appointmentScheduling.js";
 import {
@@ -21,9 +24,10 @@ import {
 const hash = (value) =>
   crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 export class EserviceEngine {
-  constructor({ pool = getPortalPool, authorize = requireAccess } = {}) {
+  constructor({ pool = getPortalPool, authorize = requireAccess, barangayRecords = getBarangays } = {}) {
     this.pool = pool;
     this.authorize = authorize;
+    this.barangayRecords = barangayRecords;
   }
   async read(sql, values = []) {
     const [rows] = await (await this.pool()).execute(sql, values);
@@ -42,7 +46,7 @@ export class EserviceEngine {
     const address = data.address;
     if (!address || typeof address !== 'object' || Array.isArray(address) || Object.keys(address).some(k => !['street', 'barangay'].includes(k))) fail('Enter a business address.');
     const cleanAddress = { street: text(address.street, 240), barangay: text(address.barangay, 120), municipality: 'Getafe', province: 'Bohol' };
-    if (!cleanAddress.street || !barangays.some(item => item.name === cleanAddress.barangay)) fail('Enter the business address and choose a Getafe barangay.');
+    if (!cleanAddress.street || !(await this.barangayRecords()).some(item => item.name === cleanAddress.barangay)) fail('Enter the business address and choose a Getafe barangay.');
     if (id) uuid(id);
     return this.idempotent(actor, `profile-business:${id || 'new'}`, key, data, async db => {
       let business;
@@ -558,11 +562,14 @@ export class EserviceEngine {
     );
     if (!request) fail("Request not found.", 404);
     await this.authorize(actor, permission, request);
-    const [member] = await db(
-      "SELECT 1 FROM eservice_department_members WHERE user_id=? AND department_id=?",
-      [actor.id, request.department_id],
-    );
-    if (!member) fail("This request belongs to another department.", 403);
+    if (!['admin', 'super_admin'].includes(actor.role)) {
+      const [member] = await db(
+        "SELECT 1 FROM eservice_department_members WHERE user_id=? AND department_id=?",
+        [actor.id, request.department_id],
+      );
+      if (!member) fail("This request belongs to another department.", 403);
+    }
+    if (!request.submitted_at || request.status === 'DRAFT') fail("This request has not been submitted.", 404);
     return request;
   }
   stale(request, version) {
@@ -860,6 +867,7 @@ export class EserviceEngine {
           const contact = String(data.contact_number || "").replace(/\s+/g, "");
           if (!isExactAppointmentMinute(at)) fail("Choose an available appointment slot.");
           if (!/^09\d{9}$/.test(contact)) fail("Enter a valid Philippine mobile number.");
+          if (!String(data.appointment_reason || "").trim() || String(data.appointment_reason).length > 1000) fail("Enter a reason of up to 1,000 characters.");
           const [profile] = await db("SELECT barangay FROM resident_profiles WHERE user_id=?", [actor.id]);
           if (!profile?.barangay) fail("Add your barangay to your resident profile before booking.");
           await db("SELECT pg_advisory_xact_lock(hashtext(?), hashtext(?))", appointmentSlotLockValues(at));
@@ -916,11 +924,13 @@ export class EserviceEngine {
             "UPDATE service_requests SET resume_status=NULL,due_at=NULL WHERE id=?",
             [id],
           );
+        if(response&&request.assigned_user_id)await createStaffNotification(db,{userId:request.assigned_user_id,eventKey:`eservice:${id}:response:${request.version}`,title:'Resident response received',message:`${request.request_number} has new information ready to review.`,requestId:id});
         return updated;
       },
     );
   }
   async list(actor, query = {}, staff = false) {
+    if (staff) query = { ...query, ...validatedStaffQuery({ ...query, sort: query.sort || (query.status === 'SUBMITTED' ? 'submitted_asc' : 'submitted_desc') }, Object.keys(PUBLIC_STATUS).filter(status => status !== 'DRAFT')) };
     const page = Math.max(1, Math.min(100000, Number(query.page) || 1)),
       limit = Math.max(1, Math.min(100, Number(query.limit) || 20));
     if (staff) await this.authorize(actor, "requests.department.view");
@@ -930,6 +940,11 @@ export class EserviceEngine {
           : "r.applicant_user_id=?",
       ],
       values = [actor.id];
+    if (staff) {
+      conditions.push("r.submitted_at IS NOT NULL", "r.status<>'DRAFT'");
+      const scope = await permissionQueryScope(actor, 'requests.department.view', eservicePolicyFields);
+      conditions.push(`(${scope.sql})`); values.push(...scope.values);
+    }
     for (const [key, column] of Object.entries({
       status: "status",
       service_id: "service_id",
@@ -963,23 +978,18 @@ export class EserviceEngine {
       values.push(...Array(7).fill(`%${text(query.search, 100)}%`));
       values.push(staffMatches);
     }
-    for (const [key, op] of [
-      ["from", ">="],
-      ["to", "<="],
-    ])
-      if (query[key]) {
-        if (!Number.isFinite(Date.parse(query[key])))
-          fail("Choose a valid date.");
-        conditions.push(`r.submitted_at ${op} ?::timestamptz`);
-        values.push(query[key]);
-      }
+    if (query.from) { if (!Number.isFinite(Date.parse(query.from))) fail('Choose a valid date.'); conditions.push("r.submitted_at>=?::date::timestamp AT TIME ZONE 'Asia/Manila'"); values.push(query.from); }
+    if (query.to) { if (!Number.isFinite(Date.parse(query.to))) fail('Choose a valid date.'); conditions.push("r.submitted_at<(?::date+1)::timestamp AT TIME ZONE 'Asia/Manila'"); values.push(query.to); }
+    const sorts = { submitted_desc:'r.submitted_at DESC', submitted_asc:'r.submitted_at ASC',updated_desc:'r.updated_at DESC',updated_asc:'r.updated_at ASC',priority:"CASE WHEN r.due_at<now() THEN 0 WHEN r.status='FOR_APPROVAL' THEN 1 ELSE 2 END,r.submitted_at ASC" };
+    const order = staff ? sorts[query.sort] : 'r.created_at DESC';
+    const [count] = await this.read(`SELECT count(*)::integer AS total FROM service_requests r JOIN services s ON s.id=r.service_id JOIN portal_users u ON u.id=r.applicant_user_id WHERE ${conditions.join(' AND ')}`,values);
     const rows = await this.read(
       `SELECT r.*,s.name AS service_name,u.name AS applicant_name,
         COALESCE((SELECT x.business_id FROM request_business_billing x WHERE x.request_id=r.id),(SELECT a.business_id FROM business_applications a WHERE a.request_id=r.id)) AS business_id,
         (SELECT b.business_name FROM request_business_billing x JOIN businesses b ON b.id=x.business_id WHERE x.request_id=r.id) AS business_name,
         (SELECT o.amount FROM payment_orders o WHERE (o.request_id=r.id OR o.id IN (SELECT selected_order_id FROM request_business_billing WHERE request_id=r.id)) AND o.status NOT IN ('CANCELLED','EXPIRED') LIMIT 1) AS amount,
         EXISTS(SELECT 1 FROM payment_attempts p JOIN payment_orders o ON o.id=p.payment_order_id WHERE p.status='PENDING' AND (o.request_id=r.id OR o.id IN (SELECT selected_order_id FROM request_business_billing WHERE request_id=r.id))) AS payment_pending,
-        count(*) OVER()::integer AS total FROM service_requests r JOIN services s ON s.id=r.service_id JOIN portal_users u ON u.id=r.applicant_user_id WHERE ${conditions.join(" AND ")} ORDER BY r.created_at DESC LIMIT ? OFFSET ?`,
+        count(*) OVER()::integer AS total FROM service_requests r JOIN services s ON s.id=r.service_id JOIN portal_users u ON u.id=r.applicant_user_id WHERE ${conditions.join(" AND ")} ORDER BY ${order},r.id ASC LIMIT ? OFFSET ?`,
       [...values, limit, (page - 1) * limit],
     );
     if (staff)
@@ -1007,7 +1017,7 @@ export class EserviceEngine {
           } = row;
           return { ...safe, public_status: publicStatus(row.status) };
         });
-    return { items, total: rows[0]?.total || 0, page, limit };
+    return { items, total: count.total, page, limit };
   }
   async detail(actor, id, staff = false, correlation) {
     return this.transaction(async (db) => {
@@ -1139,11 +1149,26 @@ export class EserviceEngine {
             correlation,
           );
         if (operation === "assign") {
-          const [member] = await db(
+          let [member] = await db(
             "SELECT * FROM eservice_department_members WHERE user_id=? AND department_id=?",
             [text(data.assigned_user_id, 200), request.department_id],
           );
+          if (!member && ['admin', 'super_admin'].includes(actor.role)) {
+            const [candidate] = await (await getCmsPool()).execute(
+              "SELECT u.id FROM users u JOIN employee_profiles p ON p.user_id=u.id WHERE u.id=? AND u.role IN ('staff','it_support','content_manager','admin','super_admin') AND lower(p.employment_status)='active'",
+              [text(data.assigned_user_id, 200)],
+            );
+            if (candidate) {
+              await db('INSERT INTO eservice_department_members(user_id,department_id) VALUES(?,?) ON CONFLICT(user_id,department_id) DO NOTHING', [candidate.id, request.department_id]);
+              [member] = await db('SELECT * FROM eservice_department_members WHERE user_id=? AND department_id=?', [candidate.id, request.department_id]);
+            }
+          }
           if (!member) fail("Choose a staff member in this department.");
+          const assignee = await getCmsUserById(member.user_id);
+          if (!assignee || !['staff','it_support','content_manager','admin','super_admin'].includes(assignee.role)) fail('Choose an active staff member.');
+          await this.authorize({ ...assignee,kind:'cms' },'requests.department.view',request);
+          if (request.assigned_user_id === member.user_id) fail('This request is already assigned to that staff member.',409);
+          await createStaffNotification(db,{userId:member.user_id,eventKey:`eservice:${id}:assigned:${request.version}`,title:'Request assigned to you',message:`${request.request_number} is ready for your department to process.`,requestId:id});
           await db(
             "INSERT INTO request_assignments(request_id,assigned_user_id,assigned_by) VALUES(?,?,?)",
             [id, data.assigned_user_id, actor.id],
@@ -1305,7 +1330,7 @@ export class EserviceEngine {
     if (!order) fail("Payment order not found.", 404);
     if (staff) {
       await this.authorize(actor, "payments.view", order);
-      if (
+      if (!['admin', 'super_admin'].includes(actor.role) &&
         !(
           await this.read(
             "SELECT 1 FROM eservice_department_members WHERE user_id=? AND department_id=?",

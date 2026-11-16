@@ -1,12 +1,19 @@
+import { validatedStaffQuery } from './staffQueryScope.js'
 import express from 'express'
 import { id, now } from './identifiers.js'
 import { getLocalSqlite } from '../repositories/postgresCompatibility.js'
 import { getPortalUserById } from '../repositories/portalUserRepository.js'
-import { writeCitizenFile, deleteCitizenFile } from './storage.js'
+import { optionalSubmissionNotification, persistDocument } from './submissionPersistence.js'
 import { hasAccess, requireAccess } from './authorizationService.js'
 import { createInAppNotification, notificationEventKey, queueOptionalNotification } from './notificationService.js'
+import { staffDashboard, staffApplicationList, requireLegacyDepartment } from './staffOperations.js'
+import { getEmployeeProfile, updateEmployeePersonnel } from './employeeProvisioning.js'
+import { getCmsUserById } from '../repositories/cmsUserRepository.js'
+import { EserviceEngine } from './eserviceEngine.js'
+import { createStaffNotification } from './staffNotifications.js'
+import { readCitizenFile } from './storage.js'
 
-const staffRoles = ['staff', 'it_support', 'content_manager']
+const staffRoles = ['staff', 'it_support', 'content_manager', 'admin', 'super_admin']
 const safeStaffError = (error, fallback) => [400, 401, 403, 404, 409, 422].includes(Number(error?.status))
   ? String(error.message || fallback)
   : fallback
@@ -46,7 +53,9 @@ const ensureStaffPermission = async (user, permission = 'requests.view', resourc
 const authorizationResource = application => {
   const details = application?.details
   if (!details) return application
-  try { return { ...application, ...(typeof details === 'string' ? JSON.parse(details) : details) } }
+  // Legacy form details may supply barangay scope, but never override trusted
+  // ownership, assignment, status or department fields on the application.
+  try { return { ...(typeof details === 'string' ? JSON.parse(details) : details), ...application } }
   catch { return application }
 }
 
@@ -58,7 +67,7 @@ const readApplication = async (db, application) => {
       ? JSON.parse(application.details || '{}')
       : application.details || {}
   } catch { /* Keep malformed legacy details empty. */ }
-  const history = await db.prepare('SELECT id,status,note,created_at,previous_status,new_status,fulfillment_note,changed_by,changed_at,completion_date,closed_at FROM application_status_history WHERE application_id = ? ORDER BY created_at DESC').all(application.id)
+  const history = await db.prepare('SELECT id,status,note,created_at,previous_status,new_status,fulfillment_note,changed_by,changed_at,completion_date,closed_at,visibility FROM application_status_history WHERE application_id = ? ORDER BY created_at DESC').all(application.id)
   const documents = await db.prepare('SELECT id,name,document_kind,verification_status,created_at,CASE WHEN storage_path IS NOT NULL AND storage_path != \'\' THEN 1 ELSE 0 END AS downloadable FROM application_documents WHERE application_id = ? ORDER BY created_at DESC').all(application.id)
   return { ...application, resident_name: resident?.name || 'Resident', resident_email: resident?.email || '', details, history, documents }
 }
@@ -70,7 +79,7 @@ export function installStaffRoutes(app, admin) {
     try {
       await ensureStaffPermission(req.admin, 'notifications.view')
       const db = await getLocalSqlite()
-      const items = await db.prepare('SELECT id,title,message,application_id,document_id,created_at,read_at FROM notifications WHERE user_id = ? AND archived_at IS NULL ORDER BY created_at DESC LIMIT 100').all(req.admin.id)
+      const items = await db.prepare('SELECT id,title,message,application_id,request_id,created_at,read_at FROM staff_notifications WHERE user_id = ? ORDER BY created_at DESC,id DESC LIMIT 100').all(req.admin.id)
       res.json({ items })
     } catch (error) {
       if (Number(error?.status) === 403) return res.status(403).json({ error: 'You do not have permission to view staff notifications.' })
@@ -78,31 +87,43 @@ export function installStaffRoutes(app, admin) {
       res.status(503).json({ error: 'Notifications are temporarily unavailable. Try again.' })
     }
   })
-  app.get('/api/staff/dashboard', admin, async (req, res) => {
-    try { await withReadRetry(() => ensureStaffPermission(req.admin)) } catch (error) { return res.status(403).json({ error: safeStaffError(error, 'Municipal staff access required.') }) }
+  app.patch('/api/staff/notifications/:id/read', admin, async (req,res) => {
     try {
-      const candidateRows = await withReadRetry(async () => {
-        const db = await getLocalSqlite()
-        return db.prepare(`SELECT a.*, (SELECT note FROM application_status_history WHERE application_id = a.id ORDER BY created_at DESC LIMIT 1) AS latest_note FROM applications a ORDER BY last_updated DESC`).all()
-      })
-      const authorizedRows = []
-      for (const application of candidateRows) if (await withReadRetry(() => hasAccess(req.admin, 'requests.view', authorizationResource(application)))) authorizedRows.push(application)
-      const rows = authorizedRows.filter(application => !application.closed_at)
-      const applications = await Promise.all(rows.map(application => withReadRetry(async () => readApplication(await getLocalSqlite(), application))))
-      const completedCount = authorizedRows.filter(application => application.status === 'completed' || application.closed_at).length
-      const counts = applications.reduce((result, application) => {
-        const status = String(application.status || '').toLowerCase()
-        result.total += 1
-        if (['submitted', 'draft'].includes(status)) result.pending += 1
-        if (['processing', 'under_review', 'in_progress'].includes(status)) result.inProgress += 1
-        if (['approved', 'completed', 'released'].includes(status)) result.completed += 1
-        return result
-      }, { total: 0, pending: 0, inProgress: 0, completed: 0 })
-      counts.completed = completedCount
-      res.json({ counts, applications })
+      await ensureStaffPermission(req.admin,'notifications.view')
+      const db=await getLocalSqlite()
+      const item=await db.prepare('UPDATE staff_notifications SET read_at=COALESCE(read_at,now()) WHERE id::text=? AND user_id=? RETURNING id,read_at').get(req.params.id,req.admin.id)
+      if (!item) return res.status(404).json({error:'Notification not found.'})
+      res.json(item)
+    } catch(error) {res.status(error.status===403?403:503).json({error:safeStaffError(error,'Notification could not be updated.')})}
+  })
+  const selfProfile = async user => {
+    const profile=await getEmployeeProfile(user.id)
+    if(!profile) throw Object.assign(new Error('Employee profile not found.'),{status:404})
+    return Object.fromEntries(['user_id','eid','name','email','department','position','phone','office_assignment','employment_status','employment_type','hire_date','mfa_status','password_status','last_login_at','groups'].map(key=>[key,profile[key]]))
+  }
+  app.get('/api/staff/me',admin,async(req,res)=>{
+    try {if(!staffRoles.includes(req.admin.role)) return res.status(403).json({error:'Staff access required.'});res.json(await selfProfile(req.admin))}
+    catch(error){res.status(error.status||503).json({error:safeStaffError(error,'Your employee profile is temporarily unavailable.')})}
+  })
+  app.patch('/api/staff/me',admin,async(req,res)=>{
+    try {
+      if(!staffRoles.includes(req.admin.role)) return res.status(403).json({error:'Staff access required.'})
+      if(Object.keys(req.body||{}).some(key=>key!=='phone') || typeof req.body?.phone!=='string' || req.body.phone.length>32 || /[\0\r\n]/.test(req.body.phone)) return res.status(422).json({error:'Only your contact phone number can be updated here.'})
+      await updateEmployeePersonnel(req.admin.id,{phone:req.body.phone.trim()},req.admin)
+      res.json(await selfProfile(req.admin))
+    } catch(error){res.status(error.status||503).json({error:safeStaffError(error,'Your contact details could not be saved.')})}
+  })
+  app.get('/api/staff/applications',admin,async(req,res)=>{
+    try {await ensureStaffPermission(req.admin);res.json(await staffApplicationList(req.admin,req.query))}
+    catch(error){res.status(error.status||503).json({error:safeStaffError(error,'Service requests are temporarily unavailable.')})}
+  })
+  app.get('/api/staff/dashboard', admin, async (req, res) => {
+    try { await withReadRetry(() => ensureStaffPermission(req.admin,'staff.dashboard.view')) } catch (error) { return res.status(403).json({ error: safeStaffError(error, 'Municipal staff access required.') }) }
+    try {
+      res.json(await withReadRetry(()=>staffDashboard(req.admin)))
     } catch (error) {
       console.error('Staff dashboard lookup failed:', error.message)
-      res.status(503).json({ error: 'Staff service requests are temporarily unavailable.' })
+      res.status(error.status===403?403:503).json({ error: safeStaffError(error,'Staff service requests are temporarily unavailable.') })
     }
   })
 
@@ -114,6 +135,7 @@ export function installStaffRoutes(app, admin) {
         return db.prepare('SELECT * FROM applications WHERE id = ?').get(req.params.id)
       })
       if (!application) return res.status(404).json({ error: 'Service request not found.' })
+      await requireLegacyDepartment(req.admin,application)
       await withReadRetry(() => requireAccess(req.admin, 'requests.view', authorizationResource(application)))
       res.json(await withReadRetry(async () => readApplication(await getLocalSqlite(), application)))
     } catch (error) {
@@ -121,6 +143,57 @@ export function installStaffRoutes(app, admin) {
       console.error('Staff request lookup failed:', error.message)
       res.status(503).json({ error: 'The service request is temporarily unavailable.' })
     }
+  })
+  app.get('/api/staff/applications/:id/documents/:documentId',admin,async(req,res)=>{
+    try {
+      await ensureStaffPermission(req.admin,'documents.view')
+      const db=await getLocalSqlite(),application=await db.prepare('SELECT * FROM applications WHERE id=?').get(req.params.id)
+      if(!application) return res.status(404).json({error:'Request not found.'})
+      await requireLegacyDepartment(req.admin,application)
+      await requireAccess(req.admin,'requests.view',authorizationResource(application))
+      await requireAccess(req.admin,'documents.view',authorizationResource(application))
+      const document=await db.prepare('SELECT * FROM application_documents WHERE id=? AND application_id=?').get(req.params.documentId,application.id)
+      if(!document?.storage_path) return res.status(404).json({error:'Document not found.'})
+      const bytes=await readCitizenFile(document.storage_path)
+      res.set({'Content-Type':'application/octet-stream','Content-Disposition':`attachment; filename="${String(document.name||'document').replace(/["\r\n]/g,'_')}"`,'X-Content-Type-Options':'nosniff','Cache-Control':'no-store'}).send(bytes)
+    } catch(error){res.status(error.status||503).json({error:safeStaffError(error,'The document is temporarily unavailable.')})}
+  })
+  app.get('/api/staff/applications/:id/assignees',admin,async(req,res)=>{
+    try {
+      await ensureStaffPermission(req.admin,'requests.assign');
+      const engine=new EserviceEngine(),[row]=await engine.read('SELECT * FROM applications WHERE id=?',[req.params.id]);
+      if(!row)return res.status(404).json({error:'Request not found.'});
+      await requireLegacyDepartment(req.admin,row);await requireAccess(req.admin,'requests.assign',authorizationResource(row));
+      const ids=row.department_id?(await engine.read('SELECT user_id FROM eservice_department_members WHERE department_id=?',[row.department_id])).map(member=>member.user_id):[req.admin.id,row.assigned_user_id].filter(Boolean);
+      const items=[];
+      for(const userId of [...new Set(ids)]){const account=await getCmsUserById(userId);if(!account||!staffRoles.includes(account.role))continue;if(!await hasAccess(account,'requests.view',authorizationResource(row)))continue;try{await requireLegacyDepartment(account,row)}catch{continue}items.push({id:account.id,name:account.name,eid:account.eid})}
+      res.json({items});
+    }catch(error){res.status(error.status||503).json({error:safeStaffError(error,'Staff assignments are unavailable.')})}
+  })
+  app.post('/api/staff/applications/:id/assign' ,admin,async(req,res)=>{
+    try {
+      await ensureStaffPermission(req.admin,'requests.assign')
+      const assignee=await getCmsUserById(req.body?.assigned_user_id)
+      if(!assignee || !staffRoles.includes(assignee.role)) return res.status(422).json({error:'Choose an active staff member.'})
+      const engine=new EserviceEngine()
+      const application=await engine.transaction(async db=>{
+        const [row]=await db('SELECT * FROM applications WHERE id=? FOR UPDATE',[req.params.id])
+        if(!row) throw Object.assign(new Error('Request not found.'),{status:404})
+        await requireLegacyDepartment(req.admin,row)
+        await requireAccess(req.admin,'requests.assign',authorizationResource(row))
+        await requireAccess(assignee,'requests.view',authorizationResource(row))
+        await requireLegacyDepartment(assignee,row)
+        if(!Number.isInteger(req.body.version) || req.body.version!==row.version) throw Object.assign(new Error('This request changed. Refresh before assigning it.'),{status:409})
+        if(row.closed_at || ['completed','rejected','cancelled'].includes(row.status)) throw Object.assign(new Error('Closed requests cannot be assigned.'),{status:409})
+        if(row.assigned_user_id===assignee.id)throw Object.assign(new Error('This request is already assigned to that staff member.'),{status:409})
+        const eventId=id()
+        await db('INSERT INTO application_assignments(id,application_id,assigned_user_id,assigned_by) VALUES(?,?,?,?)',[eventId,row.id,assignee.id,req.admin.id])
+        await db('INSERT INTO application_status_history(id,application_id,status,note,created_at,changed_by,visibility) VALUES(?,?,?,?,now(),?,\'internal\')',[id(),row.id,row.status,`Assigned to ${assignee.name}`,req.admin.id])
+        await createStaffNotification(db,{userId:assignee.id,eventKey:`legacy-assignment:${eventId}`,title:'Request assigned',message:`${row.reference_number} · ${row.service_name}`,applicationId:row.id})
+        return (await db('UPDATE applications SET assigned_user_id=?,version=version+1,last_updated=now() WHERE id=? RETURNING *',[assignee.id,row.id]))[0]
+      })
+      res.json({application})
+    } catch(error){res.status(error.status||503).json({error:safeStaffError(error,'Assignment could not be saved.')})}
   })
 
   app.post('/api/staff/applications/:id/documents', admin, express.raw({ type: ['application/pdf', 'image/jpeg', 'image/png'], limit: '5mb' }), async (req, res) => {
@@ -134,21 +207,18 @@ export function installStaffRoutes(app, admin) {
       const db = await getLocalSqlite()
       const application = await db.prepare('SELECT * FROM applications WHERE id = ?').get(req.params.id)
       if (!application) return res.status(404).json({ error: 'Service request not found.' })
+      await requireLegacyDepartment(req.admin,application)
       try { await requireAccess(req.admin, 'documents.process', authorizationResource(application)) } catch (error) { return res.status(403).json({ error: safeStaffError(error, 'You are not authorized to process this request.') }) }
-      const documentId = id()
-      const extension = type === 'application/pdf' ? 'pdf' : type === 'image/png' ? 'png' : 'jpg'
-      const storagePath = `citizen-private/documents/${application.user_id}/${documentId}.${extension}`
-      await writeCitizenFile(storagePath, bytes, type)
-      try {
-        const timestamp = now()
-        await db.prepare('INSERT INTO application_documents (id,application_id,user_id,name,storage_path,verification_status,document_kind,created_at) VALUES (?,?,?,?,?,?,?,?)').run(documentId, application.id, application.user_id, name, storagePath, 'approved', 'issued', timestamp)
+      const { document, created } = await persistDocument(db, { applicationId: application.id, userId: application.user_id, name, bytes, type, status: 'approved', kind: 'issued', createdAt: now() })
+      const documentId = document.id
+      if (created) await optionalSubmissionNotification(async () => {
         const notification = await createInAppNotification({ db, userId: application.user_id, title: 'Document ready for download', message: `${name} is now available for download from your ${application.service_name} request.`, applicationId: application.id, documentId, type: 'document.ready', eventKey: notificationEventKey('document.ready', { documentId }) })
         queueNotification({ userId: application.user_id, type: 'document.ready', eventId: documentId, applicationId: application.id, documentId, notificationId: notification.id, data: { serviceName: application.service_name, reference: application.reference_number, status: 'Ready', applicationId: application.id, documentId } })
-      } catch (error) { await deleteCitizenFile(storagePath).catch(() => {}); throw error }
-      res.status(201).json({ id: documentId, name, status: 'approved', downloadable: true })
+      }, documentId)
+      res.status(201).json({ id: documentId, name, status: document.verification_status, downloadable: true })
     } catch (error) {
-      console.error('Staff document upload failed:', error.message)
-      res.status(503).json({ error: 'The document could not be uploaded.' })
+      console.error(JSON.stringify({ event: 'staff_document_upload_failed', error: error?.name || 'Error' }))
+      res.status(error.status||503).json({ error:safeStaffError(error,'The document could not be uploaded.') })
     }
   })
 
@@ -171,13 +241,19 @@ export function installStaffRoutes(app, admin) {
       const db = await getLocalSqlite()
       const application = await db.prepare('SELECT * FROM applications WHERE id = ?').get(req.params.id)
       if (!application) return res.status(404).json({ error: 'Service request not found.' })
+      await requireLegacyDepartment(req.admin,application)
       const protectedResource = authorizationResource(application)
       try { await requireAccess(req.admin, 'requests.update', protectedResource) } catch (error) { return res.status(403).json({ error: safeStaffError(error, 'You are not authorized to update this request.') }) }
+      if(followUpDate)validatedStaffQuery({from:followUpDate})
+      if(status==='completed'&&completionDate)validatedStaffQuery({from:completionDate})
       const previousStatus = String(application.status || 'submitted').toLowerCase()
+      if (req.body?.previous_status && req.body.previous_status !== previousStatus) return res.status(409).json({error:'This request changed. Refresh the request and try again.'})
+      if (req.body?.version !== undefined && req.body.version !== application.version) return res.status(409).json({error:'This request changed. Refresh the request and try again.'})
       if (application.closed_at) return res.status(409).json({ error: 'This request is already closed and cannot be updated.' })
       if (previousStatus === 'completed' && status === 'completed') return res.status(409).json({ error: 'This request has already been completed.' })
       if (status !== previousStatus) {
         try { await requireAccess(req.admin, 'requests.fulfillment_note.create', protectedResource); if (status === 'completed') { await requireAccess(req.admin, 'requests.complete', protectedResource); await requireAccess(req.admin, 'requests.close', protectedResource) } } catch (error) { return res.status(403).json({ error: safeStaffError(error, 'You are not authorized to complete this request.') }) }
+        if(status==='approved')await requireAccess(req.admin,'documents.approve',protectedResource)
         if (!validTransitions[previousStatus]?.includes(status)) return res.status(409).json({ error: `The request cannot move from ${previousStatus.replace(/_/g, ' ')} to ${status.replace(/_/g, ' ')}.` })
         const requirements = {
           processing: note,
@@ -198,7 +274,7 @@ export function installStaffRoutes(app, admin) {
       let notification = null
       await db.exec('BEGIN')
       try {
-        const update = await db.prepare('UPDATE applications SET status = ?, last_updated = ?, completed_at = CASE WHEN ? = \'completed\' THEN ? ELSE completed_at END, closed_at = ?, closed_by = CASE WHEN ?::timestamptz IS NOT NULL THEN ? ELSE closed_by END WHERE id = ? AND status = ? AND closed_at IS NULL').run(status, timestamp, status, timestamp, closedAt, closedAt, req.admin.id, application.id, application.status)
+        const update = await db.prepare('UPDATE applications SET status = ?, last_updated = ?, version=version+1, due_at=COALESCE((NULLIF(?, \'\')::date+1)::timestamp AT TIME ZONE \'Asia/Manila\',due_at), completed_at = CASE WHEN ? = \'completed\' THEN ? ELSE completed_at END, closed_at = ?, closed_by = CASE WHEN ?::timestamptz IS NOT NULL THEN ? ELSE closed_by END WHERE id = ? AND status = ? AND version=? AND closed_at IS NULL').run(status, timestamp, followUpDate, status, timestamp, closedAt, closedAt, req.admin.id, application.id, application.status,application.version)
         if (update.changes !== 1) {
           await db.exec('ROLLBACK')
           return res.status(409).json({ error: 'This request changed while you were updating it. Refresh the request and try again.' })
@@ -210,6 +286,7 @@ export function installStaffRoutes(app, admin) {
             notification = await createInAppNotification({ db, userId: application.user_id, title: `Request update · ${application.service_name}`, message: visibility === 'public' && historyNote ? historyNote : `Your request status is now ${status.replace(/_/g, ' ')}.`, applicationId: application.id, type, eventKey: notificationEventKey(type, { applicationId: application.id }, historyId) })
           }
         }
+        if(application.assigned_user_id&&application.assigned_user_id!==req.admin.id)await createStaffNotification((sql,values)=>db.prepare(sql).all(...values),{userId:application.assigned_user_id,eventKey:`legacy-update:${historyId}`,title:'Assigned request updated',message:`${application.reference_number} is now ${status.replaceAll('_',' ')}.`,applicationId:application.id})
         await db.exec('COMMIT')
       } catch (error) { await db.exec('ROLLBACK'); throw error }
       if (notification) {
@@ -220,7 +297,7 @@ export function installStaffRoutes(app, admin) {
       res.json({ saved: true, closed: Boolean(closedAt), application: await readApplication(db, updated) })
     } catch (error) {
       console.error('Staff request update failed:', error.message)
-      res.status(503).json({ error: 'The service request could not be updated.' })
+      res.status(error.status||503).json({ error:safeStaffError(error,'The service request could not be updated.') })
     }
   })
 }

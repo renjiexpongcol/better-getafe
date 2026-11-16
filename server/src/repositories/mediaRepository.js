@@ -1,4 +1,4 @@
-import { getCmsPool } from '../services/cloudSql.js';
+import { getCmsPool } from '../services/database.js';
 import crypto from 'crypto';
 import { getLocalDb, saveLocalDb, isGcp } from './postgresCompatibility.js';
 
@@ -135,14 +135,48 @@ export async function getMediaByStoragePath(storagePath) {
   return rows[0] || null;
 }
 
-export async function getMediaByChecksum(checksumSha256) {
+export async function getMediaByStorageIdentity(storageProvider, storageBucket, storagePath) {
+  if (!isGcp()) {
+    const db = await getLocalDb();
+    return (db.media || []).find(item => item.storage_path === storagePath && (item.storage_bucket || '') === (storageBucket || '') && (item.storage_provider || 'backblaze') === storageProvider) || null;
+  }
+  const pool = await getCmsPool();
+  const [rows] = await pool.execute(
+    `SELECT * FROM media
+     WHERE storage_path = ? AND storage_bucket = ?
+       AND (storage_provider = ? OR storage_provider IS NULL)
+     ORDER BY CASE WHEN storage_provider = ? THEN 0 ELSE 1 END
+     LIMIT 1`,
+    [storagePath, storageBucket, storageProvider, storageProvider],
+  );
+  return rows[0] || null;
+}
+
+export async function registerAzureMedia({ key, bucket, contentType, size, uploadedBy }) {
+  const pool = await getCmsPool();
+  const [inserted] = await pool.execute(
+    `INSERT INTO media (id, original_filename, storage_provider, storage_bucket, storage_path, content_type, file_size, uploaded_by, status, created_at)
+     VALUES (?, ?, 'azure', ?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP)
+     ON CONFLICT DO NOTHING RETURNING *`,
+    [id(), key.split('/').at(-1).slice(0, 255), bucket, key, contentType, size, uploadedBy],
+  );
+  return inserted[0] || await getMediaByStorageIdentity('azure', bucket, key);
+}
+
+export async function getMediaByChecksum(checksumSha256, storageProvider = null, storageBucket = null) {
   if (!checksumSha256) return null;
   if (!isGcp()) {
     const db = await getLocalDb();
-    return (db.media || []).find((item) => item.checksum_sha256 === checksumSha256) || null;
+    return (db.media || []).find((item) => item.checksum_sha256 === checksumSha256 && (!storageProvider || (item.storage_provider || 'backblaze') === storageProvider) && (!storageBucket || (item.storage_bucket || '') === storageBucket)) || null;
   }
   const pool = await getCmsPool();
-  const [rows] = await pool.execute('SELECT * FROM media WHERE checksum_sha256 = ?', [checksumSha256]);
+  const [rows] = await pool.execute(
+    `SELECT * FROM media WHERE checksum_sha256 = ?
+       AND (?::text IS NULL OR storage_provider = ? OR storage_provider IS NULL)
+       AND (?::text IS NULL OR storage_bucket = ?)
+     ORDER BY CASE WHEN storage_provider = ? THEN 0 ELSE 1 END LIMIT 1`,
+    [checksumSha256, storageProvider, storageProvider, storageBucket, storageBucket, storageProvider],
+  );
   return rows[0] || null;
 }
 
@@ -152,6 +186,8 @@ export async function createPendingUpload(upload) {
     const pending = {
       id: upload.id,
       storage_path: upload.storagePath,
+      storage_provider: upload.storageProvider || 'backblaze',
+      storage_bucket: upload.storageBucket || '',
       original_filename: upload.originalFilename,
       content_type: upload.contentType,
       file_size: upload.fileSize,
@@ -169,23 +205,27 @@ export async function createPendingUpload(upload) {
   const pool = await getCmsPool();
   await pool.execute(
     `INSERT INTO media_uploads
-      (id, storage_path, original_filename, content_type, file_size, uploaded_by, context, status, expires_at, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-    [upload.id, upload.storagePath, upload.originalFilename, upload.contentType, upload.fileSize, upload.uploadedBy, upload.context, upload.expiresAt, upload.createdAt]
+      (id, storage_path, storage_provider, storage_bucket, original_filename, content_type, file_size, uploaded_by, context, status, expires_at, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+    [upload.id, upload.storagePath, upload.storageProvider || 'backblaze', upload.storageBucket || '', upload.originalFilename, upload.contentType, upload.fileSize, upload.uploadedBy, upload.context, upload.expiresAt, upload.createdAt]
   );
   return upload;
 }
 
-export async function getPendingUpload(storagePath, uploadedBy) {
+export async function getPendingUpload(storagePath, uploadedBy, storageProvider = null, storageBucket = null) {
   if (!isGcp()) {
     const db = await getLocalDb();
-    const pending = (db.media_uploads || []).find((item) => item.storage_path === storagePath && item.uploaded_by === uploadedBy && item.status === 'pending' && new Date(item.expires_at).getTime() > Date.now());
+    const pending = (db.media_uploads || []).find((item) => item.storage_path === storagePath && item.uploaded_by === uploadedBy && (!storageProvider || !item.storage_provider || item.storage_provider === storageProvider) && (!storageBucket || !item.storage_bucket || item.storage_bucket === storageBucket) && item.status === 'pending' && new Date(item.expires_at).getTime() > Date.now());
     return pending || null;
   }
   const pool = await getCmsPool();
+  // Each placeholder becomes a separate PostgreSQL parameter. The NULL
+  // probes need a type even though the following comparisons are typed.
   const [rows] = await pool.execute(
-    "SELECT * FROM media_uploads WHERE storage_path = ? AND uploaded_by = ? AND status = 'pending' AND expires_at > UTC_TIMESTAMP(3)",
-    [storagePath, uploadedBy]
+    `SELECT * FROM media_uploads WHERE storage_path = ? AND uploaded_by = ? AND status = 'pending' AND expires_at > UTC_TIMESTAMP(3)
+       AND (?::text IS NULL OR storage_provider = ? OR storage_provider IS NULL)
+       AND (?::text IS NULL OR storage_bucket = ? OR storage_bucket IS NULL)`,
+    [storagePath, uploadedBy, storageProvider, storageProvider, storageBucket, storageBucket]
   );
   return rows[0] || null;
 }
@@ -213,10 +253,11 @@ export async function listExpiredPendingUploads(limit = 100) {
 }
 
 export async function finalizePendingUpload(upload, media) {
+  upload = { ...upload, storagePath: upload.storagePath || upload.storage_path, uploadedBy: upload.uploadedBy || upload.uploaded_by };
   if (!isGcp()) {
     const db = await getLocalDb();
     const existing = (db.media || []).find((item) => item.storage_path === media.storagePath);
-    const sameFile = media.checksumSha256 && (db.media || []).find((item) => item.checksum_sha256 === media.checksumSha256);
+    const sameFile = media.checksumSha256 && (db.media || []).find((item) => item.checksum_sha256 === media.checksumSha256 && (item.storage_provider || 'backblaze') === (media.storageProvider || 'backblaze') && (item.storage_bucket || '') === (media.storageBucket || ''));
     if (sameFile) {
       db.media_uploads = (db.media_uploads || []).filter((pending) => pending.storage_path !== media.storagePath);
       await saveLocalDb(db);
@@ -231,6 +272,7 @@ export async function finalizePendingUpload(upload, media) {
       id: media.id,
       original_filename: media.originalFilename,
       storage_bucket: media.storageBucket || null,
+      storage_provider: media.storageProvider || 'backblaze',
       storage_path: media.storagePath,
       content_type: media.contentType,
       file_size: media.fileSize,
@@ -259,7 +301,11 @@ export async function finalizePendingUpload(upload, media) {
       return { ...existing[0], reused: true };
     }
     if (media.checksumSha256) {
-      const [sameFile] = await connection.execute('SELECT * FROM media WHERE checksum_sha256 = ? FOR UPDATE', [media.checksumSha256]);
+      const [sameFile] = await connection.execute(
+        `SELECT * FROM media WHERE checksum_sha256 = ? AND storage_bucket = ?
+           AND (storage_provider = ? OR storage_provider IS NULL) FOR UPDATE`,
+        [media.checksumSha256, media.storageBucket, media.storageProvider || 'backblaze'],
+      );
       if (sameFile[0]) {
         await connection.execute(
           "UPDATE media_uploads SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE storage_path = ? AND uploaded_by = ? AND status = 'pending'",
@@ -271,16 +317,19 @@ export async function finalizePendingUpload(upload, media) {
     }
     const [inserted] = await connection.execute(
       `INSERT INTO media
-        (id, original_filename, storage_bucket, storage_path, content_type, file_size, uploaded_by, related_record_id, checksum_sha256, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
+        (id, original_filename, storage_provider, storage_bucket, storage_path, content_type, file_size, uploaded_by, related_record_id, checksum_sha256, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
         ON CONFLICT DO NOTHING
         RETURNING *`,
-      [media.id, media.originalFilename, media.storageBucket, media.storagePath, media.contentType, media.fileSize, media.uploadedBy, media.relatedRecordId, media.checksumSha256 || null, media.createdAt]
+      [media.id, media.originalFilename, media.storageProvider || 'backblaze', media.storageBucket, media.storagePath, media.contentType, media.fileSize, media.uploadedBy, media.relatedRecordId, media.checksumSha256 || null, media.createdAt]
     );
     if (!inserted[0]) {
       const [raced] = await connection.execute(
-        'SELECT * FROM media WHERE storage_path = ? OR (checksum_sha256 IS NOT NULL AND checksum_sha256 = ?) ORDER BY CASE WHEN storage_path = ? THEN 0 ELSE 1 END LIMIT 1',
-        [media.storagePath, media.checksumSha256 || '', media.storagePath],
+        `SELECT * FROM media WHERE storage_path = ? OR
+           (checksum_sha256 IS NOT NULL AND checksum_sha256 = ? AND storage_bucket = ?
+            AND (storage_provider = ? OR storage_provider IS NULL))
+         ORDER BY CASE WHEN storage_path = ? THEN 0 ELSE 1 END LIMIT 1`,
+        [media.storagePath, media.checksumSha256 || '', media.storageBucket, media.storageProvider || 'backblaze', media.storagePath],
       );
       if (!raced[0]) throw new Error('The media record could not be finalized.');
       await connection.commit();
@@ -316,7 +365,7 @@ export async function createMediaRecord(originalFilename, storageBucket, storage
 
   const pool = await getCmsPool();
   await pool.execute(
-    "INSERT INTO media (id, original_filename, storage_bucket, storage_path, content_type, file_size, uploaded_by, related_record_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO media (id, original_filename, storage_provider, storage_bucket, storage_path, content_type, file_size, uploaded_by, related_record_id, status, created_at) VALUES (?, ?, 'backblaze', ?, ?, ?, ?, ?, ?, ?, ?)",
     [item.id, item.original_filename, item.storage_bucket, item.storage_path, item.content_type, item.file_size, item.uploaded_by, item.related_record_id, item.status, item.created_at]
   );
 

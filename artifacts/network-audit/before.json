@@ -1,0 +1,285 @@
+[
+  {
+    "path": "/",
+    "total": 162,
+    "apiCount": 9,
+    "api": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/weather/getafe",
+      "/api/news?important=true&limit=1",
+      "/api/news?category=announcements&limit=1",
+      "/api/popular-services?limit=3",
+      "/api/news?display=news&homepage=true&public=true&page=1&limit=5",
+      "/api/news?display=events&limit=100&public=true",
+      "/api/discover?featured=true"
+    ],
+    "duplicates": [
+      "/api/weather/getafe"
+    ],
+    "transferBytes": 18671809,
+    "javascriptDecodedBytes": 13553354,
+    "errors": []
+  },
+  {
+    "path": "/missing-audit-page",
+    "total": 59,
+    "apiCount": 3,
+    "api": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/weather/getafe"
+    ],
+    "duplicates": [
+      "/api/weather/getafe"
+    ],
+    "transferBytes": 16340045,
+    "javascriptDecodedBytes": 13538274,
+    "errors": []
+  },
+  {
+    "path": "/auth/login",
+    "total": 61,
+    "apiCount": 3,
+    "api": [
+      "/api/auth/me",
+      "/api/auth/me",
+      "/api/public/config"
+    ],
+    "duplicates": [
+      "/api/auth/me"
+    ],
+    "transferBytes": 15328967,
+    "javascriptDecodedBytes": 13543402,
+    "errors": []
+  },
+  {
+    "path": "/auth/login?mode=register",
+    "total": 61,
+    "apiCount": 3,
+    "api": [
+      "/api/auth/me",
+      "/api/auth/me",
+      "/api/public/config"
+    ],
+    "duplicates": [
+      "/api/auth/me"
+    ],
+    "transferBytes": 15328967,
+    "javascriptDecodedBytes": 13543402,
+    "errors": []
+  },
+  {
+    "path": "/app",
+    "total": 82,
+    "apiCount": 9,
+    "api": [
+      "/api/auth/me",
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/services",
+      "/api/services",
+      "/api/services",
+      "/api/citizen/dashboard"
+    ],
+    "duplicates": [
+      "/api/auth/me",
+      "/api/services",
+      "/api/services",
+      "/api/services"
+    ],
+    "transferBytes": 15798943,
+    "javascriptDecodedBytes": 13574710,
+    "errors": []
+  },
+  {
+    "path": "/app/services",
+    "total": 84,
+    "apiCount": 9,
+    "api": [
+      "/api/auth/me",
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/services",
+      "/api/services",
+      "/api/services",
+      "/api/citizen/dashboard"
+    ],
+    "duplicates": [
+      "/api/auth/me",
+      "/api/services",
+      "/api/services",
+      "/api/services"
+    ],
+    "transferBytes": 15797724,
+    "javascriptDecodedBytes": 13574710,
+    "errors": []
+  },
+  {
+    "path": "/app/staff",
+    "total": 77,
+    "apiCount": 5,
+    "api": [
+      "/api/auth/me",
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/staff/dashboard",
+      "/api/staff/dashboard"
+    ],
+    "duplicates": [
+      "/api/auth/me",
+      "/api/staff/dashboard"
+    ],
+    "transferBytes": 15674535,
+    "javascriptDecodedBytes": 13561752,
+    "errors": []
+  },
+  {
+    "path": "/admin",
+    "total": 99,
+    "apiCount": 11,
+    "api": [
+      "/api/auth/me",
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays"
+    ],
+    "duplicates": [
+      "/api/auth/me",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays"
+    ],
+    "transferBytes": 16784605,
+    "javascriptDecodedBytes": 13600748,
+    "errors": []
+  },
+  {
+    "path": "/admin/content",
+    "total": 99,
+    "apiCount": 11,
+    "api": [
+      "/api/auth/me",
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays"
+    ],
+    "duplicates": [
+      "/api/auth/me",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays"
+    ],
+    "transferBytes": 16784605,
+    "javascriptDecodedBytes": 13600748,
+    "errors": []
+  },
+  {
+    "path": "/admin/news",
+    "total": 99,
+    "apiCount": 11,
+    "api": [
+      "/api/auth/me",
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays"
+    ],
+    "duplicates": [
+      "/api/auth/me",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays"
+    ],
+    "transferBytes": 16784605,
+    "javascriptDecodedBytes": 13600748,
+    "errors": []
+  },
+  {
+    "path": "/admin/users",
+    "total": 101,
+    "apiCount": 13,
+    "api": [
+      "/api/auth/me",
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/access",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays",
+      "/api/admin/access",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays"
+    ],
+    "duplicates": [
+      "/api/auth/me",
+      "/api/admin/access",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays"
+    ],
+    "transferBytes": 16785377,
+    "javascriptDecodedBytes": 13600748,
+    "errors": []
+  },
+  {
+    "path": "/admin/settings",
+    "total": 100,
+    "apiCount": 12,
+    "api": [
+      "/api/auth/me",
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays",
+      "/api/admin/settings/general",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays"
+    ],
+    "duplicates": [
+      "/api/auth/me",
+      "/api/admin/news?limit=100",
+      "/api/categories",
+      "/api/officials",
+      "/api/barangays"
+    ],
+    "transferBytes": 16785002,
+    "javascriptDecodedBytes": 13600748,
+    "errors": []
+  }
+]

@@ -1,5 +1,16 @@
 const isUuid = value => /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value)
 
+export function isMediaFolderKey(key, root) {
+  return typeof key === 'string' && key.length <= 980 && (key === root || key.startsWith(root + '/'))
+    && !/[\\\x00-\x1f\x7f]/.test(key) && key.split('/').every(part => part && part !== '.' && part !== '..')
+}
+
+export function isAzureMediaUploadPath(key, root) {
+  const index = key.lastIndexOf('/')
+  const [uuid, extension, extra] = key.slice(index + 1).split('.')
+  return index >= 0 && isMediaFolderKey(key.slice(0, index), root) && isUuid(uuid) && ['jpg', 'png', 'webp'].includes(extension) && extra === undefined
+}
+
 export function isMediaUploadPath(storagePath, prefix = 'media') {
   const prefixParts = String(prefix || '').split('/')
   const pathParts = String(storagePath || '').split('/')

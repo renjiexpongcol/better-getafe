@@ -60,7 +60,7 @@ export default function ProfileModal({
             </button>
           </header>
         )}
-        {!showHeader && <button type="button" className="profile-modal-close" aria-label="Close change password dialog" onClick={requestClose} data-icon-button="ghost"><X size={20} aria-hidden="true" /></button>}
+        {!showHeader && <button type="button" className="profile-modal-close" aria-label={closeLabel || 'Close dialog'} onClick={requestClose} data-icon-button="ghost"><X size={20} aria-hidden="true" /></button>}
         <div className="profile-modal-body">{children}</div>
         {footer}
       </section>

@@ -1,0 +1,47 @@
+[
+  {
+    "name": "password recovery cooldown prevents repeat submissions",
+    "width": 320,
+    "result": "PASS"
+  },
+  {
+    "name": "setup review keyboard focus stays in the dialog",
+    "width": 320,
+    "result": "PASS"
+  },
+  {
+    "name": "setup review Back returns to the editable address step",
+    "width": 320,
+    "result": "PASS"
+  },
+  {
+    "name": "setup saving blocks Escape and duplicate writes and shows failure in dialog",
+    "width": 320,
+    "result": "PASS"
+  },
+  {
+    "name": "mobile news management keeps status and Edit within the viewport",
+    "width": 320,
+    "result": "PASS"
+  },
+  {
+    "name": "password recovery cooldown prevents repeat submissions",
+    "width": 1440,
+    "result": "PASS"
+  },
+  {
+    "name": "setup review keyboard focus stays in the dialog",
+    "width": 1440,
+    "result": "PASS"
+  },
+  {
+    "name": "setup review Back returns to the editable address step",
+    "width": 1440,
+    "result": "PASS"
+  },
+  {
+    "name": "setup saving blocks Escape and duplicate writes and shows failure in dialog",
+    "width": 1440,
+    "result": "PASS"
+  }
+]

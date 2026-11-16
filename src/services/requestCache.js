@@ -2,6 +2,8 @@
 import { normalizePublicError } from './publicError.js'
 import { apiFetch, ApiRequestError } from './apiTransport.js'
 import { isPublicApiRequest } from './securitySurfaces.js'
+import { clearRouteRequests, invalidateAllRouteRequests } from './routeRequests.js'
+import { onDataChanged } from './dataChanges.js'
 export { ApiRequestError } from './apiTransport.js'
 
 const entries = new Map()
@@ -9,6 +11,11 @@ const pending = new Map()
 const versions = new Map()
 const retryCooldowns = new Map()
 const storagePrefix = 'getafe-public-cache:v2:'
+onDataChanged(() => {
+  for (const key of new Set([...entries.keys(), ...pending.keys()])) invalidateCached(key, { persist: true })
+  try { for (const key of Object.keys(sessionStorage)) if (key.startsWith(storagePrefix)) sessionStorage.removeItem(key) } catch { /* Optional browser storage. */ }
+  invalidateAllRouteRequests()
+})
 // The previous cache namespace allowed authenticated GET responses. Remove it
 // without hydrating its values into the public application.
 try {
@@ -38,12 +45,14 @@ export function invalidateCached(key, { persist = false } = {}) {
 
 export function invalidateCachedPrefix(prefix) {
   const keys = new Set([...entries.keys(), ...pending.keys()])
+  try { for (const key of Object.keys(sessionStorage)) if (key.startsWith(storagePrefix + prefix)) keys.add(key.slice(storagePrefix.length)) } catch { /* Optional storage. */ }
   for (const key of keys) {
-    if (key.startsWith(prefix)) invalidateCached(key)
+    if (key.startsWith(prefix)) invalidateCached(key, { persist: true })
   }
 }
 
 export function clearPrivateCache() {
+  clearRouteRequests()
   for (const key of new Set([...entries.keys(), ...pending.keys()])) {
     if (key.startsWith('citizen:') || key.startsWith('cms:')) invalidateCached(key)
   }
@@ -118,7 +127,7 @@ export function cachedJson(url, options = {}) {
   const method = String(options.method || 'GET').toUpperCase()
   const cacheable = ['GET', 'HEAD'].includes(method) && isPublicApiRequest(url, method)
   const key = 'http:' + method + ':' + url
-  const { cacheTtl = 300000, persist = true, force = false } = options
+  const { cacheTtl = 300000, persist = true, force = false, coalesce = false } = options
   if (!cacheable) return fetchJsonWithBackoff(url, options)
-  return cachedRequest(key, () => fetchJsonWithBackoff(url, options), { ttl: cacheTtl, persist, force })
+  return cachedRequest(key, () => fetchJsonWithBackoff(url, options), { ttl: cacheTtl, persist, force, coalesce })
 }

@@ -1,4 +1,4 @@
-import { getCmsPool } from '../services/cloudSql.js';
+import { getCmsPool } from '../services/database.js';
 import { isGcp } from './postgresCompatibility.js';
 
 const uniquePaths = (featuredImage, galleryImages) => [...new Set([
@@ -12,7 +12,7 @@ export async function getContentMedia(contentType, contentId) {
   if (!isGcp() || !contentType || !contentId) return [];
   const pool = await getCmsPool();
   const [rows] = await pool.execute(
-    `SELECT cm.*, m.storage_path, m.storage_bucket, m.original_filename, m.content_type, m.file_size
+    `SELECT cm.*, m.storage_path, m.storage_bucket, m.storage_provider, m.status AS media_status, m.original_filename, m.content_type, m.file_size
      FROM content_media cm
      JOIN media m ON m.id = cm.media_id
      WHERE cm.content_type = ? AND cm.content_id = ?
@@ -41,7 +41,7 @@ export async function deleteContentMediaForContent(connection, contentType, cont
   );
 }
 
-export async function syncContentMediaWithConnection(connection, contentType, contentId, { featuredImage = '', galleryImages = [] } = {}) {
+export async function syncContentMediaWithConnection(connection, contentType, contentId, { featuredImage = '', galleryImages = [], inlineIds = [] } = {}) {
   if (!isGcp() || !contentType || !contentId) return;
   const paths = uniquePaths(featuredImage, galleryImages);
   const mediaByPath = new Map();
@@ -73,6 +73,17 @@ export async function syncContentMediaWithConnection(connection, contentType, co
       cleanText(image.caption),
     ]);
   });
+
+  if (inlineIds.length) {
+    const [inline] = await connection.execute(
+      "SELECT id FROM media WHERE id = ANY(?) AND status = 'active' AND content_type IN ('image/jpeg', 'image/png', 'image/webp')",
+      [inlineIds],
+    );
+    const available = new Set(inline.map(item => item.id));
+    inlineIds.forEach((id, index) => {
+      if (available.has(id)) rows.push([contentType, contentId, id, 'inline', index, '', '']);
+    });
+  }
 
   for (const row of rows) {
     await connection.execute(

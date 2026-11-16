@@ -1,194 +1,130 @@
-import { usePublicConfig } from '../context/PublicConfig';
-import { Link } from 'react-router-dom';
-import {
-  FaFacebookF, FaGithub, FaInstagram, FaYoutube, FaXTwitter, FaRss,
-} from 'react-icons/fa6';
-
-const safeExternalUrl = (value) => {
-  const candidate = String(value || '').trim().replace(/^(?:"|')|(?:"|')$/g, '');
-  if (!candidate) return '';
-  try {
-    const url = new URL(candidate);
-    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
-  } catch {
-    return '';
-  }
-};
+import { Link } from 'react-router-dom'
+import { FaFacebookF, FaGithub, FaInstagram, FaYoutube, FaXTwitter, FaRss } from 'react-icons/fa6'
+import { Mail, MapPin, Phone } from 'lucide-react'
+import { usePublicConfig } from '../context/PublicConfig'
+import { useRef, useState } from 'react'
+import { routeRequest } from '../services/routeRequests.js'
+import { navigationDestinationId } from '../services/websiteAnalytics.js'
+import './Footer.css'
 
 const EXPLORE_LINKS = [
-  { name: 'About Us', url: '/info/about' },
-  { name: 'Municipal Officials', url: '/officials' },
-  { name: 'History & Hymn', url: '/info/history' },
-  { name: 'Barangays of Getafe', url: '/barangays' },
-  { name: 'Municipal Services', url: '/services' },
-  { name: 'Services & Departments', url: '/services/directory' },
-  { name: 'Emergency Hotlines', url: '/services/hotlines' },
-  { name: 'News & Updates', url: '/news' },
-  { name: 'Weather Updates', url: '/weather' },
-  { name: 'Tourism guides', url: '/tourism' },
-  { name: 'Discover Getafe', url: '/discover' },
-  { name: 'Gallery of Events', url: '/events' },
-  { name: 'Accessibility', url: '/accessibility' },
-  { name: 'Sitemap', url: '/info/sitemap' },
-  { name: 'Open Data & Statistics', url: '/data' },
-];
-
+  ['About Us', '/info/about'], ['Municipal Officials', '/officials'], ['History & Hymn', '/info/history'],
+  ['Barangays of Getafe', '/barangays'], ['Municipal Services', '/services'], ['Services & Departments', '/services/directory'],
+  ['Emergency Hotlines', '/services/hotlines'], ['News & Updates', '/news'], ['Weather Updates', '/weather'],
+  ['Tourism guides', '/tourism'], ['Discover Getafe', '/discover'], ['Gallery of Events', '/events'],
+  ['Accessibility', '/accessibility'], ['Sitemap', '/info/sitemap'], ['Open Data & Statistics', '/data'],
+].map(([name, url]) => ({ name, url }))
 const GOV_LINKS = [
-  { name: 'GOV.PH', url: 'https://www.gov.ph/' },
-  { name: 'Open Data Philippines', url: 'https://data.gov.ph/' },
-  { name: 'Official Gazette', url: 'https://www.officialgazette.gov.ph/' },
-  { name: 'Office of the President', url: 'https://op-proper.gov.ph/' },
-  { name: 'Office of the Vice President', url: 'https://ovp.gov.ph/' },
-  { name: 'Senate of the Philippines', url: 'https://senate.gov.ph/' },
-  { name: 'House of Representatives', url: 'https://congress.gov.ph/' },
-];
-
+  ['GOV.PH', 'https://www.gov.ph/'], ['Open Data Philippines', 'https://data.gov.ph/'],
+  ['Official Gazette', 'https://www.officialgazette.gov.ph/'], ['Office of the President', 'https://op-proper.gov.ph/'],
+  ['Office of the Vice President', 'https://ovp.gov.ph/'], ['Senate of the Philippines', 'https://senate.gov.ph/'],
+  ['House of Representatives', 'https://congress.gov.ph/'],
+].map(([name, url]) => ({ name, url }))
 const JUDICIARY_LINKS = [
-  { name: 'Supreme Court', url: 'https://sc.judiciary.gov.ph/' },
-  { name: 'Court of Appeals', url: 'https://ca.judiciary.gov.ph/' },
-  { name: 'Sandiganbayan', url: 'https://sb.judiciary.gov.ph/' },
-];
+  ['Supreme Court', 'https://sc.judiciary.gov.ph/'], ['Court of Appeals', 'https://ca.judiciary.gov.ph/'],
+  ['Sandiganbayan', 'https://sb.judiciary.gov.ph/'],
+].map(([name, url]) => ({ name, url }))
 
-// Social media accounts. Set the corresponding VITE_GETAFE_*_URL env var
-// to show an account's icon; unset accounts are automatically hidden below.
-const SOCIAL_LINKS = [
-  {
-    name: 'Facebook',
-    url: safeExternalUrl(import.meta.env.VITE_GETAFE_FACEBOOK_URL || 'https://web.facebook.com/profile.php?id=61577786097184&locale=en_US'),
-    icon: FaFacebookF,
-  },
-  {
-    name: 'Instagram',
-    url: safeExternalUrl(import.meta.env.VITE_GETAFE_INSTAGRAM_URL),
-    icon: FaInstagram,
-  },
-  {
-    name: 'YouTube',
-    url: safeExternalUrl(import.meta.env.VITE_GETAFE_YOUTUBE_URL),
-    icon: FaYoutube,
-  },
-  {
-    name: 'X',
-    url: safeExternalUrl(import.meta.env.VITE_GETAFE_X_URL),
-    icon: FaXTwitter,
-  },
-  {
-    name: 'GitHub',
-    url: safeExternalUrl(import.meta.env.VITE_GETAFE_GITHUB_URL),
-    icon: FaGithub,
-  },
-  {
-    name: 'Discord',
-    url: 'https://discord.gg/URZKjsFNq',
-    iconPath: '/assets/icons/icon%20pack/discord.png',
-  },
-  {
-    name: 'RSS Feed',
-    url: '/rss.xml',
-    icon: FaRss,
-  },
-].filter((link) => Boolean(link.url));
-
-export default function Footer() {
-  const settings = usePublicConfig();
-  return (
-    <footer className="site-footer" style={{ borderTop: '4px solid #3b82f6' }}>
-      <div className="container footer-grid" style={{ paddingTop: '1.5rem', paddingBottom: '3rem' }}>
-
-        {/* Column 1: Municipality Branding */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-          <div className="brand-wrap footer-brand" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <img src={settings['general.logo'] || '/assets/getafe-seal.png'} alt="Municipality of Getafe Logo" style={{ height: '64px', width: 'auto', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' }} />
-            <div>
-              <div className="brand-name" style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', whiteSpace: 'nowrap', color: '#fff' }}>{settings['general.company'] || 'Municipality of Getafe'}</div>
-            </div>
-          </div>
-
-          <p style={{ margin: 0, lineHeight: '1.55', fontSize: '0.88rem', color: '#d1d5db', maxWidth: '320px' }}>
-            The official digital portal of the Municipality of Getafe, Bohol, providing accessible government services, information, programs, and updates for the people of Getafe.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <div style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}>
-              <strong style={{ color: '#fff' }}>Address:</strong>
-              <span style={{ color: '#d1d5db' }}>Municipal Hall, Poblacion, Getafe, Bohol</span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}>
-              <strong style={{ color: '#fff' }}>E-mail:</strong>
-              <a href="mailto:lgugetafe@yahoo.com" style={{ color: '#93c5fd', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = '#fff'} onMouseLeave={(e) => e.currentTarget.style.color = '#93c5fd'}>lgugetafe@yahoo.com</a>
-            </div>
-          </div>
-
-          {SOCIAL_LINKS.length > 0 && (
-            <div className="footer-socials" aria-label="Official social media links">
-              <span>Follow Getafe</span>
-              <div>
-                {SOCIAL_LINKS.map(({ name, url, icon: Icon, iconPath }) => (
-                  <a href={url} target="_blank" rel="noreferrer" aria-label={name} title={name} key={name} data-icon-button="ghost">
-                    {iconPath ? <img src={iconPath} alt="" aria-hidden="true" /> : <Icon size={18} aria-hidden="true" />}
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div style={{ marginTop: '0.5rem' }}>
-            <div style={{ color: '#9ca3af', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.6rem', fontWeight: '600' }}>Government Partners</div>
-          <div style={{ display: 'flex', gap: '0.9rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              {/* FOI image has ~26% internal padding, so render it larger so its visible glyph matches the seals */}
-              <img src="/assets/FOI-logo.png" alt="FOI Logo" style={{ height: '53px', width: '53px', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
-              <img src="/assets/transparency-seal.png" alt="Transparency Seal" style={{ height: '40px', width: '40px', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
-              <img src="/assets/transeal.png" alt="Transparency Seal" style={{ height: '46px', width: '46px', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
-            </div>
-          </div>
-        </div>
-
-        {/* Column 2: Explore the portal */}
-        <div>
-          <h4 style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', marginBottom: '1rem' }}>Explore Getafe</h4>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {EXPLORE_LINKS.map(link => (
-              <li key={link.name}>
-                <Link to={link.url} style={{ color: '#d1d5db', textDecoration: 'none', transition: 'color 0.2s', fontSize: '0.95rem' }} onMouseEnter={(e) => e.currentTarget.style.color = '#60a5fa'} onMouseLeave={(e) => e.currentTarget.style.color = '#d1d5db'}>{link.name}</Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Column 3: Government Links */}
-        <div>
-          <h4 style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', marginBottom: '1rem' }}>Government Links</h4>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {GOV_LINKS.map(link => (
-              <li key={link.name}>
-                <a href={link.url} target="_blank" rel="noreferrer" style={{ color: '#d1d5db', textDecoration: 'none', transition: 'color 0.2s', fontSize: '0.95rem' }} onMouseEnter={(e) => e.currentTarget.style.color = '#60a5fa'} onMouseLeave={(e) => e.currentTarget.style.color = '#d1d5db'}>{link.name}</a>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Column 4: Judiciary Links */}
-        <div>
-          <h4 style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', marginBottom: '1rem' }}>Judiciary</h4>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {JUDICIARY_LINKS.map(link => (
-              <li key={link.name}>
-                <a href={link.url} target="_blank" rel="noreferrer" style={{ color: '#d1d5db', textDecoration: 'none', transition: 'color 0.2s', fontSize: '0.95rem' }} onMouseEnter={(e) => e.currentTarget.style.color = '#60a5fa'} onMouseLeave={(e) => e.currentTarget.style.color = '#d1d5db'}>{link.name}</a>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-      </div>
-
-      {/* Footer Bottom Bar */}
-      <div className="container footer-bottom footer-legal">
-        <div className="footer-legal-content">
-          <span className="footer-copyright">© {new Date().getFullYear()} Municipality of Getafe, Bohol. All Rights Reserved.</span>
-          <span className="footer-public-domain">All content is in the public domain unless otherwise stated.</span>
-        </div>
-      </div>
-    </footer>
-  );
+const safeExternalUrl = value => {
+  if (!value) return ''
+  try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? url.href : '' } catch { return '' }
 }
 
+export default function Footer() {
+  const [emailValue, setEmailValue] = useState('')
+  const [subscription, setSubscription] = useState({ status: 'idle', message: '' })
+  const [submitting, setSubmitting] = useState(false)
+  const submissionInFlight = useRef(false)
+  const settings = usePublicConfig()
+  const company = settings['general.company'] || 'Municipality of Getafe'
+  const address = settings['contact.address'] || 'Municipal Hall, Poblacion, Getafe, Bohol'
+  const email = settings['contact.email'] || settings['general.supportEmail'] || 'lgugetafe@yahoo.com'
+  const social = [
+    ['Facebook', safeExternalUrl(import.meta.env.VITE_GETAFE_FACEBOOK_URL || 'https://web.facebook.com/profile.php?id=61577786097184&locale=en_US'), FaFacebookF],
+    ['Instagram', safeExternalUrl(import.meta.env.VITE_GETAFE_INSTAGRAM_URL), FaInstagram],
+    ['YouTube', safeExternalUrl(import.meta.env.VITE_GETAFE_YOUTUBE_URL), FaYoutube],
+    ['X', safeExternalUrl(import.meta.env.VITE_GETAFE_X_URL), FaXTwitter],
+    ['GitHub', safeExternalUrl(import.meta.env.VITE_GETAFE_GITHUB_URL), FaGithub],
+    ['RSS Feed', '/rss.xml', FaRss],
+  ].filter(([, url]) => url)
+  const groups = [['Explore Getafe', EXPLORE_LINKS], ['Government Links', GOV_LINKS], ['Judiciary', JUDICIARY_LINKS]]
+  const subscribe = async event => {
+    event.preventDefault()
+    if (submissionInFlight.current) return
+    submissionInFlight.current = true
+    setSubmitting(true)
+    setSubscription({ status: 'pending', message: '' })
+    try {
+      await routeRequest('/api/newsletter/subscriptions', { method: 'POST', body: JSON.stringify({ email: emailValue }) })
+      setSubscription({ status: 'success', message: 'Thanks for submitting your newsletter request.' })
+      setEmailValue('')
+    } catch (error) {
+      setSubscription({ status: 'error', message: error.message || 'We could not save your subscription. Please try again.' })
+    } finally {
+      submissionInFlight.current = false
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <footer className="site-footer">
+      <div className="container footer-grid">
+        <div className="footer-column footer-about">
+          <div className="footer-brand">
+            <img src={settings['general.logo'] || '/assets/getafe-seal.png'} alt="Municipality of Getafe seal" width="68" height="68" />
+            <strong>{company}</strong>
+          </div>
+          <p className="footer-description">The official digital portal of the Municipality of Getafe, Bohol, providing accessible government services, information, programs, and updates for the people of Getafe.</p>
+          <div className="footer-contact" aria-label="Municipality contact information">
+            <p><MapPin size={16} aria-hidden="true" /><span>{address}</span></p>
+            {settings['contact.phone'] && <p><Phone size={16} aria-hidden="true" /><a href={`tel:${settings['contact.phone'].replace(/[^0-9+]/g, '')}`}>{settings['contact.phone']}</a></p>}
+            {email && <p><Mail size={16} aria-hidden="true" /><a href={`mailto:${email}`}>{email}</a></p>}
+          </div>
+          <section className="footer-newsletter" aria-labelledby="footer-newsletter-title">
+            <div className="footer-newsletter-inner">
+              <div className="footer-newsletter-copy">
+                <h2 id="footer-newsletter-title">Want to hear what’s happening in Getafe?</h2>
+                <p>Subscribe for local news, community events, and municipal service updates.</p>
+              </div>
+              <form className="footer-newsletter-form" onSubmit={subscribe}>
+                <label className="sr-only" htmlFor="footer-newsletter-email">Email address</label>
+                <input id="footer-newsletter-email" type="email" autoComplete="email" placeholder="Your email address" value={emailValue} onChange={event => setEmailValue(event.target.value)} required disabled={submitting} />
+                <button type="submit" disabled={submitting} aria-label={submitting ? 'Subscribing' : 'Subscribe'} aria-busy={submitting}>
+                  {submitting ? <span className="footer-newsletter-spinner" aria-hidden="true" /> : 'Subscribe'}
+                </button>
+              </form>
+              <p className={`footer-newsletter-message footer-newsletter-message-${subscription.status}`} role="status" aria-live="polite">{subscription.message}</p>
+            </div>
+          </section>
+          <div className="footer-utility-row">
+            <div className="footer-socials" aria-label="Official social media links">
+              <span>Follow Getafe</span>
+              <div>{social.map(([name, url, Icon]) => <a href={url} target="_blank" rel="noreferrer" aria-label={name} title={name} key={name}><Icon aria-hidden="true" /></a>)}</div>
+            </div>
+            <div className="footer-partners">
+              <span>Government partners</span>
+              <div>
+                <img src="/assets/FOI-logo.png" alt="Freedom of Information Philippines" />
+                <img src="/assets/transparency-seal.png" alt="Transparency Seal" />
+                <img src="/assets/transeal.png" alt="Transparency Seal" />
+              </div>
+            </div>
+          </div>
+        </div>
+        {groups.map(([title, links]) => <div className="footer-column footer-navigation" key={title}>
+          <h4>{title}</h4>
+          <ul>{links.map(link => { const analytics = { 'data-analytics-placement': `footer.${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, 'data-analytics-destination': navigationDestinationId(link.url) }; return <li key={link.name}>{link.url.startsWith('/') ? <Link to={link.url} {...analytics}>{link.name}</Link> : <a href={link.url} target="_blank" rel="noreferrer" {...analytics}>{link.name}</a>}</li> })}</ul>
+        </div>)}
+      </div>
+      <div className="container footer-bottom footer-legal">
+        <div className="footer-legal-links">
+          <span>© {new Date().getFullYear()} {company}</span>
+          <Link to="/legal/privacy">Privacy</Link>
+          <Link to="/legal/terms">Terms</Link>
+          <Link to="/legal/cookies">Cookies</Link>
+        </div>
+        <p className="footer-public-domain">All content is in the public domain unless otherwise stated.</p>
+      </div>
+    </footer>
+  )
+}

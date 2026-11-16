@@ -1,7 +1,8 @@
-import { getCmsPool } from '../services/cloudSql.js';
+import { getCmsPool } from '../services/database.js';
 import { getLocalDb, saveLocalDb, isGcp, id, slugify, now } from './postgresCompatibility.js';
 import { getCategories } from './categoryRepository.js';
 import { deleteContentMediaForContent, syncContentMediaWithConnection } from './contentMediaRepository.js';
+import { inlineNewsMediaIds } from '../services/sanitizeHtml.js';
 
 const truthy = (value) => value === true || value === 1;
 const IMPORTANT_LOCK_KEY = 'getafe:news:important';
@@ -105,6 +106,7 @@ export async function createNewsArticle(b, author_id) {
       await syncContentMediaWithConnection(connection, 'news', article.id, {
         featuredImage: article.featured_image,
         galleryImages: article.gallery_images,
+        inlineIds: inlineNewsMediaIds(article.content),
       });
     };
     if (article.is_important) {
@@ -151,6 +153,7 @@ export async function updateNewsArticle(articleId, b, { expectedVersion = null }
       await syncContentMediaWithConnection(connection, 'news', articleId, {
         featuredImage: b.featured_image || '',
         galleryImages: Array.isArray(b.gallery_images) ? b.gallery_images : existing.gallery_images || [],
+        inlineIds: inlineNewsMediaIds(b.content),
       });
       return rows;
     };

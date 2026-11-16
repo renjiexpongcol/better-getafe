@@ -1,6 +1,7 @@
 // Trusted application-module registry. Module identifiers select only known
 // entries, and their canonical paths come from the shared route registry.
 import { ROUTES } from './routeRegistry.js'
+import { hasPermission } from '@getafe/auth-client'
 
 export const MODULE_REGISTRY = {
   app: {
@@ -17,6 +18,8 @@ export const MODULE_REGISTRY = {
     settings: { path: ROUTES.app.settings, permission: 'settings.own.view', title: 'Account settings' },
   },
   staff: {
+    profile: {path: ROUTES.staff.profile, title:'My profile'},
+    security: {path: ROUTES.staff.security, title:'Account security'},
     'e-service-requests': { path: '/app/staff/e-requests', permission: 'requests.department.view', title: 'E-service requests' },
     dashboard: { path: ROUTES.staff.root, permission: 'staff.dashboard.view', title: 'Staff dashboard' },
     'request-management': { path: ROUTES.staff.requests, permission: 'requests.view', title: 'Request management' },
@@ -25,10 +28,14 @@ export const MODULE_REGISTRY = {
     reports: { path: ROUTES.staff.root, permission: 'reports.view', title: 'Reports' },
     notifications: { path: ROUTES.staff.notifications, permission: 'notifications.view', title: 'Notifications' },
     help: { path: ROUTES.staff.help, permission: 'help.view', title: 'Help and support' },
-    'system-settings': { path: ROUTES.staff.settings, permission: 'settings.view', title: 'System parameters' },
+    'system-settings': { path: ROUTES.staff.settings, permission: 'system.settings.manage', title: 'System parameters' },
   },
   admin: {
+    'public-content': { permission: 'content.news.manage', title: 'Public content' },
+    integrations: { permission: 'integrations.view', anyPermissions: ['integrations.api_keys.view', 'integrations.api_keys.manage'], title: 'Integrations' },
     'service-catalog': { permission: 'services.catalog.view', title: 'Service catalog' },
+    search: { permission: 'search.manage', title: 'Search management' },
+    'website-analytics': { permission: 'analytics.view', title: 'Website Analytics' },
     discover: { permission: 'content.news.manage', title: 'Discover Getafe' },
     dashboard: { permission: 'admin.dashboard.view', title: 'Dashboard' },
     users: { permission: 'users.view', title: 'Users' },
@@ -58,10 +65,17 @@ export function resolveModule(shell, objectId = 'dashboard') {
   return modules[objectId] || null
 }
 
+export function hasModulePermission(module, user) {
+  if (!module) return false
+  if (module.permission && hasPermission(user, module.permission)) return true
+  return Boolean(module.anyPermissions?.some(permission => hasPermission(user, permission)))
+}
+
 export function resolveModuleAccess(shell, objectId = 'dashboard', user) {
   const module = resolveModule(shell, objectId)
   if (!module) return { state: 'not-found', module: null }
-  if (shell !== 'app' && Array.isArray(user?.permissions) && !user.permissions.includes(module.permission)) {
+  const adminStaffAccess = shell === 'staff' && ['admin', 'super_admin'].includes(user?.role)
+  if (shell !== 'app' && !adminStaffAccess && !hasModulePermission(module, user)) {
     return { state: 'forbidden', module }
   }
   return { state: 'allowed', module }

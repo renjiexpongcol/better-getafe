@@ -1,6 +1,6 @@
 import { listDepartments, findDepartment, saveDepartment } from '../repositories/departmentsRepository.js';
 import { validateDepartment } from './departmentValidation.js';
-import { citizenServices, serviceLink } from '../../../src/data/citizenServices.js';
+import { EserviceEngine } from './eserviceEngine.js';
 import { getOfficials } from '../repositories/officialsRepository.js';
 import { getOfficialDirectory } from '../repositories/governmentOfficialsRepository.js';
 import { toPublicOfficialsDirectory } from './publicApiDtos.js';
@@ -10,6 +10,7 @@ import { createDownloadUrl } from './storage.js';
 import { syncContentMedia } from '../repositories/contentMediaRepository.js';
 
 export function registerDepartmentRoutes(app, { admin, permission }) {
+  const engine = new EserviceEngine();
   const guard = [admin, permission('departments.manage')];
   const handle = work => async (req, res) => {
     res.set('Cache-Control', 'no-store');
@@ -24,19 +25,20 @@ export function registerDepartmentRoutes(app, { admin, permission }) {
   const officials = async () => toPublicOfficialsDirectory(await getOfficialDirectory(await getOfficials())).items;
   const decorate = async item => {
     const [people, news] = await Promise.all([item.officialSlug || item.slug === 'executive' ? officials() : [], item.newsIds?.length ? getNewsArticles() : []]);
+    const catalog = await engine.catalog();
     const documents = [];
     for (const path of item.documentPaths || []) {
       const media = await getMediaByStoragePath(path);
-      if (media?.status === 'active') documents.push({ name: media.original_filename, url: await createDownloadUrl(media.storage_path, media.storage_bucket) });
+      if (media?.status === 'active') documents.push({ name: media.original_filename, url: await createDownloadUrl(media.storage_path, media.storage_bucket, media.storage_provider) });
     }
     const image = item.featuredImage ? await getMediaByStoragePath(item.featuredImage) : null;
     return {
       id: item.id, slug: item.slug, name: item.name, icon: item.icon || 'Building2', shortDescription: item.shortDescription || '', description: item.description || '',
       responsibilities: item.responsibilities || '', programs: item.programs || '',
       phone: item.phone || '', email: item.email || '', location: item.location || '', hours: item.hours || '', imageAlt: item.imageAlt || '',
-      imageUrl: image?.status === 'active' ? await createDownloadUrl(image.storage_path, image.storage_bucket) : '',
+      imageUrl: image?.status === 'active' ? await createDownloadUrl(image.storage_path, image.storage_bucket, image.storage_provider) : '',
       official: people.find(person => person.slug === item.officialSlug) || (!item.officialSlug && item.slug === 'executive' ? people.find(person => person.position?.slug === 'mayor' && ['current', 'unknown'].includes(person.term?.status)) : null) || null,
-      services: citizenServices.filter(service => item.serviceIds.includes(service.id)).map(service => ({ ...service, department_id: item.id, href: serviceLink(service) })),
+      services: catalog.filter(service => service.department_id === item.id || item.serviceIds.includes(service.id)).map(service => ({ id: service.id, name: service.name, department_id: item.id, href: `/services/e-services/${encodeURIComponent(service.slug)}` })),
       announcements: news.filter(article => item.newsIds.includes(article.id) && article.status === 'published' && (!article.published_at || new Date(article.published_at) <= new Date())).sort((a, b) => new Date(b.published_at || b.created_at) - new Date(a.published_at || a.created_at)).map(article => ({ id: article.id, title: article.title, excerpt: article.excerpt, slug: article.slug, publishedAt: article.published_at })),
       documents,
     };
@@ -50,7 +52,7 @@ export function registerDepartmentRoutes(app, { admin, permission }) {
   app.get('/api/admin/departments/options', ...guard, handle(async (_req, res) => {
     const [people, news, departments] = await Promise.all([officials(), getNewsArticles(), listDepartments(true)]);
     const offices = await Promise.all(departments.map(item => findDepartment(item.id, true)));
-    res.json({ officials: people, news: news.map(item => ({ id: item.id, title: item.title, status: item.status })), services: citizenServices.map(service => ({ ...service, department_id: offices.find(office => office.serviceIds.includes(service.id))?.id || null })) });
+    res.json({ officials: people, news: news.map(item => ({ id: item.id, title: item.title, status: item.status })), services: (await engine.catalog(true)).map(service => ({ id: service.id, name: service.name, department_id: service.department_id || offices.find(office => office.serviceIds.includes(service.id))?.id || null })) });
   }));
   app.get('/api/admin/departments', ...guard, handle(async (_req, res) => res.json({ items: await listDepartments(true) })));
   app.get('/api/admin/departments/:id', ...guard, handle(async (req, res) => {
@@ -61,7 +63,7 @@ export function registerDepartmentRoutes(app, { admin, permission }) {
   const save = handle(async (req, res) => {
     let data;
     try {
-      data = validateDepartment(req.body || {});
+      data = validateDepartment(req.body || {}, (await engine.catalog(true)).map(service => service.id));
       if (['executive','engineering','zoning-planning','treasury','assessment','civil-registry','health','social-welfare'].includes(data.slug) && req.params.id !== data.slug) throw new Error('This URL is reserved for its existing municipal office.');
       if (data.featuredImage && data.published && !data.imageAlt) throw new Error('Add image alt text before publishing.');
       if (data.officialSlug && !(await officials()).some(person => person.slug === data.officialSlug)) throw new Error('Choose an existing official.');

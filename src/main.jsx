@@ -1,12 +1,16 @@
+import { installFocusModality } from './services/focusManagement'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
+import { ErrorNavigationProvider } from './context/ErrorNavigation'
 import './index.css'
+import './page-consistency.css'
 import { setupFavicon } from './setupFavicon'
 import { errorContextForPath, normalizePublicError } from './services/publicError'
 import { isPublicApiRequest } from './services/securitySurfaces'
 
+installFocusModality(document);
 setupFavicon();
 
 // Add the app boundary header to every same-origin API request in the SPA.
@@ -38,14 +42,18 @@ window.fetch = (input, init = {}) => {
     // backend message. This is a presentation safeguard; the server also
     // sanitizes its response contract and records the diagnostic reference.
     if (!response.ok && response.status !== 204) {
-      const body = await response.clone().json().catch(() => ({}))
+      const body = await response.json().catch(() => ({}))
       const publicError = normalizePublicError({ status: response.status, body }, errorContextForPath(apiPath))
       const safeBody = body && typeof body === 'object' ? { ...body, error: publicError.message } : { error: publicError.message }
       delete safeBody.stack
       delete safeBody.debug
       delete safeBody.internalError
       if (publicError.referenceId) safeBody.referenceId = publicError.referenceId
-      response = new Response(JSON.stringify(safeBody), { status: response.status, statusText: response.statusText, headers: response.headers })
+      const headers = new Headers(response.headers)
+      headers.delete('content-encoding')
+      headers.delete('content-length')
+      headers.set('content-type', 'application/json')
+      response = new Response(JSON.stringify(safeBody), { status: response.status, statusText: response.statusText, headers })
     }
     const protectedApi = (/^\/api\/(?:admin|staff|citizen|media)(?:\/|$)/.test(apiPath)
       && apiPath !== '/api/citizen/privacy-requests/verify-password')
@@ -66,7 +74,7 @@ window.fetch = (input, init = {}) => {
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <App />
+      <ErrorNavigationProvider><App /></ErrorNavigationProvider>
     </BrowserRouter>
   </React.StrictMode>,
 )

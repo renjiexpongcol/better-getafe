@@ -1,8 +1,33 @@
 import crypto from 'node:crypto';
-import { getCmsPool } from './cloudSql.js';
+import { getCmsPool } from './database.js';
 import { hashPassword } from './passwordHashing.js';
 
+export async function getEmployeeFieldOptions() {
+  const pool = await getCmsPool();
+  const [departments] = await pool.execute('SELECT name FROM departments WHERE published=TRUE ORDER BY name');
+  const [saved] = await pool.execute('SELECT DISTINCT department,office_assignment,employment_type,employment_status FROM employee_profiles');
+  const unique = values => [...new Set(values.filter(value => typeof value === 'string' && value.trim()))].sort((a, b) => a.localeCompare(b));
+  return {
+    departments: unique([...departments.map(item => item.name), ...saved.map(item => item.department)]),
+    offices: unique([...departments.map(item => item.name), ...saved.map(item => item.office_assignment)]),
+    employmentTypes: unique(['Permanent', 'Temporary', 'Casual', 'Contractual', 'Job Order', 'Contract of Service', 'Coterminous', ...saved.map(item => item.employment_type)]),
+    employmentStatuses: unique(['Active', 'On Leave', 'Suspended', 'Separated', 'Retired', 'Resigned', 'Terminated', ...saved.map(item => item.employment_status)]),
+  };
+}
+
+export async function employeeDepartmentAccess(query, groupIds, departmentIds, role) {
+  if (!Array.isArray(departmentIds) || departmentIds.length > 30 || departmentIds.some(value => typeof value !== 'string' || !value)) throw Object.assign(new Error('Select valid servicing departments.'), { status: 422 });
+  const departments = [...new Set(departmentIds)];
+  const grants = await query('SELECT permission_id FROM auth_group_permissions WHERE group_id=ANY(?::text[])', [groupIds]);
+  if (role === 'staff' && grants.some(grant => grant.permission_id === 'requests.department.view') && !departments.length) throw Object.assign(new Error('Select at least one servicing department for department queue access.'), { status: 422 });
+  for (const departmentId of departments) {
+    if (!(await query('SELECT id FROM departments WHERE id=? AND published=TRUE FOR SHARE', [departmentId])).length) throw Object.assign(new Error('Choose an active servicing department.'), { status: 422 });
+  }
+  return departments;
+}
+
 export async function provisionEmployee(values, userId, actor, pool = null) {
+  if (!userId && (!Array.isArray(values.group_ids) || !values.group_ids.length)) throw Object.assign(new Error('Select at least one permission group before creating an employee.'), { status: 422 });
   const connection = await (pool || await getCmsPool()).getConnection();
   const timestamp = new Date();
   const creating = !userId;
@@ -23,6 +48,8 @@ export async function provisionEmployee(values, userId, actor, pool = null) {
         }
         await connection.execute('INSERT INTO auth_user_groups(user_id,group_id,created_at,created_by) VALUES (?,?,?,?)', [userId,groupId,timestamp,actor.id]);
       }
+      const departmentIds = await employeeDepartmentAccess(async (sql, params) => (await connection.execute(sql, params))[0], values.group_ids, values.department_ids || [], values.role);
+      for (const departmentId of departmentIds) await connection.execute('INSERT INTO eservice_department_members(user_id,department_id) VALUES(?,?)', [userId, departmentId]);
     } else {
       const [records] = await connection.execute('SELECT u.name,u.email,u.role,p.department,p.position FROM users u JOIN employee_profiles p ON p.user_id=u.id WHERE u.id=? FOR UPDATE', [userId]);
       if (!records.length) throw Object.assign(new Error('Employee not found.'), { status:404 });
@@ -32,7 +59,7 @@ export async function provisionEmployee(values, userId, actor, pool = null) {
     await connection.execute('UPDATE employee_profiles SET department=?,position=? WHERE user_id=?', [values.department,values.position,userId]);
     const [profiles] = await connection.execute('SELECT eid FROM employee_profiles WHERE user_id=?', [userId]);
     if (!profiles.length) throw new Error('Employee profile provisioning failed.');
-    await connection.execute('INSERT INTO auth_audit_logs(id,actor_id,action,target_type,target_id,previous_value,new_value,correlation_id,created_at) VALUES (?,?,?,?,?,?,?,?,?)', [crypto.randomUUID(),actor.id,creating ? 'EMPLOYEE_CREATED' : 'EMPLOYEE_UPDATED','user',userId,previous ? JSON.stringify(previous) : null,JSON.stringify({ eid:profiles[0].eid,name:values.name,email:values.email,role:values.role,department:values.department,position:values.position,group_ids:values.group_ids }),crypto.randomUUID(),timestamp]);
+    await connection.execute('INSERT INTO auth_audit_logs(id,actor_id,action,target_type,target_id,previous_value,new_value,correlation_id,created_at) VALUES (?,?,?,?,?,?,?,?,?)', [crypto.randomUUID(),actor.id,creating ? 'EMPLOYEE_CREATED' : 'EMPLOYEE_UPDATED','user',userId,previous ? JSON.stringify(previous) : null,JSON.stringify({ eid:profiles[0].eid,name:values.name,email:values.email,role:values.role,department:values.department,position:values.position,group_ids:values.group_ids,department_ids:values.department_ids }),crypto.randomUUID(),timestamp]);
     await connection.commit();
     return { id:userId,eid:profiles[0].eid };
   } catch (error) { await connection.rollback(); throw error; }

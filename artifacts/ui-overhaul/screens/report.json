@@ -1,0 +1,752 @@
+[
+  {
+    "width": 320,
+    "url": "/",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/auth/login",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/auth/forgot-password",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/news",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/events",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/discover",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/tourism",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/officials",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/barangays",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/departments",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/data",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/contact",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/legal/privacy",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/services",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/app",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/app/services",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/app/e-requests",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/app/payments",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/app/e-billing/all",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/app/staff",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/admin",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/admin/news",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/admin/categories",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/admin/access",
+    "overflow": 0
+  },
+  {
+    "width": 320,
+    "url": "/admin/settings/general",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/auth/login",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/auth/forgot-password",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/news",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/events",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/discover",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/tourism",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/officials",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/barangays",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/departments",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/data",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/contact",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/legal/privacy",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/services",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/app",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/app/services",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/app/e-requests",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/app/payments",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/app/e-billing/all",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/app/staff",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/admin",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/admin/news",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/admin/categories",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/admin/access",
+    "overflow": 0
+  },
+  {
+    "width": 390,
+    "url": "/admin/settings/general",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/auth/login",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/auth/forgot-password",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/news",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/events",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/discover",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/tourism",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/officials",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/barangays",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/departments",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/data",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/contact",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/legal/privacy",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/services",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/app",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/app/services",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/app/e-requests",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/app/payments",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/app/e-billing/all",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/app/staff",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/admin",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/admin/news",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/admin/categories",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/admin/access",
+    "overflow": 0
+  },
+  {
+    "width": 768,
+    "url": "/admin/settings/general",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/auth/login",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/auth/forgot-password",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/news",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/events",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/discover",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/tourism",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/officials",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/barangays",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/departments",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/data",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/contact",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/legal/privacy",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/services",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/app",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/app/services",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/app/e-requests",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/app/payments",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/app/e-billing/all",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/app/staff",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/admin",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/admin/news",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/admin/categories",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/admin/access",
+    "overflow": 0
+  },
+  {
+    "width": 1024,
+    "url": "/admin/settings/general",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/auth/login",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/auth/forgot-password",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/news",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/events",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/discover",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/tourism",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/officials",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/barangays",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/departments",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/data",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/contact",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/legal/privacy",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/services",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/app",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/app/services",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/app/e-requests",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/app/payments",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/app/e-billing/all",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/app/staff",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/admin",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/admin/news",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/admin/categories",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/admin/access",
+    "overflow": 0
+  },
+  {
+    "width": 1280,
+    "url": "/admin/settings/general",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/auth/login",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/auth/forgot-password",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/news",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/events",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/discover",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/tourism",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/officials",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/barangays",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/departments",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/data",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/contact",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/legal/privacy",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/services",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/app",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/app/services",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/app/e-requests",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/app/payments",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/app/e-billing/all",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/app/staff",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/admin",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/admin/news",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/admin/categories",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/admin/access",
+    "overflow": 0
+  },
+  {
+    "width": 1440,
+    "url": "/admin/settings/general",
+    "overflow": 0
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "width": 320,
+    "url": "/app/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Your Service Requests"
+  },
+  {
+    "width": 320,
+    "url": "/app/staff/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Queue"
+  },
+  {
+    "width": 390,
+    "url": "/app/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Your Service Requests"
+  },
+  {
+    "width": 390,
+    "url": "/app/staff/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Queue"
+  },
+  {
+    "width": 768,
+    "url": "/app/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Your Service Requests"
+  },
+  {
+    "width": 768,
+    "url": "/app/staff/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Queue"
+  },
+  {
+    "width": 1024,
+    "url": "/app/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Your Service Requests"
+  },
+  {
+    "width": 1024,
+    "url": "/app/staff/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Queue"
+  },
+  {
+    "width": 1280,
+    "url": "/app/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Your Service Requests"
+  },
+  {
+    "width": 1280,
+    "url": "/app/staff/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Queue"
+  },
+  {
+    "width": 1440,
+    "url": "/app/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Your Service Requests"
+  },
+  {
+    "width": 1440,
+    "url": "/app/staff/e-requests",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Staff Service Queue"
+  }
+]

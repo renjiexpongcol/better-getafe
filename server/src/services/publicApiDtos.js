@@ -1,6 +1,30 @@
 import { sanitizeRichText } from './sanitizeHtml.js'
 
+// New settings require deliberate publication; a category prefix cannot expose
+// a future credential or internal configuration field automatically.
+export const publicConfigKeys = Object.freeze([
+  'contact.email', 'contact.phone', 'contact.address', 'contact.hours', 'contact.categories', 'contact.settlementTypes', 'contact.paymentChannels', 'contact.concernCategories', 'contact.concernServiceId', 'contact.populationSource', 'general.locationLabel', 'legal.privacy', 'legal.terms', 'legal.cookies',
+  'general.name', 'general.company', 'general.url', 'general.timezone', 'general.locale',
+  'general.currency', 'general.dateFormat', 'general.language', 'general.supportEmail',
+  'general.facebookUrl', 'general.facebookEmbedMode', 'general.logo', 'general.favicon',
+  'general.communityBannerEnabled', 'general.communityBannerTitle', 'general.communityBannerMessage', 'general.communityBannerUrl',
+  'features.uploads', 'features.reports', 'features.ai', 'features.publicRegistration',
+  'publicData.enabled', 'publicData.disclaimer', 'publicData.featuredDatasets', 'publicData.featuredTopics',
+  'authentication.registrationEnabled', 'authentication.passwordMinLength',
+  'security.registrationCaptcha', 'security.contactCaptcha', 'security.recaptchaProvider', 'security.recaptchaVersion', 'security.recaptchaProjectId', 'security.recaptchaSiteKey',
+  'notifications.enabled', 'maintenance.enabled', 'maintenance.message', 'maintenance.expectedCompletion',
+])
+
 const text = (value, max = 4000) => typeof value === 'string' ? value.slice(0, max) : ''
+
+function publicResearchData(value, depth = 0) {
+  if (depth > 5 || value === null || typeof value === 'boolean') return value
+  if (typeof value === 'string') return value.slice(0, 2000)
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (Array.isArray(value)) return value.slice(0, 100).map(item => publicResearchData(item, depth + 1))
+  if (typeof value !== 'object') return null
+  return Object.fromEntries(Object.entries(value).slice(0, 60).filter(([key]) => /^[a-zA-Z0-9_-]{1,80}$/.test(key)).map(([key, item]) => [key, publicResearchData(item, depth + 1)]))
+}
 
 const publicUrl = value => {
   if (typeof value !== 'string' || !value.trim()) return ''
@@ -31,7 +55,9 @@ export function toPublicPopularService(service) {
   const label = text(service.label, 160)
   const href = typeof service.href === 'string' ? service.href.trim() : ''
   if (!id || !label || !href.startsWith('/') || href.startsWith('//')) return null
-  return { id, label, href }
+  // Legacy seed points a National ID label at municipal certificates. That
+  // destination offers certificates, not national ID issuance.
+  return { id, label: id === 'national-id' && href === '/services/certificates' ? 'Certificates & IDs' : label, href }
 }
 
 function toPublicGalleryImage(image) {
@@ -65,6 +91,7 @@ export function toPublicNews(article) {
     event_start_at: article.event_start_at || null,
     event_end_at: article.event_end_at || null,
     published_at: article.published_at || null,
+    version: String(article.updated_at || article.published_at || ''),
     is_important: Boolean(article.is_important),
     show_in_news: Boolean(article.show_in_news),
     show_in_upcoming: Boolean(article.show_in_upcoming),
@@ -175,7 +202,7 @@ export function toPublicBarangay(item) {
     id: text(item.id || item.slug || item.name, 160),
     slug: text(item.slug || item.id || item.name, 160),
     name: text(item.name, 160),
-    population: Number.isFinite(Number(item.population)) ? Number(item.population) : null,
+    population: item.population !== null && item.population !== undefined && item.population !== '' && Number.isFinite(Number(item.population)) ? Number(item.population) : null,
     captain: text(item.captain || item.punong_barangay, 200),
     coords: latitude !== null && longitude !== null ? { lat: latitude, lng: longitude } : null,
     latitude,
@@ -190,6 +217,7 @@ export function toPublicBarangay(item) {
     captainBio: text(item.captainBio, 4000),
     captainDetails: sanitizeRichText(item.captainDetails),
     captainPhoto: publicUrl(item.captainPhoto),
+    researchData: publicResearchData(item.researchData || {}),
   }
 }
 

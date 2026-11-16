@@ -1,0 +1,92 @@
+/* Match the public pages: civic blue, quiet surfaces, and readable contact details. */
+.page-shell .hotline-page {
+  --ink: var(--color-text);
+  --line: var(--color-border);
+  --red: var(--color-brand-primary);
+  --red-dark: var(--color-brand-strong);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.page-shell .hotline-page :is(.hotline-container, .page-header-inner) {
+  width: min(var(--gov-container, 1240px), calc(100% - 48px));
+  margin-inline: auto;
+}
+.page-shell .hotline-page .hotline-hero {
+  min-height: 0;
+  padding: 0;
+  background: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+.page-shell .hotline-page .hotline-hero-inner {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding-block: 48px;
+}
+.page-shell .hotline-page .hotline-hero-inner > div { flex: 1; min-width: 0; max-width: none; }
+.page-shell .hotline-page .page-title { font-size: 2.75rem; line-height: 1.15; color: var(--color-brand-strong); text-wrap: balance; }
+.page-shell .hotline-page .page-subtitle { margin: 12px 0 0; max-width: 64ch; color: var(--color-text-secondary); font-size: 1rem; line-height: 1.65; }
+.page-shell .hotline-page .call-911 {
+  flex: 0 0 300px;
+  width: auto;
+  padding: 16px;
+  border: 1px solid var(--color-brand-primary);
+  background: var(--color-brand-strong);
+  color: var(--color-on-brand);
+  box-shadow: none;
+  border-radius: var(--radius-panel);
+}
+.page-shell .hotline-page .call-911 small { color: var(--color-on-brand); font-size: .8125rem; font-weight: 400; }
+.page-shell .hotline-page .call-911 strong { margin-top: 4px; font-size: 1.5rem; }
+.page-shell .hotline-page .call-911 :is(.pulse, svg:last-child) { background: transparent; color: var(--color-on-brand); }
+.page-shell .hotline-page :is(.call-911, .quick-card, .hotline-card):hover { transform: none; box-shadow: none; }
+.page-shell .hotline-page :is(.quick-section, .directory-section, .tips-section) { padding-block: 32px; background: transparent; }
+.page-shell .hotline-page :is(.quick-title, .tips-title, .directory-head h2, .info-grid h2, .report-inner h2) { font-size: 1.5rem; line-height: 1.3; color: var(--color-text); text-wrap: balance; }
+.page-shell .hotline-page :is(.quick-title, .tips-title) { margin-bottom: 24px; }
+.page-shell .hotline-page .quick-grid { gap: 16px; }
+.page-shell .hotline-page :is(.quick-card, .hotline-card, .tip-card) { border-color: var(--color-border); background: var(--color-surface); border-radius: var(--radius-panel); box-shadow: none; min-width: 0; }
+.page-shell .hotline-page .quick-card { padding: 20px; }
+.page-shell .hotline-page .quick-card:hover { border-color: var(--color-brand-primary); }
+.page-shell .hotline-page .quick-number { color: var(--color-brand-primary); font-variant-numeric: tabular-nums; }
+.page-shell .hotline-page .quick-meta { min-width: 0; }
+.page-shell .hotline-page .quick-meta small { color: var(--color-text-secondary); font-size: .8125rem; }
+.page-shell .hotline-page :is(.quick-call, .category-icon, .urgent .category-icon, .tip-icon) { background: var(--color-brand-muted); color: var(--color-brand-primary); flex-shrink: 0; }
+.page-shell .hotline-page .directory-head { align-items: center; margin-bottom: 24px; }
+.page-shell .hotline-page .directory-head > p { margin: 0; color: var(--color-text-secondary); }
+.page-shell .hotline-page .ui-search { max-width: 640px; margin: 0; }
+.page-shell .hotline-page .filter-row { flex-wrap: wrap; overflow: visible; margin: 16px 0 24px; padding: 0; gap: 8px; }
+.page-shell .hotline-page .filter { min-height: 44px; padding: 8px 12px; border-radius: var(--radius-control); border-color: var(--color-border); color: var(--color-text-secondary); }
+.page-shell .hotline-page .filter:hover { background: var(--color-brand-muted); color: var(--color-brand-primary); }
+.page-shell .hotline-page .filter[aria-pressed="true"] { background: var(--color-brand-primary); border-color: var(--color-brand-primary); color: var(--color-on-brand); }
+.page-shell .hotline-page .hotline-grid { gap: 16px; }
+.page-shell .hotline-page .hotline-card { padding: 24px; min-height: 0; }
+.page-shell .hotline-page .hotline-card.urgent { border-color: var(--color-brand-primary); background: var(--color-surface); }
+.page-shell .hotline-page .hotline-card h3 { font-size: 1.125rem; line-height: 1.4; overflow-wrap: anywhere; }
+.page-shell .hotline-page :is(.hotline-card > p, .tip-card p, .tips-lead) { color: var(--color-text-secondary); font-size: .9375rem; line-height: 1.65; }
+.page-shell .hotline-page .category-tag { color: var(--color-text-secondary); }
+.page-shell .hotline-page .number-list { border-color: var(--color-border); }
+.page-shell .hotline-page .number-row { align-items: start; gap: 12px; margin: 0; padding-top: 12px; }
+.page-shell .hotline-page .number-row a { display: flex; align-items: center; min-height: 44px; color: var(--color-brand-primary); font-size: .9375rem; line-height: 1.5; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.page-shell .hotline-page .number-row button { min-height: 44px; min-width: 48px; flex-shrink: 0; padding: 8px; background: var(--color-brand-muted); color: var(--color-brand-primary); font-size: .8125rem; }
+.page-shell .hotline-page .section-label { color: var(--color-brand-primary); }
+.page-shell .hotline-page .tips-grid { gap: 16px; }
+.page-shell .hotline-page .info-band { background: var(--color-brand-strong); color: var(--color-on-brand); }
+.page-shell .hotline-page .info-grid h2 { color: var(--color-on-brand); }
+.page-shell .hotline-page .info-grid :is(p, a, .section-label) { color: var(--color-on-brand); }
+.page-shell .hotline-page .outline-call { min-height: 44px; border-color: var(--color-on-brand); color: var(--color-on-brand); }
+.page-shell .hotline-page .report-section { background: var(--color-bg-subtle); }
+.page-shell .hotline-page .report-inner { border-radius: 0; background: transparent; box-shadow: none; }
+.page-shell .hotline-page .report-inner p { color: var(--color-text-secondary); }
+.page-shell .hotline-page .report-button { min-height: 44px; background: var(--color-brand-primary); color: var(--color-on-brand); border-radius: var(--radius-control); }
+@media (max-width: 900px) {
+  .page-shell .hotline-page .hotline-hero-inner { align-items: start; flex-direction: column; gap: 24px; }
+  .page-shell .hotline-page .call-911 { flex: none; width: min(100%, 340px); }
+}
+@media (max-width: 600px) {
+  .page-shell .hotline-page :is(.hotline-container, .page-header-inner) { width: calc(100% - 32px); }
+  .page-shell .hotline-page .hotline-hero-inner { padding-block: 32px; }
+  .page-shell .hotline-page .page-title { font-size: 2rem; }
+  .page-shell .hotline-page :is(.quick-grid, .hotline-grid, .tips-grid) { grid-template-columns: minmax(0, 1fr); }
+  .page-shell .hotline-page .hotline-card { padding: 20px; }
+}

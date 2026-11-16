@@ -1,8 +1,15 @@
+import { focusContentTarget } from '../services/focusManagement'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Accessibility, ArrowUp, Eye, FileText, X, ZoomIn, ZoomOut, Contrast, Lightbulb, Link as LinkIcon, Type, RotateCcw } from 'lucide-react'
 
 const preferenceDefaults = { textScale: 1, grayscale: false, negativeContrast: false, lightBackground: false, linksUnderlined: false, readableFont: false }
+
+function scrollPageToTop() {
+  const scrollingElement = document.scrollingElement || document.documentElement
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  scrollingElement.scrollTo({ top: 0, left: 0, behavior: reducedMotion ? 'instant' : 'smooth' })
+}
 
 function loadAccessibilityPreferences() {
   try {
@@ -25,7 +32,7 @@ export default function BackToTop() {
   const [visible, setVisible] = useState(false)
   const [collapsed, setCollapsed] = useState(true)
   const triggerRef = useRef(null)
-  const firstOptionRef = useRef(null)
+  const panelRef = useRef(null)
   const [highContrast, setHighContrast] = useState(() => {
     try { return localStorage.getItem('getafe-high-contrast') === 'true' } catch { return false }
   })
@@ -73,8 +80,7 @@ export default function BackToTop() {
   useEffect(() => {
     if (collapsed) return undefined
     const frame = window.requestAnimationFrame(() => {
-      firstOptionRef.current?.focus()
-      firstOptionRef.current?.scrollIntoView({ block: 'nearest' })
+      panelRef.current?.focus({ preventScroll: true })
     })
     const onKeyDown = event => {
       if (event.key === 'Escape') {
@@ -99,59 +105,62 @@ export default function BackToTop() {
     if (!main) { closeAccessibilityMenu(); return }
     if (!main.hasAttribute('tabindex')) main.setAttribute('tabindex', '-1')
     setCollapsed(true)
-    main.focus({ preventScroll: true })
+    focusContentTarget(main)
     main.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
   }
 
   return <div className={`floating-accessibility-tools${collapsed ? ' is-collapsed' : ''}${visible ? '' : ' is-at-top'}`} role="group" aria-label="Page accessibility tools">
     <div className="accessibility-control">
-      {!collapsed && <div ref={firstOptionRef} id="accessibility-options" className="accessibility-options" role="group" aria-label="Accessibility options" tabIndex={-1}>
-        <div className="accessibility-options-heading">Accessibility Tools</div>
-        <button type="button" className="accessibility-option" aria-label={`Increase text size${preferences.textScale >= 1.5 ? ', maximum reached' : ''}`} title="Increase text size" disabled={preferences.textScale >= 1.5} onClick={() => updatePreference('textScale', Math.min(1.5, +(preferences.textScale + 0.1).toFixed(1)))}>
-          <span className="accessibility-option-icon" aria-hidden="true"><ZoomIn size={17} /></span><span className="accessibility-option-label">Increase Text</span>
-        </button>
-        <button type="button" className="accessibility-option" aria-label={`Decrease text size${preferences.textScale <= 0.8 ? ', minimum reached' : ''}`} title="Decrease text size" disabled={preferences.textScale <= 0.8} onClick={() => updatePreference('textScale', Math.max(0.8, +(preferences.textScale - 0.1).toFixed(1)))}>
-          <span className="accessibility-option-icon" aria-hidden="true"><ZoomOut size={17} /></span><span className="accessibility-option-label">Decrease Text</span>
-        </button>
-        <button type="button" className="accessibility-option" aria-pressed={preferences.grayscale} onClick={() => togglePreference('grayscale')}>
-          <span className="accessibility-option-icon" aria-hidden="true"><span className="accessibility-grayscale-icon">▥</span></span><span className="accessibility-option-label">Grayscale</span>
-        </button>
-        <button type="button" className="accessibility-option" aria-pressed={highContrast} onClick={toggleHighContrast}>
-          <span className="accessibility-option-icon" aria-hidden="true"><Contrast size={17} /></span><span className="accessibility-option-label">High Contrast</span>
-        </button>
-        <button type="button" className="accessibility-option" aria-pressed={preferences.negativeContrast} onClick={() => togglePreference('negativeContrast')}>
-          <span className="accessibility-option-icon" aria-hidden="true"><Eye size={17} /></span><span className="accessibility-option-label">Negative Contrast</span>
-        </button>
-        <button type="button" className="accessibility-option" aria-pressed={preferences.lightBackground} onClick={() => togglePreference('lightBackground')}>
-          <span className="accessibility-option-icon" aria-hidden="true"><Lightbulb size={17} /></span><span className="accessibility-option-label">Light Background</span>
-        </button>
-        <button type="button" className="accessibility-option" aria-pressed={preferences.linksUnderlined} onClick={() => togglePreference('linksUnderlined')}>
-          <span className="accessibility-option-icon" aria-hidden="true"><LinkIcon size={17} /></span><span className="accessibility-option-label">Links Underline</span>
-        </button>
-        <button type="button" className="accessibility-option" aria-pressed={preferences.readableFont} onClick={() => togglePreference('readableFont')}>
-          <span className="accessibility-option-icon" aria-hidden="true"><Type size={17} /></span><span className="accessibility-option-label">Readable Font</span>
-        </button>
-        <button type="button" className="accessibility-option" onClick={resetAccessibility}>
-          <span className="accessibility-option-icon" aria-hidden="true"><RotateCcw size={17} /></span><span className="accessibility-option-label">Reset</span>
-        </button>
-        <div className="accessibility-menu-divider" />
-        <button type="button" className="accessibility-option" aria-label="Skip to main content" title="Skip to main content" onClick={skipToMainContent}>
-          <span className="accessibility-option-icon" aria-hidden="true"><FileText size={19} /></span>
-          <span className="accessibility-option-label">Skip to content</span>
-        </button>
-        <Link className="accessibility-option" to="/accessibility#accessibility" aria-label="Accessibility page" title="Accessibility page" onClick={() => setCollapsed(true)}>
-          <span className="accessibility-option-icon" aria-hidden="true"><Accessibility size={19} /></span>
-          <span className="accessibility-option-label">Accessibility page</span>
-        </Link>
-        <button type="button" className="accessibility-option" aria-label="Close accessibility options" title="Close accessibility options" onClick={() => closeAccessibilityMenu()}>
-          <span className="accessibility-option-icon" aria-hidden="true"><X size={19} /></span>
-          <span className="accessibility-option-label">Close</span>
-        </button>
+      {!collapsed && <div ref={panelRef} id="accessibility-options" className="accessibility-options" role="group" aria-label="Accessibility options" tabIndex={-1}>
+        <div className="accessibility-options-header">
+          <div className="accessibility-options-heading">Accessibility Tools</div>
+          <button type="button" className="accessibility-options-close" aria-label="Close accessibility panel" title="Close" data-icon-button="ghost" onClick={() => closeAccessibilityMenu()}>
+            <X size={20} aria-hidden="true" />
+          </button>
+        </div>
+        <div className="accessibility-options-list">
+          <button type="button" className="accessibility-option" aria-label={`Increase text size${preferences.textScale >= 1.5 ? ', maximum reached' : ''}`} title="Increase text size" disabled={preferences.textScale >= 1.5} onClick={() => updatePreference('textScale', Math.min(1.5, +(preferences.textScale + 0.1).toFixed(1)))}>
+            <span className="accessibility-option-icon" aria-hidden="true"><ZoomIn size={17} /></span><span className="accessibility-option-label">Increase Text</span>
+          </button>
+          <button type="button" className="accessibility-option" aria-label={`Decrease text size${preferences.textScale <= 0.8 ? ', minimum reached' : ''}`} title="Decrease text size" disabled={preferences.textScale <= 0.8} onClick={() => updatePreference('textScale', Math.max(0.8, +(preferences.textScale - 0.1).toFixed(1)))}>
+            <span className="accessibility-option-icon" aria-hidden="true"><ZoomOut size={17} /></span><span className="accessibility-option-label">Decrease Text</span>
+          </button>
+          <button type="button" className="accessibility-option" aria-pressed={preferences.grayscale} onClick={() => togglePreference('grayscale')}>
+            <span className="accessibility-option-icon" aria-hidden="true"><span className="accessibility-grayscale-icon">▥</span></span><span className="accessibility-option-label">Grayscale</span>
+          </button>
+          <button type="button" className="accessibility-option" aria-pressed={highContrast} onClick={toggleHighContrast}>
+            <span className="accessibility-option-icon" aria-hidden="true"><Contrast size={17} /></span><span className="accessibility-option-label">High Contrast</span>
+          </button>
+          <button type="button" className="accessibility-option" aria-pressed={preferences.negativeContrast} onClick={() => togglePreference('negativeContrast')}>
+            <span className="accessibility-option-icon" aria-hidden="true"><Eye size={17} /></span><span className="accessibility-option-label">Negative Contrast</span>
+          </button>
+          <button type="button" className="accessibility-option" aria-pressed={preferences.lightBackground} onClick={() => togglePreference('lightBackground')}>
+            <span className="accessibility-option-icon" aria-hidden="true"><Lightbulb size={17} /></span><span className="accessibility-option-label">Light Background</span>
+          </button>
+          <button type="button" className="accessibility-option" aria-pressed={preferences.linksUnderlined} onClick={() => togglePreference('linksUnderlined')}>
+            <span className="accessibility-option-icon" aria-hidden="true"><LinkIcon size={17} /></span><span className="accessibility-option-label">Links Underline</span>
+          </button>
+          <button type="button" className="accessibility-option" aria-pressed={preferences.readableFont} onClick={() => togglePreference('readableFont')}>
+            <span className="accessibility-option-icon" aria-hidden="true"><Type size={17} /></span><span className="accessibility-option-label">Readable Font</span>
+          </button>
+          <button type="button" className="accessibility-option" onClick={resetAccessibility}>
+            <span className="accessibility-option-icon" aria-hidden="true"><RotateCcw size={17} /></span><span className="accessibility-option-label">Reset</span>
+          </button>
+          <div className="accessibility-menu-divider" />
+          <button type="button" className="accessibility-option" aria-label="Skip to main content" title="Skip to main content" onClick={skipToMainContent}>
+            <span className="accessibility-option-icon" aria-hidden="true"><FileText size={19} /></span>
+            <span className="accessibility-option-label">Skip to content</span>
+          </button>
+          <Link className="accessibility-option" to="/accessibility#accessibility" aria-label="Accessibility page" title="Accessibility page" onClick={() => setCollapsed(true)}>
+            <span className="accessibility-option-icon" aria-hidden="true"><Accessibility size={19} /></span>
+            <span className="accessibility-option-label">Accessibility page</span>
+          </Link>
+        </div>
       </div>}
-      <button ref={triggerRef} type="button" className="floating-action-button accessibility-trigger" aria-label={collapsed ? 'Show accessibility options' : 'Close accessibility options'} aria-expanded={!collapsed} aria-controls="accessibility-options" title={collapsed ? 'Show accessibility options' : 'Close accessibility options'} onClick={() => collapsed ? setCollapsed(false) : closeAccessibilityMenu()} data-icon-button="ghost"><Accessibility size={21} aria-hidden="true" /></button>
+      <button ref={triggerRef} type="button" className="floating-action-button accessibility-trigger" aria-label={collapsed ? 'Show accessibility options' : 'Close accessibility options'} aria-expanded={!collapsed} aria-controls="accessibility-options" title={collapsed ? 'Show accessibility options' : 'Close accessibility options'} onClick={() => collapsed ? setCollapsed(false) : closeAccessibilityMenu()}><Accessibility size={21} aria-hidden="true" /></button>
     </div>
     <span className={`back-to-top-slot${visible ? ' is-visible' : ''}`} aria-hidden={!visible}>
-      <button type="button" className={`floating-action-button back-to-top${visible ? ' is-visible' : ''}`} tabIndex={visible ? 0 : -1} aria-label="Back to top" title="Back to top" onClick={() => window.scrollTo({ top: 0, left: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })} data-icon-button="ghost"><ArrowUp size={21} aria-hidden="true" /></button>
+      <button type="button" className={`floating-action-button back-to-top${visible ? ' is-visible' : ''}`} tabIndex={visible ? 0 : -1} aria-label="Back to top" title="Back to top" onClick={scrollPageToTop}><ArrowUp size={21} aria-hidden="true" /></button>
     </span>
   </div>
 }

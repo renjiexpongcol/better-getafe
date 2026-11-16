@@ -1,3 +1,4 @@
+import { useDataRevision } from '../hooks/usePublicResource'
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -83,6 +84,7 @@ function EventRow({ event, displayDate }) {
 }
 
 export default function EventsSection() {
+  const dataRevision = useDataRevision()
   const today = dateKey(new Date())
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -99,7 +101,7 @@ export default function EventsSection() {
       .catch(() => { setEvents([]); setError('The event calendar is temporarily unavailable.') })
       .finally(() => setLoading(false))
     return undefined
-  }, [retry])
+  }, [retry, dataRevision])
 
   const eventsByDate = useMemo(() => {
     const grouped = new Map()

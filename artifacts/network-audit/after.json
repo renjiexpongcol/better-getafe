@@ -1,0 +1,174 @@
+[
+  {
+    "path": "/",
+    "total": 122,
+    "apiCount": 8,
+    "api": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/news?important=true&limit=1",
+      "/api/news?category=announcements&limit=1",
+      "/api/popular-services?limit=3",
+      "/api/news?display=news&homepage=true&public=true&page=1&limit=5",
+      "/api/news?display=events&limit=100&public=true",
+      "/api/discover?featured=true"
+    ],
+    "duplicates": [],
+    "transferBytes": 18697429,
+    "javascriptDecodedBytes": 13564015,
+    "errors": []
+  },
+  {
+    "path": "/missing-audit-page",
+    "total": 58,
+    "apiCount": 0,
+    "api": [],
+    "duplicates": [],
+    "transferBytes": 16363028,
+    "javascriptDecodedBytes": 13548088,
+    "errors": []
+  },
+  {
+    "path": "/auth/login",
+    "total": 62,
+    "apiCount": 2,
+    "api": [
+      "/api/auth/me",
+      "/api/public/config"
+    ],
+    "duplicates": [],
+    "transferBytes": 15352377,
+    "javascriptDecodedBytes": 13553216,
+    "errors": []
+  },
+  {
+    "path": "/auth/login?mode=register",
+    "total": 62,
+    "apiCount": 2,
+    "api": [
+      "/api/auth/me",
+      "/api/public/config"
+    ],
+    "duplicates": [],
+    "transferBytes": 15352377,
+    "javascriptDecodedBytes": 13553216,
+    "errors": []
+  },
+  {
+    "path": "/app",
+    "total": 76,
+    "apiCount": 5,
+    "api": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/citizen/dashboard"
+    ],
+    "duplicates": [],
+    "transferBytes": 15499676,
+    "javascriptDecodedBytes": 13572424,
+    "errors": []
+  },
+  {
+    "path": "/app/services",
+    "total": 78,
+    "apiCount": 5,
+    "api": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/users/me/preferences",
+      "/api/services",
+      "/api/citizen/dashboard"
+    ],
+    "duplicates": [],
+    "transferBytes": 15498697,
+    "javascriptDecodedBytes": 13572424,
+    "errors": []
+  },
+  {
+    "path": "/app/staff",
+    "total": 65,
+    "apiCount": 3,
+    "api": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/staff/dashboard"
+    ],
+    "duplicates": [],
+    "transferBytes": 15235367,
+    "javascriptDecodedBytes": 13554086,
+    "errors": []
+  },
+  {
+    "path": "/admin",
+    "total": 70,
+    "apiCount": 4,
+    "api": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/news?limit=100",
+      "/api/categories"
+    ],
+    "duplicates": [],
+    "transferBytes": 15897569,
+    "javascriptDecodedBytes": 13556743,
+    "errors": []
+  },
+  {
+    "path": "/admin/content",
+    "total": 68,
+    "apiCount": 2,
+    "api": [
+      "/api/auth/me",
+      "/api/public/config"
+    ],
+    "duplicates": [],
+    "transferBytes": 15884634,
+    "javascriptDecodedBytes": 13556743,
+    "errors": []
+  },
+  {
+    "path": "/admin/news",
+    "total": 70,
+    "apiCount": 4,
+    "api": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/categories",
+      "/api/admin/news?limit=100"
+    ],
+    "duplicates": [],
+    "transferBytes": 15897569,
+    "javascriptDecodedBytes": 13556743,
+    "errors": []
+  },
+  {
+    "path": "/admin/users",
+    "total": 73,
+    "apiCount": 3,
+    "api": [
+      "/api/public/config",
+      "/api/auth/me",
+      "/api/admin/access"
+    ],
+    "duplicates": [],
+    "transferBytes": 16107238,
+    "javascriptDecodedBytes": 13556743,
+    "errors": []
+  },
+  {
+    "path": "/admin/settings",
+    "total": 73,
+    "apiCount": 3,
+    "api": [
+      "/api/auth/me",
+      "/api/public/config",
+      "/api/admin/settings/general"
+    ],
+    "duplicates": [],
+    "transferBytes": 16105217,
+    "javascriptDecodedBytes": 13582200,
+    "errors": []
+  }
+]

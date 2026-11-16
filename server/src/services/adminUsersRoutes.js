@@ -1,4 +1,4 @@
-import { provisionEmployee, getEmployeeProfile, updateEmployeePersonnel } from './employeeProvisioning.js';
+import { provisionEmployee, getEmployeeProfile, updateEmployeePersonnel, getEmployeeFieldOptions } from './employeeProvisioning.js';
 import { getCmsUsers } from '../repositories/cmsUserRepository.js';
 import { config } from '../config/index.js';
 import { allPermissions, cmsRoles, permissionsFor } from '../config/permissions.js';
@@ -43,6 +43,10 @@ export function installAdminUsersRoutes(app, admin) {
     try { res.json({ users: (await getCmsUsers()).map(user => ({ id: user.id, name: user.name, email: user.email, role: user.role, eid: user.eid, department: user.department, position: user.position, createdAt: user.created_at, permissions: permissionsFor(user) })), permissions: allPermissions, canGrantSuper: req.admin.role === 'super_admin' }); }
     catch { res.status(503).json({ error: 'Accounts are currently unavailable.' }); }
   });
+  app.get('/api/admin/users/options', async (_req, res) => {
+    try { res.set('Cache-Control', 'no-store'); res.json(await getEmployeeFieldOptions()); }
+    catch { res.status(503).json({ error: 'Employee choices are temporarily unavailable.' }); }
+  });
   app.get('/api/admin/users/:id/profile', async (req,res) => {
     try { const profile = await getEmployeeProfile(req.params.id); if (!profile) return res.status(404).json({ error:'Employee not found.' }); res.json(profile); }
     catch { res.status(503).json({ error:'Employee profile is unavailable.' }); }
@@ -70,11 +74,9 @@ export function installAdminUsersRoutes(app, admin) {
       if (groupIds !== undefined && (!Array.isArray(groupIds) || groupIds.length > 30 || groupIds.some(value => typeof value !== 'string'))) return res.status(422).json({ error:'Select valid permission groups.' });
       const db = await ensureAuthorizationData();
       if (!target && !groupIds?.length) {
-        const groupName = req.body.role === 'content_manager' ? 'Content_Manager' : ['admin','super_admin','it_support'].includes(req.body.role) ? 'System_Administrator' : 'Staff_Support';
-        const group = await db.prepare('SELECT id FROM auth_groups WHERE name=? AND enabled=TRUE AND archived_at IS NULL').get(groupName);
-        if (!group) return res.status(422).json({ error:'Default permission group is unavailable.' });
-        groupIds = [group.id];
+        return res.status(422).json({ error:'Select at least one permission group before creating an employee.' });
       }
+      if (!target && req.body.department_ids?.length) await requireAccess(req.admin, 'eservices.admin');
       let grantablePermissions;
       if (!target && groupIds?.length) {
         await requireAccess(req.admin,'groups.manage');

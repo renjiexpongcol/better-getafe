@@ -1,0 +1,88 @@
+[
+  {
+    "width": 390,
+    "url": "/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News & Updates",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/categories",
+      "/api/news?page=1&limit=9&display=news&public=true"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/events",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Gallery of Events",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/news?display=events&limit=24&public=true"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/contact",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Contact Us",
+    "apiRequests": [
+      "/api/public/config"
+    ]
+  },
+  {
+    "width": 390,
+    "url": "/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/services",
+      "/api/popular-services?limit=6"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/news",
+    "overflow": 0,
+    "title": "Municipality of Getafe | News & Updates",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/categories",
+      "/api/news?page=1&limit=9&display=news&public=true"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/events",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Gallery of Events",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/news?display=events&limit=24&public=true"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/contact",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Contact Us",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe"
+    ]
+  },
+  {
+    "width": 1440,
+    "url": "/services",
+    "overflow": 0,
+    "title": "Municipality of Getafe | Municipal Services",
+    "apiRequests": [
+      "/api/public/config",
+      "/api/weather/getafe",
+      "/api/services",
+      "/api/popular-services?limit=6"
+    ]
+  }
+]

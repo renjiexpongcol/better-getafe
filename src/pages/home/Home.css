@@ -1,0 +1,23 @@
+/* Newsletter signup */
+.newsletter-section { padding-block: 88px; }
+.newsletter-frame { min-height: 430px; position: relative; display: grid; place-items: center; padding: 56px 150px; overflow: hidden; background: #f4f7f5; border-radius: 28px; }
+.newsletter-content { width: min(100%, 590px); text-align: center; position: relative; z-index: 1; }
+.newsletter-content h2 { margin: 0; color: #173b35; font-size: clamp(2rem, 4vw, 3.25rem); line-height: 1.08; letter-spacing: -.04em; }
+.newsletter-content > p { max-width: 470px; margin: 16px auto 26px; color: #596b66; line-height: 1.65; }
+.newsletter-form { display: flex; gap: 10px; width: min(100%, 510px); margin: auto; }
+.newsletter-form input { flex: 1; min-width: 0; height: 54px; padding: 0 17px; border: 1px solid #d5dfda; border-radius: 10px; background: white; color: #173b35; }
+.newsletter-form button { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 54px; padding: 0 22px; border: 0; border-radius: 10px; background: #176b54; color: white; font-weight: 700; cursor: pointer; }
+.newsletter-form button:hover { background: #105541; }
+.newsletter-form button:disabled,.newsletter-form input:disabled { cursor: wait; opacity: .7; }
+.newsletter-message { min-height: 1.4em; margin: 12px 0 0; font-size: .9rem; }
+.newsletter-message-success { color: #176b54; }
+.newsletter-message-error { color: #b42318; }
+.newsletter-message-pending { color: #596b66; }
+.newsletter-form button:focus-visible,.newsletter-form input:focus-visible { outline: 3px solid #d6a84f; outline-offset: 3px; }
+.newsletter-proof { display: flex; justify-content: center; align-items: center; gap: 9px; margin-top: 21px; color: #53645e; font-size: .88rem; }
+.newsletter-avatars { display: flex; padding-left: 5px; }
+.newsletter-avatars img { width: 27px; height: 27px; margin-left: -6px; object-fit: cover; border: 2px solid #f4f7f5; border-radius: 50%; }
+.newsletter-plus { color: #176b54; font-weight: 700; }
+.newsletter-portrait { position: absolute; width: 108px; height: 108px; object-fit: cover; border: 5px solid white; border-radius: 50%; box-shadow: 0 10px 28px #18352a1c; }
+.newsletter-portrait-1 { left: 7%; top: 11%; }.newsletter-portrait-2 { right: 7%; top: 11%; }.newsletter-portrait-3 { left: 7%; bottom: 11%; }.newsletter-portrait-4 { right: 7%; bottom: 11%; }
+@media (max-width: 700px) { .newsletter-section { padding-block: 50px; }.newsletter-frame { min-height: auto; padding: 48px 22px; }.newsletter-portrait { width: 64px; height: 64px; border-width: 3px; }.newsletter-portrait-1,.newsletter-portrait-2 { top: 15px; }.newsletter-portrait-3,.newsletter-portrait-4 { bottom: 15px; }.newsletter-content { padding-block: 38px; }.newsletter-form { flex-direction: column; }.newsletter-form button { width: 100%; }.newsletter-proof { flex-wrap: wrap; } }

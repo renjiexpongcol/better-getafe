@@ -169,7 +169,9 @@ export const policies = Object.freeze({
     limit(firstInteger(['RATE_LIMIT_CONTACT_MAX'], 5, 1), firstInteger(['RATE_LIMIT_CONTACT_WINDOW_MS'], 60_000, 1), firstInteger(['RATE_LIMIT_CONTACT_BURST'], 5, 1)),
   ], { maxDelayMs: 0, concurrency: 2 }),
   uploads: policy([
-    limit(integer('RATE_LIMIT_UPLOADS_PER_MINUTE', 12, 1), 60_000, integer('RATE_LIMIT_UPLOADS_BURST', 4, 1)),
+    // Each image uses a grant, byte upload and completion request. Allow
+    // normal editor batches while retaining a sustained per-client cap.
+    limit(integer('RATE_LIMIT_UPLOADS_PER_MINUTE', 60, 1), 60_000, integer('RATE_LIMIT_UPLOADS_BURST', 18, 1)),
   ], { maxDelayMs: integer('RATE_LIMIT_UPLOADS_MAX_DELAY_MS', 100), concurrency: 2 }),
   media_read: policy([
     limit(integer('RATE_LIMIT_MEDIA_READ_PER_MINUTE', 180, 1), 60_000, integer('RATE_LIMIT_MEDIA_READ_BURST', 40, 1)),
@@ -180,25 +182,30 @@ export const policies = Object.freeze({
 });
 
 export function policyFor(req, context = false) {
-  const path = requestPath(req).split('?')[0];
+  const path = requestPath(req).split('?')[0].toLowerCase().replace(/\/$/, '');
   const normalizedContext = typeof context === 'boolean'
     ? { session: context ? { kind: 'authenticated' } : null, service: null }
     : (context || {});
   const session = normalizedContext.session || null;
-  const service = normalizedContext.service || null;
   const isAuthenticated = Boolean(session);
   const mutation = isMutation(req.method);
   const apiRoute = isApiRoute(path);
+  // CMS media uploads are authenticated, permission checked, validated and
+  // size limited at their handlers. They must not consume shared Redis upload
+  // tokens, which otherwise blocks a multi image editor upload.
+  if (['/api/storage/upload-url', '/api/media/upload-proxy', '/api/media/complete'].includes(path)
+      && ['POST', 'PUT'].includes(req.method) && session?.kind === 'cms') return 'admin_staff';
   if (/^\/api\/contact(?:\/|$)/.test(path) && req.method === 'POST') return 'contact_form';
   if (/^\/api\/(?:auth|portal-auth)\/(?:login|register)$/.test(path)
     || /^\/api\/auth\/google(?:\/callback)?$/.test(path)) return 'authentication';
   if (/^\/api\/auth\/(?:verify-code|resend-code|forgot-password(?:\/.*)?|renew-password|mfa(?:\/|$))/.test(path)
-    || /^\/api\/citizen\/onboarding\/verification\/(?:request|confirm)$/.test(path)) return 'otp';
+    || /^\/api\/citizen\/(?:onboarding\/verification|email-verification|mobile-verification)\/(?:request|confirm)$/.test(path)
+    || /^\/api\/(?:auth\/change-password|account\/password|citizen\/onboarding\/password|citizen\/privacy-requests\/verify-password)$/.test(path)) return 'otp';
   if (req.method === 'POST' && (/^\/api\/feedback\/article$/.test(path) || /^\/api\/public-data\/datasets\/[^/]+\/query$/.test(path))) return 'expensive';
   if (req.method === 'GET' && /^\/api\/weather\/forecast$/.test(path)) return 'expensive';
-  // A verified service identity bypasses normal request buckets, but never
-  // bypasses the strict auth or expensive policies above.
-  if (service?.verified) return 'internal_service';
+  // Keep other public and resident uploads protected by the uploads policy.
+  if (mutation && (/^\/api\/(?:storage|media|citizen\/documents|citizen\/profile\/avatar|account\/avatar)/.test(path) || /^\/api\/(?:requests|staff\/applications)\/[^/]+\/documents$/.test(path))) return 'uploads';
+  if (req.method === 'GET' && /\/api\/staff\/eservices\/billing-parties$|\/api\/admin\/eservices\/staff-search$/.test(path)) return 'expensive';
   if (mutation && (/^\/api\/(?:admin|staff)(?:\/|$)/.test(path) || /^\/api\/account\/(?:avatar|password|change-password)$/.test(path))) return 'admin_sensitive';
   if (session?.kind === 'cms') return 'admin_staff';
   if (isAuthenticated) return 'authenticated';
@@ -218,8 +225,6 @@ export function isTrustedProxyAddress(address) {
 }
 
 export function resolveClient(req, getAuthenticatedId = () => null) {
-  const service = resolveServicePrincipal(req);
-  if (service) return { type: 'service', value: hash('service:' + service.id), principal: service };
   // Only trust an identity installed by an API-key authentication layer. A
   // caller-controlled header by itself must never let clients rotate buckets.
   const apiPrincipal = req.apiKeyPrincipal?.id ?? req.apiClient?.id;
@@ -228,6 +233,8 @@ export function resolveClient(req, getAuthenticatedId = () => null) {
   }
   const userId = getAuthenticatedId(req);
   if (userId) return { type: 'user', value: hash(`user:${userId}`) };
+  const service = resolveServicePrincipal(req);
+  if (service) return { type: 'service', value: hash('service:' + service.id), principal: service };
   const upstream = normalizeAddress(req.socket?.remoteAddress) || 'unknown';
   // Express computes req.ip by walking the forwarding chain right-to-left
   // through the configured trusted-proxy CIDRs. Never select the first raw
@@ -461,7 +468,7 @@ export class AdaptiveTrafficProtector {
         logDecision('allow', { remaining: result.remaining, source: result.source, limit: result.limit });
         return this.enter(req, res, next, client, name, policyToUse, identityType);
       }
-      if (result.strikes >= 8) {
+      if (result.strikes >= 8 && name !== 'uploads') {
         blockedUntil = this.now() + 5 * 60_000;
         if (!this.localBlocks.has(blockScope) && this.localBlocks.size >= MAX_CLIENTS) this.localBlocks.delete(this.localBlocks.keys().next().value);
         this.localBlocks.set(blockScope, blockedUntil);

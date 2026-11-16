@@ -1,20 +1,15 @@
+import { LoadingState, ErrorState, EmptyState } from '../../components/ui/Primitives'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapPin } from 'lucide-react'
-import { barangays } from '../../data/barangays'
+import { useBarangays } from '../../hooks/usePublicResource'
 import BarangayCard from '../../components/BarangayCard'
 import BarangayModal from '../../components/BarangayModal'
-import { publicApi } from '../../services/apiClient'
 
 export default function Barangays() {
-  const [records, setRecords] = useState(barangays)
+  const { items: records, loading, error, reload } = useBarangays()
   const [selectedBarangay, setSelectedBarangay] = useState(null)
   const [searchParams] = useSearchParams()
-  useEffect(() => {
-    let active = true
-    publicApi('/barangays').then((value) => { if (active && Array.isArray(value) && value.length) setRecords(value) }).catch(() => {})
-    return () => { active = false }
-  }, [])
 
   // Auto-open a barangay's modal when arriving with ?brgy=<id> (e.g. from
   // the "Getafe at a Glance" table).
@@ -38,14 +33,14 @@ export default function Barangays() {
       </div>
 
       <div className="content-page container">
-        <div className="barangays-grid">
+        {loading ? <LoadingState label="Loading barangays…" /> : error ? <ErrorState message={error} onRetry={reload} /> : !records.length ? <EmptyState title="No published barangays" /> : <div className="barangays-grid">
           {records.map((brgy) => (
             <BarangayCard key={brgy.id} barangay={brgy} onClick={setSelectedBarangay} />
           ))}
-        </div>
+        </div>}
 
         <p className="barangays-note">
-          <MapPin size={14} /> Population figures are from the 2020 Census of Population and Housing (PSA).
+          <MapPin size={14} /> Population figures are shown only when published by the municipality.
         </p>
       </div>
 

@@ -97,25 +97,33 @@ export const cacheService = {
     const flightKey = `${group}:${resource}`;
     if (inFlight.has(flightKey)) return inFlight.get(flightKey);
     const pending = (async () => {
+      // Redis failures can fall back to PostgreSQL. If the loader was already
+      // entered, reuse its outcome rather than issuing a second database read.
+      let loading;
+      const loadOnce = () => loading ||= Promise.resolve().then(loader);
       const locked = await withRedisLock(`cache-refresh:${group}:${resource}`, 10_000, async () => {
-        const existing = await redis.get(key);
+        const existing = await redis.get(key).catch(() => null);
         if (existing) {
-          const entry = JSON.parse(existing);
-          if (entry?.cacheMeta && Date.now() <= entry.cacheMeta.staleUntil) return entry.data;
+          try {
+            const entry = JSON.parse(existing);
+            if (entry?.cacheMeta && Date.now() <= entry.cacheMeta.staleUntil) return entry.data;
+          } catch { /* Replace an invalid cache entry with the database result. */ }
         }
-        const data = await loader();
+        const data = await loadOnce();
         const now = Date.now();
-        await redis.set(key, JSON.stringify({ data, cacheMeta: { createdAt: now, freshUntil: now + ttlSeconds * 1000, staleUntil: now + (ttlSeconds + staleSeconds) * 1000 } }), { EX: ttlSeconds + staleSeconds });
+        await redis.set(key, JSON.stringify({ data, cacheMeta: { createdAt: now, freshUntil: now + ttlSeconds * 1000, staleUntil: now + (ttlSeconds + staleSeconds) * 1000 } }), { EX: ttlSeconds + staleSeconds }).catch(() => {});
         return data;
       }).catch(() => null);
       if (locked?.acquired) return locked.value;
       await new Promise(resolve => setTimeout(resolve, 40));
       const refreshed = await redis.get(key).catch(() => null);
       if (refreshed) {
-        const entry = JSON.parse(refreshed);
-        if (entry?.cacheMeta) return entry.data;
+        try {
+          const entry = JSON.parse(refreshed);
+          if (entry?.cacheMeta && Date.now() <= entry.cacheMeta.staleUntil) return entry.data;
+        } catch { /* The cache is optional. */ }
       }
-      return loader();
+      return loadOnce();
     })().finally(() => inFlight.delete(flightKey));
     inFlight.set(flightKey, pending);
     return pending;

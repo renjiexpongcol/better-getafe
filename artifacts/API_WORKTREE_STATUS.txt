@@ -1,0 +1,253 @@
+ M artifacts/app-audit/appointment-1440.png
+ M artifacts/app-audit/appointment-320.png
+ M artifacts/app-audit/appointment-390.png
+ M artifacts/app-audit/appointment-768.png
+ M artifacts/app-audit/staff-1440.png
+ M artifacts/app-audit/staff-320.png
+ M artifacts/app-audit/staff-390.png
+ M artifacts/app-audit/staff-768.png
+ M artifacts/auth-isolation/admin-1440.png
+ M artifacts/auth-isolation/admin-390.png
+ M artifacts/auth-isolation/anonymous-1440.png
+ M artifacts/auth-isolation/anonymous-390.png
+ M artifacts/business-billing/confirmation-1440.png
+ M artifacts/business-billing/confirmation-390.png
+ M artifacts/business-billing/failure.png
+ M artifacts/business-billing/resident-1440.png
+ M artifacts/business-billing/resident-390.png
+ M artifacts/business-billing/staff-1440.png
+ M artifacts/business-billing/staff-390.png
+ M artifacts/employee-profiles/profile-1440.png
+ M artifacts/employee-profiles/profile-390.png
+ M artifacts/focus/all-controls-keyboard.png
+ M artifacts/focus/announcement-keyboard-1440.png
+ M artifacts/focus/announcement-keyboard-390.png
+ M artifacts/icon-buttons/-announcement-1440.png
+ M artifacts/icon-buttons/admin-1440.png
+ M artifacts/icon-buttons/admin-390.png
+ M artifacts/icon-buttons/admin-access-1440.png
+ M artifacts/icon-buttons/admin-access-390.png
+ M artifacts/icon-buttons/admin-media-1440.png
+ M artifacts/icon-buttons/admin-media-390.png
+ M artifacts/icon-buttons/admin-service-catalog-1440.png
+ M artifacts/icon-buttons/admin-service-catalog-390.png
+ M artifacts/icon-buttons/admin-settings-general-1440.png
+ M artifacts/icon-buttons/admin-settings-general-390.png
+ M artifacts/icon-buttons/app-1440.png
+ M artifacts/icon-buttons/app-390.png
+ M artifacts/icon-buttons/app-notifications-1440.png
+ M artifacts/icon-buttons/app-services-1440.png
+ M artifacts/icon-buttons/app-settings-1440.png
+ M artifacts/icon-buttons/app-staff-1440.png
+ M artifacts/icon-buttons/app-staff-390.png
+ M artifacts/icon-buttons/app-staff-requests-1440.png
+ M artifacts/icon-buttons/auth-login-1440.png
+ M artifacts/icon-buttons/news-icon-test-1440.png
+ M artifacts/icon-buttons/news-icon-test-390.png
+ M artifacts/icon-buttons/public-390.png
+ M artifacts/icon-buttons/shared-controls.png
+ M artifacts/service-details/existing-application-1440.png
+ M artifacts/service-details/existing-application-390.png
+ M artifacts/service-details/existing-application-768.png
+ M artifacts/service-details/long-content-1440.png
+ M artifacts/service-details/long-content-390.png
+ M artifacts/service-details/long-content-768.png
+ M artifacts/service-details/service-1440.png
+ M artifacts/service-details/service-390.png
+ M artifacts/service-details/service-768.png
+ M artifacts/unified-eservices/catalog-1440.png
+ M artifacts/unified-eservices/catalog-390.png
+ M artifacts/unified-eservices/catalog-768.png
+ M artifacts/unified-eservices/catalog-access-1440.png
+ M artifacts/unified-eservices/catalog-access-390.png
+ M artifacts/unified-eservices/catalog-access-768.png
+ M artifacts/unified-eservices/cms-1440.png
+ M artifacts/unified-eservices/cms-390.png
+ M artifacts/unified-eservices/cms-768.png
+ M artifacts/unified-eservices/failure.png
+ M artifacts/unified-eservices/profile-business-1440.png
+ M artifacts/unified-eservices/profile-business-390.png
+ M artifacts/unified-eservices/profile-business-768.png
+ M artifacts/unified-eservices/resident-1440.png
+ M artifacts/unified-eservices/resident-390.png
+ M artifacts/unified-eservices/resident-768.png
+ M artifacts/unified-eservices/review-1440.png
+ M artifacts/unified-eservices/review-390.png
+ M artifacts/unified-eservices/review-768.png
+ M artifacts/unified-eservices/service-1440.png
+ M artifacts/unified-eservices/service-390.png
+ M artifacts/unified-eservices/service-768.png
+ M artifacts/unified-eservices/staff-1440.png
+ M artifacts/unified-eservices/staff-390.png
+ M artifacts/unified-eservices/staff-768.png
+ M docs/APP_AUDIT.md
+ M package-lock.json
+ M package.json
+ M scripts/auth-isolation-fixture.mjs
+ M scripts/business-billing-browser.mjs
+ M scripts/test-api-security.mjs
+ M scripts/test-api-transport.mjs
+ M scripts/test-app-audit-ui.mjs
+ M scripts/test-app-recovery-ui.mjs
+ M scripts/test-appointment-scheduling.mjs
+ M scripts/test-auth-isolation-http.mjs
+ M scripts/test-employee-profile-ui.mjs
+ M scripts/test-employee-provisioning.mjs
+ M scripts/test-eservices-ui.mjs
+ M scripts/test-eservices.mjs
+ M scripts/test-icon-buttons-ui.mjs
+ M scripts/test-private-upload-boundary.mjs
+ M scripts/test-request-origin.mjs
+ M scripts/test-resident-preferences.mjs
+ M scripts/test-service-details-ui.mjs
+ M scripts/test-traffic-protection.mjs
+ M server/index.js
+ M server/src/repositories/mediaRepository.js
+ M server/src/services/accessManagementRoutes.js
+ M server/src/services/adminUsersRoutes.js
+ M server/src/services/apiRoutePolicy.js
+ M server/src/services/appointmentScheduling.js
+ M server/src/services/authState.js
+ M server/src/services/authorizationService.js
+ M server/src/services/citizenRoutes.js
+ M server/src/services/employeeProvisioning.js
+ M server/src/services/eserviceEngine.js
+ M server/src/services/eserviceRoutes.js
+ M server/src/services/googleOnboarding.js
+ M server/src/services/publicApiDtos.js
+ M server/src/services/requestOrigin.js
+ M server/src/services/staffRoutes.js
+ M server/src/services/storage.js
+ M server/src/services/trafficProtection.js
+ M src/App.jsx
+ M src/citizen.css
+ M src/components/AdminAccessManagement.css
+ M src/components/AdminAccessManagement.jsx
+ M src/components/AdminErrorLogs.css
+ M src/components/AdminErrorLogs.jsx
+ M src/components/AdminEservices.jsx
+ M src/components/AdminPrivacyRequests.jsx
+ M src/components/AdminSettings.css
+ M src/components/AdminSettings.jsx
+ M src/components/AdminUsers.css
+ M src/components/ArticleGallery.css
+ M src/components/CitizenLayout.jsx
+ D src/components/CitizenWidgets.css
+ M src/components/CitizenWidgets.jsx
+ M src/components/CommentsModeration.jsx
+ M src/components/DiscoverGetafe.css
+ M src/components/DynamicApplication.jsx
+ M src/components/EmployeeProfile.jsx
+ M src/components/EserviceUI.css
+ M src/components/EserviceUI.jsx
+ M src/components/HeaderWeather.jsx
+ M src/components/ImageLightbox.css
+ M src/components/ImportantAnnouncement.css
+ M src/components/ModalDialog.css
+ M src/components/ModalDialog.jsx
+ M src/components/PageTitleManager.jsx
+ M src/components/PasswordChangeModal.jsx
+ M src/components/ServiceCatalog.jsx
+ M src/components/ServiceDetails.css
+ M src/components/ServicePageLayout.jsx
+ M src/components/SettingsPermissions.jsx
+ M src/components/StaffEservices.jsx
+ M src/components/StaffUtilityPages.jsx
+ M src/hooks/useOpenStats.js
+ M src/index.css
+ M src/pages/admin/Admin.jsx
+ M src/pages/admin/AdminDashboard.css
+ M src/pages/app/AppPage.jsx
+ M src/pages/app/Appointments.jsx
+ M src/pages/app/Documents.css
+ M src/pages/app/Ebilling.jsx
+ M src/pages/app/Epayment.jsx
+ M src/pages/app/Erequest.jsx
+ M src/pages/app/Erequests.jsx
+ M src/pages/app/Notifications.jsx
+ M src/pages/app/Payments.jsx
+ M src/pages/app/Requests.jsx
+ M src/pages/app/Services.jsx
+ M src/pages/app/Settings.jsx
+ M src/pages/app/Setup.jsx
+ M src/pages/app/StaffHeader.css
+ M src/pages/app/StaffRequestModal.css
+ M src/pages/app/StaffSysparm.css
+ M src/pages/app/StaffSysparm.jsx
+ M src/pages/auth/ForgotPassword.jsx
+ M src/pages/auth/Login.jsx
+ M src/pages/dashboard/Dashboard.jsx
+ M src/pages/dashboard/Profile.jsx
+ M src/pages/data/publicData.css
+ M src/pages/departments/Departments.css
+ M src/pages/info/Contact.jsx
+ M src/pages/news/Article.jsx
+ M src/pages/news/News.css
+ M src/pages/services/Eservice.jsx
+ M src/pages/weather/Weather.jsx
+ M src/routes.js
+ M src/services/apiTransport.js
+ M src/services/publicDataApi.js
+ M src/services/publicError.js
+?? artifacts/API_WORKTREE_STATUS.txt
+?? artifacts/api-dependency-audit.json
+?? artifacts/api-secret-scan.json
+?? artifacts/appointment-form/
+?? artifacts/employee-profiles/provision-1440.png
+?? artifacts/employee-profiles/provision-390.png
+?? artifacts/six-issue-regressions/
+?? artifacts/staff-assessment/
+?? artifacts/staff-processing/
+?? artifacts/ui-overhaul/
+?? artifacts/ui-review/
+?? database/migrations/postgresql/025_authoritative_auth_state.sql
+?? docs/API_ENDPOINTS.json
+?? docs/API_SECURITY_AUDIT.md
+?? docs/API_SECURITY_MATRIX.json
+?? docs/API_SECURITY_MATRIX.md
+?? docs/GETAFE_UI_HANDOFF.md
+?? docs/SIX_ISSUE_FIX_REPORT.md
+?? docs/UI_BLUEPRINT.json
+?? docs/UI_BLUEPRINT.md
+?? docs/UI_IMPLEMENTATION_AUDIT.md
+?? docs/UI_OVERHAUL_PROMPT.md
+?? docs/UI_POST_OVERHAUL_QA.md
+?? docs/UI_ROUTE_INVENTORY.md
+?? scripts/audit-api-matrix.mjs
+?? scripts/audit-repository-secrets.mjs
+?? scripts/export-ui-blueprint.mjs
+?? scripts/regression-module.mjs
+?? scripts/route-inventory.mjs
+?? scripts/test-appointment-form-ui.mjs
+?? scripts/test-department-queue-ui.mjs
+?? scripts/test-google-onboarding-security.mjs
+?? scripts/test-media-security.mjs
+?? scripts/test-password-change-http.mjs
+?? scripts/test-security-boundaries.mjs
+?? scripts/test-service-editor-regression.mjs
+?? scripts/test-six-issue-regressions.mjs
+?? scripts/test-staff-assessment-ui.mjs
+?? scripts/test-staff-processing-ui.mjs
+?? scripts/test-ui-overhaul-interactions.mjs
+?? scripts/test-ui-overhaul.mjs
+?? scripts/test-ui-review-interactions.mjs
+?? scripts/test-ui-review-overlays.mjs
+?? scripts/test-ui-review.mjs
+?? scripts/ui-review-fixtures.mjs
+?? server/src/services/apiEndpointPolicies.js
+?? server/src/services/apiInputValidation.js
+?? server/src/services/csrf.js
+?? server/src/services/publicMediaAccess.js
+?? server/src/services/submissionPersistence.js
+?? src/components/AppointmentFields.css
+?? src/components/AppointmentFields.jsx
+?? src/components/EmployeeSelect.jsx
+?? src/components/RecordNavigation.jsx
+?? src/components/StaffAssessment.jsx
+?? src/components/StaffRequestDetail.css
+?? src/components/StaffRequestProcessing.jsx
+?? src/components/ui/Primitives.css
+?? src/components/ui/Primitives.jsx
+?? src/design-tokens.css
+?? src/services/securityFetch.js
+?? src/services/statusPresentation.js

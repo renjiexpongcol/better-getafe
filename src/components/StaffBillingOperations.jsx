@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { esApi, useEservice, Feedback } from "./EserviceUI";
 export default function StaffBillingOperations() {
-  const options = useEservice(() => esApi("/staff/eservices/options"), []),
+  const options = useEservice((signal) => esApi("/staff/eservices/options", "GET", undefined, undefined, {signal}), []),
     [report, setReport] = useState(null),
     [data, setData] = useState({
       account_type: "WATER",

@@ -2,7 +2,7 @@ import sanitizeHtml from 'sanitize-html'
 
 const options = {
   allowedTags: ['p', 'br', 'strong', 'em', 'u', 's', 'blockquote', 'ul', 'ol', 'li', 'h2', 'h3', 'h4', 'a', 'img', 'hr'],
-  allowedAttributes: { a: ['href', 'title', 'target', 'rel'], img: ['src', 'alt', 'width', 'height'] },
+  allowedAttributes: { a: ['href', 'title', 'target', 'rel'], img: ['src', 'alt', 'width', 'height', 'data-news-media'] },
   allowedSchemes: ['http', 'https', 'mailto'],
   allowedSchemesByTag: { img: ['http', 'https'] },
   allowProtocolRelative: false,
@@ -12,6 +12,32 @@ const options = {
 }
 
 export const sanitizeRichText = value => sanitizeHtml(String(value || ''), options)
+
+export function inlineNewsMediaIds(content) {
+  const ids = new Set()
+  sanitizeHtml(String(content || ''), {
+    ...options,
+    transformTags: { img(tagName, attribs) {
+      const id = attribs['data-news-media']
+      if (/^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i.test(id || '')) ids.add(id)
+      return { tagName, attribs }
+    } },
+  })
+  return [...ids]
+}
+
+export function renderNewsMedia(content, urls) {
+  return sanitizeHtml(content, {
+    ...options,
+    transformTags: { ...options.transformTags, img(tagName, attribs) {
+      if (!Object.hasOwn(attribs, 'data-news-media')) return { tagName, attribs }
+      const { 'data-news-media': id, src: _src, ...rest } = attribs
+      const src = urls.get(id)
+      return { tagName, attribs: src ? { ...rest, src } : rest }
+    } },
+    exclusiveFilter: frame => frame.tag === 'img' && !frame.attribs.src,
+  })
+}
 
 export function sanitizeOfficials(value) {
   if (!value || typeof value !== 'object') return value

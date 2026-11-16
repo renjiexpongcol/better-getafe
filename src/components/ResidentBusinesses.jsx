@@ -1,11 +1,14 @@
+import ResourceOptionsStatus from './ResourceOptionsStatus'
 import { useEffect, useState } from 'react'
 import { esApi, useEservice } from './EserviceUI'
-import { barangays } from '../data/barangays'
+import { useBarangays } from '../hooks/usePublicResource'
 
 const empty = { business_name: '', trade_name: '', ownership_type: '', address: { street: '', barangay: '' } }
 
 export default function ResidentBusinesses({ onDirtyChange, onBusyChange }) {
-  const businesses = useEservice(() => esApi('/businesses'), [])
+  const barangayResource = useBarangays()
+  const barangays = barangayResource.items
+  const businesses = useEservice((signal) => esApi('/businesses', "GET", undefined, undefined, {signal}), [])
   const [editing, setEditing] = useState(false)
   const [id, setId] = useState(null)
   const [form, setForm] = useState(empty)
@@ -42,7 +45,7 @@ export default function ResidentBusinesses({ onDirtyChange, onBusyChange }) {
       {business.status === 'UNVERIFIED' && business.profile_editable !== false && !editing && <button className="citizen-secondary" type="button" onClick={() => edit(business)}>Edit business</button>}
     </article>)}
     {!editing && <button type="button" className="citizen-secondary" onClick={() => edit(null)} disabled={businesses.loading || !!businesses.error}>Add business</button>}
-    {editing && <form onSubmit={save}>
+    {editing && <ResourceOptionsStatus resource={barangayResource} label="Barangays" />}{editing && <form onSubmit={save}>
       <h3>{id ? 'Edit business information' : 'Add a business'}</h3>
       <div className="portal-form-grid">
         <label>Business name<input aria-label="Business name" autoFocus required maxLength={160} value={form.business_name} onChange={update('business_name')} /></label>

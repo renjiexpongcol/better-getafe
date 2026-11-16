@@ -82,6 +82,9 @@ CREATE OR REPLACE FUNCTION eservice_audit_immutable() RETURNS trigger LANGUAGE p
 CREATE TRIGGER eservice_audit_immutable BEFORE UPDATE OR DELETE ON audit_logs FOR EACH ROW EXECUTE FUNCTION eservice_audit_immutable();
 CREATE OR REPLACE FUNCTION eservice_payment_immutable() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.payment_order_id IS NOT NULL THEN RAISE EXCEPTION 'Use a financial adjustment'; END IF; IF TG_OP='DELETE' THEN RETURN OLD; END IF; RETURN NEW; END $$;
 CREATE TRIGGER eservice_payments_immutable BEFORE UPDATE OR DELETE ON payments FOR EACH ROW EXECUTE FUNCTION eservice_payment_immutable();
+-- Destination bootstrap imports the source catalog and its IDs afterward.
+DO $catalog_seed$ BEGIN
+IF current_setting('getafe.import_source_catalog', true) = 'on' THEN RETURN; END IF;
 INSERT INTO service_categories(name,slug) VALUES ('Business Services','business'),('Billing and Payment','billing');
 INSERT INTO services(name,slug,kind,category_id) SELECT v.name,v.slug,v.kind,c.id FROM (VALUES
  ('Business Services','business-services','DIRECTORY','business'),
@@ -92,3 +95,4 @@ INSERT INTO services(name,slug,kind,category_id) SELECT v.name,v.slug,v.kind,c.i
  ('Online Payment Order','online-payment-order','PAYMENT_ORDER','billing'),
  ('Water Online Billing and Payment','water-billing','WATER','billing')
  ) v(name,slug,kind,category) JOIN service_categories c ON c.slug=v.category;
+END; $catalog_seed$;

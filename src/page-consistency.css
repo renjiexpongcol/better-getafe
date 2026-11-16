@@ -1,0 +1,229 @@
+/* Consistency for inner public pages; the restored homepage retains its layout. */
+.page-shell main:not(#home) :is(.page-title,.page-header h1) { letter-spacing:-.025em; line-height:1.2; overflow-wrap:anywhere; }
+.page-shell main:not(#home) :is(.page-subtitle,.service-intro) { line-height:1.65; max-width:70ch; }
+.page-shell main:not(#home) :is(.news-controls,.events-heading,.directory-search,.ui-toolbar) { gap:16px; }
+.page-shell main:not(#home) :is(.list-state-card,.events-empty,.news-empty,.homepage-state) { border:1px solid var(--color-border); border-radius:var(--radius-control); background:var(--color-surface); padding:24px; color:var(--color-text-secondary); line-height:1.6; overflow-wrap:anywhere; }
+.page-shell main:not(#home) :is(.list-state-card,.events-empty,.homepage-state) :is(strong,h3) { color:var(--color-text); }
+.page-shell main:not(#home) :is(.pagination,.media-pagination) { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.page-shell main:not(#home) :is(.pagination,.media-pagination,.list-state-card,.events-empty,.homepage-state) button,.public-calendar-toggle { min-height:44px; min-width:44px; padding:8px 16px; border-radius:var(--radius-control); font:inherit; cursor:pointer; }
+.page-shell main:not(#home) button:disabled { cursor:not-allowed; }
+.page-shell main:not(#home) :is(.news-controls,.contact-form,.directory-search) :is(input:not([type=checkbox]):not([type=radio]),textarea,select) { min-height:44px; font-size:1rem; border-radius:var(--radius-control); }
+.page-shell main:not(#home) :is(.ui-search,.ui-loading,.ui-empty,.ui-alert) { margin-block:16px; }
+.page-shell main:not(#home) .news-controls > .ui-search { flex:1; margin:0; }
+@media(max-width:600px) { .page-shell main:not(#home) .news-controls { display:flex; flex-direction:column; align-items:stretch; }.page-shell main:not(#home) .news-controls > * { width:100%; min-width:0; }.page-shell main:not(#home) .events-heading > .ui-search { width:100%; }.page-shell main:not(#home) :is(.list-state-card,.events-empty,.homepage-state) { padding:20px 16px; } }
+
+/* Events page calendar shares the same control sizes and mobile rhythm. */
+.public-event-calendar { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(0, 1fr); gap: 32px; margin-block: 24px 40px; padding: 24px; border: 1px solid var(--border, #cbd8e6); border-radius: var(--radius-panel, 8px); background: var(--color-surface, #fff); }
+.public-calendar-toggle, .public-calendar-head button, .public-event-calendar button { min-height: 44px; border: 1px solid #9eb1c6; border-radius: var(--radius-control, 6px); background: #fff; color: #123452; padding: 8px; font: inherit; cursor: pointer; }
+.public-calendar-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.public-calendar-head h3 { margin: 0; }
+.public-calendar-head > div { display: flex; gap: 8px; }
+.public-calendar-weekdays, .public-calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; text-align: center; }
+.public-calendar-weekdays { margin-bottom: 8px; font-size: .8125rem; }
+.public-calendar-days button { padding: 4px; min-width: 0; border-color: transparent; }
+.public-calendar-days button span { display: block; line-height: .6; }
+.public-calendar-days button[aria-pressed="true"] { background: #123452; color: #fff; }
+.public-calendar-days button[aria-current="date"] { border: 2px solid #123452; }
+.public-event-calendar article { padding-block: 12px; border-bottom: 1px solid var(--border, #cbd8e6); }
+.public-event-calendar h4 { font-size: 1rem; overflow-wrap: anywhere; }
+@media(max-width:760px) { .public-event-calendar { grid-template-columns: minmax(0, 1fr); padding: 12px; gap: 24px; } }
+
+.page-shell main:not(#home) :is(.news-listing,.events-content) > .container { width:min(calc(100% - 32px),1280px); margin-inline:auto; }
+/* Account access uses the same municipal photograph as the homepage hero. */
+.login-page {
+  background: linear-gradient(120deg, rgb(7 26 51 / 64%), rgb(25 74 120 / 38%)), url('/assets/Getafe_Bohol_1.jpg') center 48% / cover no-repeat;
+}
+.login-page .login-main { background: transparent; }
+@media (forced-colors: active) {
+  .login-page { background: Canvas; }
+}
+.login-egov-option { position:relative; min-width:0; flex:1; }
+.login-egov-option .login-social { width:100%; }
+.login-egov-notice { position:absolute; z-index:10; bottom:calc(100% + 8px); right:0; width:240px; max-width:min(240px,calc(100vw - 64px)); padding:10px 12px; border:1px solid var(--color-border); border-radius:var(--radius-control); background:var(--color-surface); color:var(--color-text-secondary); box-shadow:var(--shadow-raised); font-size:.8125rem; line-height:1.5; }
+/* Fit account access to the available viewport without nested form scrolling. */
+.login-page { min-height:100dvh; height:auto; }
+.login-page .login-main { min-height:100dvh; padding:16px; align-content:center; }
+.login-page .login-card { max-height:none; overflow:visible; }
+@media(max-height:760px) {
+  .login-page .login-card-signin { padding:20px 24px; }
+  .login-card-signin .login-mobile-brand { margin-bottom:16px; }
+  .login-card-signin .login-tabs { margin-bottom:16px; }
+  .login-card-signin .login-heading { font-size:1.65rem; }
+  .login-card-signin .login-subheading { margin-bottom:18px; }
+  .login-card-signin .login-form { gap:12px; }
+  .login-card-signin .login-divider { margin:12px 0; }
+  .login-card-signin .login-social { height:44px; }
+  .login-card-signin .login-switch { margin-top:12px; }
+}
+@media(max-width:520px) {
+  .login-page .login-main { padding:12px; }
+  .login-page .login-card { padding-inline:20px; }
+  .login-page .login-social-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .login-page .login-input-wrap input { font-size:16px; }
+}
+@media(max-height:760px) {
+  .login-page .login-card-signin { padding-block:16px; }
+  .login-card-signin .login-seal { width:44px; height:44px; }
+  .login-card-signin .login-tab { min-height:44px; padding-block:8px; }
+  .login-card-signin .login-tabs { padding:3px; margin-bottom:12px; }
+  .login-card-signin .login-heading { line-height:1.2; }
+  .login-card-signin .login-subheading { margin-bottom:12px; }
+  .login-card-signin .login-form { gap:8px; }
+  .login-card-signin .login-divider { margin:8px 0; }
+  .login-card-signin .login-switch { margin-top:8px; }
+}
+/* Error pages remain plain, centered content without icons or decorative cards. */
+.route-status-content { gap:0; }
+.route-status-code { margin-top:0; font-size:clamp(3.5rem,12vw,6rem); line-height:1; }
+.route-status-actions { flex-wrap:wrap; gap:12px; }
+.route-status-actions .error-action { min-height:44px; max-width:100%; white-space:normal; text-align:center; }
+.route-status-help { overflow-wrap:anywhere; line-height:1.6; }
+.route-status-page-compact { min-height:0; padding:32px 16px; }
+@media(max-width:480px) { .route-status-actions { width:100%; }.route-status-actions .error-action { width:100%; }.route-status-content { width:100%; } }
+/* One stable municipal header shared by both account-access forms. */
+.auth-branding { display:flex; flex-direction:column; align-items:center; text-align:center; margin:0 0 16px; }
+.auth-branding img { width:48px; height:48px; object-fit:contain; flex-shrink:0; padding:3px; background:var(--color-surface); border-radius:var(--radius-control); margin-bottom:8px; }
+.auth-branding-name { color:var(--color-brand-strong); font-size:1rem; font-weight:600; line-height:1.25; overflow-wrap:anywhere; max-width:100%; }
+.auth-branding-location { color:var(--color-text-muted); font-size:.78rem; line-height:1.4; margin-top:3px; }
+.login-page:not(.login-challenge-page) .login-main { align-content:start; padding-top:clamp(12px,3dvh,28px); }
+.login-page .login-card:has(.auth-branding) { padding:20px 24px; }
+@media(max-height:760px) { .login-page .login-card:has(.auth-branding) { padding-block:16px; } }
+@media(max-width:520px) {
+  .auth-branding img { width:40px; height:40px; }
+  .login-page .login-card:has(.auth-branding) { padding-inline:20px; }
+}
+
+/* Sign-in field rhythm, unified autofill surfaces, and short-screen scrolling. */
+.login-page:not(.login-challenge-page) {
+  min-height:100svh;
+  height:auto;
+  overflow-x:clip;
+  overflow-y:auto;
+}
+.login-page:not(.login-challenge-page) .login-main {
+  box-sizing:border-box;
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  justify-items:center;
+  align-content:safe center;
+  width:100%;
+  min-height:100svh;
+  height:auto;
+  padding:clamp(16px,4vh,36px) 16px;
+  overflow:visible;
+}
+.login-page:not(.login-challenge-page) .login-main > :is(.login-card,.login-divider,.login-social-row,.login-switch) {
+  box-sizing:border-box;
+  width:min(100%,460px);
+  min-width:0;
+}
+.login-page:not(.login-challenge-page) .login-card-signin {
+  min-height:0;
+  height:auto;
+  padding:22px 24px;
+}
+.login-page:not(.login-challenge-page) .login-card-signin > section {
+  display:block;
+  flex:0 0 auto;
+  min-width:0;
+}
+.login-card-signin .login-heading,
+.login-card-register .login-heading { margin:0 0 12px; }
+.login-card-signin .login-subtitle,
+.login-card-register .login-subtitle { max-width:36ch; margin:0 auto 18px; color:var(--color-text-secondary); font-size:.875rem; line-height:1.5; text-align:center; }
+.login-card-signin .login-error,
+.login-card-signin .login-info { margin:0 0 12px; }
+.login-card-signin .login-form {
+  display:grid;
+  flex:0 0 auto;
+  grid-template-columns:minmax(0,1fr);
+  gap:12px;
+  justify-content:initial;
+  min-width:0;
+}
+.login-card-signin .login-field { gap:6px; }
+.login-card-signin .login-label-row { gap:8px; }
+.login-card-signin .login-label-row > * { min-width:0; }
+.login-card-signin .login-label-row .login-link-btn { white-space:nowrap; }
+.login-card-signin .login-input-wrap {
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  height:48px;
+  min-height:48px;
+  gap:10px;
+  padding:0 10px;
+  border:1px solid #cbd9e8;
+  border-radius:12px;
+  background:var(--color-surface,#fff);
+  box-shadow:none;
+}
+.login-card-signin .login-input-wrap > svg { flex:0 0 20px; width:20px; height:20px; }
+.login-card-signin .login-input-wrap input {
+  box-sizing:border-box;
+  width:0;
+  min-width:0;
+  height:100%;
+  min-height:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0;
+  outline:0;
+  background:transparent !important;
+  color:var(--color-text,#17233a);
+  font-size:1rem;
+  box-shadow:none !important;
+}
+.login-card-signin .login-input-wrap input:-webkit-autofill,
+.login-card-signin .login-input-wrap input:-webkit-autofill:hover,
+.login-card-signin .login-input-wrap input:-webkit-autofill:focus {
+  -webkit-text-fill-color:var(--color-text,#17233a) !important;
+  -webkit-box-shadow:0 0 0 1000px var(--color-surface,#fff) inset !important;
+  box-shadow:0 0 0 1000px var(--color-surface,#fff) inset !important;
+  background-color:transparent !important;
+  caret-color:var(--color-text,#17233a);
+  transition:background-color 99999s ease-out 0s;
+}
+.login-card-signin .login-input-wrap input:-moz-autofill {
+  color:var(--color-text,#17233a) !important;
+  box-shadow:0 0 0 1000px var(--color-surface,#fff) inset !important;
+}
+.login-card-signin .login-input-wrap:focus-within {
+  border-color:var(--color-focus,#2f80c9);
+  box-shadow:0 0 0 2px rgb(47 128 201 / 18%);
+}
+.login-card-signin .login-eye {
+  box-sizing:border-box;
+  display:grid;
+  flex:0 0 44px;
+  place-items:center;
+  width:44px;
+  height:44px;
+  min-width:44px;
+  min-height:44px;
+  margin-right:-9px;
+  padding:0;
+  border:0;
+  border-radius:9px;
+  background:transparent;
+  color:#7185a1;
+}
+.login-card-signin .login-eye:hover:not(:disabled) { background:#eef5fc; color:var(--color-brand-primary); }
+.login-card-signin .login-options-row { margin:0; }
+.login-card-signin .login-submit { width:100%; min-height:48px; height:48px; margin:0; }
+.login-page:not(.login-challenge-page) .login-divider { margin:14px 0 12px; }
+.login-page:not(.login-challenge-page) .login-social-row { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.login-page:not(.login-challenge-page) .login-social,
+.login-page:not(.login-challenge-page) .login-egov-option .login-social {
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  min-height:48px;
+  height:48px;
+}
+.login-page:not(.login-challenge-page) .login-switch { margin:12px 0 0; }
+@media(max-width:520px) {
+  .login-page:not(.login-challenge-page) .login-main { padding:16px; }
+  .login-page:not(.login-challenge-page) .login-card-signin { padding:20px; }
+  .login-page:not(.login-challenge-page) .login-social-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}

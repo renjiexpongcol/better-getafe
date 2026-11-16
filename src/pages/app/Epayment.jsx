@@ -8,14 +8,14 @@ import {
 } from "../../components/EserviceUI";
 export default function Epayment() {
   const { id } = useParams(),
-    state = useEservice(() => esApi(`/payment-orders/${id}`), [id]);
+    state = useEservice((signal) => esApi(`/payment-orders/${id}`, "GET", undefined, undefined, {signal}), [id]);
   return (
     <AppPage title="Payment order">
-      <main className="es-workspace">
+      <section className="es-workspace">
         <Link to="/app/e-billing/all">My payments</Link>
         <Feedback loading={state.loading} error={state.error} />
         {state.data && <OrderView order={state.data} />}
-      </main>
+      </section>
     </AppPage>
   );
 }

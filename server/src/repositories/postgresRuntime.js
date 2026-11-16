@@ -1,4 +1,4 @@
-import { getCmsPool, getPortalPool } from '../services/cloudSql.js';
+import { getCmsPool, getPortalPool } from '../services/database.js';
 
 function postgresSql(sql) {
   return String(sql)
@@ -23,11 +23,11 @@ export async function getPostgresRuntime(category = 'portal') {
   const runtime = { pool, connection: null };
   return {
     prepare(sql) { return statement(runtime, sql); },
-    async exec(sql) {
+    async exec(sql, options) {
       const normalized = postgresSql(sql).trim().toUpperCase();
       if (normalized === 'BEGIN') {
         runtime.connection = await pool.getConnection();
-        try { await runtime.connection.beginTransaction(); }
+        try { await runtime.connection.beginTransaction(options); }
         catch (error) { runtime.connection.release(); runtime.connection = null; throw error; }
       } else if (normalized === 'COMMIT' && runtime.connection) {
         try { await runtime.connection.commit(); }

@@ -1,3 +1,4 @@
+import { securityFetch as fetch } from '../services/securityFetch.js'
 import { useEffect, useState } from 'react'
 
 // PSA OpenSTAT PX-Web API — Palay & Corn: Volume of Production (metric tons)

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { getCmsPool } from '../services/cloudSql.js';
+import { getCmsPool } from '../services/database.js';
 const fields = { title: 'title', slug: 'slug', shortDescription: 'short_description', fullDescription: 'full_description', featuredImage: 'featured_image', imageAlt: 'image_alt', location: 'location', category: 'category', published: 'published', featured: 'featured', displayOrder: 'display_order' };
 const select = `id, ${Object.entries(fields).map(([key, column]) => `${column} AS "${key}"`).join(', ')}, created_at AS "createdAt", updated_at AS "updatedAt"`;
 export async function listDestinations({ admin = false, featured = false, limit = 100, offset = 0 } = {}) {

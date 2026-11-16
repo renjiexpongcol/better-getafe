@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { getCmsPool } from './cloudSql.js';
+import { getCmsPool } from './database.js';
 import { audit } from './authorizationService.js';
 import { getPostgresRuntime } from '../repositories/postgresRuntime.js';
 import { getMediaById, getMediaByStoragePath, deleteMediaRecord, listExpiredPendingUploads, deletePendingUpload } from '../repositories/mediaRepository.js';

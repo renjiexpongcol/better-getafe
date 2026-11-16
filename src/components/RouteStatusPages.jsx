@@ -1,136 +1,63 @@
+import { focusContentTarget } from '../services/focusManagement'
+import { useErrorActivity } from '../context/RouteActivity'
 import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import {
-  ArrowLeft,
-  ArrowRight,
-  Building2,
-  CalendarDays,
-  Clock3,
-  FileQuestion,
-  FileText,
-  Gauge,
-  LockKeyhole,
-  MapPin,
-  SearchX,
-  ServerOff,
-  ShieldX,
-  TriangleAlert,
-  UserRound,
-  WifiOff,
-} from 'lucide-react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
+import { useOptionalAuth } from '../context/AuthContext'
+import { useErrorHistory } from '../context/ErrorNavigation'
+import { getErrorNavigationContext, isSafeErrorDestination } from '../services/errorNavigation'
+import { ROUTES } from '../routeRegistry'
 import { reportClientError } from '../services/publicError'
 
-const homeAction = { label: 'Back to Home', to: '/' }
 const retryAction = { label: 'Try Again', onClick: () => window.location.reload() }
 
 const ERROR_STATES = {
   '400': {
     title: 'Bad request',
-    message: "We couldn't process this request. Please check the information provided and try again.",
-    icon: FileQuestion,
-    primaryAction: { label: 'Go Back', back: true },
-    secondaryAction: homeAction,
-  },
+    message: "We couldn't process this request. Please check the information provided and try again.",  },
   '401': {
     title: 'Sign in required',
-    message: 'You need to sign in to access this page.',
-    icon: LockKeyhole,
-    primaryAction: { label: 'Sign In', to: '/auth/login' },
-    secondaryAction: homeAction,
-  },
+    message: 'You need to sign in to access this page.',  },
   '403': {
     title: 'Access denied',
-    message: "Your account doesn't have permission to access this page.",
-    icon: ShieldX,
-    primaryAction: { label: 'Back to Dashboard', to: '/app' },
-    secondaryAction: homeAction,
-  },
+    message: "Your account doesn't have permission to access this page.",  },
   '404': {
     title: 'Page not found',
-    message: "The page you're looking for may have been moved, removed, or the address may be incorrect.",
-    icon: SearchX,
-    primaryAction: homeAction,
-    secondaryAction: { label: 'Go Back', back: true },
-    contact: true,
+    message: "The page you're looking for may have been moved, removed, or the address may be incorrect.",    contact: true,
   },
   '408': {
     title: 'Request timed out',
-    message: 'The request took too long to complete. Please check your connection and try again.',
-    icon: Clock3,
-    primaryAction: retryAction,
-    secondaryAction: homeAction,
-  },
+    message: 'The request took too long to complete. Please check your connection and try again.',  },
   '409': {
     title: 'Conflict',
-    message: 'This request conflicts with the current state. Refresh the page and try again.',
-    icon: TriangleAlert,
-    primaryAction: retryAction,
-    secondaryAction: homeAction,
-  },
+    message: 'This request conflicts with the current state. Refresh the page and try again.',  },
   '410': {
     title: 'This page is no longer available',
-    message: 'The content you requested has been permanently removed.',
-    icon: FileQuestion,
-    primaryAction: homeAction,
-    secondaryAction: { label: 'Go Back', back: true },
-  },
+    message: 'The content you requested has been permanently removed.',  },
   '422': {
     title: 'Invalid request',
-    message: "We couldn't process the information provided. Please review it and try again.",
-    icon: FileQuestion,
-    primaryAction: retryAction,
-    secondaryAction: homeAction,
-  },
+    message: "We couldn't process the information provided. Please review it and try again.",  },
   '429': {
     title: 'Too many requests',
-    message: "You've made several requests in a short period. Please wait a moment before trying again.",
-    icon: Gauge,
-    primaryAction: retryAction,
-    secondaryAction: homeAction,
-  },
+    message: "You've made several requests in a short period. Please wait a moment before trying again.",  },
   '500': {
     title: 'Something went wrong',
     message: 'We encountered an unexpected problem while processing your request.',
-    detail: 'Please try again. If the problem continues, contact the Municipality of Getafe for assistance.',
-    icon: TriangleAlert,
-    primaryAction: retryAction,
-    secondaryAction: homeAction,
-  },
+    detail: 'Please try again. If the problem continues, contact the Municipality of Getafe for assistance.',  },
   '502': {
     title: 'Service connection problem',
-    message: "We're having trouble connecting to one of our services.",
-    icon: ServerOff,
-    primaryAction: retryAction,
-    secondaryAction: homeAction,
-  },
+    message: "We're having trouble connecting to one of our services.",  },
   '503': {
     title: 'Service temporarily unavailable',
-    message: 'This service is temporarily unavailable. Please try again shortly.',
-    icon: ServerOff,
-    primaryAction: retryAction,
-    secondaryAction: homeAction,
-  },
+    message: 'This service is temporarily unavailable. Please try again shortly.',  },
   '504': {
     title: 'Service took too long to respond',
-    message: 'The service did not respond in time. Please try again.',
-    icon: Clock3,
-    primaryAction: retryAction,
-    secondaryAction: homeAction,
-  },
+    message: 'The service did not respond in time. Please try again.',  },
   offline: {
     title: "You're offline",
-    message: 'Check your internet connection and try again.',
-    icon: WifiOff,
-    primaryAction: retryAction,
-    secondaryAction: { label: 'Continue browsing', onClick: () => window.location.assign('/') },
-  },
+    message: 'Check your internet connection and try again.',  },
   application: {
     title: 'Something went wrong',
-    message: 'We encountered an unexpected problem while processing your request.',
-    icon: TriangleAlert,
-    primaryAction: retryAction,
-    secondaryAction: homeAction,
-  },
+    message: 'We encountered an unexpected problem while processing your request.',  },
 }
 
 const RESOURCE_STATES = {
@@ -138,44 +65,34 @@ const RESOURCE_STATES = {
     title: 'Article not found',
     message: "The article you're looking for may have been removed or is no longer available.",
     browseLabel: 'Browse News',
-    browseTo: '/news',
-    icon: FileText,
-  },
+    browseTo: '/news',  },
   event: {
     title: 'Event not found',
     message: "The event you're looking for may have been removed or is no longer available.",
     browseLabel: 'Browse Events',
-    browseTo: '/events',
-    icon: CalendarDays,
-  },
+    browseTo: '/events',  },
   service: {
     title: 'Service not found',
     message: "The service you're looking for may have been moved or is no longer available.",
     browseLabel: 'Browse Services',
-    browseTo: '/services',
-    icon: Building2,
-  },
+    browseTo: '/services',  },
   official: {
     title: 'Official not found',
     message: "The official profile you're looking for may have been removed or is no longer available.",
     browseLabel: 'Browse Officials',
     browseTo: '/officials',
-    icon: UserRound,
   },
   barangay: {
     title: 'Barangay not found',
     message: "The barangay profile you're looking for may have been moved or is no longer available.",
     browseLabel: 'Browse Barangays',
     browseTo: '/barangays',
-    icon: MapPin,
   },
   document: {
     title: 'Document not found',
     message: "The document you're looking for may have been removed or is no longer available.",
     browseLabel: 'Browse Documents',
-    browseTo: '/app/documents',
-    icon: FileText,
-  },
+    browseTo: '/app/documents',  },
 }
 
 function useAvailablePageHeight(pageRef) {
@@ -216,13 +133,12 @@ function formatRetryDelay(seconds) {
 }
 
 function Action({ action, kind, disabled = false }) {
-  const navigate = useNavigate()
   const className = `error-action error-action-${kind}`
   if (!action) return null
   if (action.to) {
-    return <Link className={className} to={action.to} onClick={action.onClick}>{action.label}<ArrowRight size={16} aria-hidden="true" /></Link>
+    return <Link className={className} to={action.to} onClick={action.onClick}>{action.label}</Link>
   }
-  return <button className={className} type="button" disabled={disabled || action.disabled} onClick={action.onClick || (action.back ? () => navigate(-1) : undefined)}>{action.back && <ArrowLeft size={16} aria-hidden="true" />}{action.label}</button>
+  return <button className={className} type="button" disabled={disabled || action.disabled} onClick={action.onClick}>{action.label}</button>
 }
 
 export function ErrorPage({
@@ -230,18 +146,21 @@ export function ErrorPage({
   title,
   message,
   detail,
-  icon,
   retryAfter,
   primaryAction,
   secondaryAction,
   showContact,
-  eyebrow = false,
+  showActions = true,
   compact = false,
   showCode = !['application', 'offline'].includes(String(code).toLowerCase()),
 }) {
+  useErrorActivity()
   const codeKey = String(code || 'application').toLowerCase()
   const state = ERROR_STATES[codeKey] || ERROR_STATES.application
-  const Icon = codeKey === '403' ? null : icon === false ? null : icon || state.icon
+  const auth = useOptionalAuth()
+  const location = useLocation()
+  const previous = useErrorHistory()
+  const navigation = getErrorNavigationContext(location.pathname, auth, previous)
   const pageRef = useRef(null)
   const headingRef = useRef(null)
   const pageTitle = title || state.title
@@ -253,7 +172,7 @@ export function ErrorPage({
   useAvailablePageHeight(pageRef)
 
   useLayoutEffect(() => {
-    headingRef.current?.focus()
+    focusContentTarget(headingRef.current)
     document.title = `Municipality of Getafe | ${pageTitle}`
   }, [codeKey, pageTitle])
 
@@ -269,30 +188,35 @@ export function ErrorPage({
     return () => window.clearInterval(timer)
   }, [retryDeadline])
 
-  const effectivePrimaryAction = primaryAction || state.primaryAction
-  const effectiveSecondaryAction = secondaryAction || state.secondaryAction
-  const contactVisible = showContact ?? Boolean(state.contact)
+  const safeAction = { label: navigation.label, to: navigation.destination }
+  const retryable = (['408', '500', '502', '503', '504', 'offline', 'application'].includes(codeKey) || (codeKey === '429' && retryDeadline !== null))
+  const accepted = action => action && !action.back && (action.onClick || isSafeErrorDestination(action.to, auth)) ? action : null
+  const effectivePrimaryAction = accepted(primaryAction) || (codeKey === '401' && !auth.user ? {label:'Sign In',to:ROUTES.auth.login} : retryable ? retryAction : null)
+  const candidateSecondaryAction = (navigation.showBack && effectivePrimaryAction?.to === safeAction.to ? {label:'Go Back',to:navigation.backDestination} : accepted(secondaryAction)) || (effectivePrimaryAction && effectivePrimaryAction.to !== safeAction.to ? safeAction : navigation.showBack ? {label:'Go Back',to:navigation.backDestination} : null)
+  const effectiveSecondaryAction = candidateSecondaryAction?.to && (candidateSecondaryAction.to === effectivePrimaryAction.to || candidateSecondaryAction.to === location.pathname) ? null : candidateSecondaryAction
+  const contactVisible = showContact ?? true
+  const Container = compact ? 'section' : 'main'
 
   return (
-    <main ref={pageRef} className={`route-status-page${compact ? ' route-status-page-compact' : ''}`} aria-labelledby="error-page-title" aria-describedby="error-page-message">
-      <div className="route-status-decoration" aria-hidden="true" />
+    <Container ref={pageRef} className={`route-status-page${compact ? ' route-status-page-compact' : ''}`} aria-labelledby="error-page-title" aria-describedby="error-page-message">
+      
       <section className="route-status-content">
-        {eyebrow && <p className="route-status-eyebrow">Municipality of Getafe · Bohol</p>}
-        {Icon && <div className="error-symbol" aria-hidden="true"><Icon size={26} strokeWidth={1.8} /></div>}
+
+        
         {showCode && <p className="route-status-code">{code}</p>}
         <h1 id="error-page-title" ref={headingRef} tabIndex={-1}>{pageTitle}</h1>
         <p className="route-status-message" id="error-page-message">{message || state.message}</p>
-        {detail && <p className="route-status-detail">{detail}</p>}
+        {(detail || state.detail) && <p className="route-status-detail">{detail || state.detail}</p>}
         {retrySeconds !== null && retryPending && <p className="route-status-retry" aria-live="off">Try again in {formatRetryDelay(retrySeconds)}.</p>}
         {retryDeadline !== null && !retryPending && <p className="route-status-retry">You can try again now.</p>}
         {retryDeadline !== null && !retryPending && <span className="sr-only" role="status" aria-live="polite">Retry is available now.</span>}
-        <div className="route-status-actions">
-          <Action action={effectivePrimaryAction} kind="primary" disabled={retryPending} />
+        {showActions && <div className="route-status-actions">
+          <Action action={effectivePrimaryAction} kind="primary" disabled={retryPending && Boolean(effectivePrimaryAction.onClick)} />
           <Action action={effectiveSecondaryAction} kind="secondary" />
-        </div>
-        {contactVisible && <p className="route-status-help">Need help? <Link to="/contact">Contact the Municipality</Link></p>}
+        </div>}
+        {contactVisible && <p className="route-status-help">Need help? <Link to={navigation.helpDestination}>{navigation.helpDestination === ROUTES.public.contact ? 'Contact the Municipality' : 'Help & Support'}</Link></p>}
       </section>
-    </main>
+    </Container>
   )
 }
 
@@ -301,22 +225,19 @@ export function ErrorStatusPreview() {
   const [searchParams] = useSearchParams()
   const normalized = code.toLowerCase()
   if (!ERROR_STATES[normalized]) return <NotFoundPage />
-  return <ErrorPage code={normalized} retryAfter={searchParams.get('retryAfter')} secondaryAction={normalized === '429' ? { label: 'Browse News', to: '/news' } : undefined} />
+  return <ErrorPage code={normalized} retryAfter={searchParams.get('retryAfter')}  />
 }
 
 export function ResourceNotFound({ type = 'article', title, message, browseLabel, browseTo, compact = false }) {
   const state = RESOURCE_STATES[type] || RESOURCE_STATES.article
   return (
     <ErrorPage
-      code="resource-not-found"
+      code="404"
       title={title || state.title}
       message={message || state.message}
-      icon={state.icon}
-      eyebrow
       compact={compact}
-      showCode={false}
-      primaryAction={{ label: browseLabel || state.browseLabel, to: browseTo || state.browseTo }}
-      secondaryAction={{ label: 'Back to Home', to: '/' }}
+      showCode
+      secondaryAction={{ label: browseLabel || state.browseLabel, to: browseTo || state.browseTo }}
     />
   )
 }
@@ -330,8 +251,8 @@ export function NotFoundPage() {
   return <ErrorPage code="404" />
 }
 
-export function AccessDeniedPage({ dashboardTo = '/app' }) {
-  return <ErrorPage code="403" primaryAction={{ label: 'Back to Dashboard', to: dashboardTo }} />
+export function AccessDeniedPage() {
+  return <ErrorPage code="403" />
 }
 
 export function ModuleNotFoundPage({ home = '/admin' }) {
@@ -340,7 +261,7 @@ export function ModuleNotFoundPage({ home = '/admin' }) {
 }
 
 export function ModuleAccessDeniedPage() {
-  return <ErrorPage code="403" title="Access restricted" message="Your account does not have permission to open this module. Ask an administrator to review your group membership." primaryAction={{ label: 'Back to Dashboard', to: '/app' }} secondaryAction={homeAction} />
+  return <ErrorPage code="403" title="Access restricted" message="Your account does not have permission to open this module. Ask an administrator to review your group membership." />
 }
 
 export function RouteLoadErrorPage({ onRetry }) {

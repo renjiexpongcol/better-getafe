@@ -1,0 +1,64 @@
+.supabase-todos-page {
+  min-height: 45vh;
+}
+
+.supabase-todos-header {
+  margin-bottom: 24px;
+}
+
+.supabase-todos-header .eyebrow {
+  margin: 0 0 8px;
+  color: var(--primary, #174a78);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.supabase-todos-header h1 {
+  margin: 0;
+  color: var(--text, #10243b);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+}
+
+.supabase-todos-header > p:last-child {
+  color: var(--muted, #526579);
+}
+
+.supabase-todos-list {
+  display: grid;
+  gap: 10px;
+  max-width: 720px;
+  padding: 0;
+  list-style: none;
+}
+
+.supabase-todos-list li,
+.supabase-todos-error {
+  padding: 16px 18px;
+  border: 1px solid var(--border, #d3deea);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text, #10243b);
+}
+
+.supabase-todos-error {
+  max-width: 720px;
+}
+
+.supabase-todos-retry {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--primary, #174a78);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.supabase-todos-retry:focus-visible {
+  outline: 3px solid #f5b942;
+  outline-offset: 3px;
+}
