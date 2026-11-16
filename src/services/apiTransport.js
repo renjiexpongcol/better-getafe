@@ -44,6 +44,10 @@ export async function apiFetch(path, options = {}) {
     const retryable = failure || (startupSensitive && [502, 503, 504].includes(response.status))
     if (!retryable || attempt === attempts - 1) {
       if (failure) throw failure
+      const sessionExpiry = Number(response.headers.get('X-Session-Expires-At'))
+      if (Number.isFinite(sessionExpiry) && sessionExpiry > 0 && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth-session-deadline', { detail: { expiresAt: sessionExpiry } }))
+      }
       return response
     }
     const after = response?.headers.get('Retry-After')

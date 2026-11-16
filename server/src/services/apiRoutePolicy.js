@@ -162,7 +162,7 @@ export function createApiSecurityMiddleware({ authenticate, isRevoked, validateA
       req.apiSession = session;
       if (!session) return privateError(res, 401, 'Authentication required.');
       try {
-        if (await isRevoked(session)) return privateError(res, 401, 'Authentication required.');
+        if (await isRevoked(session, { touch: policy.path === '/api/auth/renew' })) return privateError(res, 401, 'Authentication required.');
       } catch (error) {
         console.error('API session registry lookup failed:', error.message);
         return privateError(res, 503, 'Authentication service is temporarily unavailable.');
@@ -175,6 +175,7 @@ export function createApiSecurityMiddleware({ authenticate, isRevoked, validateA
       try {
         if (!validateAccount) return privateError(res, 503, 'Authentication service is temporarily unavailable.');
         if (!await validateAccount(req, session)) return privateError(res, 401, 'Authentication required.');
+        if (session.idleExpiresAt) res.set('X-Session-Expires-At', String(session.idleExpiresAt));
         if (policy.permissions.length && !authorize) return privateError(res, 503, 'Authorization service is temporarily unavailable.');
         if (policy.permissionMode === 'any') {
           let allowed = false;

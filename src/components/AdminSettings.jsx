@@ -155,6 +155,13 @@ export default function AdminSettings({ category = 'general', settings, settings
       const next = { ...previous }
       if ((value !== null && value === settings.values[key]) || (settings.metadata[key]?.secret && value === '')) delete next[key]
       else next[key] = value
+      if (key === 'authentication.sessionIdleMinutes' && value !== null) {
+        const warningKey = 'authentication.sessionWarningMinutes'
+        const warning = next[warningKey] ?? settings.values[warningKey]
+        const maximum = Math.min(30, Math.max(1, Number(value) - 1))
+        if (warning > maximum) next[warningKey] = maximum === settings.values[warningKey] ? undefined : maximum
+        if (next[warningKey] === undefined) delete next[warningKey]
+      }
       return next
     })
   }
@@ -165,6 +172,8 @@ export default function AdminSettings({ category = 'general', settings, settings
     run(async () => {
       const body = await request(`/${activeTab}`, { method: 'PUT', body: JSON.stringify({ values: visiblePatch }) })
       setSettings(body); setPatch({}); setConnectionState('idle')
+      const warningMinutes = body.values?.['authentication.sessionWarningMinutes']
+      if (Number.isInteger(warningMinutes)) window.dispatchEvent(new CustomEvent('auth-session-warning-minutes', { detail: { minutes: warningMinutes } }))
       setMessage({ type: 'success', text: 'Your settings have been saved.' })
       onSaved?.('Changes saved')
       window.dispatchEvent(new Event('configuration-changed'))
@@ -253,7 +262,7 @@ export default function AdminSettings({ category = 'general', settings, settings
         {activeTab === 'storage' && can('settings.storage.edit') && <MediaMigrationPanel canStart={can('settings.edit')} disabled={busy || dirty} onActivated={() => setSettings(current => ({ ...current, storageRuntime: { activeProvider: 'azure', source: 'migration' } }))} />}
         {databaseTab && <DatabaseRuntimeStatus runtime={settings?.databaseRuntime?.[activeTab]} category={activeTab} />}
         {filteredSections.map(section => <SettingsSection key={section.title} title={section.title} description={section.description} icon={section.icon}>
-          <div className="settings-fields">{section.fields.map(([key, definition]) => <SettingsField key={key} settingKey={key} definition={definition}
+          <div className="settings-fields">{section.fields.map(([key, definition]) => <SettingsField key={key} settingKey={key} definition={key === 'authentication.sessionWarningMinutes' ? { ...definition, max: Math.min(30, Math.max(1, Number(patch['authentication.sessionIdleMinutes'] ?? settings.values['authentication.sessionIdleMinutes']) - 1)) } : definition}
             diagnostic={databaseTest?.connection?.target === 'active' && key === `${activeTab}.${databaseTest.field}` ? databaseTest.message : null}
             value={Object.hasOwn(patch, key) && patch[key] !== null ? patch[key] : settings.values[key]}
             secretValue={patch[key] || ''} reset={Object.hasOwn(patch, key) && patch[key] === null}

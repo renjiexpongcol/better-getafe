@@ -61,7 +61,7 @@ const layouts = {
     ['Administrator access', 'Manage who can view and update system configuration.', Users, ['permissionGrants']],
   ],
   authentication: [
-    ['Sessions', 'Configure session lifetime, idle timeout, and remembered sign-ins.', LockKeyhole, ['sessionMinutes', 'sessionIdleMinutes', 'rememberDays']],
+    ['Sessions', 'Configure session lifetime, idle timeout, warning, and remembered sign-ins.', LockKeyhole, ['sessionMinutes', 'sessionIdleMinutes', 'sessionWarningMinutes', 'rememberDays']],
     ['Password & sign-in security', 'Manage password requirements and failed login limits.', KeyRound, ['passwordMinLength', 'passwordExpiryDays', 'failedLoginLimit', 'lockoutMinutes']],
     ['Account registration', 'Control registration and account verification.', Users, ['registrationEnabled', 'requireEmailVerification', 'mfaEnabled']],
     ['Mobile number verification', 'Configure SMS delivery and verification requirements for new Google sign-ins.', ShieldCheck, ['mobileVerificationEnabled', 'smsApiKey', 'smsSenderName', 'requireMobileVerification']],

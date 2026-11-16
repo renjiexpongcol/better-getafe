@@ -64,6 +64,7 @@ export const definitions = {
   'email.replyTo': text('Reply-to email', 'SMTP_REPLY_TO', '', { format: 'email' }),
   'authentication.sessionMinutes': number('Session timeout (minutes)', '', 720, 5, 43200),
   'authentication.sessionIdleMinutes': number('Session idle timeout (minutes)', 'AUTH_SESSION_IDLE_MINUTES', 30, 5, 43200),
+  'authentication.sessionWarningMinutes': number('Warn before automatic sign-out (minutes)', '', 5, 1, 30),
   'authentication.rememberDays': number('Remembered session (days)', '', 30, 1, 90),
   'authentication.passwordMinLength': number('Minimum password length', '', 12, 8, 128),
   'authentication.passwordExpiryDays': number('Password expiration (days; 0 disables)', '', 0, 0, 365),
@@ -200,6 +201,7 @@ for (const [key, visibleWhen] of Object.entries(conditionalSettings)) {
 }
 
 export const categories = ['general', 'contact', 'database', 'portalDatabase', 'google', 'storage', 'authentication', 'email', 'security', 'notifications', 'integrations', 'weather', 'publicData', 'features', 'maintenance', 'legal', 'advanced'];
+definitions['authentication.sessionWarningMinutes'].description = 'Show the sign-out warning before the idle timeout. Must be shorter than the timeout and cannot exceed 30 minutes.';
 
 function conditionMatches(condition, values) {
   if (condition?.all) return condition.all.every(item => conditionMatches(item, values));
@@ -258,5 +260,9 @@ export function validate(values, { visiblePatch = false } = {}) {
   }
   if (values['authentication.mobileVerificationEnabled'] === true && values['authentication.requireMobileVerification'] === true && Object.hasOwn(values, 'authentication.smsApiKey') && !String(values['authentication.smsApiKey'] || '').trim()) throw new Error('Enable mobile verification and configure a Semaphore SMS API key before requiring mobile verification.');
   if (values['security.recaptchaProvider'] === 'google-enterprise' && values['security.recaptchaVersion'] !== 'v3') throw new Error('Google reCAPTCHA Enterprise currently requires the v3 score-based version.');
+  if (Number.isInteger(values['authentication.sessionIdleMinutes']) && Number.isInteger(values['authentication.sessionWarningMinutes'])
+    && values['authentication.sessionWarningMinutes'] >= values['authentication.sessionIdleMinutes']) {
+    throw new Error('The warning period must be shorter than the session idle timeout.');
+  }
 }
 

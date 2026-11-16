@@ -470,7 +470,7 @@ function authenticated(req) {
   }
 }
 
-const tokenIsRevoked = async session => {
+const tokenIsRevoked = async (session, { touch = false } = {}) => {
   if (!session) return false;
   if (!session.sid) return true;
   const registryReady = isRedisReady();
@@ -493,9 +493,10 @@ const tokenIsRevoked = async session => {
       await redis.sRem(redisKeys.userSessions(session.kind, session.id), session.sid);
       return true;
     }
-    metadata.lastActivityAt = Date.now();
+    if (touch) metadata.lastActivityAt = Date.now();
+    session.idleExpiresAt = Math.min(metadata.lastActivityAt + idleMinutes * 60_000, session.exp);
     const ttlSeconds = sessionTtlSeconds(session.exp);
-    await redis.set(key, JSON.stringify(metadata), { EX: ttlSeconds });
+    if (touch) await redis.set(key, JSON.stringify(metadata), { EX: ttlSeconds });
     return false;
   } catch {
     const error = new Error('Session registry is unavailable.');
@@ -509,6 +510,7 @@ const admin = async (req, res, next) => {
   req.admin = authenticated(req);
   try {
     if (await tokenIsRevoked(req.admin) || req.admin?.kind !== 'cms' || !['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(req.admin.role)) return res.status(401).json({ error: "Administrator authentication required." });
+    if (req.admin.idleExpiresAt) res.setHeader('X-Session-Expires-At', String(req.admin.idleExpiresAt));
     const user = await getCmsUserById(req.admin.id);
     if (!user || !['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role) || req.admin.role !== user.role || (req.admin.updatedAt && req.admin.updatedAt !== sessionUpdatedAt(user))) return res.status(401).json({ error: "Administrator authentication required." });
     req.admin = safeUser(user);
@@ -570,6 +572,7 @@ const resident = async (req, res, next) => {
   const session = authenticated(req);
   try {
     if (!session || await tokenIsRevoked(session) || session.kind !== 'portal' || session.role !== 'resident') return res.status(401).json({ error: 'Resident authentication required.' });
+    if (session.idleExpiresAt) res.setHeader('X-Session-Expires-At', String(session.idleExpiresAt));
     req.resident = await getPortalUserById(session.id);
     if (!req.resident || req.resident.role !== 'resident' || session.role !== req.resident.role || (session.updatedAt && session.updatedAt !== sessionUpdatedAt(req.resident))) return res.status(401).json({ error: 'Resident account unavailable.' });
     const onboarding = await googleOnboarding(req.resident);
@@ -1169,7 +1172,7 @@ app.get("/api/auth/me", async (req, res) => {
       return res.json({ user: null });
     }
     stage = 'check_revocation';
-    if (await tokenIsRevoked(session)) {
+    if (await tokenIsRevoked(session, { touch: false })) {
       clearSessionCookie(res);
       return res.json({ user: null });
     }
@@ -1184,6 +1187,7 @@ app.get("/api/auth/me", async (req, res) => {
     stage = 'load_account_access';
     const authorization = session.kind === 'cms' ? await effectiveAccessFor(user) : null;
     stage = 'build_session_response';
+    if (session.idleExpiresAt) res.setHeader('X-Session-Expires-At', String(session.idleExpiresAt));
     res.json({
       user: {
         ...safeUser(user),
@@ -1194,11 +1198,20 @@ app.get("/api/auth/me", async (req, res) => {
         } : {}),
       },
       admin: session.kind === 'cms' && ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role),
+      session: { expiresAt: session.idleExpiresAt, warningMinutes: config.get('authentication.sessionWarningMinutes') },
     });
   } catch (error) {
     logApiFailure(req, `authentication_session_${stage}`, error, 503);
     res.status(503).json({ error: "The sign-in service is temporarily unavailable." });
   }
+});
+
+app.post('/api/auth/renew', (req, res) => {
+  const session = req.apiSession;
+  if (!session?.idleExpiresAt || session.idleExpiresAt <= Date.now()) return res.status(401).json({ error: 'Your session has expired. Sign in again.' });
+  res.setHeader('X-Session-Expires-At', String(session.idleExpiresAt));
+  res.setHeader('Cache-Control', 'no-store, private');
+  res.json({ expiresAt: session.idleExpiresAt });
 });
 
 app.patch('/api/account/password', admin, async (req, res) => {

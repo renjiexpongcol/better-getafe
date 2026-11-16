@@ -1,0 +1,13 @@
+.session-timeout-backdrop::backdrop { background: rgb(10 24 39 / 62%); }
+.session-timeout-dialog { width: min(420px, 100%); padding: 30px; border-radius: 18px; background: var(--color-surface, #fff); color: var(--color-text, #17324d); box-shadow: 0 24px 80px rgb(5 22 42 / 26%); }
+.session-timeout-kicker { margin: 0 0 8px; color: var(--color-brand, #1473a5); font-size: .76rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.session-timeout-dialog h2 { margin: 0 34px 10px 0; font-size: clamp(1.3rem, 4vw, 1.65rem); line-height: 1.2; }
+.session-timeout-dialog > p:not(.session-timeout-kicker):not(.session-timeout-countdown):not(.session-timeout-error) { color: var(--color-muted, #54677a); line-height: 1.5; }
+.session-timeout-countdown { margin: 22px 0; font-variant-numeric: tabular-nums; font-size: 2.5rem; font-weight: 760; letter-spacing: .06em; text-align: center; }
+.session-timeout-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.session-timeout-actions button { min-height: 44px; padding: 10px 16px; border: 1px solid transparent; border-radius: 10px; font: inherit; font-weight: 700; cursor: pointer; }
+.session-timeout-actions button:disabled { opacity: .65; cursor: wait; }
+.session-timeout-actions .session-timeout-secondary { border-color: #cbd5df; background: transparent; color: inherit; }
+.session-timeout-error { margin: 12px 0; color: #b42318; font-weight: 600; }
+.session-timeout-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (max-width: 480px) { .session-timeout-dialog { padding: 24px 18px; } .session-timeout-actions { flex-direction: column; } .session-timeout-actions button { width: 100%; } }

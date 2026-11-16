@@ -6,6 +6,7 @@ import { clearPrivateCache } from '../services/requestCache'
 import { normalizePublicError } from '../services/publicError'
 import { routeRequest, invalidatePendingRouteRequest } from '../services/routeRequests'
 import { pendingReturnUrlKey } from '../authNavigation'
+import { SessionTimeoutWarning } from '../components/SessionTimeoutWarning.jsx'
 
 const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
@@ -13,7 +14,12 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [sessionUnavailable, setSessionUnavailable] = useState(false)
   const [signedOut, setSignedOut] = useState(false)
+  const [sessionExpiresAt, setSessionExpiresAt] = useState(null)
+  const [warningMinutes, setWarningMinutes] = useState(5)
   const requestRef = useRef(0)
+  const activityPingRef = useRef(0)
+  const renewalRef = useRef(null)
+  const publishedDeadlineRef = useRef(0)
   const sessionControllerRef = useRef(null)
   const sessionRef = useRef({ promise: null, checkedAt: 0, user: null })
   useEffect(() => () => {
@@ -77,6 +83,9 @@ export function AuthProvider({ children }) {
       setSessionUnavailable(false)
       if (!nextUser || sessionRef.current.user?.id !== nextUser.id) clearPrivateCache()
       sessionRef.current.user = nextUser
+      if (nextUser && body?.session?.expiresAt != null && Number.isFinite(Number(body.session.expiresAt))) setSessionExpiresAt(Number(body.session.expiresAt))
+      if (nextUser && Number.isFinite(Number(body?.session?.warningMinutes))) setWarningMinutes(Number(body.session.warningMinutes))
+      if (!nextUser) setSessionExpiresAt(null)
       sessionRef.current.checkedAt = Date.now()
       // Keep consumers mounted without refetching their data when the session
       // returns the same account. Still apply profile/role changes immediately.
@@ -106,11 +115,36 @@ export function AuthProvider({ children }) {
     validateSession()
     const channel = 'BroadcastChannel' in window ? new BroadcastChannel('getafe-auth') : null
     const onRemoteLogout = event => {
+      if (event.data?.type === 'deadline' && Number.isFinite(Number(event.data.expiresAt))) {
+        publishedDeadlineRef.current = Number(event.data.expiresAt)
+        setSessionExpiresAt(publishedDeadlineRef.current)
+        return
+      }
+      if (event.data?.type === 'warning' && Number.isFinite(Number(event.data.minutes))) {
+        setWarningMinutes(Math.max(1, Math.min(30, Number(event.data.minutes))))
+        return
+      }
+      if (event.key === 'getafe-auth-deadline' && event.newValue) {
+        try {
+          const expiresAt = Number(JSON.parse(event.newValue).expiresAt)
+          if (Number.isFinite(expiresAt) && expiresAt > 0) {
+            publishedDeadlineRef.current = expiresAt
+            setSessionExpiresAt(expiresAt)
+          }
+        } catch {}
+        return
+      }
+      if (event.key === 'getafe-auth-warning-minutes' && event.newValue) {
+        const minutes = Number(event.newValue)
+        if (Number.isInteger(minutes) && minutes >= 1 && minutes <= 30) setWarningMinutes(minutes)
+        return
+      }
       if (event.key === 'getafe-auth-logout' || event.data === 'logout') {
         ++requestRef.current
         clearClientAuthState()
         setSignedOut(true)
         setUser(null)
+        setSessionExpiresAt(null)
         setLoading(false)
       }
     }
@@ -119,13 +153,35 @@ export function AuthProvider({ children }) {
       clearClientAuthState()
       setSessionUnavailable(false)
       setUser(null)
+      setSessionExpiresAt(null)
+      setSignedOut(true)
       setLoading(false)
+      try { window.localStorage.setItem('getafe-auth-logout', String(Date.now())) } catch {}
+      try { channel?.postMessage('logout') } catch {}
     }
     const onVisibilityChange = () => { if (document.visibilityState === 'visible') validateSession() }
     const onPageShow = () => validateSession()
     const onFocus = () => validateSession()
+    const onDeadline = event => {
+      const expiresAt = Number(event.detail?.expiresAt)
+      if (!Number.isFinite(expiresAt) || expiresAt <= 0) return
+      if (publishedDeadlineRef.current === expiresAt) return
+      publishedDeadlineRef.current = expiresAt
+      setSessionExpiresAt(expiresAt)
+      try { channel?.postMessage({ type: 'deadline', expiresAt }) } catch {}
+      try { window.localStorage.setItem('getafe-auth-deadline', JSON.stringify({ expiresAt, updatedAt: Date.now() })) } catch {}
+    }
+    const onWarningMinutes = event => {
+      const minutes = Number(event.detail?.minutes)
+      if (!Number.isInteger(minutes) || minutes < 1 || minutes > 30) return
+      setWarningMinutes(minutes)
+      try { channel?.postMessage({ type: 'warning', minutes }) } catch {}
+      try { window.localStorage.setItem('getafe-auth-warning-minutes', String(minutes)) } catch {}
+    }
     window.addEventListener('storage', onRemoteLogout)
     window.addEventListener('auth-session-expired', onSessionExpired)
+    window.addEventListener('auth-session-deadline', onDeadline)
+    window.addEventListener('auth-session-warning-minutes', onWarningMinutes)
     window.addEventListener('pageshow', onPageShow)
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisibilityChange)
@@ -133,6 +189,8 @@ export function AuthProvider({ children }) {
     return () => {
       window.removeEventListener('storage', onRemoteLogout)
       window.removeEventListener('auth-session-expired', onSessionExpired)
+      window.removeEventListener('auth-session-deadline', onDeadline)
+      window.removeEventListener('auth-session-warning-minutes', onWarningMinutes)
       window.removeEventListener('pageshow', onPageShow)
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibilityChange)
@@ -172,6 +230,7 @@ export function AuthProvider({ children }) {
     ++requestRef.current
     setSignedOut(true)
     setUser(null)
+    setSessionExpiresAt(null)
     setSessionUnavailable(false)
     setLoading(false)
     clearClientAuthState()
@@ -194,7 +253,39 @@ export function AuthProvider({ children }) {
     onSignedOut,
   }), [clearClientAuthState, onSignedOut, refreshUser, validateSession])
 
-  return <AuthContext.Provider value={{ user, loading, sessionUnavailable, signedOut, login: authClient.login, completeMfa: authClient.completeMfa, register: authClient.register, logout: authClient.logout, validateSession, refreshUser, updateUser }}>{children}</AuthContext.Provider>
+  const renewSession = useCallback(() => {
+    if (renewalRef.current) return renewalRef.current
+    const pending = (async () => { try {
+      const response = await apiFetch(AUTH_ENDPOINTS.renew, { method: 'POST', credentials: 'include', cache: 'no-store' })
+      const body = await response.json().catch(() => ({}))
+      if (response.status === 401) {
+        window.dispatchEvent(new Event('auth-session-expired'))
+        return { ok: false, expired: true }
+      }
+      if (!response.ok || !Number.isFinite(Number(body.expiresAt))) return { ok: false, error: body.error || 'Could not renew your session. Check your connection and try again.' }
+      setSessionExpiresAt(Number(body.expiresAt))
+      return { ok: true }
+    } catch {
+      return { ok: false, error: 'Could not renew your session. Check your connection and try again.' }
+    } finally { if (renewalRef.current === pending) renewalRef.current = null } })()
+    renewalRef.current = pending
+    return pending
+  }, [])
+
+  const expireSession = useCallback(() => window.dispatchEvent(new Event('auth-session-expired')), [])
+  useEffect(() => {
+    if (!user) return undefined
+    const markActivity = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - activityPingRef.current < 30000) return
+      activityPingRef.current = Date.now()
+      renewSession().catch(() => {})
+    }
+    const events = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart']
+    for (const event of events) document.addEventListener(event, markActivity, { passive: true })
+    return () => { for (const event of events) document.removeEventListener(event, markActivity) }
+  }, [renewSession, user])
+  const authValue = { user, loading, sessionUnavailable, signedOut, login: authClient.login, completeMfa: authClient.completeMfa, register: authClient.register, logout: authClient.logout, validateSession, refreshUser, updateUser, renewSession, sessionExpiresAt, warningMinutes }
+  return <AuthContext.Provider value={authValue}>{children}<SessionTimeoutWarning user={user} expiresAt={sessionExpiresAt} warningMinutes={warningMinutes} renewSession={renewSession} logout={authClient.logout} expireSession={expireSession} /></AuthContext.Provider>
 }
 
 export function useAuth() {

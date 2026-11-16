@@ -1,7 +1,9 @@
 export const authSurfaceKinds = Object.freeze(['resident', 'cms'])
+export { sessionDeadline, sessionWarningMinutes, sessionWarningStartsAt, formatSessionCountdown } from './sessionDeadline.js'
 
 export const AUTH_ENDPOINTS = Object.freeze({
   session: '/api/auth/me',
+  renew: '/api/auth/renew',
   login: '/api/auth/login',
   register: '/api/portal-auth/register',
   logout: '/api/auth/logout',

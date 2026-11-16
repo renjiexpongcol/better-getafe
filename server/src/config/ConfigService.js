@@ -59,6 +59,11 @@ export class ConfigService {
       values['storage.configuredProvider'] = values['storage.provider'];
       sources['storage.configuredProvider'] = sources['storage.provider'];
     }
+    const idleMinutes = values['authentication.sessionIdleMinutes'];
+    const warningKey = 'authentication.sessionWarningMinutes';
+    if (Number.isFinite(idleMinutes) && values[warningKey] >= idleMinutes) {
+      values[warningKey] = Math.max(1, Math.min(5, idleMinutes - 1));
+    }
     validate(values);
     return { values, sources };
   }
@@ -102,12 +107,17 @@ export class ConfigService {
         overridden: Object.hasOwn(this.stored, key), requiresRestart: false,
         description: d.secret ? 'Leave blank to keep the current secret. Enter a new value to replace it.' : 'Saved settings override environment fallback values.',
       };
+      if (key === 'authentication.sessionWarningMinutes') {
+        metadata[key].max = Math.min(30, Math.max(1, this.values['authentication.sessionIdleMinutes'] - 1));
+        metadata[key].default = Math.min(5, metadata[key].max);
+      }
       if (!d.secret && (d.options || d.type === 'boolean')) metadata[key].resetValue = this.resetValue(key);
     }
     if (!Object.hasOwn(this.stored, 'storage.configuredProvider')) values['storage.configuredProvider'] = this.values['storage.provider'];
     return { values, metadata, available: this.available };
   }
   resetValue(key) {
+    if (key === 'authentication.sessionWarningMinutes') return Math.min(5, Math.max(1, this.values['authentication.sessionIdleMinutes'] - 1));
     return key === 'storage.configuredProvider' ? this.values['storage.provider'] : environmentValue(key, this.env) ?? definitions[key].default;
   }
   visiblePatch(patch, baseline = this.values) {
