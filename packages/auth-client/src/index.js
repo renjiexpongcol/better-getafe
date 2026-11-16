@@ -1,5 +1,6 @@
 export const authSurfaceKinds = Object.freeze(['resident', 'cms'])
 export { sessionDeadline, sessionWarningMinutes, sessionWarningStartsAt, formatSessionCountdown } from './sessionDeadline.js'
+export { sessionWarningVisible, nextSessionDeadline } from './sessionDeadlineState.js'
 
 export const AUTH_ENDPOINTS = Object.freeze({
   session: '/api/auth/me',

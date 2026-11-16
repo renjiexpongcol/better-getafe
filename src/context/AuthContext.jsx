@@ -7,6 +7,7 @@ import { normalizePublicError } from '../services/publicError'
 import { routeRequest, invalidatePendingRouteRequest } from '../services/routeRequests'
 import { pendingReturnUrlKey } from '../authNavigation'
 import { SessionTimeoutWarning } from '../components/SessionTimeoutWarning.jsx'
+import { nextSessionDeadline } from '@getafe/auth-client'
 
 const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
@@ -15,11 +16,13 @@ export function AuthProvider({ children }) {
   const [sessionUnavailable, setSessionUnavailable] = useState(false)
   const [signedOut, setSignedOut] = useState(false)
   const [sessionExpiresAt, setSessionExpiresAt] = useState(null)
+  const [sessionInitialized, setSessionInitialized] = useState(false)
   const [warningMinutes, setWarningMinutes] = useState(5)
   const requestRef = useRef(0)
   const activityPingRef = useRef(0)
   const renewalRef = useRef(null)
   const publishedDeadlineRef = useRef(0)
+  const sessionEpochRef = useRef(0)
   const sessionControllerRef = useRef(null)
   const sessionRef = useRef({ promise: null, checkedAt: 0, user: null })
   useEffect(() => () => {
@@ -31,6 +34,11 @@ export function AuthProvider({ children }) {
   }, [])
 
   const clearClientAuthState = useCallback((preserveIntent = false) => {
+    ++sessionEpochRef.current
+    publishedDeadlineRef.current = 0
+    setSessionExpiresAt(null)
+    setSessionInitialized(false)
+    renewalRef.current = null
     sessionControllerRef.current?.abort()
     invalidatePendingRouteRequest(AUTH_ENDPOINTS.session, 'session')
     clearPrivateCache()
@@ -83,9 +91,13 @@ export function AuthProvider({ children }) {
       setSessionUnavailable(false)
       if (!nextUser || sessionRef.current.user?.id !== nextUser.id) clearPrivateCache()
       sessionRef.current.user = nextUser
-      if (nextUser && body?.session?.expiresAt != null && Number.isFinite(Number(body.session.expiresAt))) setSessionExpiresAt(Number(body.session.expiresAt))
+      if (nextUser && body?.session?.expiresAt != null && Number.isFinite(Number(body.session.expiresAt))) {
+        const deadline = nextSessionDeadline(publishedDeadlineRef.current || null, body.session.expiresAt)
+        publishedDeadlineRef.current = deadline
+        setSessionExpiresAt(deadline)
+      }
       if (nextUser && Number.isFinite(Number(body?.session?.warningMinutes))) setWarningMinutes(Number(body.session.warningMinutes))
-      if (!nextUser) setSessionExpiresAt(null)
+      if (!nextUser) { publishedDeadlineRef.current = 0; setSessionExpiresAt(null) }
       sessionRef.current.checkedAt = Date.now()
       // Keep consumers mounted without refetching their data when the session
       // returns the same account. Still apply profile/role changes immediately.
@@ -95,7 +107,7 @@ export function AuthProvider({ children }) {
       if (requestId === requestRef.current) setSessionUnavailable(true)
       return null
     } finally {
-      if (requestId === requestRef.current) { sessionRef.current.promise = null; setLoading(false) }
+      if (requestId === requestRef.current) { sessionRef.current.promise = null; setLoading(false); setSessionInitialized(true) }
     }
     })()
     sessionRef.current.promise = promise
@@ -116,7 +128,7 @@ export function AuthProvider({ children }) {
     const channel = 'BroadcastChannel' in window ? new BroadcastChannel('getafe-auth') : null
     const onRemoteLogout = event => {
       if (event.data?.type === 'deadline' && Number.isFinite(Number(event.data.expiresAt))) {
-        publishedDeadlineRef.current = Number(event.data.expiresAt)
+        publishedDeadlineRef.current = nextSessionDeadline(publishedDeadlineRef.current || null, event.data.expiresAt)
         setSessionExpiresAt(publishedDeadlineRef.current)
         return
       }
@@ -128,7 +140,7 @@ export function AuthProvider({ children }) {
         try {
           const expiresAt = Number(JSON.parse(event.newValue).expiresAt)
           if (Number.isFinite(expiresAt) && expiresAt > 0) {
-            publishedDeadlineRef.current = expiresAt
+            publishedDeadlineRef.current = nextSessionDeadline(publishedDeadlineRef.current || null, expiresAt)
             setSessionExpiresAt(expiresAt)
           }
         } catch {}
@@ -141,19 +153,24 @@ export function AuthProvider({ children }) {
       }
       if (event.key === 'getafe-auth-logout' || event.data === 'logout') {
         ++requestRef.current
+        ++sessionEpochRef.current
         clearClientAuthState()
         setSignedOut(true)
         setUser(null)
         setSessionExpiresAt(null)
+        setSessionInitialized(true)
         setLoading(false)
       }
     }
     const onSessionExpired = () => {
       ++requestRef.current
+      ++sessionEpochRef.current
+      publishedDeadlineRef.current = 0
       clearClientAuthState()
       setSessionUnavailable(false)
       setUser(null)
       setSessionExpiresAt(null)
+      setSessionInitialized(true)
       setSignedOut(true)
       setLoading(false)
       try { window.localStorage.setItem('getafe-auth-logout', String(Date.now())) } catch {}
@@ -165,9 +182,10 @@ export function AuthProvider({ children }) {
     const onDeadline = event => {
       const expiresAt = Number(event.detail?.expiresAt)
       if (!Number.isFinite(expiresAt) || expiresAt <= 0) return
-      if (publishedDeadlineRef.current === expiresAt) return
-      publishedDeadlineRef.current = expiresAt
-      setSessionExpiresAt(expiresAt)
+      const next = nextSessionDeadline(publishedDeadlineRef.current || null, expiresAt)
+      if (publishedDeadlineRef.current === next) return
+      publishedDeadlineRef.current = next
+      setSessionExpiresAt(next)
       try { channel?.postMessage({ type: 'deadline', expiresAt }) } catch {}
       try { window.localStorage.setItem('getafe-auth-deadline', JSON.stringify({ expiresAt, updatedAt: Date.now() })) } catch {}
     }
@@ -228,12 +246,16 @@ export function AuthProvider({ children }) {
 
   const onSignedOut = useCallback(async () => {
     ++requestRef.current
+    ++sessionEpochRef.current
+    publishedDeadlineRef.current = 0
+    renewalRef.current = null
     setSignedOut(true)
     setUser(null)
     setSessionExpiresAt(null)
     setSessionUnavailable(false)
     setLoading(false)
     clearClientAuthState()
+    setSessionInitialized(true)
     try { window.localStorage.setItem('getafe-auth-logout', String(Date.now())) } catch {}
     try {
       if ('BroadcastChannel' in window) {
@@ -255,16 +277,20 @@ export function AuthProvider({ children }) {
 
   const renewSession = useCallback(() => {
     if (renewalRef.current) return renewalRef.current
+    const epoch = sessionEpochRef.current
     const pending = (async () => { try {
       const response = await apiFetch(AUTH_ENDPOINTS.renew, { method: 'POST', credentials: 'include', cache: 'no-store' })
       const body = await response.json().catch(() => ({}))
       if (response.status === 401) {
-        window.dispatchEvent(new Event('auth-session-expired'))
+        if (sessionEpochRef.current === epoch) window.dispatchEvent(new Event('auth-session-expired'))
         return { ok: false, expired: true }
       }
       if (!response.ok || !Number.isFinite(Number(body.expiresAt))) return { ok: false, error: body.error || 'Could not renew your session. Check your connection and try again.' }
-      setSessionExpiresAt(Number(body.expiresAt))
-      return { ok: true }
+      if (sessionEpochRef.current !== epoch) return { ok: false, stale: true }
+      const deadline = nextSessionDeadline(publishedDeadlineRef.current || null, body.expiresAt)
+      publishedDeadlineRef.current = deadline
+      setSessionExpiresAt(deadline)
+      return { ok: true, expiresAt: deadline }
     } catch {
       return { ok: false, error: 'Could not renew your session. Check your connection and try again.' }
     } finally { if (renewalRef.current === pending) renewalRef.current = null } })()
@@ -285,7 +311,7 @@ export function AuthProvider({ children }) {
     return () => { for (const event of events) document.removeEventListener(event, markActivity) }
   }, [renewSession, user])
   const authValue = { user, loading, sessionUnavailable, signedOut, login: authClient.login, completeMfa: authClient.completeMfa, register: authClient.register, logout: authClient.logout, validateSession, refreshUser, updateUser, renewSession, sessionExpiresAt, warningMinutes }
-  return <AuthContext.Provider value={authValue}>{children}<SessionTimeoutWarning user={user} expiresAt={sessionExpiresAt} warningMinutes={warningMinutes} renewSession={renewSession} logout={authClient.logout} expireSession={expireSession} /></AuthContext.Provider>
+  return <AuthContext.Provider value={authValue}>{children}<SessionTimeoutWarning user={user} initialized={sessionInitialized && !loading} expiresAt={sessionExpiresAt} warningMinutes={warningMinutes} renewSession={renewSession} logout={authClient.logout} expireSession={expireSession} /></AuthContext.Provider>
 }
 
 export function useAuth() {

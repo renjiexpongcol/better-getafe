@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react'
 import ModalDialog from './ModalDialog.jsx'
-import { formatSessionCountdown, sessionWarningStartsAt } from '@getafe/auth-client'
+import { formatSessionCountdown, sessionWarningVisible } from '@getafe/auth-client'
 import './SessionTimeoutWarning.css'
 
-export function SessionTimeoutWarning({ user, expiresAt, warningMinutes, renewSession, logout, expireSession }) {
+export function SessionTimeoutWarning({ user, initialized, expiresAt, warningMinutes, renewSession, logout, expireSession }) {
   const [now, setNow] = useState(Date.now())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [renewalNote, setRenewalNote] = useState('')
   const deadline = Number(expiresAt)
-  const warningStartsAt = sessionWarningStartsAt(deadline, warningMinutes)
-  const open = Boolean(user && Number.isFinite(deadline) && deadline > 0 && now >= warningStartsAt && deadline > now)
+  const open = sessionWarningVisible({ initialized, hasSession: Boolean(user), expiresAt: deadline, warningMinutes, now })
 
   useEffect(() => {
-    if (!user || !Number.isFinite(deadline)) return undefined
+    if (!initialized || !user || !Number.isFinite(deadline)) return undefined
     const tick = () => {
       const current = Date.now()
       setNow(current)
@@ -27,19 +27,22 @@ export function SessionTimeoutWarning({ user, expiresAt, warningMinutes, renewSe
       window.removeEventListener('pageshow', tick)
       document.removeEventListener('visibilitychange', tick)
     }
-  }, [deadline, expireSession, user])
+  }, [deadline, expireSession, initialized, user])
 
-  useEffect(() => { if (open) setError('') }, [open])
-
+  useEffect(() => { if (open) { setError(''); setRenewalNote('') } }, [open])
   if (!open) return null
 
   const staySignedIn = async () => {
     if (busy) return
     setBusy(true)
     setError('')
+    setRenewalNote('')
     try {
       const result = await renewSession()
-      if (!result.ok && !result.expired) setError(result.error || 'Your session could not be renewed. Try again.')
+      if (!result.ok && !result.expired && !result.stale) setError(result.error || 'Your session could not be renewed. Try again.')
+      if (result.ok && (Number(result.expiresAt) <= deadline || Number(result.expiresAt) - Date.now() <= Number(warningMinutes) * 60_000)) {
+        setRenewalNote('Your session was renewed as far as its maximum session lifetime allows. Sign in again when it expires.')
+      }
     } finally { setBusy(false) }
   }
   const signOut = async () => {
@@ -59,9 +62,10 @@ export function SessionTimeoutWarning({ user, expiresAt, warningMinutes, renewSe
       <p id="session-warning-description">For your security, you’ll be signed out after a period of inactivity.</p>
       <p className="session-timeout-countdown" aria-live="off">{formatSessionCountdown(deadline, now)}</p>
       <span className="session-timeout-sr-only" aria-live="polite">Your session is about to expire.</span>
+      {renewalNote && <p className="session-timeout-note" role="status">{renewalNote}</p>}
       {error && <p className="session-timeout-error" role="alert">{error}</p>}
       <div className="session-timeout-actions">
-        <button type="button" className="cms-primary" disabled={busy} onClick={staySignedIn}>{busy ? 'Checking session…' : 'Stay signed in'}</button>
+        <button type="button" className="cms-primary" disabled={busy} onClick={staySignedIn}>{busy ? 'Renewing session…' : 'Stay signed in'}</button>
         <button type="button" className="session-timeout-secondary" data-dialog-close-action disabled={busy} onClick={signOut}>Sign out</button>
       </div>
     </section>

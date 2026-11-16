@@ -4,6 +4,7 @@ import { sessionDeadline, sessionWarningMinutes, sessionWarningStartsAt, formatS
 import { validate } from '../server/src/config/defaults.js'
 import { resolveApiRoutePolicy } from '../server/src/services/apiRoutePolicy.js'
 import { ConfigService } from '../server/src/config/ConfigService.js'
+import { sessionWarningVisible, nextSessionDeadline } from '../packages/auth-client/src/sessionDeadlineState.js'
 
 test('session warning defaults to five minutes and is capped below the idle timeout', () => {
   assert.equal(sessionWarningMinutes(30), 5)
@@ -27,6 +28,19 @@ test('countdown is derived from the deadline and formats at zero', () => {
   assert.equal(formatSessionCountdown(65_000, 0), '01:05')
   assert.equal(formatSessionCountdown(500, 0), '00:01')
   assert.equal(formatSessionCountdown(0, 0), '00:00')
+})
+
+test('session warning waits for initialization and for the configured warning window', () => {
+  const deadline = 1_200_000
+  assert.equal(sessionWarningVisible({ initialized: false, hasSession: true, expiresAt: deadline, warningMinutes: 5, now: deadline - 60_000 }), false)
+  assert.equal(sessionWarningVisible({ initialized: true, hasSession: true, expiresAt: deadline, warningMinutes: 5, now: deadline - 6 * 60_000 }), false)
+  assert.equal(sessionWarningVisible({ initialized: true, hasSession: true, expiresAt: deadline, warningMinutes: 5, now: deadline - 5 * 60_000 }), true)
+})
+
+test('older responses cannot move a live session deadline backwards, while a new session starts cleanly', () => {
+  const renewed = 2_000_000
+  assert.equal(nextSessionDeadline(renewed, renewed - 60_000), renewed)
+  assert.equal(nextSessionDeadline(null, 1_000_000), 1_000_000)
 })
 
 test('configuration rejects warnings that are not shorter than the idle timeout', () => {
