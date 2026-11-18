@@ -1,5 +1,12 @@
 // Audited method/path declarations. Never populate this from live route discovery.
 export const endpointPolicies = [
+  { method:'POST',path:'/api/admin/policy-workspace/simulate',access:'CMS',permissions:['users.view','policies.manage'],authorization:'rbac',body:'json',ownership:'Authorized employee access review',csrf:'cookie token + origin',validation:'Known employee and permission; hypothetical resource context' },
+  ...[
+    ['GET', '/api/admin/policy-workspace', ['policies.manage','policies.edit']],
+    ['PUT', '/api/admin/policy-workspace/:id/delegation', ['policies.manage']],
+    ['POST', '/api/admin/policy-workspace/:id/proposals', ['policies.manage','policies.edit']],
+    ['POST', '/api/admin/policy-workspace/:id/review', ['policies.manage']],
+  ].map(([method,path,permissions]) => ({ method,path,permissions,permissionMode:'any',access:'CMS',authorization:'rbac',body:method === 'GET' ? 'none' : 'json',ownership:'Current policy delegation or policy manager',csrf:method === 'GET' ? 'not applicable' : 'cookie token + origin',validation:'Server-side policy scope and revision checks' })),
   { method: 'GET', path: '/api/admin/settings/media-migration', access: 'CMS', permissions: ['settings.storage.edit'], authorization: 'settings', body: 'none', ownership: 'Migration counts and status only', csrf: 'not applicable' },
   { method: 'POST', path: '/api/admin/settings/media-migration', access: 'CMS', permissions: ['settings.storage.edit', 'settings.edit'], authorization: 'settings', body: 'json', ownership: 'Authorized storage migration operators', csrf: 'cookie token + origin', validation: 'Allowlisted action and explicit confirmation' },
   { method: 'GET', path: '/api/admin/settings/database-migration', access: 'CMS', permissions: ['settings.database.edit'], authorization: 'settings', body: 'none', ownership: 'Authorized database migration operators', csrf: 'not applicable', validation: 'No credentials in response' },

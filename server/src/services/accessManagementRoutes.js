@@ -1,10 +1,13 @@
+import { installPolicyWorkspace } from './policyWorkspace.js'
 import crypto from 'node:crypto'
 import { employeeDepartmentAccess } from './employeeProvisioning.js'
 import { getCmsUsers } from '../repositories/cmsUserRepository.js'
+import { getPortalPool } from './database.js'
+import { getLocalDb, isPortalGcp } from '../repositories/postgresCompatibility.js'
 import { id, now } from './identifiers.js'
 import { ensureAuthorizationData, ensureBootstrapMembership, effectiveAccessFor, hasAccess, requireAccess, audit } from './authorizationService.js'
 
-const parseJson = value => { try { return JSON.parse(value || '{}') } catch { return {} } }
+const parseJson = value => { try { return typeof value === 'string' ? JSON.parse(value) : value || {} } catch { return {} } }
 const safeAccessError = (error, fallback) => [400, 401, 403, 404, 409, 422].includes(Number(error?.status))
   ? String(error.message || fallback)
   : fallback
@@ -31,6 +34,7 @@ function validatePolicyCondition(condition, depth = 0) {
 }
 
 export function installAccessManagementRoutes(app, admin) {
+  installPolicyWorkspace(app, validatePolicyCondition)
   app.use('/api/admin/access', admin, async (req, res, next) => {
     try { if (req.method === 'GET') await requireAccess(req.admin, 'users.view'); next() }
     catch (error) { res.status(error.status || 403).json({ error: safeAccessError(error, 'Access denied.') }) }
@@ -39,6 +43,10 @@ export function installAccessManagementRoutes(app, admin) {
   app.get('/api/admin/access', async (req, res) => {
     try {
       const db = await ensureAuthorizationData(), users = await getCmsUsers()
+      const portalUsers = isPortalGcp()
+        ? (await getPortalPool()).execute('SELECT id,name,email,role,created_at FROM portal_users ORDER BY created_at DESC').then(([rows]) => rows)
+        : (await getLocalDb()).portal_users || []
+      const resolvedPortalUsers = await portalUsers
       for (const user of users) await ensureBootstrapMembership(user)
       const groups = await db.prepare(`SELECT g.*, COUNT(DISTINCT ug.user_id) AS member_count, COUNT(DISTINCT gp.permission_id) AS permission_count
         FROM auth_groups g LEFT JOIN auth_user_groups ug ON ug.group_id=g.id LEFT JOIN auth_group_permissions gp ON gp.group_id=g.id
@@ -46,7 +54,10 @@ export function installAccessManagementRoutes(app, admin) {
       const permissions = await db.prepare('SELECT * FROM auth_permissions ORDER BY category,label').all()
       const policies = (await db.prepare('SELECT * FROM auth_policies ORDER BY name').all()).map(item => ({ ...item, condition: parseJson(item.condition_json) }))
       const memberships = await db.prepare('SELECT ug.user_id,g.id,g.name FROM auth_user_groups ug JOIN auth_groups g ON g.id=ug.group_id WHERE g.archived_at IS NULL ORDER BY g.name').all()
-      const directory = users.map(user => ({ id: user.id, name: user.name, email: user.email, role: user.role, eid:user.eid, department:user.department, position:user.position, groups: memberships.filter(item => item.user_id === user.id).map(item => ({ id: item.id, name: item.name })) }))
+      const directory = [
+        ...users.map(user => ({ id: user.id, name: user.name, email: user.email, role: user.role, account_type: 'employee', eid:user.eid, department:user.department, position:user.position, groups: memberships.filter(item => item.user_id === user.id).map(item => ({ id: item.id, name: item.name })) })),
+        ...resolvedPortalUsers.map(user => ({ id: user.id, name: user.name, email: user.email, role: user.role || 'resident', account_type: 'portal', eid: null, department: null, position: null, groups: [] })),
+      ]
       const activity = await db.prepare("SELECT a.*,COALESCE(actor.name || ' · EID ' || ap.eid,'System') AS actor_label,COALESCE(target.name || ' · EID ' || tp.eid,g.name,policy.name,a.target_type) AS target_label FROM auth_audit_logs a LEFT JOIN users actor ON actor.id=a.actor_id LEFT JOIN employee_profiles ap ON ap.user_id=actor.id LEFT JOIN users target ON target.id=a.target_id LEFT JOIN employee_profiles tp ON tp.user_id=target.id LEFT JOIN auth_groups g ON g.id=a.target_id LEFT JOIN auth_policies policy ON policy.id=a.target_id ORDER BY a.created_at DESC LIMIT 100").all()
       const groupPermissions = await db.prepare('SELECT group_id,permission_id FROM auth_group_permissions').all()
       groups.forEach(group => { group.permission_ids = groupPermissions.filter(grant => grant.group_id === group.id).map(grant => grant.permission_id) })
@@ -242,19 +253,8 @@ export function installAccessManagementRoutes(app, admin) {
   app.patch('/api/admin/access/policies/:id', async (req, res) => {
     try {
       await requireAccess(req.admin, 'policies.manage')
-      const db = await ensureAuthorizationData(), policy = await db.prepare('SELECT * FROM auth_policies WHERE id=?').get(req.params.id)
-      if (!policy) return res.status(404).json({ error: 'Policy not found.' })
-      const name = String(req.body?.name ?? policy.name).trim(), description = String(req.body?.description ?? policy.description).trim().slice(0, 1000), permissionId = String(req.body?.permission_id ?? policy.permission_id ?? '').trim() || null, effect = req.body?.effect === 'deny' ? 'deny' : req.body?.effect === 'allow' ? 'allow' : policy.effect, enabled = req.body?.enabled === undefined ? policy.enabled : req.body.enabled ? 1 : 0
-      if (!name || name.length > 120) return res.status(422).json({ error: 'Enter a policy name of up to 120 characters.' })
-      if (permissionId && !await db.prepare('SELECT 1 FROM auth_permissions WHERE id=?').get(permissionId)) return res.status(422).json({ error: 'Choose a valid permission.' })
-      if (permissionId && !await hasAccess(req.admin, permissionId)) return res.status(403).json({ error: 'You cannot update a policy for a permission that you do not hold.' })
-      const condition = req.body?.condition && typeof req.body.condition === 'object' ? req.body.condition : parseJson(policy.condition_json)
-      validatePolicyCondition(condition)
-      const updatedAt = now()
-      await db.prepare('UPDATE auth_policies SET name=?,description=?,effect=?,permission_id=?,condition_json=?,enabled=?,updated_at=? WHERE id=?').run(name, description, effect, permissionId, JSON.stringify(condition), enabled, updatedAt, policy.id)
-      await audit(db, req.admin.id, enabled ? 'POLICY_UPDATED' : 'POLICY_DISABLED', 'policy', policy.id, { ...policy, condition: parseJson(policy.condition_json) }, { name, description, effect, permissionId, condition, enabled: Boolean(enabled) })
-      res.json({ saved: true })
-    } catch (error) { res.status(error.status || 503).json({ error: safeAccessError(error, 'Policy could not be updated.') }) }
+      res.status(409).json({ error: 'Submit a revision in the policy workspace for independent review.' })
+    } catch (error) { res.status(error.status || 503).json({ error: safeAccessError(error, 'Policy unavailable.') }) }
   })
 
   app.put('/api/admin/access/groups/:id/policies', async (req, res) => {

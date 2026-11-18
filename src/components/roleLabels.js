@@ -1,0 +1,1 @@
+export const roleLabels = { staff: 'Municipal staff', content_manager: 'Content manager', it_support: 'IT support', admin: 'Administrator', super_admin: 'Super administrator', disabled: 'Disabled', resident: 'Resident' }

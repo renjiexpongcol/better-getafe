@@ -51,11 +51,21 @@ function workerFailure(error) {
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => controller.abort());
 let startupStage = 'supabase_configuration';
 try {
-  const setup = await ensureSupabaseConfigured();
-  if (setup.cancelled) { controller.abort(); process.exit(0); }
-  console.info('[Supabase] Connection verified.');
-  await checkBetterGetafeSchema(setup.url);
-  console.info('[Supabase] Better Getafe database ready for integration worker.');
+  let retryMs = 5000;
+  while (!controller.signal.aborted) {
+    try {
+      const setup = await ensureSupabaseConfigured({ interactive: false });
+      await checkBetterGetafeSchema(setup.url);
+      console.info('[Supabase] Better Getafe database ready for integration worker.');
+      break;
+    } catch (error) {
+      if (!error.retryable || rotateVault) throw error;
+      console.warn(JSON.stringify({ event: 'integration_worker_waiting_for_database', hint: error.message, retryMs }));
+      await pause(retryMs, undefined, { signal: controller.signal }).catch(() => {});
+      retryMs = Math.min(60000, retryMs * 2);
+    }
+  }
+  if (controller.signal.aborted) process.exit(0);
   try { supabaseConnectionOptions('database'); }
   catch { throw Object.assign(new Error(), { code: 'WORKER_SUPABASE_CONFIGURATION' }); }
   startupStage = 'vault_configuration';

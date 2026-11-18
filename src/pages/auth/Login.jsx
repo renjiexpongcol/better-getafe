@@ -41,7 +41,8 @@ export default function Login() {
   const [mode, setMode] = useState('signin') // 'signin' | 'register'
   const [showPassword, setShowPassword] = useState(false)
   const [egovNotice, setEgovNotice] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [pendingAction, setPendingAction] = useState(null)
+  const loading = pendingAction !== null
   const [cooldown, setCooldown] = useState(0)
   const [error, setError] = useState('')
   const [forgot, setForgot] = useState(false)
@@ -140,14 +141,14 @@ export default function Login() {
     else { clearEmailChallenge() }
   }
   const completeMfaChallenge = async event => {
-    event.preventDefault(); if (actionInFlight.current || loading || cooldown > 0) return; actionInFlight.current = true; setLoading(true); setError('')
+    event.preventDefault(); if (actionInFlight.current || loading || cooldown > 0) return; actionInFlight.current = true; setPendingAction('verify'); setError('')
     try {
       const result = await completeMfa(mfaChallenge, code)
       if (!result.ok) { if (!applyRateLimit(result)) setError(result.error) }
-    } catch { setError('Verification is temporarily unavailable.') } finally { setLoading(false); actionInFlight.current = false }
+    } catch { setError('Verification is temporarily unavailable.') } finally { setPendingAction(null); actionInFlight.current = false }
   }
   const completeChallenge = async event => {
-    event.preventDefault(); if (actionInFlight.current || loading || cooldown > 0) return; actionInFlight.current = true; setLoading(true); setError('')
+    event.preventDefault(); if (actionInFlight.current || loading || cooldown > 0) return; actionInFlight.current = true; setPendingAction('verify'); setError('')
     try {
       if (renewal && !passwordPassesPolicy(newPassword, Number(settings['authentication.passwordMinLength'] || 12))) throw new Error('Choose a stronger password that meets the password requirements.')
       if (renewal && newPassword !== confirmNewPassword) throw new Error('Passwords do not match.')
@@ -169,12 +170,12 @@ export default function Login() {
       }
       if (renewal) { clearEmailChallenge(); setRenewal(null); setError('Password updated. Sign in with your new password.'); setForm(previous => ({ ...previous, password: '' })) }
       else { clearEmailChallenge(); if (!await refreshUser()) throw new Error('The sign-in session could not be established. Please try again.') }
-    } catch (error) { setError(error.message) } finally { actionInFlight.current = false; setLoading(false) }
+    } catch (error) { setError(error.message) } finally { actionInFlight.current = false; setPendingAction(null) }
   }
   const resendVerificationCode = async () => {
     if (actionInFlight.current || loading || resendCooldown > 0 || !challenge) return
     actionInFlight.current = true
-    setLoading(true)
+    setPendingAction('resend')
     setError('')
     setChallengeMessage('')
     try {
@@ -192,7 +193,7 @@ export default function Login() {
       setChallengeMessage(body.message || 'A new code has been sent to your email.')
       applyResendCooldown(body.nextResendAt, body.retryAfter)
       window.requestAnimationFrame(() => codeRef.current?.focus())
-    } catch (error) { setError(error.message) } finally { actionInFlight.current = false; setLoading(false) }
+    } catch (error) { setError(error.message) } finally { actionInFlight.current = false; setPendingAction(null) }
   }
   const [form, setForm] = useState({
     name: '',
@@ -226,7 +227,7 @@ export default function Login() {
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (actionInFlight.current || loading || cooldown > 0) return
     setError('')
@@ -239,14 +240,6 @@ export default function Login() {
         e.currentTarget.elements.namedItem(validation.field)?.focus()
         return
       }
-      actionInFlight.current = true
-      setLoading(true)
-      login(email, form.password, form.remember).then((res) => {
-        setLoading(false)
-        handleResult(res)
-      }).finally(() => {
-        actionInFlight.current = false
-      })
     } else {
       if (!form.name.trim() || !form.email.trim() || !form.password) {
         setError('Please fill in all required fields.')
@@ -260,39 +253,41 @@ export default function Login() {
         setError('Passwords do not match.')
         return
       }
-      const submitRegistration = (token) => {
-        actionInFlight.current = true
-        setLoading(true)
-        register(form.name, form.email, form.password, token).then((res) => {
-          setLoading(false)
-          handleResult(res)
-        }).finally(() => {
-          actionInFlight.current = false
-        })
+    }
+
+    actionInFlight.current = true
+    setPendingAction(mode)
+    try {
+      if (mode === 'signin') {
+        handleResult(await login(form.email.trim().toLowerCase(), form.password, form.remember))
+        return
       }
+      let token = captchaToken
       if (settings['security.registrationCaptcha'] === true && settings['security.recaptchaSiteKey']) {
         if (settings['security.recaptchaVersion'] === 'v3') {
           const api = settings['security.recaptchaProvider'] === 'google-enterprise' ? window.grecaptcha?.enterprise : window.grecaptcha
           if (!api) { setError('Verification is loading. Please try again.'); return }
-          api.ready(() => api.execute(settings['security.recaptchaSiteKey'], { action: 'register' }).then(submitRegistration).catch(() => setError('Verification failed. Please try again.')))
-          return
+          try {
+            await new Promise(resolve => api.ready(resolve))
+            token = await api.execute(settings['security.recaptchaSiteKey'], { action: 'register' })
+          } catch {
+            setError('Verification failed. Please try again.')
+            return
+          }
         }
-        if (!captchaToken) { setError('Please complete the reCAPTCHA verification.'); return }
+        if (!token) { setError('Please complete the reCAPTCHA verification.'); return }
       }
-      actionInFlight.current = true
-      setLoading(true)
-      setTimeout(() => {
-        register(form.name, form.email, form.password, captchaToken).then((res) => {
-          setLoading(false)
-          handleResult(res)
-        }).finally(() => {
-          actionInFlight.current = false
-        })
-      }, 650)
+      handleResult(await register(form.name, form.email, form.password, token))
+    } catch {
+      setError(mode === 'signin' ? 'Sign-in is temporarily unavailable. Please try again.' : 'Registration is temporarily unavailable. Please try again.')
+    } finally {
+      actionInFlight.current = false
+      setPendingAction(null)
     }
   }
 
   const switchMode = (next) => {
+    if (actionInFlight.current) return
     setMode(next)
     setForgot(false)
     setError('')
@@ -300,7 +295,7 @@ export default function Login() {
 
   const inputIcon = mode === 'signin' ? <Mail size={18} /> : <User size={18} />
 
-  if (mfaChallenge) return <main className="login-page login-challenge-page"><section className="login-main"><form className="login-card password-renewal-card" onSubmit={completeMfaChallenge}><img className="mfa-authentication-icon" src="/assets/icons/auth-pack/authentication.png" alt="" aria-hidden="true"/><h1>Two-factor authentication</h1><p>Enter the six-digit code from your authenticator app, or one of your recovery codes.</p><label>Authenticator or recovery code<input required type="text" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value)} /></label>{error && <p role="alert">{error}</p>}<button className="login-submit" disabled={loading || cooldown > 0}>{loading ? 'Verifying…' : cooldown > 0 ? `Try again in ${formatCooldown(cooldown)}` : 'Verify and sign in'}</button><button className="renewal-cancel" type="button" onClick={() => { setMfaChallenge(null); setCode(''); setError('') }}>Return to sign in</button></form></section></main>
+  if (mfaChallenge) return <main className="login-page login-challenge-page"><section className="login-main"><form className="login-card password-renewal-card" onSubmit={completeMfaChallenge}><img className="mfa-authentication-icon" src="/assets/icons/auth-pack/authentication.png" alt="" aria-hidden="true"/><h1>Two-factor authentication</h1><p>Enter the six-digit code from your authenticator app, or one of your recovery codes.</p><label>Authenticator or recovery code<input disabled={loading} required type="text" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value)} /></label>{error && <p role="alert">{error}</p>}<button className="login-submit" disabled={loading || cooldown > 0}>{loading ? 'Verifying…' : cooldown > 0 ? `Try again in ${formatCooldown(cooldown)}` : 'Verify and sign in'}</button><button className="renewal-cancel" type="button" disabled={loading} onClick={() => { setMfaChallenge(null); setCode(''); setError('') }}>Return to sign in</button></form></section></main>
 
   if (challenge || renewal) return (
     <main className="login-page login-challenge-page">
@@ -310,20 +305,20 @@ export default function Login() {
           <h1>{renewal ? 'Update your password' : 'Check your email'}</h1>
           <p>{renewal ? 'You need to update your password because it has expired or this is your first time signing in.' : 'Enter the six-digit sign-in code sent to your email address.'}</p>
           {renewal ? <>
-            <label htmlFor="new-password">New password<input id="new-password" required minLength={Number(settings['authentication.passwordMinLength'] || 12)} maxLength="1024" type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="New password" /></label>
-            <label htmlFor="confirm-new-password">Confirm password<input id="confirm-new-password" required minLength={Number(settings['authentication.passwordMinLength'] || 12)} maxLength="1024" type="password" autoComplete="new-password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} placeholder="Confirm password" /></label>
+            <label htmlFor="new-password">New password<input disabled={loading} id="new-password" required minLength={Number(settings['authentication.passwordMinLength'] || 12)} maxLength="1024" type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="New password" /></label>
+            <label htmlFor="confirm-new-password">Confirm password<input disabled={loading} id="confirm-new-password" required minLength={Number(settings['authentication.passwordMinLength'] || 12)} maxLength="1024" type="password" autoComplete="new-password" value={confirmNewPassword} onChange={event => setConfirmNewPassword(event.target.value)} placeholder="Confirm password" /></label>
           </> : <>
-            <label htmlFor="verification-code">Verification code<input ref={codeRef} id="verification-code" required type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} aria-describedby={`${error ? 'verification-code-error' : ''}${challengeMessage ? ' verification-code-status' : ''}`} aria-invalid={Boolean(error)} /></label>
+            <label htmlFor="verification-code">Verification code<input disabled={loading} ref={codeRef} id="verification-code" required type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} aria-describedby={`${error ? 'verification-code-error' : ''}${challengeMessage ? ' verification-code-status' : ''}`} aria-invalid={Boolean(error)} /></label>
             {challengeMessage && <p id="verification-code-status" className="email-code-message" role="status"><Info size={16} aria-hidden="true"/><span>{challengeMessage}</span></p>}
           </>}
           {error && <p id={renewal ? undefined : 'verification-code-error'} className="login-error" role="alert">{error}</p>}
-          <button className="login-submit" disabled={loading || cooldown > 0 || (!renewal && code.length !== 6)}>{loading ? (renewal ? 'Checking…' : 'Verifying…') : cooldown > 0 ? `Try again in ${cooldown}s` : renewal ? 'Sign in' : 'Continue'}</button>
+          <button className="login-submit" disabled={loading || cooldown > 0 || (!renewal && code.length !== 6)}>{pendingAction === 'verify' ? (renewal ? 'Checking…' : 'Verifying…') : cooldown > 0 ? `Try again in ${cooldown}s` : renewal ? 'Sign in' : 'Continue'}</button>
           {!renewal && <>
             <p className="email-resend-prompt">Didn't receive the code?</p>
             <button className="email-resend-button" type="button" onClick={resendVerificationCode} disabled={loading || resendCooldown > 0} aria-label={resendCooldown > 0 ? `Resend code in ${resendCooldown} seconds` : 'Resend code'}>{loading ? 'Sending…' : resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}</button>
-            <button className="login-tertiary-link" type="button" onClick={() => { clearEmailChallenge(); setCode(''); setError(''); setChallengeMessage('') }}>← Back to sign in</button>
+            <button className="login-tertiary-link" type="button" disabled={loading} onClick={() => { clearEmailChallenge(); setCode(''); setError(''); setChallengeMessage('') }}>← Back to sign in</button>
           </>}
-          {renewal && <button className="renewal-cancel" type="button" onClick={() => { clearEmailChallenge(); setRenewal(null); setCode('') }}>Return to sign in</button>}
+          {renewal && <button className="renewal-cancel" type="button" disabled={loading} onClick={() => { clearEmailChallenge(); setRenewal(null); setCode('') }}>Return to sign in</button>}
         </form>
       </section>
     </main>
@@ -389,7 +384,7 @@ export default function Login() {
                   {' '}<a href="tel:09171234567">(038) 502-9088</a> or visit the municipal
                   hall to verify your identity.
                 </p>
-                <button type="button" className="login-forgot-close" onClick={() => setForgot(false)}>
+                <button type="button" disabled={loading} className="login-forgot-close" onClick={() => setForgot(false)}>
                   Dismiss
                 </button>
               </div>
@@ -403,7 +398,7 @@ export default function Login() {
                 <div className="login-input-wrap">
                   <User size={18} />
                   <input
-                    id="name"
+                    disabled={loading} id="name"
                     type="text"
                     autoComplete="off"
                     placeholder="e.g. Juan Dela Cruz"
@@ -421,7 +416,7 @@ export default function Login() {
               <div className="login-input-wrap">
                 {inputIcon}
                 <input
-                  id="email"
+                  disabled={loading} id="email"
                   type="email"
                   autoComplete={mode === 'register' ? 'off' : 'email'}
                   placeholder="you@example.com"
@@ -435,7 +430,7 @@ export default function Login() {
               <div className="login-label-row">
                 <label htmlFor="password">Password</label>
                 {mode === 'signin' && (
-                  <Link className="login-link-btn" to="/auth/forgot-password">
+                  loading ? <span className="login-link-btn" aria-disabled="true">Forgot password?</span> : <Link className="login-link-btn" to="/auth/forgot-password">
                     Forgot password?
                   </Link>
                 )}
@@ -443,7 +438,7 @@ export default function Login() {
               <div className="login-input-wrap">
                 <Lock size={18} />
                 <input
-                  id="password"
+                  disabled={loading} id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
                   minLength={mode === 'register' ? Number(settings['authentication.passwordMinLength'] || 12) : undefined}
@@ -453,7 +448,7 @@ export default function Login() {
                   onChange={update('password')}
                 />
                 <button
-                  type="button"
+                  type="button" disabled={loading}
                   className="login-eye"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
@@ -471,7 +466,7 @@ export default function Login() {
                 <div className="login-input-wrap">
                   <Lock size={18} />
                   <input
-                    id="confirm"
+                    disabled={loading} id="confirm"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="off"
                     placeholder="Repeat your password"
@@ -486,7 +481,7 @@ export default function Login() {
               <div className="login-options-row">
                 <label className="login-checkbox">
                   <input
-                    type="checkbox"
+                    disabled={loading} type="checkbox"
                     checked={form.remember}
                     onChange={(e) => setForm((f) => ({ ...f, remember: e.target.checked }))}
                   />
@@ -509,7 +504,7 @@ export default function Login() {
           <div className="login-divider"><span>or continue with</span></div>
 
           <div className="login-social-row">
-            <button type="button" className="login-social" onClick={() => {
+            <button type="button" disabled={loading} className="login-social" onClick={() => {
               const intended = hasReturnUrl ? returnUrl : getPendingReturnUrl()
               if (intended) setPendingReturnUrl(intended)
               const query = new URLSearchParams({ intent: mode === 'register' ? 'signup' : 'signin' })
@@ -526,7 +521,7 @@ export default function Login() {
               Google
             </button>
             <div className="login-egov-option" onMouseEnter={() => setEgovNotice(true)} onMouseLeave={() => setEgovNotice(false)}>
-              <button type="button" className="login-social" aria-describedby={egovNotice ? 'egov-availability' : undefined} onFocus={() => setEgovNotice(true)} onBlur={() => setEgovNotice(false)} onClick={() => setEgovNotice(true)} onKeyDown={event => { if (event.key === 'Escape') setEgovNotice(false) }}>
+              <button type="button" disabled={loading} className="login-social" aria-describedby={egovNotice ? 'egov-availability' : undefined} onFocus={() => setEgovNotice(true)} onBlur={() => setEgovNotice(false)} onClick={() => setEgovNotice(true)} onKeyDown={event => { if (event.key === 'Escape') setEgovNotice(false) }}>
                 <img src="/assets/icons/gov/e-gov.png" alt="" className="login-egov-icon" /> eGovPH
               </button>
               {egovNotice && <span id="egov-availability" className="login-egov-notice" role="tooltip">eGovPH sign-in is temporarily unavailable. Use email or Google instead.</span>}
@@ -536,14 +531,14 @@ export default function Login() {
           {mode === 'signin' ? (
             <p className="login-switch">
               New to Getafe e-services?{' '}
-              <button type="button" className="login-link-btn" onClick={() => switchMode('register')}>
+              <button type="button" disabled={loading} className="login-link-btn" onClick={() => switchMode('register')}>
                 Create an account
               </button>
             </p>
           ) : (
             <p className="login-switch">
               Already have an account?{' '}
-              <button type="button" className="login-link-btn" onClick={() => switchMode('signin')}>
+              <button type="button" disabled={loading} className="login-link-btn" onClick={() => switchMode('signin')}>
                 Sign in
               </button>
             </p>

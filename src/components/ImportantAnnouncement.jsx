@@ -1,8 +1,7 @@
 import { useDataRevision } from '../hooks/usePublicResource'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowRight, CalendarDays, X } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import './ImportantAnnouncement.css'
 import { clearExpiredAnnouncementDismissals, dismissAnnouncement, isAnnouncementDismissed } from '../services/announcementDismissals'
 import { publicApi } from '../services/apiClient'
@@ -17,11 +16,14 @@ function validDate(value) {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-function announcementDetails(notice) {
+function announcementDetails(notice, expanded) {
   const type = String(notice.content_type || 'news').toLowerCase()
   if (!['event', 'meeting'].includes(type)) {
     const published = validDate(notice.published_at)
-    return published ? [{ label: 'Published', value: dateFormatter.format(published), icon: CalendarDays }] : []
+    if (!published) return []
+    const date = dateFormatter.format(published)
+    const value = expanded ? `${date} • ${timeFormatter.format(published)} PHT` : date
+    return [{ label: 'Published', value, icon: CalendarDays }]
   }
 
   const start = validDate(notice.event_start_at)
@@ -29,7 +31,7 @@ function announcementDetails(notice) {
   if (!start) return []
 
   const dateValue = end && dateFormatter.format(end) !== dateFormatter.format(start)
-    ? `${dateFormatter.format(start)} – ${dateFormatter.format(end)}`
+    ? `${dateFormatter.format(start)} - ${dateFormatter.format(end)}`
     : dateFormatter.format(start)
   const timeValue = end ? `${timeFormatter.format(start)} - ${timeFormatter.format(end)}` : timeFormatter.format(start)
   return [{ label: type === 'meeting' ? 'Meeting schedule' : 'Event schedule', value: `${dateValue} • ${timeValue} PHT`, icon: CalendarDays }]
@@ -39,13 +41,6 @@ export default function ImportantAnnouncement() {
   const dataRevision = useDataRevision()
   const [notice, setNotice] = useState(null)
   const [dismissed, setDismissed] = useState(() => new Set())
-  const dialogRef = useRef(null)
-  const closeRef = useRef(null)
-  const previousActiveRef = useRef(null)
-  const impressionIdRef = useRef(null)
-  const visible = Boolean(notice && !dismissed.has(notice.id))
-  const details = useMemo(() => (notice ? announcementDetails(notice) : []), [notice])
-
   useEffect(() => {
     let active = true
     clearExpiredAnnouncementDismissals()
@@ -67,12 +62,29 @@ export default function ImportantAnnouncement() {
     return () => { active = false; clearInterval(interval) }
   }, [dataRevision])
 
-  useEffect(() => {
-    if (!visible) return undefined
-    const dialog = dialogRef.current
-    if (!dialog) return undefined
+  if (!notice || dismissed.has(notice.id)) return null
 
-    previousActiveRef.current = document.activeElement
+  function dismiss() {
+    dismissAnnouncement(notice.id, notice.version || notice.updated_at || 1)
+    setDismissed(previous => new Set([...previous, notice.id]))
+  }
+
+  return <AnnouncementDialog key={notice.id} notice={notice} onDismiss={dismiss} />
+}
+
+function AnnouncementDialog({ notice, onDismiss }) {
+  const [expanded, setExpanded] = useState(false)
+  const dialogRef = useRef(null)
+  const closeRef = useRef(null)
+  const readRef = useRef(null)
+  const scrollRef = useRef(null)
+  const impressionIdRef = useRef(null)
+  const returningToPreview = useRef(false)
+  const details = announcementDetails(notice, expanded)
+
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current
+    const previousActive = document.activeElement
     const previousBodyOverflow = document.body.style.overflow
     const previousDocumentOverflow = document.documentElement.style.overflow
 
@@ -86,20 +98,42 @@ export default function ImportantAnnouncement() {
       if (dialog.open) dialog.close()
       document.body.style.overflow = previousBodyOverflow
       document.documentElement.style.overflow = previousDocumentOverflow
-      const previousActive = previousActiveRef.current
       if (previousActive?.isConnected && typeof previousActive.focus === 'function') {
-        window.requestAnimationFrame(() => previousActive.focus())
+        previousActive.focus({ preventScroll: true })
       }
     }
-  }, [visible, notice?.id])
+  }, [notice.id])
 
-  if (!visible) return null
+  useLayoutEffect(() => {
+    scrollRef.current.scrollTop = 0
+    if (expanded) closeRef.current.focus({ preventScroll: true })
+    else if (returningToPreview.current) readRef.current.focus({ preventScroll: true })
+  }, [expanded])
 
-  const dismiss = (interaction = 'dismiss') => {
-    const version = notice.version || notice.updated_at || 1
-    trackAnnouncementInteraction(interaction, notice.id, impressionIdRef.current)
-    dismissAnnouncement(notice.id, version)
-    setDismissed((previous) => new Set([...previous, notice.id]))
+  function expand() {
+    trackAnnouncementInteraction('open', notice.id, impressionIdRef.current)
+    setExpanded(true)
+  }
+
+  function close() {
+    if (expanded) {
+      returningToPreview.current = true
+      setExpanded(false)
+    } else {
+      trackAnnouncementInteraction('dismiss', notice.id, impressionIdRef.current)
+      onDismiss()
+    }
+  }
+
+  function handleClick(event) {
+    if (event.target === event.currentTarget) {
+      const rect = event.currentTarget.getBoundingClientRect()
+      if (event.clientX < rect.left || event.clientX >= rect.right || event.clientY < rect.top || event.clientY >= rect.bottom) {
+        close()
+        return
+      }
+    }
+    if (!expanded) expand()
   }
   const image = notice.featured_image || notice.featured_image_path
   const description = notice.excerpt?.trim()
@@ -107,17 +141,18 @@ export default function ImportantAnnouncement() {
   return createPortal(
     <dialog
       ref={dialogRef}
-      className="important-announcement"
+      className={`important-announcement ${expanded ? 'is-expanded' : 'is-preview'}`}
+      onClick={handleClick}
       role="dialog"
       aria-modal="true"
       aria-labelledby="important-announcement-title"
-      aria-describedby={description ? 'important-announcement-title important-announcement-summary' : 'important-announcement-title'}
-      onCancel={(event) => { event.preventDefault(); dismiss('dismiss') }}
+      aria-describedby={description && !expanded ? 'important-announcement-summary' : undefined}
+      onCancel={(event) => { event.preventDefault(); close() }}
     >
-      <button ref={closeRef} type="button" className="important-announcement-close" aria-label="Close announcement" onClick={() => dismiss('dismiss')} data-icon-button="ghost">
+      <button ref={closeRef} type="button" className="important-announcement-close" aria-label={expanded ? 'Close full announcement' : 'Close announcement'} onClick={event => { event.stopPropagation(); close() }}>
         <X size={20} aria-hidden="true" />
       </button>
-      <div className={`important-announcement-body${image ? ' has-image' : ' no-image'}`}>
+      <div ref={scrollRef} className={`important-announcement-body${image ? ' has-image' : ' no-image'}`}>
         {image && (
           <div className="important-announcement-media">
             <img className="important-announcement-image" src={image} alt={`Announcement artwork for ${notice.title}`} />
@@ -139,13 +174,18 @@ export default function ImportantAnnouncement() {
             </dl>
           )}
 
-          {description && <p id="important-announcement-summary">{description}</p>}
+          {(!expanded || !notice.content?.trim()) && description && <p id="important-announcement-summary">{description}</p>}
 
-          <div className="important-announcement-actions">
-            <Link className="important-announcement-primary" to={`/news/${notice.slug}`} onClick={() => dismiss('open')}>
-              Read full announcement <ArrowRight size={16} aria-hidden="true" />
-            </Link>
-          </div>
+          {expanded && notice.content?.trim() && (
+            <div className="important-announcement-article" dangerouslySetInnerHTML={{ __html: notice.content }} />
+          )}
+          {!expanded && (
+            <div className="important-announcement-actions">
+              <button ref={readRef} type="button" className="important-announcement-primary">
+                Read full announcement <ArrowRight size={16} aria-hidden="true" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </dialog>,

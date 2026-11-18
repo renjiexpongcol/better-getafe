@@ -3,16 +3,17 @@ import ModalDialog from './ModalDialog.jsx'
 import { formatSessionCountdown, sessionMaximumWarningVisible, sessionWarningVisible } from '@getafe/auth-client'
 import './SessionTimeoutWarning.css'
 
-export function SessionTimeoutWarning({ user, initialized, expiresAt, absoluteExpiresAt, warningMinutes, renewSession, logout, expireSession }) {
+export function SessionTimeoutWarning({ lastActivityRef, user, initialized, expiresAt, absoluteExpiresAt, warningMinutes, renewSession, logout, expireSession }) {
   const [now, setNow] = useState(Date.now())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [dismissedDeadline, setDismissedDeadline] = useState(null)
   const deadline = Number(expiresAt)
   const absoluteDeadline = Number(absoluteExpiresAt)
   const idleDeadlineValid = Number.isFinite(deadline) && deadline > 0
   const absoluteDeadlineValid = Number.isFinite(absoluteDeadline) && absoluteDeadline > 0
-  const open = sessionWarningVisible({ initialized, hasSession: Boolean(user), expiresAt: deadline, warningMinutes, now })
-  const showMaximumNotice = sessionMaximumWarningVisible({ initialized, hasSession: Boolean(user), expiresAt: absoluteDeadline, warningMinutes, now })
+  const open = (!absoluteDeadlineValid || deadline < absoluteDeadline) && sessionWarningVisible({ initialized, hasSession: Boolean(user), expiresAt: deadline, warningMinutes, now, lastActivityAt: lastActivityRef.current })
+  const showMaximumNotice = sessionMaximumWarningVisible({ initialized, hasSession: Boolean(user), expiresAt: absoluteDeadline, warningMinutes, now, lastActivityAt: lastActivityRef.current })
 
   useEffect(() => {
     if (!initialized || !user || !(idleDeadlineValid || absoluteDeadlineValid)) return undefined
@@ -54,9 +55,12 @@ export function SessionTimeoutWarning({ user, initialized, expiresAt, absoluteEx
   }
 
   return <>
-    {showMaximumNotice && <aside className="session-maximum-notice" role="status" aria-live="polite">
-      <strong>Your session is reaching its maximum duration.</strong>
-      <span> Save your work before signing in again.</span>
+    {showMaximumNotice && !open && dismissedDeadline !== absoluteDeadline && <aside className="session-maximum-notice" aria-label="Session reminder">
+      <div role="status">
+        <strong>Your session ends at {new Date(absoluteDeadline).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.</strong>
+        <span>Save your work before signing in again.</span>
+      </div>
+      <button type="button" aria-label="Dismiss session reminder" onClick={() => setDismissedDeadline(absoluteDeadline)}>×</button>
     </aside>}
     {open && <ModalDialog labelledBy="session-warning-title" describedBy="session-warning-description" busy={busy} onClose={() => {}} size="small" themeClass="cms" backdropClass="session-timeout-backdrop">
       <section className="portal-action-modal session-timeout-dialog">

@@ -31,11 +31,23 @@
 .page-shell main:not(#home) :is(.news-listing,.events-content) > .container { width:min(calc(100% - 32px),1280px); margin-inline:auto; }
 /* Account access uses the same municipal photograph as the homepage hero. */
 .login-page {
+  isolation: isolate;
+}
+.login-page::before {
+  content: "";
+  position: fixed;
+  inset: 0 auto auto 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100lvh;
+  z-index: -1;
+  pointer-events: none;
   background: linear-gradient(120deg, rgb(7 26 51 / 64%), rgb(25 74 120 / 38%)), url('/assets/Getafe_Bohol_1.jpg') center 48% / cover no-repeat;
 }
 .login-page .login-main { background: transparent; }
 @media (forced-colors: active) {
   .login-page { background: Canvas; }
+  .login-page::before { display: none; }
 }
 .login-egov-option { position:relative; min-width:0; flex:1; }
 .login-egov-option .login-social { width:100%; }

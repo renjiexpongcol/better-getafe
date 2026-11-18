@@ -34,10 +34,11 @@ export const permissionCatalog = [
   ['directory.manage', 'Content', 'Manage public directory', 'Maintain barangays and municipal officials.'],
   ['privacy.manage', 'Governance', 'Manage privacy requests', 'Review and process resident privacy requests.', true],
   ['admin.dashboard.view', 'Administration', 'View administration dashboard', 'Open the administration workspace.'],
-  ['users.view', 'Access Management', 'View users', 'View staff and administrator accounts.', true],
-  ['users.manage', 'Access Management', 'Manage users', 'Create and modify staff accounts.', true],
+  ['users.view', 'Access Management', 'View users', 'View employee and resident accounts.', true],
+  ['users.manage', 'Access Management', 'Manage users', 'Create and modify employee accounts.', true],
   ['groups.manage', 'Access Management', 'Manage groups', 'Create groups and manage membership.', true],
   ['permissions.manage', 'Access Management', 'Manage permissions', 'Assign permissions to groups.', true],
+  ['policies.edit', 'Access Management', 'Propose policy edits', 'Submit changes to policies delegated to your group.', true],
   ['policies.manage', 'Access Management', 'Manage policies', 'Create and assign conditional policies.', true],
   ['audit.view', 'Governance', 'View audit log', 'Review immutable authorization history.', true],
   ['system.settings.manage', 'System', 'Manage system settings', 'Change system configuration.', true],
@@ -60,6 +61,10 @@ for (const permission of configurationPermissions.filter(name => name.startsWith
 }
 
 const defaultGroups = [
+  ['IT Support', 'Delegated technical support membership. Administrators assign permissions through group management.', []],
+  ['Help Desk', 'First-line troubleshooting and employee assistance.', ['help.view']],
+  ['Technical Support', 'Technical troubleshooting and service diagnostics.', ['help.view', 'system.infrastructure.view']],
+  ['IT Administrator', 'Technical administration. Policy management requires an explicit grant.', ['system.infrastructure.view', 'system.errors.view']],
   ['Department_Service_Staff', 'Reviews and processes submitted e-service requests in assigned servicing departments.', ['services.catalog.view', 'requests.department.view', 'requests.department.assign', 'requests.department.process', 'documents.view', 'documents.process', 'staff.dashboard.view', 'notifications.view', 'help.view']],
   ['Staff_Support', 'Handles citizen support and municipal service requests.', ['requests.view', 'requests.unrouted.view', 'requests.update', 'requests.fulfillment_note.create', 'requests.complete', 'requests.close', 'appointments.view', 'appointments.update', 'documents.view', 'documents.process', 'staff.dashboard.view', 'notifications.view', 'help.view']],
   ['Barangay_Staff', 'Handles requests and appointments scoped to an assigned barangay.', ['requests.view', 'requests.update', 'requests.fulfillment_note.create', 'appointments.view', 'appointments.update', 'documents.view', 'staff.dashboard.view', 'notifications.view', 'help.view']],

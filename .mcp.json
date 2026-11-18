@@ -1,0 +1,11 @@
+{
+	"mcpServers": {
+		"twenty": {
+			"type": "http",
+			"url": "http://localhost:2020/mcp",
+			"headers": {
+				"Authorization": "Bearer <YOUR_API_KEY>"
+			}
+		}
+	}
+}

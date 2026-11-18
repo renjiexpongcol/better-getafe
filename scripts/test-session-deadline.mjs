@@ -38,9 +38,9 @@ test('countdown is derived from the deadline and formats at zero', () => {
 
 test('session warning waits for initialization and for the configured warning window', () => {
   const deadline = 1_200_000
-  assert.equal(sessionWarningVisible({ initialized: false, hasSession: true, expiresAt: deadline, warningMinutes: 5, now: deadline - 60_000 }), false)
-  assert.equal(sessionWarningVisible({ initialized: true, hasSession: true, expiresAt: deadline, warningMinutes: 5, now: deadline - 6 * 60_000 }), false)
-  assert.equal(sessionWarningVisible({ initialized: true, hasSession: true, expiresAt: deadline, warningMinutes: 5, now: deadline - 5 * 60_000 }), true)
+  assert.equal(sessionWarningVisible({ lastActivityAt: 0, initialized: false, hasSession: true, expiresAt: deadline, warningMinutes: 5, now: deadline - 60_000 }), false)
+  assert.equal(sessionWarningVisible({ lastActivityAt: 0, initialized: true, hasSession: true, expiresAt: deadline, warningMinutes: 5, now: deadline - 6 * 60_000 }), false)
+  assert.equal(sessionWarningVisible({ lastActivityAt: 0, initialized: true, hasSession: true, expiresAt: deadline, warningMinutes: 5, now: deadline - 5 * 60_000 }), true)
 })
 
 test('older responses cannot move a live session deadline backwards, while a new session starts cleanly', () => {
@@ -51,8 +51,8 @@ test('older responses cannot move a live session deadline backwards, while a new
 
 test('an approaching absolute limit uses a separate notice while the idle warning stays closed', () => {
   const now = 1_000_000
-  assert.equal(sessionWarningVisible({ initialized: true, hasSession: true, expiresAt: now + 20 * 60_000, warningMinutes: 5, now }), false)
-  assert.equal(sessionMaximumWarningVisible({ initialized: true, hasSession: true, expiresAt: now + 4 * 60_000, warningMinutes: 5, now }), true)
+  assert.equal(sessionWarningVisible({ lastActivityAt: 0, initialized: true, hasSession: true, expiresAt: now + 20 * 60_000, warningMinutes: 5, now }), false)
+  assert.equal(sessionMaximumWarningVisible({ lastActivityAt: 0, initialized: true, hasSession: true, expiresAt: now + 4 * 60_000, warningMinutes: 5, now }), true)
 })
 
 test('only visible user input triggers a throttled activity update', () => {
@@ -81,4 +81,15 @@ test('session renewal is an authenticated, CSRF protected mutation', () => {
   assert.equal(policy.access, 'SESSION')
   assert.equal(policy.csrf, 'cookie token + origin')
   assert.equal(resolveApiRoutePolicy('GET', '/api/auth/renew').methodAllowed, false)
+})
+
+test('both reminders require two minutes without input even inside the expiry window', () => {
+  const now = 1_000_000
+  for (const visible of [sessionWarningVisible, sessionMaximumWarningVisible]) {
+    const session = { initialized: true, hasSession: true, expiresAt: now + 60_000, warningMinutes: 5, now }
+    for (const lastActivityAt of [null, now, now - 119_999]) {
+      assert.equal(visible({ ...session, lastActivityAt }), false)
+    }
+    assert.equal(visible({ ...session, lastActivityAt: now - 120_000 }), true)
+  }
 })

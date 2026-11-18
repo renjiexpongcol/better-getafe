@@ -41,7 +41,7 @@ export const MODULE_REGISTRY = {
     users: { permission: 'users.view', title: 'Users' },
     groups: { permission: 'groups.manage', title: 'Groups' },
     permissions: { permission: 'permissions.manage', title: 'Permissions' },
-    policies: { permission: 'policies.manage', title: 'Policies' },
+    policies: { permission: 'policies.manage', anyPermissions: ['policies.edit'], title: 'Policies' },
     audit: { permission: 'audit.view', title: 'Audit log' },
     errors: { permission: 'system.errors.view', title: 'Error Center' },
     'roles-permissions': { permission: 'permissions.manage', title: 'Roles and permissions' },

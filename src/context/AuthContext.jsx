@@ -19,6 +19,7 @@ export function AuthProvider({ children }) {
   const [sessionInitialized, setSessionInitialized] = useState(false)
   const [warningMinutes, setWarningMinutes] = useState(5)
   const requestRef = useRef(0)
+  const lastActivityRef = useRef(null)
   const activityPingRef = useRef(0)
   const renewalRef = useRef(null)
   const publishedDeadlineRef = useRef(0)
@@ -41,6 +42,8 @@ export function AuthProvider({ children }) {
     setSessionExpiresAt(null)
     setAbsoluteSessionExpiresAt(null)
     setSessionInitialized(false)
+    lastActivityRef.current = null
+    activityPingRef.current = 0
     renewalRef.current = null
     sessionControllerRef.current?.abort()
     invalidatePendingRouteRequest(AUTH_ENDPOINTS.session, 'session')
@@ -93,6 +96,7 @@ export function AuthProvider({ children }) {
       if (nextUser) setSignedOut(false)
       setSessionUnavailable(false)
       if (!nextUser || sessionRef.current.user?.id !== nextUser.id) clearPrivateCache()
+      if (nextUser && (!sessionRef.current.user || sessionRef.current.user.id !== nextUser.id)) lastActivityRef.current = Date.now()
       sessionRef.current.user = nextUser
       if (nextUser && body?.session?.expiresAt != null && Number.isFinite(Number(body.session.expiresAt))) {
         const deadline = nextSessionDeadline(publishedDeadlineRef.current || null, body.session.expiresAt)
@@ -153,6 +157,11 @@ export function AuthProvider({ children }) {
       }
       if (event.data?.type === 'warning' && Number.isFinite(Number(event.data.minutes))) {
         setWarningMinutes(Math.max(1, Math.min(30, Number(event.data.minutes))))
+        return
+      }
+      if (event.key === 'getafe-auth-activity' && sessionRef.current.user) {
+        const timestamp = Number(event.newValue)
+        if (timestamp > lastActivityRef.current && timestamp <= Date.now()) lastActivityRef.current = timestamp
         return
       }
       if (event.key === 'getafe-auth-deadline' && event.newValue) {
@@ -343,8 +352,11 @@ export function AuthProvider({ children }) {
     activityPingRef.current = 0
     const markActivity = event => {
       const now = Date.now()
+      if (!event.isTrusted || document.visibilityState !== 'visible' || event.target?.closest?.('.session-timeout-dialog')) return
+      lastActivityRef.current = now
       if (!shouldSendActivityUpdate({ eventType: event.type, isTrusted: event.isTrusted, visible: document.visibilityState === 'visible', lastSentAt: activityPingRef.current, now })) return
       activityPingRef.current = now
+      try { window.localStorage.setItem('getafe-auth-activity', String(now)) } catch {}
       renewSession().catch(() => {})
     }
     const events = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart']
@@ -352,7 +364,7 @@ export function AuthProvider({ children }) {
     return () => { for (const event of events) document.removeEventListener(event, markActivity) }
   }, [renewSession, user])
   const authValue = { user, loading, sessionUnavailable, signedOut, login: authClient.login, completeMfa: authClient.completeMfa, register: authClient.register, logout: authClient.logout, validateSession, refreshUser, updateUser, renewSession, sessionExpiresAt, absoluteSessionExpiresAt, warningMinutes }
-  return <AuthContext.Provider value={authValue}>{children}<SessionTimeoutWarning user={user} initialized={sessionInitialized && !loading} expiresAt={sessionExpiresAt} absoluteExpiresAt={absoluteSessionExpiresAt} warningMinutes={warningMinutes} renewSession={renewSession} logout={authClient.logout} expireSession={expireSession} /></AuthContext.Provider>
+  return <AuthContext.Provider value={authValue}>{children}<SessionTimeoutWarning lastActivityRef={lastActivityRef} user={user} initialized={sessionInitialized && !loading} expiresAt={sessionExpiresAt} absoluteExpiresAt={absoluteSessionExpiresAt} warningMinutes={warningMinutes} renewSession={renewSession} logout={authClient.logout} expireSession={expireSession} /></AuthContext.Provider>
 }
 
 export function useAuth() {

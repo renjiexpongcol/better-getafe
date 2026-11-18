@@ -1,16 +1,12 @@
-export function sessionWarningVisible({ initialized, hasSession, expiresAt, warningMinutes, now }) {
+export function sessionWarningVisible({ initialized, hasSession, expiresAt, warningMinutes, now, lastActivityAt }) {
   const deadline = Number(expiresAt)
   const warningMs = Number(warningMinutes) * 60_000
   return Boolean(initialized && hasSession && Number.isFinite(deadline) && deadline > 0
+    && Number.isFinite(lastActivityAt) && now - lastActivityAt >= 2 * 60_000
     && Number.isFinite(warningMs) && warningMs > 0 && deadline > now && now >= deadline - warningMs)
 }
 
-export function sessionMaximumWarningVisible({ initialized, hasSession, expiresAt, warningMinutes, now }) {
-  const deadline = Number(expiresAt)
-  const warningMs = Number(warningMinutes) * 60_000
-  return Boolean(initialized && hasSession && Number.isFinite(deadline) && deadline > 0
-    && Number.isFinite(warningMs) && warningMs > 0 && deadline > now && now >= deadline - warningMs)
-}
+export const sessionMaximumWarningVisible = sessionWarningVisible
 
 const USER_ACTIVITY_EVENTS = new Set(['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'])
 export function shouldSendActivityUpdate({ eventType, isTrusted, visible, lastSentAt, now, throttleMs = 30_000 }) {

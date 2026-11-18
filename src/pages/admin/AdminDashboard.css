@@ -282,7 +282,28 @@
 .admin-portal.portal-v2 .cms-content-table .row-actions .row-action-edit:hover { border-color:#5f91bc; background:#f2f8fd; }
 .admin-portal.portal-v2 .cms-content-table .row-actions .row-action-delete { border-color:#d6a7a7; color:#a23434; }
 .admin-portal.portal-v2 .cms-content-table .row-actions .row-action-delete:hover { border-color:#bd7777; background:#fff5f5; }
-@media (max-width:650px) {
+.admin-portal.portal-v2 .cms-content-table {
+  container: content-list / inline-size;
+  min-inline-size: 0;
+}
+.admin-portal.portal-v2 .cms-content-table :is(.cms-table-head, .cms-table-row) {
+  grid-template-columns: 22px minmax(0, 2fr) minmax(0, .65fr) minmax(0, .95fr) minmax(0, .8fr) minmax(0, 1.15fr) minmax(0, .95fr) 122px;
+  min-width: 0;
+  padding-inline: 12px;
+  column-gap: 8px;
+  overflow-wrap: anywhere;
+}
+.admin-portal.portal-v2 .cms-content-table .row-actions button {
+  flex: none;
+  width: auto;
+  white-space: nowrap;
+}
+.admin-portal.portal-v2 .cms-content-table .cms-important-badge {
+  display: block;
+  width: fit-content;
+  margin-top: 4px;
+}
+@container content-list (max-width: 52rem) {
   .admin-portal.portal-v2 .cms-content-table .cms-table-head,
   .admin-portal.portal-v2 .cms-content-table .cms-table-row {
     grid-template-columns:28px minmax(0,1fr);
@@ -304,7 +325,7 @@
     color:var(--color-text-secondary);
     font-weight:400;
   }
-  .admin-portal.portal-v2 .cms-content-table .row-actions { display:flex; gap:12px; flex-wrap:wrap; }
+  .admin-portal.portal-v2 .cms-content-table .row-actions { display:flex; justify-content:flex-start; gap:12px; flex-wrap:wrap; }
   .admin-portal.portal-v2 .cms-content-table .row-actions button { min-height:44px; padding-inline:14px; }
 }
 .admin-portal.portal-v2 .media-controls { padding: 12px; border: 1px solid var(--admin-border); border-radius: var(--radius-control); background: var(--color-surface); }
@@ -525,3 +546,69 @@
 @media (max-width:720px) { .cms-gallery-header { align-items:stretch; flex-direction:column; gap:14px; } .cms-gallery-add-wrap, .cms-gallery-add-button { width:100%; } .cms-gallery-add-menu { left:0; right:auto; width:100%; } .cms-gallery-grid { grid-template-columns:1fr; } .cms-gallery-library-grid { grid-template-columns:repeat(3, minmax(100px, 1fr)); } }
 @media (max-width:480px) { .cms-gallery-library-backdrop { padding:12px; } .cms-gallery-library-dialog { padding:18px; max-height:calc(100vh - 24px); } .cms-gallery-library-grid { grid-template-columns:repeat(2, minmax(100px, 1fr)); } .cms-gallery-library-actions { flex-direction:column-reverse; } .cms-gallery-library-actions button { width:100%; } }
 .cms-pagination{display:flex;align-items:center;justify-content:flex-end;gap:.75rem;padding:1rem 0;color:var(--muted,#64748b);font-size:.875rem}.cms-pagination button{min-height:40px;padding:.45rem .8rem;border:1px solid var(--border,#dbe3ed);border-radius:.55rem;background:var(--surface,#fff);color:inherit}.cms-pagination button:disabled{opacity:.5;cursor:not-allowed}
+
+.admin-portal .content-bulk-toolbar.visible {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-height: none;
+  padding: 8px 12px;
+}
+.admin-portal .content-bulk-toolbar > strong {
+  margin-right: auto;
+  color: #34465c;
+  font-size: .8rem;
+  font-weight: 600;
+}
+.admin-portal .content-bulk-actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+.admin-portal .content-bulk-toolbar select,
+.admin-portal .content-bulk-actions button {
+  box-sizing: border-box;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.admin-portal .content-bulk-toolbar select {
+  padding-right: 26px;
+}
+.admin-portal .content-bulk-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.admin-portal .content-bulk-actions button:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+.admin-portal .content-bulk-actions .bulk-primary {
+  border-color: #1769aa;
+  background: #1769aa;
+  color: #fff;
+}
+.admin-portal .content-bulk-actions .bulk-primary:hover {
+  border-color: #12588f;
+  background: #12588f;
+}
+.admin-portal .content-bulk-actions .danger {
+  color: #a33434;
+  border-color: #e2bcbc;
+}
+.admin-portal .content-bulk-actions .danger:hover {
+  background: #fff7f7;
+  border-color: #cf8e8e;
+}

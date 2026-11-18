@@ -29,6 +29,17 @@ export default function AdminIntegrations({ permissions = [] }) {
     else setLoading(false);
     return () => { active.current = false; };
   }, [canViewHub, load]);
+  useEffect(() => {
+    if (!canViewHub || data?.worker?.ready !== false) return;
+    let cancelled = false;
+    let timer;
+    const refresh = async () => {
+      await load();
+      if (!cancelled) timer = setTimeout(refresh, 10000);
+    };
+    timer = setTimeout(refresh, 10000);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [canViewHub, data?.worker?.ready, load]);
   const run = async work => {
     if (operation.current) return;
     operation.current = true; setBusy(true); setError(''); setNotice('');

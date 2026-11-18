@@ -656,12 +656,12 @@ export default function Admin() {
         load();
       },
     );
-  const bulkAction = (action) => {
-    if (!selectedArticles.length) return;
+  const bulkAction = (action, ids) => {
+    if (!ids.length) return;
     const run = async () => {
       await api("/api/news/bulk", token, {
         method: "POST",
-        body: JSON.stringify({ ids: selectedArticles, action }),
+        body: JSON.stringify({ ids, action }),
       });
       setSelectedArticles([]);
       setNotice(
@@ -674,7 +674,7 @@ export default function Admin() {
     if (action === "delete")
       askConfirm(
         "Delete selected articles?",
-        `${selectedArticles.length} article${selectedArticles.length === 1 ? "" : "s"} will be permanently removed.`,
+        `${ids.length} article${ids.length === 1 ? "" : "s"} will be permanently removed.`,
         run,
       );
     else run().catch((e) => setNotice(e.message));
@@ -805,15 +805,15 @@ export default function Admin() {
   if (!["admin", "super_admin", "staff", "it_support", "content_manager"].includes(user.role))
     return <Navigate to="/" replace />;
   if (!requestedModuleAccess) return <main className="cms citizen-portal portal-v2 admin-portal"><ModuleNotFoundPage home={location.pathname.startsWith(`${ROUTES.admin.settings}/`) ? ROUTES.admin.setting('general') : undefined} /></main>;
-  if (!can(requestedModuleAccess.permission)) return <main className="cms citizen-portal portal-v2 admin-portal"><ModuleAccessDeniedPage /></main>;
+  if (!routeAuthorized) return <main className="cms citizen-portal portal-v2 admin-portal"><ModuleAccessDeniedPage /></main>;
   const published = articleCounts.published;
   const navigationGroups = [
-    ["Main", [["public-content", "Public content"], ["dashboard", "Dashboard"], ["news", "News & Events"], ["discover", "Discover Getafe"], ["departments", "Departments & Offices"], ["media", "Media Library"]]],
+    ["Main", [["dashboard", "Dashboard"], ["news", "News & Events"], ["discover", "Discover Getafe"], ["departments", "Departments & Offices"], ["media", "Media Library"]]],
     ["E-Services", [["service-catalog", "Service Catalog"]]],
     ["Search", [["search", "Search Management"]]],
     ["Analytics", [["website-analytics", "Website Analytics"]]],
-    ["Management", [["officials", "Officials"], ["barangays", "Barangays"]]],
-    ["Access & security", [["access", "Access Management"]]],
+    ["Management", [["users", "Users"], ["officials", "Officials"], ["barangays", "Barangays"]]],
+    ["Access & security", [["groups", "Groups"], ["permissions", "Permissions"], ["policies", "Policies"], ["audit", "Audit log"]]],
     ["Governance", [["privacy", "Privacy Requests"]]],
     ["System", [["settings", "Settings"], ["integrations", "Integrations"], ["errors", "Error Center"]]],
   ].map(([group, items]) => [group, items.filter(([key]) => hasModulePermission(resolveModule('admin', key), user))]).filter(([, items]) => items.length);
@@ -1433,6 +1433,41 @@ function MediaReferencesDialog({ dialog, onClose, onOpenReference }) {
   </div>;
 }
 
+function downloadContent(articles, format, locations) {
+  const records = articles.map(article => ({
+    ID: article.id,
+    Title: article.title || '',
+    Slug: article.slug || '',
+    Type: article.content_type || 'news',
+    Status: article.status,
+    Published: article.published_at || '',
+    'Last updated': article.updated_at || '',
+    'Event start': article.event_start_at || '',
+    'Event end': article.event_end_at || '',
+    'Display locations': locations(article),
+    Important: Boolean(article.is_important),
+    Excerpt: article.excerpt || '',
+  }));
+  let blob;
+  if (format === 'json') {
+    blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' });
+  } else {
+    const csvCell = value => {
+      const text = String(value ?? '');
+      const safe = /^\s*[=+@-]|^[\t\r\n]/.test(text) ? "'" + text : text;
+      return '"' + safe.replaceAll('"', '""') + '"';
+    };
+    const lines = [Object.keys(records[0]), ...records.map(Object.values)];
+    blob = new Blob(['\uFEFF', lines.map(row => row.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'getafe-selected-content.' + format;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function ArticleTable({
   articles,
   edit,
@@ -1474,31 +1509,37 @@ function ArticleTable({
         ? current.filter((value) => value !== id)
         : [...current, id],
     );
-  const toggleAll = () =>
-    setSelected((current) =>
-      allSelected
-        ? current.filter((id) => !visibleIds.includes(id))
-        : [...new Set([...current, ...visibleIds])],
-    );
+  const selectedRows = filteredArticles.filter(article => selected.includes(article.id));
+  const selectedIds = selectedRows.map(article => article.id);
+  const [exportFormat, setExportFormat] = useState('csv');
+  const toggleAll = () => setSelected(allSelected ? [] : visibleIds);
+  const changeSelection = (choice) => {
+    if (choice === 'invert') setSelected(visibleIds.filter(id => !selected.includes(id)));
+    else if (choice === 'all') setSelected(visibleIds);
+    else setSelected(filteredArticles.filter(article => article.status === choice).map(article => article.id));
+  };
   return (
     <div className="cms-table cms-content-table" role="region" aria-label="News and events list" tabIndex={0}>
       <div className="cms-content-filters" aria-label="Filter content"><select aria-label="Filter by content type" value={filters?.type ?? typeFilter} onChange={(e) => { setTypeFilter(e.target.value); updateFilter('type', e.target.value); }}><option value="">All types</option><option value="news">News</option><option value="event">Events</option><option value="meeting">Meetings</option></select><select aria-label="Filter by status" value={filters?.status ?? statusFilter} onChange={(e) => { setStatusFilter(e.target.value); updateFilter('status', e.target.value); }}><option value="">All statuses</option><option value="published">Published</option><option value="draft">Draft</option></select><select aria-label="Filter by schedule" value={filters?.temporal ?? timeFilter} onChange={(e) => { setTimeFilter(e.target.value); updateFilter('temporal', e.target.value); }}><option value="">Any date</option><option value="upcoming">Upcoming</option><option value="past">Past</option></select><select aria-label="Filter by display location" value={filters?.display ?? locationFilter} onChange={(e) => { setLocationFilter(e.target.value); updateFilter('display', e.target.value); }}><option value="">All locations</option><option value="news">News page</option><option value="upcoming">Upcoming</option><option value="events">Events page</option><option value="homepage">Homepage</option></select><input aria-label="Filter by published date" type="date" value={filters?.day ?? dateFilter} onChange={(e) => { setDateFilter(e.target.value); updateFilter('day', e.target.value); }} /></div>
-      <div className={`bulk-toolbar ${selected.length ? "visible" : ""}`}>
-        <strong>{selected.length} selected</strong>
-        <button className="bulk-primary" onClick={() => onBulkAction("published")}>Publish</button>
-        <button className="bulk-secondary" onClick={() => onBulkAction("draft")}>Move to draft</button>
-        <button className="danger" onClick={() => onBulkAction("delete")}>
-          Delete
-        </button>
-        <button className="bulk-clear" onClick={() => setSelected([])}>
-          Clear
-        </button>
-      </div>
+      {selectedRows.length > 0 && <div className="bulk-toolbar visible content-bulk-toolbar" role="group" aria-label="Selected content actions">
+        <strong role="status">{selectedRows.length} of {visibleIds.length} shown selected</strong>
+        <div className="content-bulk-actions">
+          <select aria-label="Export format" value={exportFormat} onChange={event => setExportFormat(event.target.value)}>
+            <option value="csv">CSV</option>
+            <option value="json">JSON</option>
+          </select>
+          <button onClick={() => downloadContent(selectedRows, exportFormat, locations)}><Download size={16} aria-hidden="true" /> Export selected</button>
+          <button className="bulk-primary" onClick={() => onBulkAction('published', selectedIds)}>Publish</button>
+          <button className="bulk-secondary" onClick={() => onBulkAction('draft', selectedIds)}>Move to draft</button>
+          <button className="danger" onClick={() => onBulkAction('delete', selectedIds)}>Delete</button>
+        </div>
+      </div>}
       <div role="table" aria-label="News and events"><div className="cms-table-head" role="row">
         <span role="columnheader">
           <input
             type="checkbox"
-            aria-label="Select all articles"
+            aria-label="Select all shown articles"
+            ref={node => { if (node) node.indeterminate = selectedRows.length > 0 && !allSelected; }}
             checked={allSelected}
             onChange={toggleAll}
           />

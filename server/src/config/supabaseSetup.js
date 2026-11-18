@@ -35,6 +35,13 @@ export function connectionFailure(error) {
   return 'The read-only Supabase connection test failed. Check the URL, credentials, TLS settings, and project availability.';
 }
 
+function databaseCheckError(error) {
+  const failure = new Error(connectionFailure(error));
+  failure.retryable = ['ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETUNREACH', 'ETIMEDOUT', 'ECONNRESET', '57P03', '53300'].includes(error?.code)
+    || /^(timeout expired|query read timeout|timeout exceeded when trying to connect|connection terminated due to connection timeout)$/i.test(error?.message || '');
+  return failure;
+}
+
 export async function verifySupabaseConnection(url, { ClientClass = Client } = {}) {
   const client = new ClientClass({ ...resolverOptions(url), connectionTimeoutMillis: 7000, query_timeout: 5000, application_name: 'better-getafe-startup-check' });
   try {
@@ -42,7 +49,7 @@ export async function verifySupabaseConnection(url, { ClientClass = Client } = {
     const result = await client.query('SELECT 1 AS connection_verified');
     if (Number(result.rows?.[0]?.connection_verified) !== 1) throw new Error('Connection test returned an unexpected result.');
   } catch (error) {
-    throw new Error(connectionFailure(error));
+    throw databaseCheckError(error);
   } finally {
     await client.end().catch(() => {});
   }
@@ -75,7 +82,7 @@ export async function checkBetterGetafeSchema(url, { PoolClass = Pool } = {}) {
     }
   } catch (error) {
     if (error.message.startsWith('Database connection verified')) throw error;
-    throw new Error(connectionFailure(error));
+    throw databaseCheckError(error);
   } finally {
     await pool.end().catch(() => {});
   }
@@ -144,8 +151,7 @@ export async function ensureSupabaseConfigured({
   dotenv.config({ path: envFile, quiet: true });
   const url = selectedCmsUrl(env);
   if (url) {
-    try { await verify(url); }
-    catch (error) { throw new Error(error.message); }
+    await verify(url);
     env.CMS_SUPABASE_DATABASE_URL = url;
     return { url, source: 'environment', saved: false };
   }

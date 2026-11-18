@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import https from 'node:https';
+import http from 'node:http';
 import dns from 'node:dns/promises';
 import ipaddr from 'ipaddr.js';
 
@@ -59,9 +60,26 @@ export async function safeRequest(value, { allowedHosts, method = 'GET', headers
   ]);
   if (!addresses.length || addresses.some(item => !publicAddress(item.address))) throw new HubError('unsafe_endpoint');
   if (deadline.aborted) throw new HubError('provider_timeout', 504, true);
+  const lookup = (_host, options, callback) => options.all ? callback(null, [addresses[0]]) : callback(null, addresses[0].address, 4);
+  return boundedRequest(url, { method, headers, body, deadline, transport, maxBytes, lookup });
+}
+
+export async function testLocalTwenty(token, timeoutMs, signal) {
+  const deadline = AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(signal ? [signal] : [])]);
+  const result = await boundedRequest(new URL('http://127.0.0.1:2020/rest/people?limit=1'), {
+    method: 'GET', transport: http.request, deadline, maxBytes: 1024 * 1024,
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+  });
+  let payload;
+  try { payload = JSON.parse(result.text); } catch { throw new HubError('invalid_provider_response'); }
+  if (!Array.isArray(payload?.data?.people)) throw new HubError('invalid_provider_response');
+  return { status: result.status, bytes: result.bytes };
+}
+
+function boundedRequest(url, { method, headers, body, deadline, transport, maxBytes, lookup }) {
   return new Promise((resolveResponse, reject) => {
     const request = transport(url, { method, headers, agent: false, rejectUnauthorized: true, signal: deadline,
-      lookup: (_host, options, callback) => options.all ? callback(null, [addresses[0]]) : callback(null, addresses[0].address, 4),
+      lookup,
     }, response => {
       let bytes = 0; const chunks = [];
       response.on('data', chunk => {
