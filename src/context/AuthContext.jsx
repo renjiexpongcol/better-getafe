@@ -18,6 +18,7 @@ export function AuthProvider({ children }) {
   const [absoluteSessionExpiresAt, setAbsoluteSessionExpiresAt] = useState(null)
   const [sessionInitialized, setSessionInitialized] = useState(false)
   const [warningMinutes, setWarningMinutes] = useState(5)
+  const [renewalPending, setRenewalPending] = useState(false)
   const requestRef = useRef(0)
   const lastActivityRef = useRef(null)
   const activityPingRef = useRef(0)
@@ -66,6 +67,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const validateSession = useCallback((force = false) => {
+    if (renewalRef.current) return renewalRef.current.then(() => sessionRef.current.user)
     if (sessionRef.current.promise) return sessionRef.current.promise
     if (!force && Date.now() - sessionRef.current.checkedAt < 30000) return Promise.resolve(sessionRef.current.user)
     const requestId = ++requestRef.current
@@ -321,6 +323,13 @@ export function AuthProvider({ children }) {
   const renewSession = useCallback(() => {
     if (renewalRef.current) return renewalRef.current
     const epoch = sessionEpochRef.current
+    // Discard a session read that began before this activity renewal. Its
+    // potentially stale response must not replace the live account state.
+    ++requestRef.current
+    sessionControllerRef.current?.abort()
+    invalidatePendingRouteRequest(AUTH_ENDPOINTS.session, 'session')
+    sessionRef.current.promise = null
+    setRenewalPending(true)
     const pending = (async () => { try {
       const response = await apiFetch(AUTH_ENDPOINTS.renew, { method: 'POST', credentials: 'include', cache: 'no-store' })
       const body = await response.json().catch(() => ({}))
@@ -341,7 +350,7 @@ export function AuthProvider({ children }) {
       return { ok: true, expiresAt: deadline, absoluteExpiresAt: publishedAbsoluteDeadlineRef.current || null }
     } catch {
       return { ok: false, error: 'Could not renew your session. Check your connection and try again.' }
-    } finally { if (renewalRef.current === pending) renewalRef.current = null } })()
+    } finally { if (renewalRef.current === pending) { renewalRef.current = null; setRenewalPending(false) } } })()
     renewalRef.current = pending
     return pending
   }, [])
@@ -364,7 +373,7 @@ export function AuthProvider({ children }) {
     return () => { for (const event of events) document.removeEventListener(event, markActivity) }
   }, [renewSession, user])
   const authValue = { user, loading, sessionUnavailable, signedOut, login: authClient.login, completeMfa: authClient.completeMfa, register: authClient.register, logout: authClient.logout, validateSession, refreshUser, updateUser, renewSession, sessionExpiresAt, absoluteSessionExpiresAt, warningMinutes }
-  return <AuthContext.Provider value={authValue}>{children}<SessionTimeoutWarning lastActivityRef={lastActivityRef} user={user} initialized={sessionInitialized && !loading} expiresAt={sessionExpiresAt} absoluteExpiresAt={absoluteSessionExpiresAt} warningMinutes={warningMinutes} renewSession={renewSession} logout={authClient.logout} expireSession={expireSession} /></AuthContext.Provider>
+  return <AuthContext.Provider value={authValue}>{children}<SessionTimeoutWarning lastActivityRef={lastActivityRef} user={user} initialized={sessionInitialized && !loading} expiresAt={sessionExpiresAt} absoluteExpiresAt={absoluteSessionExpiresAt} warningMinutes={warningMinutes} renewSession={renewSession} renewalPending={renewalPending} validateSession={validateSession} logout={authClient.logout} expireSession={expireSession} /></AuthContext.Provider>
 }
 
 export function useAuth() {

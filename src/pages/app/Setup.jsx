@@ -108,7 +108,12 @@ export default function Setup() {
     actionInFlight.current = true
     setSaving(true)
     try {
-      if (step === 1) { await saveContact(); setStep(2); return }
+      if (step === 1) {
+        await saveContact()
+        setContactValidationVisible(false)
+        setStep(2)
+        return
+      }
       if (step === 3) {
         await citizenApi('/onboarding/password', { method: 'POST', body: JSON.stringify({ password }) })
         setPasswordSet(true)
@@ -166,17 +171,17 @@ export default function Setup() {
       </fieldset>
       {step === 4 && <ModalDialog backdropClass="setup-review-backdrop" labelledBy="setup-review-title" describedBy="setup-review-description" onClose={goBack} busy={saving} returnFocusRef={continueButtonRef}>
         <section className="setup-review-modal"><header><div><h2 id="setup-review-title">Review your information</h2><p id="setup-review-description">Make sure your details are correct before completing your account setup.</p></div></header>
-          <div className="setup-review setup-review-details"><p className="setup-review-item"><b>Full name</b><span>{fullName}</span></p><p className="setup-review-item"><b>Email address</b><span>{form.email}</span></p><p className="setup-review-item"><b>Mobile number</b><span>{form.mobile}</span></p><p className="setup-review-item"><b>Home address</b><span>{homeAddress}</span></p></div>
-          <footer className="setup-review-footer">{error && <p className="setup-error" role="alert">{error}</p>}<div className="setup-review-actions"><button type="button" className="setup-back" data-dialog-close-action="true" onClick={goBack} disabled={saving}>Back to edit</button><button type="button" className="setup-next" onClick={next} disabled={saving}>{saving ? 'Completing…' : 'Complete setup'}</button></div></footer>
+          <div className="setup-review setup-review-details"><div className="setup-review-item"><b>Full name</b><span>{fullName}</span><button type="button" className="setup-review-edit" onClick={() => { setError(''); setStep(0) }} aria-label="Edit personal information">Edit</button></div><div className="setup-review-item"><b>Email address</b><span>{form.email}</span><button type="button" className="setup-review-edit" onClick={() => { setError(''); setStep(1) }} aria-label="Edit contact details">Edit</button></div><div className="setup-review-item"><b>Mobile number</b><span>{form.mobile}</span><button type="button" className="setup-review-edit" onClick={() => { setError(''); setStep(1) }} aria-label="Edit contact details">Edit</button></div><div className="setup-review-item"><b>Home address</b><span>{homeAddress}</span><button type="button" className="setup-review-edit" onClick={() => { setError(''); setStep(2) }} aria-label="Edit home address">Edit</button></div></div>
+          <footer className="setup-review-footer">{error && <p className="setup-error" role="alert">{error}</p>}<div className="setup-review-actions"><button type="button" className="setup-back" data-dialog-close-action="true" onClick={goBack} disabled={saving}>Back to edit</button><button type="button" className="setup-next" onClick={next} disabled={saving} aria-busy={saving}><span className={saving ? 'setup-button-content is-loading' : 'setup-button-content'}>Complete setup</span>{saving && <><span className="setup-button-spinner" aria-hidden="true"/><span className="sr-only">Completing setup</span></>}</button></div></footer>
         </section>
       </ModalDialog>}
       {step === 5 && <ModalDialog backdropClass="setup-review-backdrop" labelledBy="setup-complete-title" onClose={goBack} busy={saving}>
         <section className="setup-review-modal setup-complete-modal"><div className="setup-complete-modal-body"><span><Check size={25}/></span><div><h2 id="setup-complete-title">Finish account setup</h2><p>Your details are ready. Select <b>Finish Setup</b> to save and continue.</p></div></div>
           {error && <p className="setup-error" role="alert">{error}</p>}
-          <footer><button type="button" className="setup-back" onClick={goBack} disabled={saving}><ChevronLeft size={16}/> Back</button><button type="button" className="setup-next" onClick={next} disabled={saving}>{saving ? 'Saving…' : 'Finish Setup'}</button></footer>
+          <footer><button type="button" className="setup-back" onClick={goBack} disabled={saving}><ChevronLeft size={16}/> Back</button><button type="button" className="setup-next" onClick={next} disabled={saving} aria-busy={saving}><span className={saving ? 'setup-button-content is-loading' : 'setup-button-content'}>Finish Setup</span>{saving && <><span className="setup-button-spinner" aria-hidden="true"/><span className="sr-only">Saving setup</span></>}</button></footer>
         </section>
       </ModalDialog>}
-      <footer className="setup-actions" hidden={step >= 4}>{step > 0 && <button type="button" className="setup-back" onClick={goBack} disabled={saving || verificationBusy}><ChevronLeft size={16}/> Back</button>}<button ref={continueButtonRef} type="button" className="setup-next" onClick={next} disabled={saving || verificationBusy || profileLoading || !profileLoaded}>{saving ? 'Saving…' : <>Continue <ChevronRight size={16}/></>}</button></footer>
+      <footer className="setup-actions" hidden={step >= 4}>{step > 0 && <button type="button" className="setup-back" onClick={goBack} disabled={saving || verificationBusy}><ChevronLeft size={16}/> Back</button>}<button ref={continueButtonRef} type="button" className="setup-next" onClick={next} disabled={saving || verificationBusy || profileLoading || !profileLoaded} aria-busy={saving}><span className={saving ? 'setup-button-content is-loading' : 'setup-button-content'}>Continue <ChevronRight size={16}/></span>{saving && <><span className="setup-button-spinner" aria-hidden="true"/><span className="sr-only">Saving</span></>}</button></footer>
     </section>
   </section></main>
 }

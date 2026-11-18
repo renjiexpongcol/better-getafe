@@ -1,13 +1,13 @@
 import { statusPresentation } from '../../services/statusPresentation';
 import RecordNavigation from '../../components/RecordNavigation';
-import { Field, Pagination } from '../../components/ui/Primitives';
+import { Button, EmptyState, Field, Pagination, StatusBadge } from '../../components/ui/Primitives';
 import { Link } from "react-router-dom";
 import AppPage from "./AppPage";
 import {
   esApi,
   useEservice,
   Feedback,
-  RequestTable,
+  date,
 } from "../../components/EserviceUI";
 import { useState } from "react";
 import { PUBLIC_STATUS } from "../../data/serviceApplication";
@@ -19,9 +19,8 @@ export default function Erequests() {
     [page, status],
   );
   return (
-    <AppPage title="Your service requests">
+    <AppPage title="Your service requests" actions={<Button to="/app/services">Browse services</Button>}>
       <div className="es-workspace"><RecordNavigation/>
-        <Link to="/app/services">Browse services</Link>
         <div className="es-toolbar">
           <Field label="Status">
             <select
@@ -37,12 +36,23 @@ export default function Erequests() {
               ))}
             </select>
           </Field>
+          {state.data && <span role="status">{state.data.total} {state.data.total === 1 ? 'request' : 'requests'}</span>}
         </div>
         <Feedback error={state.error} loading={state.loading} />
         {state.data && (
           <>
-            <RequestTable items={state.data.items} base="/app/e-requests" />
-            <Pagination page={page} totalPages={Math.max(1, Math.ceil(state.data.total / 20))} onChange={setPage}/>
+            {state.data.items.length ? <ul className="es-resident-requests">
+              {state.data.items.map(request => <li key={request.id}>
+                <div><small>{request.request_number}</small><h2>{request.service_name}</h2>
+                  {request.business_name && <p>{request.business_name}</p>}
+                  {request.submitted_at && <p>Submitted {date(request.submitted_at)}</p>}
+                </div>
+                <div className="es-request-actions"><StatusBadge value={request.status} audience="resident"/>
+                  <Link to={`/app/e-requests/${request.id}`}>{({ DRAFT: 'Continue draft', NEEDS_INFORMATION: 'Review requested information', AWAITING_PAYMENT: 'Review payment details' })[request.status] || 'View request'}</Link>
+                </div>
+              </li>)}
+            </ul> : <EmptyState title={status ? 'No requests with this status' : 'No service requests yet'} action={status ? <Button variant="outline" onClick={() => {setStatus(''); setPage(1)}}>Show all requests</Button> : <Button to="/app/services">Find a service</Button>}/>}
+            {state.data.total > 20 && <Pagination page={page} totalPages={Math.ceil(state.data.total / 20)} onChange={setPage}/>}
           </>
         )}
       </div>

@@ -35,23 +35,34 @@ export default function ServiceCatalog({ categoryId = '', businessOnly = false, 
   const { pathname } = useLocation()
   const searchId = useId(), titleId = useId()
   const serviceBase = pathname.startsWith('/app/') ? '/app/services' : '/services/e-services'
-  const fetchedState = useEservice(signal => routeRequest('/api/services', { signal, ttl: 60000 }), [])
+  const fetchedState = useEservice(signal => routeRequest('/api/services', { signal, ttl: 60000 }), [], !servicesOverride)
   const state = servicesOverride ? { ...fetchedState, data: { items: servicesOverride }, loading: false, error: '' } : fetchedState
   const [search, setSearch] = useState(''), [category, setCategory] = useState(''), [department, setDepartment] = useState('')
   const entries = (state.data?.items || []).filter(service => service.kind !== 'DIRECTORY' && (!categoryId || service.category_id === categoryId || service.category_slug === categoryId) && (!businessOnly || String(service.kind || '').startsWith('BUSINESS')) && (!otherOnly || !String(service.kind || '').startsWith('BUSINESS')))
   const categories = [...new Map(entries.filter(service => service.category_id).map(service => [service.category_id, service.category_name])).entries()]
   const departments = [...new Set(entries.map(service => service.department_name).filter(Boolean))].sort()
   const keyword = search.trim().toLocaleLowerCase()
-  const items = entries.filter(service => (!category || service.category_id === category) && (!department || service.department_name === department) && [service.name, service.short_description, service.department_name, service.category_name].filter(Boolean).join(' ').toLocaleLowerCase().includes(keyword))
-  const clear = () => { setSearch(''); setCategory(''); setDepartment('') }
+  const [channel, setChannel] = useState('all')
+  const matches = entries.filter(service => (!category || service.category_id === category) && (!department || service.department_name === department) && [service.name, service.short_description, service.department_name, service.category_name].filter(Boolean).join(' ').toLocaleLowerCase().includes(keyword))
+  const online = matches.filter(service => service.online_available)
+  const office = matches.filter(service => !service.online_available)
+  const items = { all: matches, online, office }[channel]
+  const clear = () => { setSearch(''); setCategory(''); setDepartment(''); setChannel('all') }
   return <section className="municipal-catalog" aria-labelledby={titleId}>
-    <header className="mc-header"><div><h2 id={titleId}>{heading}</h2><p>Find municipal services and review requirements before you apply.</p></div>{!state.loading && !state.error && <p className="mc-count" role="status">{items.length} {items.length === 1 ? 'service' : 'services'} available{items.length !== entries.length && ` of ${entries.length}`}</p>}</header>
+    <header className="mc-header"><h2 id={titleId}>{heading}</h2></header>
     <Toolbar label="Service catalog filters">
       <div className="mc-search"><label htmlFor={searchId}>Find a service</label><SearchInput id={searchId} label="Find a service" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search by service or office" /></div>
       {categories.length > 1 && <Field label="Category"><select value={category} onChange={event => setCategory(event.target.value)}><option value="">All categories</option>{categories.map(([id, name]) => <option key={id} value={id}>{name || 'Municipal service'}</option>)}</select></Field>}
       {departments.length > 1 && <Field label="Department"><select value={department} onChange={event => setDepartment(event.target.value)}><option value="">All departments</option>{departments.map(name => <option key={name} value={name}>{name}</option>)}</select></Field>}
-      {(search || category || department) && <Button variant="outline" onClick={clear}>Clear filters</Button>}
+      {(search || category || department || channel !== 'all') && <Button variant="outline" onClick={clear}>Clear filters</Button>}
     </Toolbar>
+    {!state.loading && !state.error && entries.length > 0 && <div className="mc-results-bar">
+      <div className="mc-channels" role="group" aria-label="Service availability">
+        {[['all', 'All services', matches], ['online', 'Online', online], ['office', 'At the office', office]].map(([key, name, list]) =>
+          <button key={key} type="button" aria-pressed={channel === key} onClick={() => setChannel(key)}>{name} <span>{list.length}</span></button>)}
+      </div>
+      <span role="status">{items.length} {items.length === 1 ? 'result' : 'results'}</span>
+    </div>}
     {state.loading && <LoadingState label="Loading municipal services…"/>}
     {state.error && <ErrorState message={state.error} onRetry={state.refresh}/>}
     {!state.loading && !state.error && <><ul className="mc-list">{items.map(service => <ServiceCard service={service} serviceBase={serviceBase} key={service.id}/>)}</ul>{!items.length && <EmptyState title={entries.length ? 'No services match your search' : 'No services published yet'} description={entries.length ? 'Try a different keyword, category or department.' : 'Contact the municipal office for assistance.'} action={entries.length > 0 && <Button variant="outline" onClick={clear}>Clear filters</Button>}/>}</>}

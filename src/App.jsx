@@ -219,7 +219,7 @@ function AppContent({ auth = { user: null, loading: false } }) {
   if (!surfaceAllowsPath(surface, location.pathname)) return <NotFoundPage />
   if (normalizedPathname !== location.pathname) return <Navigate to={`${normalizedPathname}${location.search}${location.hash}`} replace />
   if (!settings.ready) return <StartupScreen setup={location.pathname === '/app/setup'} />
-  if (settings.unavailable && (isAuthPage || isCitizenDashboard)) return <ErrorPage code="503" primaryAction={{ label: 'Try again', onClick: () => window.dispatchEvent(new Event('configuration-changed')) }} />
+  if (settings.unavailable && (maintenance || isAuthPage || isCitizenDashboard)) return <ErrorPage code="503" title="Unable to connect to the portal" message="The portal could not load its settings. Please try again." primaryAction={{ label: 'Try again', onClick: () => window.dispatchEvent(new Event('configuration-changed')) }} />
 
   return (
       <div className="page-shell" onContextMenu={event => { if (event.target instanceof HTMLImageElement) event.preventDefault(); }}>
@@ -275,7 +275,7 @@ function AppContent({ auth = { user: null, loading: false } }) {
         {!isAuthPage && !isCitizenDashboard && <BackToTop />}
         {isPublicPage && <Suspense fallback={null}><Footer /></Suspense>}
         </>}
-        {isPublicPage && <CookieCacheBanner />}
+        {isPublicPage && !maintenance && !location.pathname.startsWith('/errors') && <CookieCacheBanner />}
       </div>
   )
 }

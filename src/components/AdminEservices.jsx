@@ -6,6 +6,16 @@ import { APPLICATION_STEPS, REQUEST_STATUSES } from "../data/eserviceWorkflow";
 import { PROFILE_SOURCES } from '../data/serviceApplication';
 import { BILLING_STEPS,WORKFLOW_TYPES,PAYMENT_METHODS } from '../data/businessBillingWorkflow';
 import { useAuth } from "../context/AuthContext";
+import './AdminEservices.css';
+const editorSections = ["General", "Requirements", "Application form", "Workflow", "Fees", "Payments", "Notifications", "Publishing"];
+const sectionNames = { General: "Service details", Requirements: "Required documents", Publishing: "Review and publish" };
+const permissionLabels = {
+  "requests.own.update": "Update own request",
+  "requests.department.process": "Process department requests",
+  "requests.department.approve": "Approve department requests",
+  "payments.verify": "Verify payments",
+  "assessments.create": "Create assessments",
+};
 const blank = {
   name: "",
   slug: "",
@@ -25,7 +35,12 @@ export default function AdminEservices() {
   const { user } = useAuth();
   const canManage = user?.permissions?.includes("services.catalog.manage");
   const canManageAccess = user?.permissions?.includes("eservices.admin");
-  const [audit, setAudit] = useState(null);
+  const [workspace, setWorkspace] = useState("Services");
+  const [baseline, setBaseline] = useState(null);
+  const [actionError, setActionError] = useState("");
+  const [auditPage, setAuditPage] = useState(1);
+  const canAudit = canManageAccess && user?.permissions?.includes("audit.view");
+  const audit = useEservice(signal => esApi(`/admin/eservices/audit?page=${auditPage}`, "GET", undefined, undefined, {signal}), [auditPage, user?.id, Boolean(canAudit)], workspace === "Audit history" && canAudit);
   const [edit, setEdit] = useState(null),
     [tab, setTab] = useState("General"),
     [search, setSearch] = useState(""),
@@ -46,6 +61,22 @@ export default function AdminEservices() {
   const total = state.data?.total ?? filtered.length;
   const pages = Math.max(1, Math.ceil(total / 20));
   const currentPage = page;
+  const dirty = Boolean(edit && JSON.stringify(edit) !== JSON.stringify(baseline));
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = event => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+  const stage = editorSections.indexOf(tab);
+  const startEditor = service => {
+    setBaseline(service);
+    setEdit(service);
+    setSavedPublished(Boolean(service.published));
+    setTab("General");
+    setActionError("");
+    setNotice("");
+  };
   const patch = (key, value) => setEdit({ ...edit, [key]: value });
   const row = (collection, index, key, value) =>
     patch(
@@ -65,18 +96,24 @@ export default function AdminEservices() {
     setBusy(true);
     try {
       const service = await esApi(`/admin/services/${id}`);
-      setEdit(service);
-      setSavedPublished(service.published);
-      setTab("General");
+      startEditor(service);
     } catch (e) {
-      state.setError(e.message);
+      setActionError(e.message);
     } finally {
       setBusy(false);
     }
   };
   const save = async () => {
+    if (!canManage || busy || (edit.id && !dirty)) return;
+    if (!edit.name?.trim() || !edit.slug?.trim()) {
+      setTab("General");
+      setActionError("Enter a service name and URL slug before saving.");
+      return;
+    }
+    setActionError("");
     if (edit.published !== savedPublished && !window.confirm(edit.published ? `Publish ${edit.name}? These settings will be available to residents.` : `Unpublish ${edit.name}? New applications will no longer be available.`)) return;
     setBusy(true);
+    setNotice("");
     state.setError("");
     try {
       const result = await esApi(
@@ -84,6 +121,7 @@ export default function AdminEservices() {
         edit.id ? "PUT" : "POST",
         { ...edit, declaration: edit.definition?.declaration || "" },
       );
+      setBaseline(result);
       setEdit(result);
       setSavedPublished(result.published);
       await state.refresh();
@@ -91,7 +129,7 @@ export default function AdminEservices() {
         "Service configuration saved. Existing applications retain their original configuration.",
       );
     } catch (e) {
-      state.setError(e.message);
+      setActionError(e.message);
     } finally {
       setBusy(false);
     }
@@ -124,21 +162,21 @@ export default function AdminEservices() {
   );
   return (
     <main className="es-workspace es-catalog">
-      <h1>E-Services · Service catalog</h1>
-      <button
-        className="es-secondary"
-        disabled={!canManageAccess || !user?.permissions?.includes("audit.view")}
-        onClick={async () => {
-          try {
-            setAudit(await esApi("/admin/eservices/audit"));
-          } catch (error) {
-            state.setError(error.message);
-          }
-        }}
-      >
-        View audit history
-      </button>
-      {audit && (
+      <header className="esc-heading">
+        <div>{edit && <button type="button" className="esc-back" disabled={busy} onClick={() => {
+          if (!dirty || window.confirm("Discard unsaved changes and return to the catalog?")) { setEdit(null); setNotice(""); setActionError(""); }
+        }}>Back to service catalog</button>}
+        <h1>{edit ? edit.name || "New service" : "E-services"}</h1></div>
+        {!edit && workspace === "Services" && canManage && <button disabled={busy || options.loading || !!options.error} onClick={() => startEditor(structuredClone(blank))}>Create service</button>}
+      </header>
+      {!edit && <nav className="esc-workspaces" aria-label="E-services administration">
+        {["Services", "Categories", ...(canManageAccess ? ["Staff access"] : []), ...(canManageAccess && user?.permissions?.includes("audit.view") ? ["Audit history"] : [])].map(name =>
+          <button key={name} type="button" aria-pressed={workspace === name} onClick={() => {setWorkspace(name); setAuditPage(1); setActionError(""); setNotice("")}}>{name}</button>)}
+      </nav>}
+      {!edit && canAudit && workspace === "Audit history" && <>
+        <Feedback loading={audit.loading && !audit.error} error={audit.error}/>
+        {audit.error && <button onClick={audit.refresh}>Retry audit history</button>}
+        {audit.data &&
         <div className="es-table-wrap">
           <table className="es-table">
             <thead>
@@ -151,7 +189,7 @@ export default function AdminEservices() {
               </tr>
             </thead>
             <tbody>
-              {audit.items.map((event) => (
+              {audit.data.items.map((event) => (
                 <tr key={event.id}>
                   <td>{event.action}</td>
                   <td>{event.record_label || event.setting_key}</td>
@@ -166,16 +204,19 @@ export default function AdminEservices() {
               ))}
             </tbody>
           </table>
-          <button className="es-secondary" onClick={() => setAudit(null)}>
-            Close audit history
-          </button>
-        </div>
-      )}
-      <Feedback error={state.error || options.error} notice={notice} loading={state.loading || options.loading} />
-      {(state.error || options.error) && <button className="es-secondary" disabled={state.loading || options.loading} onClick={() => { if (options.error) options.refresh(); if (state.error) state.refresh(); }}>Retry loading catalog</button>}
+          {audit.data.items.length === 0 && <p>No audit events recorded.</p>}
+          {(auditPage > 1 || audit.data.has_more) && <nav className="es-toolbar" aria-label="Audit pages">
+            <button className="es-secondary" disabled={auditPage === 1} onClick={() => setAuditPage(auditPage - 1)}>Previous</button>
+            <span>Page {auditPage}</span>
+            <button className="es-secondary" disabled={!audit.data.has_more} onClick={() => setAuditPage(auditPage + 1)}>Next</button>
+          </nav>}
+        </div>}</>}
+      {actionError && <p role="alert" className="esc-error">{actionError}</p>}
+      <Feedback error={state.error || options.error} notice={notice} loading={(workspace === "Services" && state.loading && !state.error) || (options.loading && !options.error)} />
+      {(state.error || options.error) && <button className="es-secondary" disabled={(state.loading && !state.error) || (options.loading && !options.error)} onClick={() => { if (options.error) options.refresh(); if (state.error) state.refresh(); }}>Retry loading catalog</button>}
       {!edit ? (
         <>
-          <div className="es-toolbar">
+          {workspace === "Services" && <><div className="es-toolbar esc-filters">
             <label>
               Search
               <input
@@ -208,16 +249,7 @@ export default function AdminEservices() {
                 <option value="false">Unpublished</option>
               </select>
             </label>
-            <button
-              disabled={!canManage || options.loading || !!options.error}
-              onClick={() => {
-                setEdit(structuredClone(blank));
-                setSavedPublished(false);
-                setNotice("");
-              }}
-            >
-              Create service
-            </button>
+            {(search || department || published) && <button className="es-secondary" onClick={() => {setSearch(""); setDepartment(""); setPublished(""); setPage(1)}}>Clear filters</button>}
           </div>
           <div className="es-table-wrap">
             <table className="es-table">
@@ -248,24 +280,28 @@ export default function AdminEservices() {
                           disabled={busy}
                           onClick={() => open(s.id)}
                         >
-                          Edit
+                          {canManage ? "Edit" : "View"}
                         </button>
                       </td>
                     </tr>
                   ))}
-                {!state.loading && !filtered.length && <tr><td colSpan={5}>No services match these filters.</td></tr>}
+                {!state.loading && !state.error && !filtered.length && <tr><td colSpan={5}>No services match these filters.</td></tr>}
               </tbody>
             </table>
           </div>
           <nav className="es-toolbar es-pagination" aria-label="Catalog pagination"><span>{total} services · Page {currentPage} of {pages}</span><button className="es-secondary" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous</button><button className="es-secondary" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>Next</button></nav>
-          <section className="es-section">
+          </>}
+          {workspace === "Categories" && <section className="es-section">
             <h2>Service categories</h2>
+            <ul className="esc-category-list">{options.data?.categories?.map(item => <li key={item.id}>{item.name}</li>)}</ul>
+            {canManage && <><h3>Create category</h3>
             <form
               className="es-form"
               onSubmit={async (e) => {
                 e.preventDefault();
-                if (categoryBusy) return;
+                if (!canManage || categoryBusy) return;
                 setCategoryBusy(true);
+                setActionError("");
                 try {
                   await esApi("/admin/service-categories", "POST", {
                     name: category,
@@ -273,10 +309,11 @@ export default function AdminEservices() {
                   });
                   setCategory("");
                   setCategorySlug("");
+                  setNotice("Category created.");
                   invalidateCached("cms:service-catalog-options");
                   await options.refresh();
                 } catch (e) {
-                  state.setError(e.message);
+                  setActionError(e.message);
                 } finally { setCategoryBusy(false); }
               }}
             >
@@ -297,24 +334,24 @@ export default function AdminEservices() {
                 />
               </label>
               <button disabled={!canManage || categoryBusy}>{categoryBusy ? "Saving…" : "Create category"}</button>
-            </form>
-          </section>
-          {canManageAccess && <StaffDepartmentAccess departments={options.data?.departments || []} />}
+            </form></>}
+          </section>}
+          {workspace === "Staff access" && canManageAccess && <StaffDepartmentAccess departments={options.data?.departments || []} />}
         </>
       ) : (
         <>
-          <div className="es-toolbar">
-            <button className="es-secondary" onClick={() => { if (window.confirm("Leave the service editor? Unsaved changes will be lost.")) setEdit(null); }}>
-              Back to catalog
-            </button>
-            <button disabled={!canManage || busy} onClick={save}>
-              Save service
-            </button>
-            {edit.id && (
+          <div className="esc-editor-actions">
+            <span role="status">{!canManage ? "View only" : dirty ? "Unsaved changes" : edit.id ? "Saved" : "New draft"}</span>
+            {canManage && <button disabled={busy || (!!edit.id && !dirty)} onClick={save}>{busy ? "Saving…" : edit.published !== savedPublished ? (edit.published ? "Publish service" : "Unpublish service") : "Save service"}</button>}
+            {edit.id && canManage && (
               <button
                 className="es-secondary"
                 disabled={!canManage || busy}
                 onClick={() => {
+                  if (dirty && !window.confirm("Create a copy using these unsaved changes? The original service will keep its saved configuration.")) return;
+                  setBaseline(null);
+                  setTab("General");
+                  setNotice("");
                   setSavedPublished(false);
                   setEdit({
                     ...edit,
@@ -330,28 +367,13 @@ export default function AdminEservices() {
               </button>
             )}
           </div>
-          <nav className="es-tabs" aria-label="Service editor">
-            {[
-              "General",
-              "Requirements",
-              "Application form",
-              "Documents",
-              "Fees",
-              "Workflow",
-              "Payments",
-              "Notifications",
-              "Publishing",
-            ].map((name) => (
-              <button
-                key={name}
-                aria-pressed={tab === name}
-                className="es-secondary"
-                onClick={() => setTab(name)}
-              >
-                {name}
-              </button>
-            ))}
-          </nav>
+          <div className="esc-editor-layout">
+            <nav className="esc-section-nav" aria-label="Service editor">
+              {editorSections.map(name => <button type="button" key={name} aria-current={name === tab ? "step" : undefined} onClick={() => setTab(name)}>{sectionNames[name] || name}</button>)}
+            </nav>
+            <section className="esc-editor-panel">
+            <h2>{sectionNames[tab] || tab}</h2>
+            <fieldset className="esc-fields" disabled={busy || !canManage}>
           {tab === "General" && (
             <div className="es-form">
               {input("name", "Name")}
@@ -379,7 +401,7 @@ export default function AdminEservices() {
                     "PAYMENT_ORDER",
                     "DIRECTORY",
                   ].map((kind) => (
-                    <option key={kind}>{kind}</option>
+                    <option key={kind} value={kind}>{label(kind)}</option>
                   ))}
                 </select>
               </label>
@@ -423,7 +445,7 @@ export default function AdminEservices() {
               </label>
             </div>
           )}
-          {["Requirements", "Documents"].includes(tab) && (
+          {tab === "Requirements" && (
             <>
               <p>
                 Required attachments are configured here and apply to this
@@ -751,7 +773,7 @@ export default function AdminEservices() {
                       }
                     >
                       {statuses.map((status) => (
-                        <option key={status}>{status}</option>
+                        <option key={status} value={status}>{label(status)}</option>
                       ))}
                     </select>
                   </label>
@@ -777,7 +799,7 @@ export default function AdminEservices() {
                         "payments.verify",
                         "assessments.create",
                       ].map((permission) => (
-                        <option key={permission}>{permission}</option>
+                        <option key={permission} value={permission}>{permissionLabels[permission]}</option>
                       ))}
                     </select>
                   </label>
@@ -873,6 +895,11 @@ export default function AdminEservices() {
           )}
           {tab === "Publishing" && (
             <div className="es-form">
+              <dl className="esc-review">
+                <div><dt>Service</dt><dd>{edit.name || "Untitled service"}</dd></div>
+                <div><dt>Department</dt><dd>{options.data?.departments?.find(item => item.id === edit.department_id)?.name || "Unassigned"}</dd></div>
+                <div><dt>Configuration</dt><dd>{edit.fields.length} fields · {edit.requirements.length} documents · {edit.steps.length} workflow steps</dd></div>
+              </dl>
               <label>
                 <input
                   type="checkbox"
@@ -904,6 +931,14 @@ export default function AdminEservices() {
               {input("effective_until", "Effective until (ISO timestamp)")}
             </div>
           )}
+            </fieldset>
+            <footer className="esc-stage-footer">
+              {stage > 0 && <button className="es-secondary" onClick={() => setTab(editorSections[stage - 1])}>Previous</button>}
+              {stage < editorSections.length - 1 && <button onClick={() => setTab(editorSections[stage + 1])}>Next: {sectionNames[editorSections[stage + 1]] || editorSections[stage + 1]}</button>}
+              {stage === editorSections.length - 1 && canManage && <button disabled={busy || (!!edit.id && !dirty)} onClick={save}>{busy ? "Saving…" : edit.published && !savedPublished ? "Publish service" : "Save changes"}</button>}
+            </footer>
+            </section>
+          </div>
         </>
       )}
     </main>

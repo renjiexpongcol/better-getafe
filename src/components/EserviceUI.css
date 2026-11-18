@@ -348,3 +348,12 @@
 .es-catalog-summary { margin-top: 14px; font-size: 14px; }
 .es-catalog-summary summary { cursor: pointer; color: var(--text-primary, var(--color-brand-primary)); }
 .es-catalog-summary ul { margin: 10px 0; padding-left: 20px; }
+.es-resident-requests { list-style: none; padding: 0; margin: 1rem 0; background: var(--color-surface, white); border: 1px solid var(--color-border); border-radius: var(--radius-panel); }
+.es-resident-requests > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem; overflow-wrap: anywhere; }
+.es-resident-requests > li + li { border-top: 1px solid var(--color-border); }
+.es-resident-requests li h2 { margin: .2rem 0; font-size: 1.05rem; }
+.es-resident-requests li p, .es-resident-requests li small { margin: .2rem 0; color: var(--color-text-secondary); font-size: .85rem; }
+.es-request-actions { display: grid; gap: .5rem; justify-items: start; }
+.es-queue-filters { margin-block: .75rem 1rem; border-block: 1px solid var(--color-border); padding-block: .75rem; }
+.es-queue-filters summary { cursor: pointer; font-weight: 600; }
+.es-queue-filters[open] summary { margin-bottom: .75rem; }

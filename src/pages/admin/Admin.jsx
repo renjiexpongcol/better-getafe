@@ -20,7 +20,7 @@ const AdminAccessManagement = lazy(() => import('../../components/AdminAccessMan
 import PasswordChangeModal from "../../components/PasswordChangeModal";
 import "../../citizen.css";
 import "./AdminDashboard.css";
-import { LayoutDashboard, Newspaper, Tags, Images, Users, MapPin, Settings as SettingsIcon, ShieldCheck, LogOut, Menu, X, ChevronDown, UserRound, ArrowRight, Plus, Search, FileText, Camera, MoreVertical, GripVertical, ExternalLink, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, ImageOff, Check, Copy, Download, Eye, RotateCcw, Info, AlertTriangle, ClipboardList, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Newspaper, Tags, Images, Users, MapPin, Settings as SettingsIcon, ShieldCheck, LogOut, Menu, X, ChevronDown, UserRound, ArrowRight, Plus, Search, FileText, Camera, MoreVertical, GripVertical, ExternalLink, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, ImageOff, Check, Copy, Download, Eye, RotateCcw, Info, AlertTriangle, ClipboardList, BarChart3, Clock3, RefreshCw } from "lucide-react";
 import { hasModulePermission, resolveModule } from "../../applicationModuleRegistry";
 import { ModuleAccessDeniedPage, ModuleNotFoundPage } from "../../components/RouteStatusPages";
 import StableAvatar from "../../components/StableAvatar";
@@ -32,6 +32,8 @@ import { hasPermission } from '@getafe/auth-client';
 const ImageLightbox = lazy(() => import('../../components/ImageLightbox'));
 const normalizeAdminTab = value => value === 'system-settings' ? 'settings' : value;
 const toIsoDateTime = value => value ? new Date(value).toISOString() : value;
+const accessActivityLabel = value => String(value || 'Activity').toLowerCase().replaceAll('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+const accessActivityDate = value => { const date = new Date(value); return Number.isNaN(date.getTime()) ? 'Time unavailable' : date.toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' }); };
 const toLocalDateTimeInput = value => {
   if (!value) return '';
   const date = new Date(value);
@@ -133,6 +135,7 @@ export default function Admin() {
   const requestedModuleAccess = resolveModule('admin', requestedModule === 'settings' ? 'system-settings' : requestedModule);
   const can = permission => hasPermission(user, permission);
   const routeAuthorized = hasModulePermission(requestedModuleAccess, user);
+  const canViewAccess = hasPermission(user, 'users.view');
   const token = true;
   const accountMenuRef = useRef(null);
   const mediaTriggerRef = useRef(null);
@@ -204,6 +207,10 @@ export default function Admin() {
     [newsLoading, setNewsLoading] = useState(false),
     [newsError, setNewsError] = useState(''),
     [newsReloadRevision, setNewsReloadRevision] = useState(0),
+    [accessActivity, setAccessActivity] = useState([]),
+    [accessActivityLoading, setAccessActivityLoading] = useState(false),
+    [accessActivityError, setAccessActivityError] = useState(''),
+    [accessActivityRevision, setAccessActivityRevision] = useState(0),
     [articleCounts, setArticleCounts] = useState({ published: 0, draft: 0 }),
     [newsPagination, setNewsPagination] = useState({ page: 1, pages: 1, total: 0 }),
     [newsPage, setNewsPage] = useState(1),
@@ -348,6 +355,17 @@ export default function Admin() {
     load(controller.signal);
     return () => controller.abort();
   }, [authLoading, user?.id, user?.role, tab, routeAuthorized, newsPage, newsFilters, newsReloadRevision]);
+  useEffect(() => {
+    if (tab !== 'dashboard' || !canViewAccess) return undefined;
+    const controller = new AbortController();
+    setAccessActivityLoading(true);
+    setAccessActivityError('');
+    routeRequest('/api/admin/access', { scope: `cms:${user?.id || 'admin'}:access-activity`, signal: controller.signal, force: accessActivityRevision > 0 })
+      .then(data => setAccessActivity(Array.isArray(data?.activity) ? data.activity : []))
+      .catch(error => { if (error.name !== 'AbortError') setAccessActivityError(error.message || 'Recent access activity could not be loaded.') })
+      .finally(() => { if (!controller.signal.aborted) setAccessActivityLoading(false) });
+    return () => controller.abort();
+  }, [tab, user?.id, canViewAccess, accessActivityRevision]);
   useEffect(() => {
     if (tab === 'news' && newsPagination.page !== newsPage) setNewsPage(newsPagination.page);
   }, [newsPagination.page, newsPage, tab]);
@@ -905,6 +923,7 @@ export default function Admin() {
             ].map(([label, Icon, value, description, key]) => <NavLink to={ADMIN_MODULE_PATHS[key]} className="citizen-stat" key={label} onClick={() => { setProfileMenuOpen(false); setMobileSidebarOpen(false); }}><div><span>{label}</span><Icon size={18}/></div><strong>{value}</strong><small>{description}<ArrowRight size={14}/></small></NavLink>)}</section>
             <section className="portal-quick"><h2>Quick actions</h2><div>{[['Add Content', Newspaper, 'editor'], ['Upload Media', Images, 'media'], ['Manage Users', Users, 'access'], ['Privacy Requests', ShieldCheck, 'privacy'], ['Settings', SettingsIcon, 'settings']].map(([label, Icon, key]) => <button type="button" key={key} onClick={() => { if (key === 'editor') { skipDraftRestoreRef.current = true; formRef.current = blank; setForm(blank); editingRef.current = null; setEditing(null); setAutosaveState(''); } selectTab(key); }}><Icon size={20}/><span>{label}</span></button>)}</div></section>
             <section><div className="citizen-section-head"><h2>Administration</h2></div><div className="citizen-service-grid">{[['Content management', Newspaper, 'Publish news and organize municipal updates.', 'news'], ['Municipal officials', Users, 'Maintain your directory of public officials.', 'officials'], ['Barangays', MapPin, 'Maintain barangay information and profiles.', 'barangays'], ['Access & security', ShieldCheck, 'Manage users, roles and portal permissions.', 'access']].map(([label, Icon, description, key]) => <NavLink className="citizen-service" to={ADMIN_MODULE_PATHS[key]} key={key} onClick={() => { setProfileMenuOpen(false); setMobileSidebarOpen(false); }}><span><Icon size={20}/></span><strong>{label}</strong><p>{description}</p><small>Manage<ArrowRight size={14}/></small></NavLink>)}</div></section>
+            {canViewAccess && <section className="citizen-panel admin-activity-panel"><div className="citizen-panel-head"><h2><Clock3 size={18} aria-hidden="true"/> Recent access activity</h2><div className="admin-activity-actions"><button type="button" className="citizen-secondary" onClick={() => setAccessActivityRevision(value => value + 1)} disabled={accessActivityLoading} aria-label="Refresh recent access activity"><RefreshCw size={15} aria-hidden="true"/>Refresh</button><NavLink to={ADMIN_MODULE_PATHS.access}>View access management<ArrowRight size={14}/></NavLink></div></div>{accessActivityLoading ? <p role="status" className="admin-activity-state"><span className="page-loader-spinner" aria-hidden="true"/>Loading recent activity…</p> : accessActivityError ? <div className="admin-activity-state" role="alert"><span>{accessActivityError}</span><button type="button" onClick={() => setAccessActivityRevision(value => value + 1)}>Try again</button></div> : accessActivity.length ? <ol className="admin-activity-list">{accessActivity.slice(0, 5).map(item => <li key={item.id}><span className="admin-activity-icon"><ShieldCheck size={16} aria-hidden="true"/></span><div><strong>{accessActivityLabel(item.action)}</strong><p>{item.actor_label || 'System'} <span>·</span> {item.target_label || item.target_type || 'Access setting'}</p></div><time dateTime={item.created_at}>{accessActivityDate(item.created_at)}</time></li>)}</ol> : <p className="admin-activity-state">No access changes have been recorded yet.</p>}</section>}
             <section className="citizen-panel admin-recent"><div className="citizen-panel-head"><h2>Recent content</h2><NavLink to={ROUTES.admin.news}>View all<ArrowRight size={14}/></NavLink></div>
             <ArticleTable
               articles={articles.slice(0, 5)}

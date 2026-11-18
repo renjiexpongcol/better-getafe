@@ -723,13 +723,19 @@ export function installEserviceRoutes(
     permission("eservices.admin"),
     permission("audit.view"),
     handle(async (req, res) => {
-      const page = Math.max(1, Number(req.query.page) || 1);
-      const items = await engine.read(
-          "SELECT id,user_id,action,setting_key,new_value,correlation_id,created_at FROM audit_logs WHERE category='eservices' ORDER BY created_at DESC LIMIT 50 OFFSET ?",
+      const page = Number(req.query.page ?? 1);
+      if (!Number.isInteger(page) || page < 1 || page > 100000) fail("Invalid audit page.", 400);
+      const rows = await engine.read(
+          "SELECT id,user_id,action,setting_key,correlation_id,created_at FROM audit_logs WHERE category='eservices' ORDER BY created_at DESC,id DESC LIMIT 51 OFFSET ?",
           [(page - 1) * 50],
         );
+      const items = rows.slice(0, 50);
       const identities = await engine.staffIdentities(items.flatMap(item => [item.user_id,item.setting_key]));
-      res.json({ items:items.map(item => ({ ...item,staff_label:identities.get(item.user_id) || 'System',record_label:identities.get(item.setting_key) || item.setting_key })),page });
+      res.json({ items: items.map(item => ({
+        id: item.id, action: item.action, created_at: item.created_at, correlation_id: item.correlation_id,
+        staff_label: identities.get(item.user_id) || (item.user_id ? 'Account unavailable' : 'System'),
+        record_label: identities.get(item.setting_key) || item.setting_key,
+      })), page, has_more: rows.length > 50 });
     }),
   );
   app.post(
@@ -750,10 +756,11 @@ export function installEserviceRoutes(
           const [departments] = await (await cmsPool()).execute("SELECT id FROM departments WHERE id=? AND published=TRUE", [departmentId]);
           if (!departments.length) fail("Choose an active municipal office.");
           await engine.syncDepartment(db, departmentId);
-          await db(
-            "INSERT INTO eservice_department_members(user_id,department_id) VALUES(?,?)",
+          const added = await db(
+            "INSERT INTO eservice_department_members(user_id,department_id) VALUES(?,?) ON CONFLICT (user_id,department_id) DO NOTHING RETURNING user_id",
             [staff.id, departmentId],
           );
+          if (!added.length) return { ok: true };
           await engine.audit(
             db,
             req.admin,

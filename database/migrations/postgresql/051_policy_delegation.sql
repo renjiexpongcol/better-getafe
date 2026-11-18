@@ -21,3 +21,6 @@ CREATE TABLE IF NOT EXISTS auth_policy_proposals (
   CHECK (reviewer_id IS NULL OR reviewer_id <> author_id)
 );
 CREATE INDEX IF NOT EXISTS auth_policy_proposals_policy ON auth_policy_proposals(policy_id,created_at DESC);
+ALTER TABLE public.auth_policy_editors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.auth_policy_proposals ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.auth_policy_editors, public.auth_policy_proposals FROM PUBLIC, anon, authenticated;

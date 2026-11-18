@@ -65,3 +65,9 @@
 
 .page-shell #services-page .municipal-catalog .ui-search { margin-block: 0; }
 .mc-list:has(.mc-disclosure-toggle[aria-expanded=true]) { align-items: start; }
+.mc-results-bar, .mc-channels { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
+.mc-results-bar { justify-content: space-between; padding-block: .25rem 1rem; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: .875rem; }
+.mc-channels button { padding: .55rem .8rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-control); color: var(--color-text); font: inherit; cursor: pointer; }
+.mc-channels button[aria-pressed=true] { color: white; background: var(--color-brand-primary, #18496d); border-color: transparent; }
+.mc-channels button span { margin-inline-start: .25rem; font-variant-numeric: tabular-nums; }
+.mc-card { background: var(--color-surface, white); }

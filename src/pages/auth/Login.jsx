@@ -101,7 +101,11 @@ export default function Login() {
     }
   }
   useEffect(() => {
-    if (searchParams.get('google') === 'existing' || searchParams.get('google') === 'unavailable') setInfo('Google sign-in could not be completed. Please try again or use your email and password.')
+    if (searchParams.get('google') === 'existing') setInfo('You already have a portal account. Choose Sign in with Google or enter your portal password.')
+    if (searchParams.get('google') === 'expired') setInfo('This Google sign-in attempt expired. Select Google again to start a new sign-in.')
+    if (searchParams.get('google') === 'provider') setInfo('The portal could not verify your sign-in with Google. Try again in a moment or sign in with your portal password.')
+    if (searchParams.get('google') === 'verification') setInfo('Choose a Google account with a verified email address.')
+    if (searchParams.get('google') === 'unavailable') setInfo('The portal could not finish signing you in. Try again or use your portal password.')
     if (searchParams.get('google') === 'cancelled') setInfo('Google sign-in was cancelled. You can try again or sign in with your password.')
     const fragment = new URLSearchParams(window.location.hash.slice(1))
     const challengeId = fragment.get('mfa') || searchParams.get('mfa')

@@ -67,7 +67,7 @@ const ready = () => probeBackendReadiness(port);
 process.on('SIGINT', () => stop());
 process.on('SIGTERM', () => stop());
 console.info(`[Portal] Starting Better Getafe on http://localhost:${port}.`);
-const backend = start(['server.js']);
+const backend = start(['--watch', 'server.js']);
 const deadline = Date.now() + 60_000;
 let lastReadiness = { ready: false, httpStatus: null, status: 'initializing' };
 while (!stopping && children.has(backend) && Date.now() < deadline) {

@@ -577,7 +577,12 @@ const resident = async (req, res, next) => {
     req.resident = await getPortalUserById(session.id);
     if (!req.resident || req.resident.role !== 'resident' || session.role !== req.resident.role || (session.updatedAt && session.updatedAt !== sessionUpdatedAt(req.resident))) return res.status(401).json({ error: 'Resident account unavailable.' });
     const onboarding = await googleOnboarding(req.resident);
-    if (onboarding.setupRequired && !req.path.startsWith('/api/citizen/onboarding/') && !req.path.startsWith('/api/citizen/mobile-verification/') && !['/api/citizen/profile', '/api/citizen/profile/avatar'].includes(req.path)) return res.status(403).json({ error: 'Complete your account information before using the app.', setupRequired: true });
+    const onboardingAllowedPaths = [
+      '/api/citizen/profile',
+      '/api/citizen/profile/avatar',
+      '/api/users/me/preferences',
+    ];
+    if (onboarding.setupRequired && !req.path.startsWith('/api/citizen/onboarding/') && !req.path.startsWith('/api/citizen/mobile-verification/') && !onboardingAllowedPaths.includes(req.path)) return res.status(403).json({ error: 'Complete your account information before using the app.', setupRequired: true });
     next();
   } catch (error) {
     console.error('Resident authentication lookup failed:', error.message);
@@ -1093,6 +1098,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   clearGoogleOAuthStateCookie(res, req.secure);
   let intended = null;
+  let stage = 'state';
   try {
     const cookies = readCookies(req.headers.cookie);
     const [savedState, cookieIntent = 'signin'] = String(cookies.google_oauth_state || '').split('.');
@@ -1116,33 +1122,47 @@ app.get('/api/auth/google/callback', async (req, res) => {
       production: process.env.NODE_ENV === 'production',
     });
     if (typeof oauthState.codeVerifier !== 'string' || oauthState.codeVerifier.length < 43) return res.status(400).send('Invalid Google sign-in state.');
+    stage = 'token_exchange';
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ code: req.query.code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirect, grant_type: 'authorization_code', code_verifier: oauthState.codeVerifier }), signal: AbortSignal.timeout(10_000) });
-    const token = await tokenResponse.json(); if (!tokenResponse.ok) throw new Error('Google token exchange failed.');
-    const profileResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo', { headers: { Authorization: `Bearer ${token.access_token}` }, signal: AbortSignal.timeout(10_000) });
-    const profile = await profileResponse.json(); if (!profileResponse.ok || !profile.email_verified || typeof profile.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) throw new Error('Google account email is not verified.');
-    const cmsUser = await getCmsUserByEmail(profile.email);
-    if (cmsUser) {
-      if (intent === 'signup') return res.redirect(loginDestination(intended, { google: 'unavailable' }));
-      if (!['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(cmsUser.role)) return res.redirect(loginDestination(intended, { google: 'unavailable' }));
-      await setSessionCookie(res, makeToken(cmsUser, 'cms', oauthState.remember === true), oauthState.remember === true, true);
-      return res.redirect(loginDestination(intended));
+    const token = await tokenResponse.json();
+    if (!tokenResponse.ok || !token.access_token) {
+      if (token.error === 'invalid_grant') return res.redirect(loginDestination(intended, { google: 'expired' }));
+      throw new Error('Token exchange failed');
     }
-    let user = await getPortalUserByEmail(profile.email);
-    if (user && intent === 'signup') return res.redirect(loginDestination(intended, { google: 'unavailable' }));
-    if (!user) { user = await createPortalUser(profile.name || profile.email, profile.email, crypto.randomBytes(32).toString('hex')); }
-    if (user.role !== 'resident') return res.redirect(loginDestination(intended, { google: 'unavailable' }));
-    await rememberGoogleProfile(user, profile);
-    const onboarding = await googleOnboarding(user);
+    stage = 'profile';
+    const profileResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo', { headers: { Authorization: `Bearer ${token.access_token}` }, signal: AbortSignal.timeout(10_000) });
+    const profile = await profileResponse.json(); if (!profileResponse.ok) throw new Error('Profile lookup failed');
+    if (profile.email_verified !== true || typeof profile.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) return res.redirect(loginDestination(intended, { google: 'verification' }));
+    stage = 'account';
+    const cmsUser = await getCmsUserByEmail(profile.email);
+    let user = cmsUser;
+    const kind = cmsUser ? 'cms' : 'portal';
+    let onboarding = {};
+    if (cmsUser) {
+      if (intent === 'signup') return res.redirect(loginDestination(intended, { google: 'existing' }));
+      if (!['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(cmsUser.role)) return res.redirect(loginDestination(intended, { google: 'unavailable' }));
+    } else {
+      user = await getPortalUserByEmail(profile.email);
+      if (user && user.role !== 'resident') return res.redirect(loginDestination(intended, { google: 'unavailable' }));
+      if (user && intent === 'signup' && !(await googleOnboarding(user)).googleAccount) {
+        return res.redirect(loginDestination(intended, { google: 'existing' }));
+      }
+      if (!user) user = await createPortalUser(profile.name || profile.email, profile.email, crypto.randomBytes(32).toString('hex'));
+      await rememberGoogleProfile(user, profile);
+      onboarding = await googleOnboarding(user);
+    }
+    stage = 'session';
     if (user.mfa_enabled === true || user.mfa_enabled === 1) {
       const challengeId = crypto.randomBytes(32).toString('hex');
-      await putState(stateKey('mfa-login', challengeId), { id: user.id, updatedAt: sessionUpdatedAt(user), remember: oauthState.remember === true, attempts: 0, expiresAt: Date.now() + 5 * 60 * 1000 }, 5 * 60 * 1000);
+      await putState(stateKey('mfa-login', challengeId), { id: user.id, kind, updatedAt: sessionUpdatedAt(user), remember: oauthState.remember === true, attempts: 0, expiresAt: Date.now() + 5 * 60 * 1000 }, 5 * 60 * 1000);
       // Keep the one-use pre-auth challenge out of query strings, proxy logs,
       // and Referer headers; the login page consumes and clears the fragment.
       return res.redirect(`${loginDestination(intended)}#mfa=${encodeURIComponent(challengeId)}`);
     }
-    await setSessionCookie(res, makeToken(user, 'portal', oauthState.remember === true), oauthState.remember === true);
+    await setSessionCookie(res, makeToken(user, kind, oauthState.remember === true), oauthState.remember === true, kind === 'cms');
+    if (kind === 'cms') return res.redirect(loginDestination(intended));
     res.redirect(resolvePostAuthDestination({ ...user, ...onboarding }, intended));
-  } catch (error) { console.error('Google OAuth callback failed:', error.message); res.redirect(loginDestination(intended, { google: 'unavailable' })); }
+  } catch (error) { console.error('Google OAuth callback failed:', stage, error.code || error.name); res.redirect(loginDestination(intended, { google: stage === 'token_exchange' || stage === 'profile' ? 'provider' : 'unavailable' })); }
 });
 
 // Google returns to this browser-facing callback. The exchange remains

@@ -612,3 +612,18 @@
   background: #fff7f7;
   border-color: #cf8e8e;
 }
+.admin-activity-panel .citizen-panel-head h2 { display:flex; align-items:center; gap:8px; }
+.admin-activity-actions { display:flex; align-items:center; gap:14px; }
+.admin-activity-actions > button { display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:7px 10px; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); color:var(--color-text); font:inherit; font-size:12px; cursor:pointer; }
+.admin-activity-actions > button:disabled { cursor:progress; opacity:.65; }
+.admin-activity-list { display:grid; gap:0; margin:0; padding:0; list-style:none; }
+.admin-activity-list > li { display:grid; grid-template-columns:34px minmax(0,1fr) auto; align-items:center; gap:12px; min-width:0; padding:12px 2px; border-top:1px solid var(--color-border); }
+.admin-activity-icon { display:grid; place-items:center; width:32px; height:32px; border-radius:9px; background:var(--color-brand-muted); color:var(--color-brand-primary); }
+.admin-activity-list > li > div { min-width:0; }
+.admin-activity-list strong { color:var(--color-text); font-size:13px; }
+.admin-activity-list p { margin:3px 0 0; color:var(--color-text-secondary); font-size:12px; overflow-wrap:anywhere; }
+.admin-activity-list time { color:var(--color-text-muted); font-size:11px; text-align:right; }
+.admin-activity-state { display:flex; align-items:center; gap:10px; min-height:48px; margin:0; color:var(--color-text-secondary); font-size:13px; }
+.admin-activity-state .page-loader-spinner { width:20px; min-width:20px; height:20px; min-height:20px; flex-basis:20px; border-width:2px; }
+.admin-activity-state button { min-height:36px; padding:6px 10px; border:1px solid var(--color-border); border-radius:7px; background:var(--color-surface); color:var(--color-brand-primary); font:inherit; cursor:pointer; }
+@media(max-width:650px) { .admin-activity-panel .citizen-panel-head { align-items:flex-start; flex-direction:column; gap:12px; }.admin-activity-actions { justify-content:space-between; width:100%; flex-wrap:wrap; }.admin-activity-list > li { grid-template-columns:32px minmax(0,1fr); }.admin-activity-list time { grid-column:2; text-align:left; }.admin-activity-actions > a { font-size:12px; } }

@@ -38,7 +38,7 @@ function StaffEservicesPage() {
     setTab(value);
     if (window.matchMedia("(max-width: 1100px)").matches) window.requestAnimationFrame(() => contentRef.current?.scrollIntoView({ block: "start" }));
   };
-  const [queueRevision, setQueueRevision] = useState(0);
+  const queueRefresh = useRef(null);
   const [search,setSearch] = useState(params.get('search')||'');
   const routeSearch = params.get('search')||'';
   useEffect(()=>setSearch(routeSearch),[routeSearch]);
@@ -48,7 +48,7 @@ function StaffEservicesPage() {
   if (!queueParams.has('status')) queueParams.set('status', 'SUBMITTED');
   useEffect(() => {
     if (id) return;
-    const refresh = () => { if (document.visibilityState === 'visible') setQueueRevision(value => value + 1); };
+    const refresh = () => { if (document.visibilityState === 'visible') queueRefresh.current?.(); };
     const timer = window.setInterval(refresh, 5000);
     window.addEventListener('focus', refresh);
     return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh); };
@@ -60,8 +60,12 @@ function StaffEservicesPage() {
           ? `/staff/eservices/requests/${id}`
           : `/staff/eservices/requests?${queueParams.toString()}`,
         "GET", undefined, undefined, {signal}),
-    [id, params.toString(), queueRevision],
+    [id, params.toString()],
   );
+  useEffect(() => {
+    queueRefresh.current = state.loading && !state.error ? null : state.refresh;
+    return () => { queueRefresh.current = null; };
+  }, [state.loading, state.error, state.refresh]);
   const options = useEservice((signal) => esApi("/staff/eservices/options", "GET", undefined, undefined, {signal}), []);
   const filter = (key, value) => {
     const next = new URLSearchParams(params);
@@ -99,14 +103,14 @@ function StaffEservicesPage() {
   return (
     <main className={`es-workspace ${id ? "staff-request-detail" : ""}`}>
       {!id && <h1>E-service requests</h1>}
-      <Feedback error={state.error} loading={state.loading} notice={notice} />
+      <Feedback error={state.error} loading={state.loading && !state.data && !state.error} notice={notice} />
       {!id ? (
         <>
-          <p>Submitted requests are routed to their servicing office. The incoming queue shows the earliest submissions first and refreshes every 5 seconds.</p>
+          <p>Incoming requests refresh every 5 seconds.</p>
           <div className="es-toolbar" aria-label="Department request views"><label>Sort<select value={params.get('sort')|| (queueStatus==='SUBMITTED'?'submitted_asc':'submitted_desc')} onChange={event=>filter('sort',event.target.value)}><option value="submitted_asc">Oldest submitted</option><option value="submitted_desc">Newest submitted</option><option value="updated_desc">Recently updated</option><option value="updated_asc">Least recently updated</option><option value="priority">Priority / due date</option></select></label>
             <button type="button" className="es-secondary" aria-pressed={queueStatus === 'SUBMITTED'} onClick={() => filter('status', 'SUBMITTED')}>Incoming queue</button>
             <button type="button" className="es-secondary" aria-pressed={queueStatus === ''} onClick={() => filter('status', '')}>All submitted requests</button>
-            <button type="button" className="es-secondary" disabled={state.loading} onClick={() => setQueueRevision(value => value + 1)}>Refresh queue</button>
+            <button type="button" className="es-secondary" disabled={state.loading && !state.error} onClick={state.refresh}>Refresh queue</button>
           </div>
           <div className="es-toolbar">
             <label>
@@ -129,6 +133,10 @@ function StaffEservicesPage() {
                 ))}
               </select>
             </label>
+          </div>
+          <details className="es-queue-filters">
+            <summary>More filters{['service_id','department_id','assigned','from','to'].some(key => params.get(key)) ? ' (active)' : ''}</summary>
+            <div className="es-toolbar">
             <label>
               Service
               <select
@@ -185,8 +193,11 @@ function StaffEservicesPage() {
               />
             </label>
           </div>
+          </details>
+          {params.toString() && <button type="button" className="es-secondary" onClick={() => { setSearch(''); setParams({}) }}>Reset queue</button>}
           {state.data && (
             <>
+              <p>{state.data.total} {state.data.total === 1 ? 'matching request' : 'matching requests'}</p>
               <RequestTable
                 items={state.data.items}
                 base="/app/staff/e-requests"

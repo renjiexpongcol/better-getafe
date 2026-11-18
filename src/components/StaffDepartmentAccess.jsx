@@ -70,6 +70,7 @@ export default function StaffDepartmentAccess({ departments = [] }) {
   const [confirmation, setConfirmation] = useState(null);
   const [retry, setRetry] = useState(0);
   const dialog = useRef(null);
+  const savingAccess = useRef(false);
   useEffect(() => {
     setMemberships([]); setOffice(null); setLoaded(false); setError(""); setNotice("");
     if (!staff) { setLoading(false); return; }
@@ -89,34 +90,36 @@ export default function StaffDepartmentAccess({ departments = [] }) {
   const stableOfficeSearch = useRef((...args) => searchOffice.current(...args)).current;
   const mutate = async () => {
     const action = confirmation;
+    if (!action || savingAccess.current || action.staff.id !== staff?.id) return;
+    savingAccess.current = true;
     setBusy(true); setError(""); setNotice("");
     try {
-      await esApi(`/admin/eservices/department-members${action.remove ? "/revoke" : ""}`, "POST", { user_id: staff.id, department_id: action.office.id });
+      await esApi(`/admin/eservices/department-members${action.remove ? "/revoke" : ""}`, "POST", { user_id: action.staff.id, department_id: action.office.id });
       setMemberships(items => action.remove ? items.filter(m => m.department_id !== action.office.id) : [...items, { department_id: action.office.id, department_name: action.office.name }]);
       setOffice(null); setNotice(action.remove ? "Department access removed." : "Department access granted.");
-      dialog.current.close(); setConfirmation(null);
-    } catch (e) { setError(e.message); dialog.current.close(); setConfirmation(null); }
-    finally { setBusy(false); }
+      dialog.current?.close(); setConfirmation(null);
+    } catch (e) { setError(e.message); dialog.current?.close(); setConfirmation(null); }
+    finally { savingAccess.current = false; setBusy(false); }
   };
   return <section className="es-section es-department-access">
     <h2>Department access</h2>
     <p>Control which municipal offices a staff member can access.</p>
     <Feedback error={error} notice={notice} loading={loading} />
     {staff && error && !loaded && <button className="es-secondary" onClick={() => setRetry(count => count + 1)}>Retry loading access</button>}
-    <form className="es-access-form" onSubmit={e => { e.preventDefault(); if (staff && office && loaded && !busy) setConfirmation({ office }); }}>
+    <form className="es-access-form" onSubmit={e => { e.preventDefault(); if (staff && office && loaded && !busy) setConfirmation({ staff, office }); }}>
       <CatalogCombobox label="Staff member" placeholder="Search name, email, EID, department or position…" value={staff} onChange={setStaff} search={searchStaff} disabled={busy} />
       <CatalogCombobox label="Office" placeholder="Search municipal offices…" value={office} onChange={setOffice} search={stableOfficeSearch} disabled={!staff || !loaded || busy} />
       <button disabled={!staff || !office || !loaded || busy || memberships.some(m => m.department_id === office.id)}>Grant department access</button>
     </form>
     {staff && <div className="es-access-existing"><h3>{staff.name}</h3><small>EID {staff.eid}</small><h3>Existing access</h3>
       {loaded && !memberships.length && <p>No department access assigned.</p>}
-      <ul>{memberships.map(m => <li key={m.department_id}><span>{m.department_name}</span><button className="es-secondary" disabled={busy} onClick={() => setConfirmation({ remove: true, office: { id: m.department_id, name: m.department_name } })}>Remove<span className="es-sr-only"> access to {m.department_name}</span></button></li>)}</ul>
+      <ul>{memberships.map(m => <li key={m.department_id}><span>{m.department_name}</span><button className="es-secondary" disabled={busy} onClick={() => setConfirmation({ staff, remove: true, office: { id: m.department_id, name: m.department_name } })}>Remove<span className="es-sr-only"> access to {m.department_name}</span></button></li>)}</ul>
     </div>}
     <dialog ref={dialog} className="es-access-dialog" onCancel={e => { if (busy) e.preventDefault(); else setConfirmation(null); }}>
       <h2>{confirmation?.remove ? "Remove department access" : "Grant department access"}</h2>
-      <p>{confirmation?.remove ? "Remove" : "Grant"} <strong>{staff?.name}</strong> access to:</p>
+      <p>{confirmation?.remove ? "Remove" : "Grant"} <strong>{confirmation?.staff.name}</strong> access to:</p>
       <p><strong>{confirmation?.office.name}</strong></p>
-      <div className="es-toolbar"><button disabled={busy} onClick={mutate}>{busy ? "Saving…" : "Confirm"}</button><button className="es-secondary" disabled={busy} onClick={() => { dialog.current.close(); setConfirmation(null); }}>Cancel</button></div>
+      <div className="es-toolbar"><button disabled={busy} onClick={mutate}>{busy ? "Saving…" : "Confirm"}</button><button className="es-secondary" disabled={busy} onClick={() => { dialog.current?.close(); setConfirmation(null); }}>Cancel</button></div>
     </dialog>
   </section>;
 }

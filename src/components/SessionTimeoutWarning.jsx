@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ModalDialog from './ModalDialog.jsx'
 import { formatSessionCountdown, sessionMaximumWarningVisible, sessionWarningVisible } from '@getafe/auth-client'
 import './SessionTimeoutWarning.css'
 
-export function SessionTimeoutWarning({ lastActivityRef, user, initialized, expiresAt, absoluteExpiresAt, warningMinutes, renewSession, logout, expireSession }) {
+export function SessionTimeoutWarning({ lastActivityRef, user, initialized, expiresAt, absoluteExpiresAt, warningMinutes, renewSession, renewalPending, validateSession, logout, expireSession }) {
   const [now, setNow] = useState(Date.now())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [dismissedDeadline, setDismissedDeadline] = useState(null)
+  const checkedExpiryRef = useRef('')
   const deadline = Number(expiresAt)
   const absoluteDeadline = Number(absoluteExpiresAt)
   const idleDeadlineValid = Number.isFinite(deadline) && deadline > 0
@@ -20,7 +21,17 @@ export function SessionTimeoutWarning({ lastActivityRef, user, initialized, expi
     const tick = () => {
       const current = Date.now()
       setNow(current)
-      if ((idleDeadlineValid && deadline <= current) || (absoluteDeadlineValid && absoluteDeadline <= current)) expireSession()
+      if ((idleDeadlineValid && deadline <= current) || (absoluteDeadlineValid && absoluteDeadline <= current)) {
+        if (renewalPending) return
+        const checkKey = `${user?.id || ''}:${deadline}:${absoluteDeadline}`
+        if (checkedExpiryRef.current === checkKey) return
+        checkedExpiryRef.current = checkKey
+        // The client deadline can be stale while a renewal response is in
+        // flight. Confirm expiry with the server before clearing the session.
+        void validateSession(true).then(currentUser => {
+          if (!currentUser && user) expireSession()
+        })
+      }
     }
     tick()
     const timer = window.setInterval(tick, 1000)
@@ -31,7 +42,7 @@ export function SessionTimeoutWarning({ lastActivityRef, user, initialized, expi
       window.removeEventListener('pageshow', tick)
       document.removeEventListener('visibilitychange', tick)
     }
-  }, [absoluteDeadline, absoluteDeadlineValid, deadline, expireSession, idleDeadlineValid, initialized, user])
+  }, [absoluteDeadline, absoluteDeadlineValid, deadline, expireSession, idleDeadlineValid, initialized, renewalPending, user, validateSession])
 
   useEffect(() => { if (open) setError('') }, [open])
 

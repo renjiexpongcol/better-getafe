@@ -1479,3 +1479,16 @@ html[data-resident-theme="dark"] .portal-v2 .portal-nav a.active svg,
 html[data-resident-theme="dark"] .portal-v2 .citizen-sidebar-brand button {
   color: var(--color-brand-primary);
 }
+
+.setup-button-spinner { display:inline-block; width:17px; height:17px; flex:0 0 17px; border:2px solid rgb(255 255 255 / 45%); border-top-color:#fff; border-radius:50%; animation:setup-button-spin .75s linear infinite; }
+.setup-next[aria-busy="true"] { cursor:progress; }
+.setup-next[aria-busy="true"]:hover { background:var(--color-brand-primary); }
+@keyframes setup-button-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion:reduce) { .setup-button-spinner { animation:none; border-color:#fff #fff transparent transparent; } }
+.setup-next[aria-busy="true"] { position:relative; }
+.setup-next .setup-button-content.is-loading { visibility:hidden; }
+.setup-next[aria-busy="true"] .setup-button-spinner { position:absolute; top:50%; left:50%; margin:-8.5px 0 0 -8.5px; }
+.setup-review-edit { grid-column:2; grid-row:1 / span 2; align-self:center; border:1px solid #cbd8e6; border-radius:7px; padding:6px 10px; background:#fff; color:var(--color-brand-strong); font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+.setup-review-edit:hover { background:#f0f6fc; border-color:#8eabc8; }
+.setup-review-edit:focus-visible { outline:3px solid #78b5fa; outline-offset:2px; }
+@media(max-width:420px) { .setup-review-edit { padding:6px 8px; } }
