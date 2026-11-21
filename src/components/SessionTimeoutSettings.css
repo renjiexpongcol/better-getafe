@@ -1,0 +1,17 @@
+.session-policy { color: #23384d; }
+.session-policy-row { display: grid; grid-template-columns: minmax(160px, .7fr) minmax(0, 2fr); gap: 32px; padding: 6px 0; }
+.session-policy-label > span { display: block; font-size: 14px; font-weight: 650; }
+.session-policy-label small { display: block; margin-top: 6px; color: #64748b; font-size: 12px; line-height: 1.6; }
+.session-policy-checkbox { display: flex; align-items: flex-start; gap: 11px; font-size: 14px; line-height: 1.6; cursor: pointer; }
+.session-policy-checkbox input { width: 18px; height: 18px; flex: none; margin: 2px 0 0; accent-color: #1264a3; }
+.session-policy-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin: 24px 0 0 29px; }
+.session-policy-option label { display: block; margin-bottom: 9px; font-size: 12px; font-weight: 650; }
+.session-policy-option select { width: 100%; min-height: 44px; padding: 10px 32px 10px 12px; border: 1px solid #cbd5e1; border-radius: 7px; color: #23384d; background: #fff; font: inherit; font-size: 14px; }
+.session-policy-option p { margin: 8px 0 0; color: #64748b; font-size: 12px; line-height: 1.6; }
+.session-policy-note { display: flex; align-items: flex-start; gap: 9px; margin: 23px 0 0 29px; padding: 12px 14px; border-radius: 7px; background: #f4f7fa; color: #526579; font-size: 12px; line-height: 1.6; }
+.session-policy-note svg { flex: none; margin-top: 2px; }
+.session-policy-undo { padding: 5px 0; margin-top: 4px; border: 0; background: transparent; color: #1264a3; text-decoration: underline; font: inherit; font-size: 12px; cursor: pointer; }
+.session-policy :is(input, select, button):focus-visible { outline: 3px solid #217bb5; outline-offset: 3px; }
+.session-policy :is(input, select, button):disabled { opacity: .6; cursor: not-allowed; }
+@media (max-width: 760px) { .session-policy-row { grid-template-columns: 1fr; gap: 18px; } .session-policy-options { margin-left: 0; } .session-policy-note { margin-left: 0; } }
+@media (max-width: 480px) { .session-policy-options { grid-template-columns: 1fr; gap: 20px; } }

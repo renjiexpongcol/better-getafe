@@ -62,9 +62,11 @@ export const definitions = {
   'email.senderName': text('Sender name', 'SMTP_FROM_NAME', 'Getafe Citizen Portal'),
   'email.senderEmail': text('Sender email', 'SMTP_FROM', '', { format: 'email' }),
   'email.replyTo': text('Reply-to email', 'SMTP_REPLY_TO', '', { format: 'email' }),
-  'authentication.sessionMinutes': number('Session timeout (minutes)', '', 720, 5, 43200),
+  'authentication.sessionMinutes': number('Maximum sign-in lifetime (minutes)', '', 720, 5, 43200),
+  'authentication.sessionIdleEnabled': bool('Automatic log out', 'AUTH_SESSION_IDLE_ENABLED', true),
   'authentication.sessionIdleMinutes': number('Session idle timeout (minutes)', 'AUTH_SESSION_IDLE_MINUTES', 30, 5, 43200),
   'authentication.sessionWarningMinutes': number('Warn before automatic sign-out (minutes)', '', 5, 1, 30),
+  'authentication.concurrentSessionPolicy': choice('Concurrent sessions', '', 'allow_multiple', ['allow_multiple', 'single_active']),
   'authentication.rememberDays': number('Remembered session (days)', '', 30, 1, 90),
   'authentication.passwordMinLength': number('Minimum password length', '', 12, 8, 128),
   'authentication.passwordExpiryDays': number('Password expiration (days; 0 disables)', '', 0, 0, 365),
@@ -100,6 +102,9 @@ export const definitions = {
   'integrations.oauthClientSecret': secret('OAuth client secret', 'OAUTH_CLIENT_SECRET'),
   'integrations.psgcApiVersion': text('PSA PSGC release', 'PSGC_API_VERSION', 'Q3_2026', { description: 'Release identifier published by PSA, such as Q3_2026.' }),
   'integrations.psgcApiToken': secret('PSA PSGC API token', 'PSGC_API_TOKEN'),
+  'ai.openaiApiKey': secret('OpenAI API key', 'OPENAI_API_KEY'),
+  'ai.defaultModel': text('Default OpenAI model', '', 'gpt-4.1-mini'),
+  'ai.monthlyBudgetUsd': number('Monthly AI budget (USD)', '', 0, 0, 1000000),
   'weather.openWeatherApiKey': secret('OpenWeather API key', 'OPENWEATHER_API_KEY'),
   'weather.accuWeatherApiKey': secret('AccuWeather API key', 'ACCUWEATHER_API_KEY'),
   'features.uploads': bool('File uploads', '', true),
@@ -196,11 +201,14 @@ const storageEditConditions = {
   'storage.azureConnectionString': { all: [storageEditProvider('azure'), conditionalSettings['storage.azureConnectionString']] },
 };
 for (const [key, condition] of Object.entries(storageEditConditions)) definitions[key].editVisibleWhen = condition;
+for (const key of ['authentication.sessionIdleMinutes', 'authentication.sessionWarningMinutes']) {
+  definitions[key].editVisibleWhen = whenTrue('authentication.sessionIdleEnabled');
+}
 for (const [key, visibleWhen] of Object.entries(conditionalSettings)) {
   if (definitions[key]) definitions[key].visibleWhen = visibleWhen;
 }
 
-export const categories = ['general', 'contact', 'database', 'portalDatabase', 'google', 'storage', 'authentication', 'email', 'security', 'notifications', 'integrations', 'weather', 'publicData', 'features', 'maintenance', 'legal', 'advanced'];
+export const categories = ['general', 'contact', 'database', 'portalDatabase', 'google', 'storage', 'authentication', 'email', 'security', 'notifications', 'integrations', 'weather', 'publicData', 'features', 'ai', 'maintenance', 'legal', 'advanced'];
 definitions['authentication.sessionWarningMinutes'].description = 'Show the sign-out warning before the idle timeout. Must be shorter than the timeout and cannot exceed 30 minutes.';
 
 function conditionMatches(condition, values) {

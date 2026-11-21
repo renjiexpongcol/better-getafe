@@ -19,6 +19,10 @@ export function compileResourcePolicy(condition, user, fields, details = null) {
   }
   const compare = (path, expected, operator = 'equals') => {
     const expression = field(path)
+    if (operator === 'exists' || operator === 'not_exists') {
+      const presence = operator === 'exists' ? 'IS NOT NULL' : 'IS NULL'
+      return `(NULLIF(${expression}, 'null'::jsonb) ${presence})`
+    }
     if (['equals', 'not_equals'].includes(operator)) {
       if(expected!==null&&typeof expected==='object')return operator==='not_equals'?'TRUE':'FALSE';
       values.push(expected === undefined ? null : JSON.stringify(expected))

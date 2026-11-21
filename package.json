@@ -9,6 +9,7 @@
     "services/*"
   ],
   "scripts": {
+    "test": "node --experimental-test-module-mocks --test scripts/test-api-versioning.mjs scripts/test-appointment-scheduling.mjs scripts/test-error-handling.mjs scripts/test-google-oauth.mjs scripts/test-header-navigation.mjs scripts/test-media-upload-paths.mjs scripts/test-policy-editor.mjs scripts/test-policy-workspace.mjs scripts/test-postgres-lease.mjs scripts/test-readiness-probe.mjs scripts/test-request-cache.mjs scripts/test-resident-preferences.mjs scripts/test-route-inventory.mjs scripts/test-routing.mjs scripts/test-session-deadline.mjs scripts/test-settings-navigation.mjs scripts/test-start-runner-preflight.mjs scripts/test-statistics-service.mjs scripts/test-supabase-setup.mjs scripts/test-time-aware-officials.mjs scripts/test-session-endpoint.mjs scripts/test-session-renewal-race.mjs scripts/test-storage-selection.mjs scripts/test-storage-runtime.mjs scripts/test-dev-lifecycle.mjs scripts/test-psgc-startup-cache.mjs",
     "auth:import:legacy": "node scripts/import-legacy-accounts.mjs",
     "auth:check:legacy": "node scripts/import-legacy-accounts.mjs --check",
     "content:import:legacy-barangays": "node scripts/import-legacy-barangays.mjs",
@@ -23,7 +24,7 @@
     "test:six-issues": "node --experimental-vm-modules --test scripts/test-six-issue-regressions.mjs scripts/test-appointment-scheduling.mjs",
     "test:service-editor": "node scripts/test-service-editor-regression.mjs",
     "test:password-change-http": "node scripts/test-password-change-http.mjs",
-    "lint:undefined": "eslint server src scripts server.js vite.config.js --ext js,jsx,mjs --rule no-undef:error --max-warnings 0",
+    "lint:undefined": "eslint server src scripts server.js vite.config.js --rule no-undef:error --max-warnings 0",
     "dev": "node scripts/dev-runner.mjs",
     "deploy:local": "node scripts/deploy/orchestrate.mjs local",
     "deploy:staging": "node scripts/deploy/orchestrate.mjs staging",
@@ -67,7 +68,7 @@
     "test:admin-users": "node --test scripts/test-admin-users.mjs",
     "test:google-oauth": "node --test scripts/test-google-oauth.mjs",
     "cms:check": "node --env-file-if-exists=.env scripts/verify-cms-configuration.mjs",
-    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint . --max-warnings 0",
     "preview": "node scripts/dev-runner.mjs --preview",
     "migrate": "node scripts/migrate-settings.mjs",
     "migrate:postgres": "node scripts/migrate-postgresql.mjs",
@@ -103,24 +104,28 @@
     "integrations:rotate-vault": "node server/integration-worker.js --rotate-vault",
     "content:restore-footer-navigation": "node scripts/restore-footer-navigation.mjs",
     "test:frontend-readiness": "node --test scripts/test-frontend-readiness.mjs",
-    "test:header-navigation": "node --test scripts/test-header-navigation.mjs"
+    "test:header-navigation": "node --test scripts/test-header-navigation.mjs",
+    "test:stabilization": "node --experimental-test-module-mocks --test scripts/test-session-endpoint.mjs scripts/test-storage-selection.mjs scripts/test-storage-runtime.mjs scripts/test-readiness-probe.mjs scripts/test-dev-lifecycle.mjs scripts/test-supabase-setup.mjs scripts/test-start-runner-preflight.mjs scripts/test-psgc-startup-cache.mjs",
+    "test:session-timeout-ui": "node scripts/test-session-timeout-ui.mjs",
+    "test:session-registry": "node --test scripts/test-session-renewal-race.mjs scripts/test-session-endpoint.mjs scripts/test-session-deadline.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1167.0",
     "@aws-sdk/s3-request-presigner": "^3.1167.0",
     "@azure/identity": "^4.14.1",
     "@azure/storage-blob": "^12.34.0",
+    "@google-cloud/secret-manager": "^8.0.0",
     "@smithy/node-http-handler": "^4.12.1",
     "@supabase/supabase-js": "^2.119.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "@google-cloud/secret-manager": "^8.0.0",
     "dotenv": "^18.0.10",
     "express": "^5.3.0",
     "ipaddr.js": "^2.5.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.72.0",
     "nodemailer": "^10.5.0",
+    "openai": "^7.62.0",
     "pg": "^8.23.1",
     "qrcode": "^1.5.4",
     "react": "^19.3.1",
@@ -135,10 +140,11 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
     "eslint": "^10.14.0",
+    "espree": "^11.2.0",
     "playwright": "^1.65.0",
     "vite": "^8.3.8"
   },
   "engines": {
-    "node": ">=22"
+    "node": "^22.13.0 || >=24"
   }
 }

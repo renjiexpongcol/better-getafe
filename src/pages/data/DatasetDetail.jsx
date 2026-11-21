@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import StatisticalReportTable from '../../components/StatisticalReportTable'
@@ -22,6 +22,7 @@ export default function DatasetDetail() {
   const [selection, setSelection] = useState({})
   const [outcome, setOutcome] = useState(null)
   const [error, setError] = useState('')
+  const reportRequest = useRef(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -35,7 +36,7 @@ export default function DatasetDetail() {
       .catch(cause => {
         if (!controller.signal.aborted && cause.name !== 'AbortError') setError(cause.message)
       })
-    return () => controller.abort()
+    return () => { controller.abort(); reportRequest.current?.abort() }
   }, [id])
 
   const dataset = apiData(apiData(record))
@@ -46,51 +47,60 @@ export default function DatasetDetail() {
   useEffect(() => {
     const sampleQuery = dataset.sampleQuery || dataset.sample_query
     if (!currentRecord || !sampleQuery?.selection) return undefined
-    let active = true
+    const controller = new AbortController()
+    reportRequest.current = controller
     const initialSelection = Object.fromEntries(Object.entries(sampleQuery.selection).map(([code, selected]) => [code, Array.isArray(selected) ? String(selected[0] ?? '') : String(selected ?? '')]))
     setSelection(initialSelection)
     setError('')
     publicData(`/datasets/${encodeURIComponent(id)}/query`, {
       method: 'POST',
+      signal: controller.signal,
       body: JSON.stringify(sampleQuery),
     }).then(result => {
-      if (active) setOutcome(result)
+      if (!controller.signal.aborted) setOutcome(result)
     }).catch(cause => {
-      if (active && cause.name !== 'AbortError') setError(cause.message)
+      if (!controller.signal.aborted) setError(cause.message)
     })
-    return () => { active = false }
+    return () => controller.abort()
   }, [record, id])
 
   useEffect(() => {
     if (!currentRecord) return undefined
-    let active = true
+    const controller = new AbortController()
     const release = dataset.release || dataset.version || ''
     Promise.all(dimensions.map(async dimension => {
       const code = dimensionCode(dimension)
       try {
-      const allValues = []
-      let page = 1
-      while (true) {
-        const response = await publicData(`/datasets/${encodeURIComponent(id)}/values?${new URLSearchParams({ dimension: code, release, pageSize: '200', page: String(page) })}`)
-        const payload = apiData(apiData(response))
-        const pageValues = valuesOf(payload)
-        allValues.push(...pageValues)
-        const pagination = payload?.pagination
-        if (!pageValues.length || (pagination && Object.hasOwn(pagination, 'nextOffset') && pagination.nextOffset === null) || pageValues.length < 200) break
-        page = Number.isFinite(Number(pagination?.nextOffset)) ? Math.floor(Number(pagination.nextOffset) / 200) + 1 : page + 1
-      }
-      return [code, allValues]
-      } catch {
+        const allValues = []
+        let offset = 0
+        while (!controller.signal.aborted) {
+          const params = new URLSearchParams({ dimension: code, release, pageSize: '200', offset: String(offset) })
+          const response = await publicData(`/datasets/${encodeURIComponent(id)}/values?${params}`, { signal: controller.signal })
+          const payload = apiData(apiData(response))
+          const pageValues = valuesOf(payload)
+          allValues.push(...pageValues)
+          const cursor = payload?.pagination?.nextOffset
+          if (!pageValues.length || cursor === null || (cursor === undefined && pageValues.length < 200)) break
+          const nextOffset = cursor === undefined ? offset + pageValues.length : Number(cursor)
+          if (!Number.isSafeInteger(nextOffset) || nextOffset <= offset) throw new Error('The data provider returned an invalid page of dimension values.')
+          offset = nextOffset
+        }
+        return [code, allValues]
+      } catch (cause) {
+        if (!controller.signal.aborted) setError(cause.message)
         return [code, []]
       }
     })).then(entries => {
-      if (active) setValues(Object.fromEntries(entries))
+      if (!controller.signal.aborted) setValues(Object.fromEntries(entries))
     })
-    return () => { active = false }
+    return () => controller.abort()
   }, [record, id])
 
   const applySelection = async event => {
     event.preventDefault()
+    reportRequest.current?.abort()
+    const controller = new AbortController()
+    reportRequest.current = controller
     setError('')
     setOutcome(null)
     try {
@@ -107,11 +117,12 @@ export default function DatasetDetail() {
       trackOpenDataActivity(String(id), 'query_request')
       const result = await publicData(`/datasets/${encodeURIComponent(id)}/query`, {
         method: 'POST',
+        signal: controller.signal,
         body: JSON.stringify({ selection: selectionPayload, release: dataset.release || dataset.version }),
       })
-      setOutcome(result)
+      if (!controller.signal.aborted) setOutcome(result)
     } catch (cause) {
-      setError(cause.message)
+      if (!controller.signal.aborted) setError(cause.message)
     }
   }
 
@@ -119,6 +130,7 @@ export default function DatasetDetail() {
   const queryData = outcome ? { ...queryPayload, retrievedAt: outcome.retrievedAt || apiData(outcome)?.retrievedAt || queryPayload?.retrievedAt } : null
   const results = collection(queryData?.observations || queryData?.results || queryData?.rows)
   const updateDimension = (code, value) => {
+    reportRequest.current?.abort()
     setSelection(current => ({ ...current, [code]: value }))
     setOutcome(null)
     setError('')

@@ -14,13 +14,15 @@ const Settings = lazy(() => import('../../components/AdminSettings'));
 const AdminPrivacyRequests = lazy(() => import('../../components/AdminPrivacyRequests'));
 const AdminErrorLogs = lazy(() => import('../../components/AdminErrorLogs'));
 const AdminIntegrations = lazy(() => import('../../components/AdminIntegrations'));
+const AdminAiManagement = lazy(() => import('../../components/AdminAiManagement'));
+const AiContentStudio = lazy(() => import('../../components/AiContentStudio'));
 const SearchManagement = lazy(() => import('../../components/SearchManagement'));
 const WebsiteAnalytics = lazy(() => import('../../components/WebsiteAnalytics'));
 const AdminAccessManagement = lazy(() => import('../../components/AdminAccessManagement'));
 import PasswordChangeModal from "../../components/PasswordChangeModal";
 import "../../citizen.css";
 import "./AdminDashboard.css";
-import { LayoutDashboard, Newspaper, Tags, Images, Users, MapPin, Settings as SettingsIcon, ShieldCheck, LogOut, Menu, X, ChevronDown, UserRound, ArrowRight, Plus, Search, FileText, Camera, MoreVertical, GripVertical, ExternalLink, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, ImageOff, Check, Copy, Download, Eye, RotateCcw, Info, AlertTriangle, ClipboardList, BarChart3, Clock3, RefreshCw } from "lucide-react";
+import { LayoutDashboard, Newspaper, Tags, Images, Users, MapPin, Settings as SettingsIcon, ShieldCheck, LogOut, Menu, X, ChevronDown, UserRound, ArrowRight, Plus, Search, FileText, Camera, MoreVertical, GripVertical, ExternalLink, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, ImageOff, Check, Copy, Download, Eye, RotateCcw, Info, AlertTriangle, ClipboardList, BarChart3, Clock3, RefreshCw, Sparkles } from "lucide-react";
 import { hasModulePermission, resolveModule } from "../../applicationModuleRegistry";
 import { ModuleAccessDeniedPage, ModuleNotFoundPage } from "../../components/RouteStatusPages";
 import StableAvatar from "../../components/StableAvatar";
@@ -41,7 +43,7 @@ const toLocalDateTimeInput = value => {
   const pad = number => String(number).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
-const navigationIcons = { 'service-catalog': FileText, search: Search, 'website-analytics': BarChart3, departments: Users, discover: MapPin, dashboard: LayoutDashboard, news: Newspaper, categories: Tags, media: Images, officials: Users, barangays: MapPin, settings: SettingsIcon, errors: AlertTriangle, privacy: ShieldCheck, users: Users, groups: Users, permissions: ShieldCheck, policies: ShieldCheck, audit: FileText, access: ShieldCheck };
+const navigationIcons = { 'service-catalog': FileText, search: Search, 'website-analytics': BarChart3, departments: Users, discover: MapPin, dashboard: LayoutDashboard, news: Newspaper, categories: Tags, media: Images, officials: Users, barangays: MapPin, settings: SettingsIcon, ai: Sparkles, errors: AlertTriangle, privacy: ShieldCheck, users: Users, groups: Users, permissions: ShieldCheck, policies: ShieldCheck, audit: FileText, access: ShieldCheck };
 const blank = {
   title: "",
   slug: "",
@@ -58,6 +60,7 @@ const blank = {
   show_on_homepage: true,
   is_important: false,
   published_at: "",
+  ai_generation_id: "",
   featured_image: "",
   gallery_images: [],
 };
@@ -244,6 +247,7 @@ export default function Admin() {
     [galleryPreviewIndex, setGalleryPreviewIndex] = useState(null),
     [draggedGalleryIndex, setDraggedGalleryIndex] = useState(null),
      [brokenGalleryImages, setBrokenGalleryImages] = useState({});
+  const newsContentRef = useRef(null);
   useEffect(() => {
     const onEscape = event => { if (event.key === 'Escape') { setMobileSidebarOpen(false); setProfileMenuOpen(false); if (accountMenuRef.current?.contains(document.activeElement)) accountButtonRef.current?.focus(); } };
     window.addEventListener('keydown', onEscape);
@@ -833,7 +837,7 @@ export default function Admin() {
     ["Management", [["users", "Users"], ["officials", "Officials"], ["barangays", "Barangays"]]],
     ["Access & security", [["groups", "Groups"], ["permissions", "Permissions"], ["policies", "Policies"], ["audit", "Audit log"]]],
     ["Governance", [["privacy", "Privacy Requests"]]],
-    ["System", [["settings", "Settings"], ["integrations", "Integrations"], ["errors", "Error Center"]]],
+    ["System", [["ai", "AI Management"], ["settings", "Settings"], ["integrations", "Integrations"], ["errors", "Error Center"]]],
   ].map(([group, items]) => [group, items.filter(([key]) => hasModulePermission(resolveModule('admin', key), user))]).filter(([, items]) => items.length);
 
   const selectTab = (key) => {
@@ -913,18 +917,26 @@ export default function Admin() {
         {tab === "website-analytics" && <WebsiteAnalytics />}
         {tab === "discover" && <AdminDestinations canManageMedia={can("content.media.manage")} />}
         {tab === "dashboard" && (
-          <>
-            <section className="citizen-welcome"><div><p className="portal-date">{new Date().toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p><h1>Welcome back, {(user.name || 'Admin').trim().split(/\s+/)[0]}</h1><p>Manage your municipal content, community and portal settings.</p></div><button className="citizen-primary" onClick={() => { skipDraftRestoreRef.current = true; formRef.current = blank; setForm(blank); editingRef.current = null; setEditing(null); setAutosaveState(''); selectTab('editor'); }}><Plus size={17}/>Add Content</button></section>
-            <section className="citizen-stats" aria-label="Portal at a glance">{[
-              ['Published content', Newspaper, published, 'View news, events, and meetings', 'news'],
-              ['Draft content', FileText, articleCounts.draft, 'Continue editing content', 'news'],
-              ['Categories', Tags, categories.length, 'Organize portal content', 'categories'],
-              ['Media files', Images, 'Browse', 'Manage your media library', 'media'],
-            ].map(([label, Icon, value, description, key]) => <NavLink to={ADMIN_MODULE_PATHS[key]} className="citizen-stat" key={label} onClick={() => { setProfileMenuOpen(false); setMobileSidebarOpen(false); }}><div><span>{label}</span><Icon size={18}/></div><strong>{value}</strong><small>{description}<ArrowRight size={14}/></small></NavLink>)}</section>
-            <section className="portal-quick"><h2>Quick actions</h2><div>{[['Add Content', Newspaper, 'editor'], ['Upload Media', Images, 'media'], ['Manage Users', Users, 'access'], ['Privacy Requests', ShieldCheck, 'privacy'], ['Settings', SettingsIcon, 'settings']].map(([label, Icon, key]) => <button type="button" key={key} onClick={() => { if (key === 'editor') { skipDraftRestoreRef.current = true; formRef.current = blank; setForm(blank); editingRef.current = null; setEditing(null); setAutosaveState(''); } selectTab(key); }}><Icon size={20}/><span>{label}</span></button>)}</div></section>
-            <section><div className="citizen-section-head"><h2>Administration</h2></div><div className="citizen-service-grid">{[['Content management', Newspaper, 'Publish news and organize municipal updates.', 'news'], ['Municipal officials', Users, 'Maintain your directory of public officials.', 'officials'], ['Barangays', MapPin, 'Maintain barangay information and profiles.', 'barangays'], ['Access & security', ShieldCheck, 'Manage users, roles and portal permissions.', 'access']].map(([label, Icon, description, key]) => <NavLink className="citizen-service" to={ADMIN_MODULE_PATHS[key]} key={key} onClick={() => { setProfileMenuOpen(false); setMobileSidebarOpen(false); }}><span><Icon size={20}/></span><strong>{label}</strong><p>{description}</p><small>Manage<ArrowRight size={14}/></small></NavLink>)}</div></section>
-            {canViewAccess && <section className="citizen-panel admin-activity-panel"><div className="citizen-panel-head"><h2><Clock3 size={18} aria-hidden="true"/> Recent access activity</h2><div className="admin-activity-actions"><button type="button" className="citizen-secondary" onClick={() => setAccessActivityRevision(value => value + 1)} disabled={accessActivityLoading} aria-label="Refresh recent access activity"><RefreshCw size={15} aria-hidden="true"/>Refresh</button><NavLink to={ADMIN_MODULE_PATHS.access}>View access management<ArrowRight size={14}/></NavLink></div></div>{accessActivityLoading ? <p role="status" className="admin-activity-state"><span className="page-loader-spinner" aria-hidden="true"/>Loading recent activity…</p> : accessActivityError ? <div className="admin-activity-state" role="alert"><span>{accessActivityError}</span><button type="button" onClick={() => setAccessActivityRevision(value => value + 1)}>Try again</button></div> : accessActivity.length ? <ol className="admin-activity-list">{accessActivity.slice(0, 5).map(item => <li key={item.id}><span className="admin-activity-icon"><ShieldCheck size={16} aria-hidden="true"/></span><div><strong>{accessActivityLabel(item.action)}</strong><p>{item.actor_label || 'System'} <span>·</span> {item.target_label || item.target_type || 'Access setting'}</p></div><time dateTime={item.created_at}>{accessActivityDate(item.created_at)}</time></li>)}</ol> : <p className="admin-activity-state">No access changes have been recorded yet.</p>}</section>}
-            <section className="citizen-panel admin-recent"><div className="citizen-panel-head"><h2>Recent content</h2><NavLink to={ROUTES.admin.news}>View all<ArrowRight size={14}/></NavLink></div>
+          <div className="cms-dashboard">
+            <header className="cms-dashboard-heading">
+              <div><p>{new Date().toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p><h1>Admin dashboard</h1></div>
+              {hasModulePermission(resolveModule('admin','editor'), user) && <button type="button" className="citizen-primary" onClick={() => {
+                skipDraftRestoreRef.current = true; formRef.current = blank; setForm(blank);
+                editingRef.current = null; setEditing(null); setAutosaveState(''); selectTab('editor');
+              }}><Plus size={17}/> Add content</button>}
+            </header>
+            <section className="cms-dashboard-stats" aria-label="Content overview">
+              {[
+                ['Published', Newspaper, published, 'news', 'published'],
+                ['Drafts', FileText, articleCounts.draft, 'news', 'draft'],
+                ['Categories', Tags, categoryLoad.loading || categoryLoad.error ? '—' : categories.length, 'categories'],
+              ].filter(([, , , key]) => hasModulePermission(resolveModule('admin',key), user)).map(([label, Icon, value, key, status]) =>
+                <NavLink key={label} to={ADMIN_MODULE_PATHS[key]} onClick={() => {
+                  if (status) { setNewsPage(1); setNewsFilters({ status }); }
+                }}><Icon size={20} aria-hidden="true"/><span>{label}</span><strong>{value}</strong><ArrowRight size={15} aria-hidden="true"/></NavLink>
+              )}
+            </section>
+            {hasModulePermission(resolveModule('admin','news'), user) && <section className="citizen-panel admin-recent"><div className="citizen-panel-head"><h2>Recent content</h2><NavLink to={ROUTES.admin.news}>View all<ArrowRight size={14}/></NavLink></div>
             <ArticleTable
               articles={articles.slice(0, 5)}
               selected={selectedArticles}
@@ -946,8 +958,21 @@ export default function Admin() {
               }}
               remove={removeArticle}
             />
-            </section>
-          </>
+            </section>}
+
+            <div className="cms-dashboard-lower">
+              <section className="cms-dashboard-tools"><h2>Administration</h2>
+                <nav aria-label="Dashboard shortcuts">{[
+                  ['Media library', Images, 'media'], ['Manage users', Users, 'access'],
+                  ['Municipal officials', Users, 'officials'], ['Barangays', MapPin, 'barangays'],
+                  ['Privacy requests', ShieldCheck, 'privacy'], ['Settings', SettingsIcon, 'settings'],
+                ].filter(([, , key]) => hasModulePermission(resolveModule('admin',key), user)).map(([label, Icon, key]) =>
+                  <NavLink key={key} to={ADMIN_MODULE_PATHS[key]}><Icon size={17}/><span>{label}</span><ArrowRight size={14}/></NavLink>
+                )}</nav>
+              </section>
+            {canViewAccess && <section className="citizen-panel admin-activity-panel"><div className="citizen-panel-head"><h2><Clock3 size={18} aria-hidden="true"/> Recent access activity</h2><div className="admin-activity-actions"><button type="button" className="citizen-secondary" onClick={() => setAccessActivityRevision(value => value + 1)} disabled={accessActivityLoading} aria-label="Refresh recent access activity"><RefreshCw size={15} aria-hidden="true"/>Refresh</button><NavLink to={ADMIN_MODULE_PATHS.access}>View access management<ArrowRight size={14}/></NavLink></div></div>{accessActivityLoading ? <p role="status" className="admin-activity-state"><span className="page-loader-spinner" aria-hidden="true"/>Loading recent activity…</p> : accessActivityError ? <div className="admin-activity-state" role="alert"><span>{accessActivityError}</span><button type="button" onClick={() => setAccessActivityRevision(value => value + 1)}>Try again</button></div> : accessActivity.length ? <ol className="admin-activity-list">{accessActivity.slice(0, 5).map(item => <li key={item.id}><span className="admin-activity-icon"><ShieldCheck size={16} aria-hidden="true"/></span><div><strong>{accessActivityLabel(item.action)}</strong><p>{item.actor_label || 'System'} <span>·</span> {item.target_label || item.target_type || 'Access setting'}</p></div><time dateTime={item.created_at}>{accessActivityDate(item.created_at)}</time></li>)}</ol> : <p className="admin-activity-state">No access changes have been recorded yet.</p>}</section>}
+            </div>
+          </div>
         )}
         {tab === "news" && (
           <>
@@ -987,6 +1012,7 @@ export default function Admin() {
           <form className="cms-editor" onSubmit={saveArticle}>
             <div className="cms-title">
               <h1>{editing ? "Edit content" : "Add content"}</h1>
+              {(can('ai.content.generate') || can('ai.content.translate')) && <AiContentStudio form={form} setForm={setForm} contentRef={newsContentRef} canGenerate={can('ai.content.generate')} canTranslate={can('ai.content.translate')} />}
               {autosaveState && <span className={`cms-autosave-status cms-autosave-${autosaveState}`} role="status">
                 {autosaveState === 'saving' || autosaveState === 'unsaved' ? 'Saving draft…' : autosaveState === 'retrying' ? 'Not saved — retrying…' : autosaveState === 'saved' ? 'Draft saved' : autosaveState === 'recovered' ? 'Recovered local draft' : autosaveState === 'conflict' ? 'Draft changed elsewhere' : autosaveState === 'error' ? 'Not saved — edit or save again' : 'Draft needs attention'}
               </span>}
@@ -1031,6 +1057,7 @@ export default function Admin() {
               Full content
               <textarea
                 className="content-box"
+                ref={newsContentRef}
                 required
                 value={form.content}
                 onChange={(e) => setForm({ ...form, content: e.target.value })}
@@ -1268,6 +1295,7 @@ export default function Admin() {
           />
         )}
         {tab === 'integrations' && <AdminIntegrations permissions={user.permissions || []} />}
+        {tab === "ai" && <AdminAiManagement canManage={can('ai.management.update')} canConfigureSecret={can('settings.secrets.edit')} />}
         {tab === "privacy" && <AdminPrivacyRequests onNotice={setNotice} />}
         {confirmDialog?.kind === 'media-references' && (
           <MediaReferencesDialog

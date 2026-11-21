@@ -55,8 +55,8 @@ export async function verifySupabaseConnection(url, { ClientClass = Client } = {
   }
 }
 
-export async function checkBetterGetafeSchema(url, { PoolClass = Pool } = {}) {
-  const pool = new PoolClass({ ...resolverOptions(url), max: 1, connectionTimeoutMillis: 7000, query_timeout: 5000, application_name: 'better-getafe-schema-check' });
+export async function checkBetterGetafeSchema(url, { PoolClass = Pool, pool: existingPool } = {}) {
+  const pool = existingPool || new PoolClass({ ...resolverOptions(url), max: 1, connectionTimeoutMillis: 7000, query_timeout: 5000, application_name: 'better-getafe-schema-check' });
   try {
     const result = await pool.query(`SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public' AND table_name = ANY($1::text[])`, [[
@@ -84,7 +84,7 @@ export async function checkBetterGetafeSchema(url, { PoolClass = Pool } = {}) {
     if (error.message.startsWith('Database connection verified')) throw error;
     throw databaseCheckError(error);
   } finally {
-    await pool.end().catch(() => {});
+    if (!existingPool) await pool.end().catch(() => {});
   }
 }
 
@@ -128,10 +128,15 @@ export async function writeCmsUrlToEnv(url, file = localEnvPath) {
   const hadFinalNewline = original.endsWith('\n');
   const lines = original.split(/\r?\n/);
   if (hadFinalNewline) lines.pop();
-  const keyLine = /^\s*#?\s*CMS_SUPABASE_DATABASE_URL\s*=.*$/;
+  const keyLine = /^\s*(?:export\s+)?CMS_SUPABASE_DATABASE_URL\s*=/;
   const replacement = `CMS_SUPABASE_DATABASE_URL=${url}`;
-  const index = lines.findIndex(line => keyLine.test(line));
-  if (index >= 0) lines[index] = replacement;
+  const index = lines.findLastIndex(line => keyLine.test(line));
+  if (index >= 0) {
+    lines[index] = replacement;
+    for (let i = index - 1; i >= 0; i--) {
+      if (keyLine.test(lines[i])) lines.splice(i, 1);
+    }
+  }
   else lines.push(replacement);
   let updated = lines.join(newline);
   if (hadFinalNewline || original.length === 0) updated += newline;
@@ -148,7 +153,7 @@ export async function ensureSupabaseConfigured({
   save = writeCmsUrlToEnv,
   envFile = localEnvPath,
 } = {}) {
-  dotenv.config({ path: envFile, quiet: true });
+  if (env === process.env && env.NODE_ENV !== 'production') await loadLocalEnvironment(envFile);
   const url = selectedCmsUrl(env);
   if (url) {
     await verify(url);

@@ -15,12 +15,12 @@ export function evaluateDependencies(dependencies, initialized = true) {
   const requiredFailures = dependencies.filter(item => item.required && item.status !== 'healthy')
   const optionalFailures = dependencies.filter(item => !item.required && !['healthy', 'disabled'].includes(item.status))
   const ready = initialized && requiredFailures.length === 0
-  return { ready, status: !initialized ? 'initializing' : !ready ? 'unhealthy' : optionalFailures.length ? 'degraded' : 'healthy', requiredFailures, optionalFailures }
+  return { ready, status: !initialized ? 'initializing' : !ready ? 'unavailable' : optionalFailures.length ? 'degraded' : 'healthy', requiredFailures, optionalFailures }
 }
 
 export function reportStartup(dependencies, initialized = true, logger = console.info) {
   const result = evaluateDependencies(dependencies, initialized)
-  for (const item of dependencies) logger(`[STARTUP][${item.name}] ${item.status === 'healthy' ? 'healthy' : item.status === 'disabled' ? 'optional/unconfigured' : 'FAILED'} Required: ${item.required}${item.reason ? ` Reason: ${item.reason}` : ''}`)
+  for (const item of dependencies) logger(`[STARTUP][${item.name}] ${item.status === 'healthy' ? 'healthy' : item.status === 'disabled' ? 'optional/unconfigured' : 'FAILED'}${item.provider ? ` Provider: ${item.provider}` : ''} Required: ${item.required}${item.reason ? ` Reason: ${item.reason}` : ''}`)
   logger(`[STARTUP 8/8] Initialization complete${result.ready ? result.status === 'degraded' ? ' with degraded dependencies' : '' : ' with required dependency failures'}`)
   logger(`[STARTUP] Application ${result.ready ? result.status.toUpperCase() : 'FAILED'}; API Ready: ${result.ready ? 'YES' : 'NO'}`)
   for (const item of result.requiredFailures) logger(`[STARTUP] Required failure: ${item.name}`)

@@ -148,6 +148,8 @@ export async function ensureBootstrapMembership(user) {
 
 function readPath(source, path) { return String(path || '').split('.').reduce((value, key) => value?.[key], source) }
 function comparePolicyValues(actual, expected, operator = 'equals') {
+  if (operator === 'exists') return actual != null
+  if (operator === 'not_exists') return actual == null
   if (operator === 'equals') return actual === expected
   if (operator === 'not_equals') return actual !== expected
   if (operator === 'contains') return String(actual ?? '').toLowerCase().includes(String(expected ?? '').toLowerCase())

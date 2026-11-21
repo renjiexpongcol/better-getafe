@@ -178,6 +178,7 @@ export const routeTitles = {
   '/admin/system/errors': 'Admin · Error Center',
   '/admin/system/integrations': 'Admin · Integrations',
   '/admin/privacy': 'Admin · Privacy Requests',
+  '/admin/ai': 'Admin · AI Management',
   '/admin/settings/:category': 'Admin · System Settings',
   '/auth/login': 'Log In',
   '/auth/forgot-password': 'Reset Password',

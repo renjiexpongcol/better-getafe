@@ -28,6 +28,9 @@ function Pager({ page, pages, setPage }) {
 
 function Dialog({ title: heading, subtitle, onClose, wide = false, children }) {
   const dialogRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
 
   useEffect(() => {
     const previousFocus = document.activeElement
@@ -35,11 +38,11 @@ function Dialog({ title: heading, subtitle, onClose, wide = false, children }) {
     document.body.style.overflow = 'hidden'
     const focusable = () => [...(dialogRef.current?.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])') || [])]
     const focusFirst = () => focusable()[0]?.focus()
-    requestAnimationFrame(focusFirst)
+    const focusFrame = requestAnimationFrame(focusFirst)
     const onKeyDown = event => {
       if (event.key === 'Escape') {
         event.preventDefault()
-        onClose()
+        onCloseRef.current?.()
         return
       }
       if (event.key !== 'Tab') return
@@ -57,11 +60,12 @@ function Dialog({ title: heading, subtitle, onClose, wide = false, children }) {
     }
     document.addEventListener('keydown', onKeyDown)
     return () => {
+      cancelAnimationFrame(focusFrame)
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = previousOverflow
       previousFocus?.focus?.()
     }
-  }, [onClose])
+  }, [])
 
   return <div className="access-dialog-backdrop" onMouseDown={event => event.target === event.currentTarget && onClose()}><section ref={dialogRef} className={`access-dialog${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby="access-dialog-title" tabIndex="-1"><header><div><h2 id="access-dialog-title">{heading}</h2>{subtitle && <p>{subtitle}</p>}</div><button type="button" className="access-dialog-close" onClick={onClose} aria-label="Close" data-icon-button="ghost"><X size={19}/></button></header>{children}</section></div>
 }
@@ -128,6 +132,8 @@ function AuditTable({ items }) {
 }
 
 const policyOperators = [
+  ['exists', 'Is present'],
+  ['not_exists', 'Is missing'],
   ['equals', 'Equals'],
   ['not_equals', 'Does not equal'],
   ['contains', 'Contains'],
@@ -154,6 +160,7 @@ function conditionLabel(condition) {
   const right = condition.user_field || condition.userField
   if (left && (condition.operator || right)) {
     const operator = policyOperators.find(([key]) => key === condition.operator)?.[1] || (condition.operator ? field(condition.operator) : 'equals')
+    if (['exists', 'not_exists'].includes(condition.operator)) return field(left) + ' ' + operator.toLowerCase()
     const expected = condition.value_source === 'literal' ? JSON.stringify(condition.value) : 'the user’s ' + field(right)
     return field(left) + ' ' + operator.toLowerCase() + ' ' + expected
   }
@@ -172,8 +179,10 @@ function PolicyRule({ rule, index, onChange, onRemove, canRemove }) {
       <label>Request/resource field<input required value={rule.resource_field} onChange={event => update({ resource_field: event.target.value })} placeholder="department_id"/></label>
       <label>Operator<select value={rule.operator} onChange={event => update({ operator: event.target.value })}>{policyOperators.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
     </div>
+    {needsValue && <>
     <label>Compare against<select value={rule.value_source} onChange={event => update({ value_source: event.target.value })}><option value="user_field">Signed-in user field</option><option value="literal">A fixed value</option></select></label>
     {rule.value_source === 'user_field' ? <label>User field<input required={needsValue} value={rule.user_field} onChange={event => update({ user_field: event.target.value })} placeholder="department_id"/></label> : <label>Value<input required={needsValue} value={rule.value} onChange={event => update({ value: event.target.value })} placeholder="records"/></label>}
+    </>}
   </div>
 }
 
@@ -181,7 +190,13 @@ function PolicyConditionBuilder({ form, setForm }) {
   const updateRule = (index, rule) => setForm({ ...form, rules: form.rules.map((item, itemIndex) => itemIndex === index ? rule : item) })
   const removeRule = index => setForm({ ...form, rules: form.rules.filter((_, itemIndex) => itemIndex !== index) })
   const addRule = () => setForm({ ...form, rules: [...form.rules, { resource_field: '', operator: 'equals', value_source: 'user_field', user_field: '', value: '' }] })
-  return <fieldset className="policy-condition-builder"><legend>Access conditions</legend><p className="access-help">The policy applies only when these rules match. Use “all” for a narrow combination or “any” for alternatives.</p><label>Match<select value={form.match} onChange={event => setForm({ ...form, match: event.target.value })}><option value="all">All rules</option><option value="any">Any rule</option></select></label>{form.rules.map((rule, index) => <PolicyRule key={index} rule={rule} index={index} onChange={updateRule} onRemove={removeRule} canRemove={form.rules.length > 1}/>)}<button type="button" className="secondary policy-add-rule" onClick={addRule}>Add another rule</button></fieldset>
+  return <fieldset className="policy-condition-builder"><legend>Access conditions</legend><p className="access-help">The policy applies only when these rules match. Use “all” for a narrow combination or “any” for alternatives.</p><label>Match<select value={form.match} onChange={event => setForm({ ...form, match: event.target.value })}><option value="all">All rules</option><option value="any">Any rule</option></select></label>{form.rules.map((rule, index) => <PolicyRule key={index} rule={rule} index={index} onChange={updateRule} onRemove={removeRule} canRemove={form.rules.length > 1}/>)}<button type="button" className="secondary policy-add-rule" onClick={addRule} disabled={form.rules.length >= 10}>Add another rule</button>
+    {form.rules.length === 10 && <small>Maximum of 10 rules reached.</small>}
+    {form.rules.every(rule => rule.resource_field.trim() && (
+      ['exists', 'not_exists'].includes(rule.operator) ||
+      (rule.value_source === 'literal' ? rule.value : rule.user_field).trim()
+    )) && <p className="access-help"><strong>Condition preview</strong><br/>{conditionLabel({ [form.match]: form.rules })}</p>}
+  </fieldset>
 }
 
 function EditPolicy({ policy, onClose, onSaved }) {
@@ -207,15 +222,23 @@ function EditPolicy({ policy, onClose, onSaved }) {
       await onSaved()
     } catch (failure) { setError(failure.message) } finally { setBusy(false) }
   }
-  return <Dialog title="Edit policy" onClose={onClose}><form className="access-dialog-body access-form" onSubmit={save}>
-    <label>Name<input required maxLength={120} value={name} onChange={e => setName(e.target.value)}/></label>
+  return <Dialog title="Edit policy" onClose={onClose}><form className="policy-editor" onSubmit={save}>
+    <div className="access-dialog-body access-form policy-editor-fields">
+    <label>Policy name<input required maxLength={120} value={name} onChange={e => setName(e.target.value)}/></label>
     <label>Description<textarea maxLength={1000} value={description} onChange={e => setDescription(e.target.value)}/></label>
-    <label>Effect<select value={effect} onChange={e => setEffect(e.target.value)}><option value="allow">Allow</option><option value="deny">Deny</option></select></label>
-    <label><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)}/> Enabled</label>
-    <label>Reason for change<input required value={reason} onChange={e=>setReason(e.target.value)} maxLength={1000}/></label><p>{conditionLabel(policy.condition)}</p>
-    <label><input type="checkbox" checked={replaceRules} onChange={e => setReplaceRules(e.target.checked)}/> Replace conditions</label>
+    <div className="policy-editor-settings">
+      <label>Effect<select value={effect} onChange={e => setEffect(e.target.value)}><option value="allow">Allow</option><option value="deny">Deny</option></select></label>
+      <label className="access-switch"><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)}/>Policy enabled</label>
+    </div>
+    <section className="policy-editor-conditions">
+      <h3>Current conditions</h3>
+      <p>{conditionLabel(policy.condition)}</p>
+      <label className="access-switch"><input type="checkbox" checked={replaceRules} onChange={e => setReplaceRules(e.target.checked)}/>Replace conditions</label>
+    </section>
     {replaceRules && <PolicyConditionBuilder form={form} setForm={setForm}/>}
+    <label>Reason for change<textarea required rows={2} value={reason} onChange={e=>setReason(e.target.value)} maxLength={1000}/></label>
     {error && <p role="alert">{error}</p>}
+    </div>
     <div className="access-actions"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button disabled={busy}>Submit for approval</button></div>
   </form></Dialog>
 }
@@ -237,6 +260,7 @@ function AccessDirectory({ currentUser, initialTab = 'users' }) {
   const [selectedUser, setSelectedUser] = useState(null)
   const [selectedGroup, setSelectedGroup] = useState(null)
   const [createType, setCreateType] = useState(null)
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -246,7 +270,7 @@ function AccessDirectory({ currentUser, initialTab = 'users' }) {
   const [provisionError, setProvisionError] = useState('')
   const [policyForm, setPolicyForm] = useState({ name: '', description: '', effect: 'allow', permission_id: '', match: 'all', rules: [{ resource_field: 'department_id', operator: 'equals', value_source: 'user_field', user_field: 'department_id', value: '' }] })
   const load = async (signal) => { setError(''); try { const result=await request('/api/admin/access', {signal}); if (!signal?.aborted) setData(result) } catch (error) { if (!signal?.aborted) setError(error.message) } }
-  useEffect(() => { const controller=new AbortController(); load(controller.signal); return ()=>controller.abort() }, [])
+  useEffect(() => { const controller=new AbortController(); load(controller.signal); return ()=>controller.abort() }, [loadAttempt])
   useEffect(() => { setPage(1) }, [query, status, accountType, tab])
   const tabPermissions = { users: 'users.view', groups: 'groups.manage', permissions: 'permissions.manage', policies: 'policies.manage', audit: 'audit.view' }
   const tabs = ['users', 'groups', 'permissions', 'policies', 'audit'].filter(item => currentUser.permissions?.includes(tabPermissions[item]))
@@ -260,7 +284,7 @@ function AccessDirectory({ currentUser, initialTab = 'users' }) {
   const createPolicy = async event => { event.preventDefault(); setBusy(true); setError(''); try { await request('/api/admin/access/policies', { method: 'POST', body: JSON.stringify({ name: policyForm.name, description: policyForm.description, effect: policyForm.effect, permission_id: policyForm.permission_id || null, condition: { [policyForm.match]: policyForm.rules } }) }); setCreateType(null); setPolicyForm({ name: '', description: '', effect: 'allow', permission_id: '', match: 'all', rules: [{ resource_field: 'department_id', operator: 'equals', value_source: 'user_field', user_field: 'department_id', value: '' }] }); await load(); setNotice('Policy created. Assign it from a group’s Policies tab.') } catch (error) { setError(error.message) } finally { setBusy(false) } }
   return <div className="access-management"><div className="access-title"><div><span>Administration</span><h1>Access Management</h1><p>Manage users centrally through groups, permissions, and conditional policies.</p></div>{['users', 'groups', 'policies'].includes(tab) && (tab !== 'policies' || currentUser.permissions?.includes('policies.manage')) && <button type="button" onClick={() => setCreateType(tab === 'users' ? 'user' : tab === 'groups' ? 'group' : 'policy')}><Plus size={17}/>{tab === 'users' ? 'Create employee' : tab === 'groups' ? 'Create group' : 'Create policy'}</button>}</div>
     <nav className="access-tabs" aria-label="Access management sections" role="tablist">{tabs.map(item => <button type="button" role="tab" aria-selected={tab === item} className={tab === item ? 'active' : ''} onClick={() => setTab(item)} key={item}>{item === 'audit' ? 'Audit Log' : title(item)}</button>)}</nav>
-    {notice && <div className="access-feedback"><Check size={17}/>{notice}<button type="button" onClick={() => setNotice('')} aria-label="Dismiss" data-icon-button="ghost"><X size={15}/></button></div>}{error && <div className="access-feedback error">{error}</div>}
+    {notice && <div className="access-feedback"><Check size={17}/>{notice}<button type="button" onClick={() => setNotice('')} aria-label="Dismiss" data-icon-button="ghost"><X size={15}/></button></div>}{error && <div className="access-feedback error" role="alert">{error}<button type="button" className="link" onClick={() => setLoadAttempt(value => value + 1)}>Try again</button></div>}
     {!data ? !error && <p>Loading access controls…</p> : <>
       {['users', 'groups'].includes(tab) && <><div className="access-toolbar"><label><Search size={17}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder={`Search ${tab}…`} aria-label={`Search ${tab}`}/></label>{tab === 'users' && <select value={accountType} onChange={event => setAccountType(event.target.value)} aria-label="Account type"><option value="all">All account types</option><option value="employee">Employees</option><option value="portal">Resident users</option></select>}<select value={status} onChange={event => setStatus(event.target.value)}><option value="all">All statuses</option><option value={tab === 'groups' ? 'enabled' : 'active'}>{tab === 'groups' ? 'Enabled' : 'Active'}</option><option value="disabled">Disabled</option></select></div><div className="access-table-wrap"><table className="access-table"><thead><tr>{tab === 'users' ? <><th>User</th><th>Account type</th><th>Role</th><th>Groups</th><th>Status</th><th>Action</th></> : <><th>Group</th><th>Members</th><th>Permissions</th><th>Status</th><th>Action</th></>}</tr></thead><tbody>{visible.map(item => tab === 'users' ? <tr key={item.id}><td><div className="access-person"><span>{item.name.slice(0, 1).toUpperCase()}</span><div><strong>{item.name}{item.id === currentUser.id ? ' (you)' : ''}</strong><small>{item.email} · EID {item.eid}</small></div></div></td><td>{item.account_type === 'portal' ? 'Resident' : 'Employee'}</td><td>{roleLabels[item.role] || title(item.role)}</td><td><div className="access-chips">{item.groups.length ? item.groups.map(group => <span key={group.id}>{group.name}</span>) : <em>{item.account_type === 'portal' ? 'Resident access' : 'No groups'}</em>}</div></td><td><b className={`access-status ${item.role === 'disabled' ? 'disabled' : 'enabled'}`}>{item.role === 'disabled' ? 'Disabled' : 'Active'}</b></td><td>{item.account_type === 'portal' ? <span>Resident account</span> : <button type="button" className="link" onClick={() => setSelectedUser(item)}>View access</button>}</td></tr> : <tr key={item.id}><td><div><strong>{item.name}</strong><small className="table-description">{item.description || 'No description'}</small></div></td><td>{item.member_count}</td><td>{item.permission_count}</td><td><b className={`access-status ${item.enabled ? 'enabled' : 'disabled'}`}>{item.enabled ? 'Enabled' : 'Disabled'}</b></td><td><button type="button" className="link" onClick={() => setSelectedGroup(item)}>Manage</button></td></tr>)}</tbody></table>{!visible.length && <p className="access-empty">No {tab} match the current filters.</p>}</div><Pager page={page} pages={pages} setPage={setPage}/></>}
       {tab === 'permissions' && <div className="permission-directory">{Object.entries(data.permissions.reduce((result, permission) => ({ ...result, [permission.category]: [...(result[permission.category] || []), permission] }), {})).map(([category, permissions]) => <section key={category}><h2>{category}</h2><div>{permissions.map(permission => <article key={permission.id}><span className="permission-icon"><KeyRound size={17}/></span><div><strong>{permission.label}{permission.sensitive ? <b>Sensitive</b> : null}</strong><p>{permission.description}</p></div></article>)}</div></section>)}</div>}

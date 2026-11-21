@@ -1,6 +1,8 @@
+import { createSessionEndpoint } from './src/services/sessionEndpoint.js';
+import { verifySessionToken } from './src/services/sessionToken.js';
 import { saveCmsMfa, consumeCmsRecoveryCode } from './src/services/cmsMfa.js';
 import { pipeline } from 'node:stream/promises';
-import { activeAzureImageKey, openAzureArticleImage } from './src/services/storage.js';
+import { activeAzureImageKey, openAzureArticleImage, activateStorage } from './src/services/storage.js';
 import { validatePasswordLogin } from '../src/services/loginValidation.js';
 import { sendStartupPage } from './src/services/startupPage.js';
 import { drainStaffNotifications, markStaffEmailDelivery, validateStaffEmailDelivery } from './src/services/staffNotifications.js';
@@ -44,6 +46,7 @@ import QRCode from 'qrcode';
 import { config } from './src/config/index.js';
 import { closeConfigStore } from './src/config/DatabaseSettingsProvider.js';
 import { installSettingsRoutes } from './src/services/settingsRoutes.js';
+import { installAiRoutes } from './src/services/aiRoutes.js';
 import { installPublicDataRoutes } from './src/services/publicDataRoutes.js';
 import { installAdminUsersRoutes } from './src/services/adminUsersRoutes.js';
 import { installStaffRoutes } from './src/services/staffRoutes.js';
@@ -65,7 +68,7 @@ import redis, { isRedisReady } from './src/infrastructure/redis/redisClient.js';
 import { redisKeys } from './src/infrastructure/redis/redisKeys.js';
 import { enqueueEmail, recoverEmailJobs, startEmailWorker, stopEmailWorker } from './src/services/redisInfrastructure.js';
 import { markNotificationDeliveryFailed, markNotificationDeliverySent, validateQueuedNotification } from './src/services/notificationService.js';
-import { assertSessionRegistryAvailable, extendRedisKeyExpiry, sessionIdleDeadline, sessionTtlSeconds } from './src/services/sessionRegistry.js';
+import { createSessionRegistry } from './src/services/sessionRegistry.js';
 import { passwordMeetsPolicy } from './src/services/passwordPolicy.js';
 import { safeUser } from './src/services/authPayload.js';
 import { hashPassword, verifyPassword } from './src/services/passwordHashing.js';
@@ -73,11 +76,10 @@ import { selectLoginAccount } from './src/services/loginAccount.js';
 
 import { fileURLToPath } from "url";
 import { initializeServices, serviceStatus } from "./src/services/initialization.js";
-import { syncVerifiedAzureCutover } from "./src/services/mediaMigration.js";
 import { systemStatus } from './src/services/runtimeConfiguration.js';
-import { emailHealth } from './src/services/email.js';
+import { emailHealth, activateEmail, retryEmailVerification } from './src/services/email.js';
 import { evaluateDependencies, reportStartup, dependencyReason } from './src/services/startupDiagnostics.js';
-import { createUploadUrl, uploadObject, createDownloadUrl, deleteObject, getObjectMetadata, readObject, imageSignatureMatches, validateImageUpload, validateObjectKey, storageIsLocal, storageLocation, storageHealth, initializeStorage, writePrivateFile, readPrivateFile, deletePrivateFile, isStorageNotFoundError } from "./src/services/storage.js";
+import { createUploadUrl, uploadObject, createDownloadUrl, deleteObject, getObjectMetadata, readObject, imageSignatureMatches, validateImageUpload, validateObjectKey, storageIsLocal, storageLocation, storageHealth, refreshStorageHealth, initializeStorage, writePrivateFile, readPrivateFile, deletePrivateFile, isStorageNotFoundError } from "./src/services/storage.js";
 
 import { getCategories, createCategory, updateCategory, deleteCategory } from "./src/repositories/categoryRepository.js";
 import { getPopularServices } from "./src/repositories/popularServicesRepository.js";
@@ -122,7 +124,8 @@ let viteDevServer;
 installApiRegistrationGuard(app);
 installApiVersionAliases(app);
 let lifecycle = 'STARTING', initialized = false, coreReady = false;
-let lifecycleTimer, lifecycleCheck;
+let lifecycleTimer, lifecycleCheck, lastCheckedAt = 0;
+const available = () => coreReady && config.available && lifecycle !== 'SHUTTING_DOWN' && Date.now() - lastCheckedAt < 20000;
 let dependencySnapshot = [];
 app.disable('x-powered-by');
 app.use((req, res, next) => {
@@ -183,37 +186,42 @@ const checkLifecycle = () => {
   lifecycleCheck = (async () => {
   if (!initialized || lifecycle === 'SHUTTING_DOWN') return;
   await config.load();
+  await refreshStorageHealth();
   const databases = await Promise.all([databaseHealth('database'), databaseHealth('portalDatabase')]);
   for (const [index, category] of ['database', 'portalDatabase'].entries()) systemStatus[category] = { ...systemStatus[category], status: databases[index].status === 'healthy' ? 'connected' : 'degraded', reason: databases[index].reason };
-  systemStatus.redis = { status: isRedisReady() ? 'healthy' : 'degraded' };
-  systemStatus.storage = { ...systemStatus.storage, status: storageHealth().status === 'healthy' ? 'connected' : 'degraded' };
+  systemStatus.redis = { status: trafficProtector.health() };
+  systemStatus.storage = { ...systemStatus.storage, provider: storageHealth().provider, status: storageHealth().status === 'healthy' ? 'connected' : 'degraded' };
   const email = emailHealth();
   if (email.status === 'disabled' && systemStatus.email?.status === 'degraded') { email.status = 'degraded'; email.reason = systemStatus.email.reason; }
   dependencySnapshot = [
     { name: 'CMS_DB', required: true, ...databases[0] },
     { name: 'USER_DB', required: true, ...databases[1] },
     { name: 'RUNTIME_CONFIG', required: true, status: config.available ? 'healthy' : 'unhealthy', reason: config.failureReason },
-    { name: 'REDIS', required: process.env.NODE_ENV === 'production', status: isRedisReady() ? 'healthy' : 'degraded', reason: isRedisReady() ? undefined : 'Redis is not ready' },
-    { name: 'B2', required: false, status: storageHealth().status, reason: storageHealth().status === 'healthy' ? undefined : systemStatus.storage?.reason || 'Media storage is unavailable' },
+    { name: 'REDIS', required: process.env.NODE_ENV === 'production', status: systemStatus.redis.status, reason: isRedisReady() ? undefined : 'Redis is not ready' },
+    { name: 'MEDIA_STORAGE', provider: storageHealth().provider, required: false, status: storageHealth().status, reason: storageHealth().status === 'healthy' ? undefined : systemStatus.storage?.reason || 'Media storage is unavailable' },
     { name: 'EMAIL', required: Boolean(config.get('authentication.mfaEnabled') || config.get('authentication.requireEmailVerification')), ...email },
   ];
   const result = evaluateDependencies(dependencySnapshot);
   coreReady = result.ready;
   if (lifecycle !== 'SHUTTING_DOWN') lifecycle = result.status === 'healthy' ? 'READY' : result.ready ? 'DEGRADED' : 'FAILED';
-  })().catch(error => { coreReady = false; if (lifecycle !== 'SHUTTING_DOWN') lifecycle = 'FAILED'; dependencySnapshot = [{ name: error.subsystem || 'RUNTIME_CONFIG', required: true, status: 'unhealthy', reason: dependencyReason(error) }]; console.error(JSON.stringify({ event: 'readiness_failed', subsystem: error.subsystem || 'RUNTIME_CONFIG', reason: dependencyReason(error) })); }).finally(() => { lifecycleCheck = null; });
+  })().catch(error => { coreReady = false; if (lifecycle !== 'SHUTTING_DOWN') lifecycle = 'FAILED'; dependencySnapshot = [{ name: error.subsystem || 'RUNTIME_CONFIG', required: true, status: 'unhealthy', reason: dependencyReason(error) }]; console.error(JSON.stringify({ event: 'readiness_failed', subsystem: error.subsystem || 'RUNTIME_CONFIG', reason: dependencyReason(error) })); }).finally(() => { lastCheckedAt = Date.now(); lifecycleCheck = null; });
   return lifecycleCheck;
 };
-const readiness = async (_req, res) => {
-  await checkLifecycle();
-  if (!coreReady) res.set('Retry-After', '2');
-  const ready = coreReady && lifecycle !== 'SHUTTING_DOWN';
-  res.set('Cache-Control', 'no-store').status(ready ? 200 : 503).json({ service: 'better-getafe', status: !initialized ? 'initializing' : !ready ? 'unhealthy' : lifecycle === 'DEGRADED' ? 'degraded' : 'healthy', ready });
+const readiness = (_req, res) => {
+  const ready = available();
+  if (!ready) res.set('Retry-After', '2');
+  res.set('Cache-Control', 'no-store').status(ready ? 200 : 503).json({
+    service: 'better-getafe',
+    status: !initialized ? 'initializing' : !ready ? 'unavailable' : lifecycle === 'DEGRADED' ? 'degraded' : 'healthy',
+    ready,
+    dependencies: dependencySnapshot.map(({ name, status }) => ({ name, status })),
+  });
 };
 app.get(['/ready', '/health/ready', '/api/ready'], readiness);
 // No application handler can run until the initial security/configuration
 // snapshot has been activated. Liveness and readiness bypass this gate.
 app.use((req, res, next) => {
-  if (initialized && coreReady && config.available && lifecycle !== 'SHUTTING_DOWN') return next();
+  if (initialized && available()) return next();
   if (req.method === 'POST' && /^\/api\/analytics\/events\/?$/i.test(req.path)) {
     console.warn(JSON.stringify({ event: 'website_analytics_ingest_failed', request_id: req.requestId, reason: 'application_not_ready' }));
   }
@@ -266,7 +274,6 @@ app.use(trafficProtector.middleware());
 // parsing capacity after a client has already been rejected.
 app.use(async (req, res, next) => {
   try { await config.load(); } catch { /* Keep the last known working snapshot; status reports degraded. */ }
-  if (serviceStatus.cmsDatabase === 'connected') void syncVerifiedAzureCutover()?.catch(() => {});
   if (config.get('security.frameProtection')) res.setHeader('X-Frame-Options', 'DENY');
   if (config.get('security.contentTypeProtection')) res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -455,55 +462,21 @@ function authenticated(req) {
     if (req.headers.authorization && !/^Bearer \S+$/i.test(req.headers.authorization)) return null;
     const authorization = req.headers.authorization ? req.headers.authorization.slice(7) : '';
     const token = authorization || readCookies(req.headers.cookie)[SESSION_COOKIE] || '';
-    if (token.length > 4096 || token.split('.').length !== 2) return null;
-    const [payload, signature] = token.split(".");
-    if (!payload || !signature || !secret) return null;
-    const expected = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
-    if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
-    const data = JSON.parse(Buffer.from(payload, "base64url").toString());
-    if (!data.id || !data.sid || !Number.isFinite(data.iat) || data.iat > Date.now() || !Number.isFinite(data.exp)) return null;
-    if (!(data.exp > Date.now() && (data.iat || 0) + (data.remember ? config.get('authentication.rememberDays') * 86400000 : config.get('authentication.sessionMinutes') * 60000) > Date.now())) return null;
-    data.signature = signature;
-    return data;
+    return verifySessionToken(token, secret, {
+      sessionMinutes: config.get('authentication.sessionMinutes'),
+      rememberDays: config.get('authentication.rememberDays'),
+    });
   } catch {
     return null;
   }
 }
 
-const tokenIsRevoked = async (session, { touch = false } = {}) => {
-  if (!session) return false;
-  if (!session.sid) return true;
-  const registryReady = isRedisReady();
-  assertSessionRegistryAvailable(registryReady);
-  if (session.signature && await readState(stateKey('revoked-token', session.signature))) return true;
-  if (session.sid && await readState(stateKey('revoked-session', session.sid))) return true;
-  if (!registryReady) return false;
-  const key = redisKeys.session(session.sid);
-  try {
-    const raw = await redis.get(key);
-    if (!raw) {
-      await putState(stateKey('revoked-session', session.sid), true, Math.max(1, session.exp - Date.now()));
-      return true;
-    }
-    const metadata = JSON.parse(raw);
-    const idleMinutes = config.get('authentication.sessionIdleMinutes');
-    if (Date.now() - metadata.lastActivityAt > idleMinutes * 60_000) {
-      await putState(stateKey('revoked-session', session.sid), true, Math.max(1, session.exp - Date.now()));
-      await redis.del(key);
-      await redis.sRem(redisKeys.userSessions(session.kind, session.id), session.sid);
-      return true;
-    }
-    if (touch) metadata.lastActivityAt = Date.now();
-    session.idleExpiresAt = sessionIdleDeadline(metadata.lastActivityAt, idleMinutes);
-    const ttlSeconds = sessionTtlSeconds(session.exp);
-    if (touch) await redis.set(key, JSON.stringify(metadata), { EX: ttlSeconds });
-    return false;
-  } catch {
-    const error = new Error('Session registry is unavailable.');
-    error.code = 'AUTH_SESSION_REGISTRY_UNAVAILABLE';
-    throw error;
-  }
-};
+// Development remains usable without Redis, with server-side idle enforcement.
+// Production still requires the shared Redis registry.
+const developmentSessions = new Map();
+const { tokenIsRevoked, registerSession } = createSessionRegistry({
+  redis, redisKeys, isRedisReady, config, readState, putState, stateKey, developmentSessions,
+});
 
 const admin = async (req, res, next) => {
   res.setHeader('Cache-Control', 'no-store, private');
@@ -593,24 +566,9 @@ const resident = async (req, res, next) => {
 const setSessionCookie = async (res, token, remember, recordLogin = false) => {
   const [encodedPayload] = token.split('.');
   const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString());
-  const registryReady = isRedisReady();
-  assertSessionRegistryAvailable(registryReady);
   if (!payload.sid) throw new Error('Session registry is unavailable.');
-  if (registryReady) {
-    const ttlSeconds = sessionTtlSeconds(payload.exp);
-    const metadata = { userId: payload.id, kind: payload.kind, role: payload.role, updatedAt: payload.updatedAt, createdAt: payload.iat, lastActivityAt: payload.iat, expiresAt: payload.exp };
-    try {
-      await redis.set(redisKeys.session(payload.sid), JSON.stringify(metadata), { EX: ttlSeconds });
-      const index = redisKeys.userSessions(payload.kind, payload.id);
-      await redis.sAdd(index, payload.sid);
-      await extendRedisKeyExpiry(redis, index, ttlSeconds);
-    } catch {
-      await redis.del(redisKeys.session(payload.sid)).catch(() => {});
-      await redis.sRem(redisKeys.userSessions(payload.kind, payload.id), payload.sid).catch(() => {});
-      console.warn(JSON.stringify({ event: 'session_registry_write_failed', kind: payload.kind }));
-      throw new Error('Session registry is unavailable.');
-    }
-  }
+  const metadata = { userId: payload.id, kind: payload.kind, role: payload.role, updatedAt: payload.updatedAt, createdAt: payload.iat, lastActivityAt: payload.iat, expiresAt: payload.exp, idleTimeoutEnabled: config.get('authentication.sessionIdleEnabled') !== false };
+  await registerSession(payload, metadata, res.getHeader('X-Request-Id'));
   if (recordLogin && payload.kind === 'cms') await (await getCmsPool()).execute('UPDATE users SET last_login_at=CURRENT_TIMESTAMP WHERE id=?', [payload.id]);
   const attributes = ['HttpOnly', 'Path=/api', 'SameSite=Lax'];
   if (process.env.NODE_ENV === 'production') attributes.push('Secure');
@@ -619,6 +577,7 @@ const setSessionCookie = async (res, token, remember, recordLogin = false) => {
   // public visit. New login/renewal replaces it with the API-scoped cookie.
   res.append('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
   res.append('Set-Cookie', `${SESSION_COOKIE}=${encodeURIComponent(token)}; ${attributes.join('; ')}`);
+  console.info(JSON.stringify({ event: 'session_created', request_id: res.getHeader('X-Request-Id') || null, session_kind: payload.kind }));
 };
 
 const clearSessionCookie = (res) => {
@@ -680,6 +639,21 @@ function validateArticle(body, res) {
   }
   return true;
 }
+
+const markAiContentPublished = async (body, article, actorId) => {
+  const generationId = String(body?.ai_generation_id || '').trim();
+  if (!generationId || body.status !== 'published' || !article?.id) return;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(generationId)) return;
+  const pool = await getCmsPool();
+  await pool.execute(
+    `UPDATE ai_content_generations SET publication_status = 'published', published_article_id = ?, reviewed_at = COALESCE(reviewed_at, CURRENT_TIMESTAMP), published_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
+    [String(article.id), generationId, actorId],
+  );
+  await pool.execute(
+    `INSERT INTO ai_audit_logs (id, user_id, action, module_key, details, ip_address) VALUES (?, ?, 'ai.content.published', NULL, ?::jsonb, '')`,
+    [crypto.randomUUID(), actorId, JSON.stringify({ articleId: String(article.id), generationId })],
+  );
+};
 
 function validateDraft(body, res) {
   if (body.content_type !== undefined && !['news', 'event', 'meeting'].includes(body.content_type)) {
@@ -1173,67 +1147,15 @@ app.get(['/auth/callback', '/auth/callback/'], (req, res) => {
   res.redirect(302, `/api/auth/google/callback${query ? `?${query}` : ''}`);
 });
 
-app.get("/api/auth/me", async (req, res) => {
-  let stage = 'read_session';
-  try {
-    const session = authenticated(req);
-    const cookies = readCookies(req.headers.cookie);
-    if (config.get('advanced.authDebug')) {
-      console.info('Auth session check:', { cookiePresent: Boolean(cookies[SESSION_COOKIE]), sessionValid: Boolean(session) });
-    }
-    if (!session) {
-      if (cookies[SESSION_COOKIE]) clearSessionCookie(res);
-      // This is a normal state for visitors of public pages. Returning an
-      // empty session avoids noisy browser-console failures while preserving
-      // the protected-route behavior in the client.
-      return res.json({ user: null });
-    }
-    if (!['cms', 'portal'].includes(session.kind)) {
-      clearSessionCookie(res);
-      return res.json({ user: null });
-    }
-    stage = 'check_revocation';
-    if (await tokenIsRevoked(session, { touch: false })) {
-      clearSessionCookie(res);
-      return res.json({ user: null });
-    }
-    stage = 'load_account';
-    const user = session.kind === 'cms' ? await getCmsUserById(session.id) : await getPortalUserById(session.id);
-    if (!user || session.role !== user.role || (session.updatedAt && session.updatedAt !== sessionUpdatedAt(user))
-      || (session.kind === 'cms' && !['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role))
-      || (session.kind === 'portal' && user.role !== 'resident')) {
-      clearSessionCookie(res);
-      return res.json({ user: null });
-    }
-    stage = 'load_account_access';
-    const authorization = session.kind === 'cms' ? await effectiveAccessFor(user) : null;
-    stage = 'build_session_response';
-    if (session.idleExpiresAt) res.setHeader('X-Session-Expires-At', String(session.idleExpiresAt));
-    res.json({
-      user: {
-        ...safeUser(user),
-        ...(session.kind === 'portal' ? await googleOnboarding(user) : {}),
-        ...(authorization ? {
-          groups: authorization.groups.map(group => ({ id: group.id, name: group.name })),
-          permissions: authorization.permissions.filter(permission => permission.allowed).map(permission => permission.id),
-        } : {}),
-      },
-      admin: session.kind === 'cms' && ['admin', 'super_admin', 'staff', 'it_support', 'content_manager'].includes(user.role),
-      session: { expiresAt: session.idleExpiresAt, absoluteExpiresAt: session.exp, warningMinutes: config.get('authentication.sessionWarningMinutes') },
-    });
-  } catch (error) {
-    logApiFailure(req, `authentication_session_${stage}`, error, 503);
-    res.status(503).json({ error: "The sign-in service is temporarily unavailable." });
-  }
-});
+app.get("/api/auth/me", createSessionEndpoint({ authenticated, readCookies, SESSION_COOKIE, config, clearSessionCookie, tokenIsRevoked, getCmsUserById, getPortalUserById, sessionUpdatedAt, effectiveAccessFor, googleOnboarding, logApiFailure }));
 
 app.post('/api/auth/renew', (req, res) => {
   const session = req.apiSession;
-  if (!session?.idleExpiresAt || session.idleExpiresAt <= Date.now()) return res.status(401).json({ error: 'Your session has expired. Sign in again.' });
-  res.setHeader('X-Session-Expires-At', String(session.idleExpiresAt));
+  if (!session || session.exp <= Date.now() || (session.idleExpiresAt != null && session.idleExpiresAt <= Date.now())) return res.status(401).json({ error: 'Your session has expired. Sign in again.' });
+  if (session.idleExpiresAt) res.setHeader('X-Session-Expires-At', String(session.idleExpiresAt));
   res.setHeader('X-Session-Absolute-Expires-At', String(session.exp));
   res.setHeader('Cache-Control', 'no-store, private');
-  res.json({ expiresAt: session.idleExpiresAt, absoluteExpiresAt: session.exp });
+  res.json({ expiresAt: session.idleExpiresAt ?? null, absoluteExpiresAt: session.exp, idleTimeoutEnabled: config.get('authentication.sessionIdleEnabled') !== false, idleMinutes: config.get('authentication.sessionIdleMinutes'), warningMinutes: config.get('authentication.sessionWarningMinutes') });
 });
 
 app.patch('/api/account/password', admin, async (req, res) => {
@@ -1492,14 +1414,17 @@ app.post("/api/auth/logout", async (req, res) => {
         if (isRedisReady()) {
           await redis.del(redisKeys.session(session.sid));
           await redis.sRem(redisKeys.userSessions(session.kind, session.id), session.sid);
+          await redis.hDel(redisKeys.userSessionKeys(session.kind, session.id), session.sid);
         }
       }
+      console.info(JSON.stringify({ event: 'session_revoked', request_id: res.getHeader('X-Request-Id') || null, session_kind: session.kind, reason: 'explicit_logout' }));
     }
     catch (error) {
       console.error('Session revocation failed:', error.message);
       return res.status(503).json({ error: 'Sign out could not be completed.' });
     }
   }
+  console.info(JSON.stringify({ event: 'explicit_logout', request_id: res.getHeader('X-Request-Id') || null, session_kind: cookieSession?.kind || bearerSession?.kind || null }));
   res.status(200).json({ ok: true });
 });
 
@@ -1523,17 +1448,23 @@ app.get('/api/auth/sessions', async (req, res) => {
     const sessions = [];
     for (const id of ids) {
       const raw = await redis.get(redisKeys.session(id));
-      if (!raw) { await redis.sRem(index, id); continue; }
+      if (!raw) {
+        await redis.sRem(index, id);
+        await redis.hDel(redisKeys.userSessionKeys(context.session.kind, context.session.id), id);
+        continue;
+      }
       const metadata = JSON.parse(raw);
       if (Number(metadata.expiresAt) <= Date.now()) {
         await redis.del(redisKeys.session(id));
         await redis.sRem(index, id);
+        await redis.hDel(redisKeys.userSessionKeys(context.session.kind, context.session.id), id);
         continue;
       }
       if (metadata.updatedAt !== sessionUpdatedAt(context.user)) {
         await putState(stateKey('revoked-session', id), true, Math.max(1, metadata.expiresAt - Date.now()));
         await redis.del(redisKeys.session(id));
         await redis.sRem(index, id);
+        await redis.hDel(redisKeys.userSessionKeys(context.session.kind, context.session.id), id);
         continue;
       }
       sessions.push({ id, current: id === context.session.sid, createdAt: metadata.createdAt, lastActivityAt: metadata.lastActivityAt, expiresAt: metadata.expiresAt });
@@ -1558,6 +1489,8 @@ app.delete('/api/auth/sessions/:sessionId', async (req, res) => {
     await putState(stateKey('revoked-session', req.params.sessionId), true, Math.max(1, metadata.expiresAt - Date.now()));
     await redis.del(key);
     await redis.sRem(index, req.params.sessionId);
+    await redis.hDel(redisKeys.userSessionKeys(context.session.kind, context.session.id), req.params.sessionId);
+    console.info(JSON.stringify({ event: 'session_revoked', request_id: req.requestId || null, session_kind: context.session.kind, reason: 'user_revoked_session' }));
     if (req.params.sessionId === context.session.sid) clearSessionCookie(res);
     res.json({ ok: true });
   } catch { res.status(503).json({ error: 'Session could not be revoked.' }); }
@@ -1580,6 +1513,8 @@ app.delete('/api/auth/sessions', async (req, res) => {
       await putState(stateKey('revoked-session', id), true, Math.max(1, (metadata?.expiresAt || context.session.exp) - Date.now()));
       await redis.del(key);
       await redis.sRem(index, id);
+      await redis.hDel(redisKeys.userSessionKeys(context.session.kind, context.session.id), id);
+      console.info(JSON.stringify({ event: 'session_revoked', request_id: req.requestId || null, session_kind: context.session.kind, reason: 'user_revoked_sessions' }));
     }
     if (!keepCurrent) clearSessionCookie(res);
     res.json({ ok: true, revoked: ids.length - (keepCurrent && ids.includes(context.session.sid) ? 1 : 0) });
@@ -1744,6 +1679,7 @@ app.post("/api/portal-auth/register", async (req, res) => {
 });
 
 installSettingsRoutes(app, admin, { isTrustedProxy: isTrustedProxyAddress });
+installAiRoutes(app, admin);
 installAdminUsersRoutes(app, admin);
 installStaffRoutes(app, admin);
 installAccessManagementRoutes(app, admin);
@@ -1846,11 +1782,6 @@ app.patch('/api/admin/privacy-requests/:id', admin, privacyAdmin, async (req, re
 app.post('/api/admin/integrations/test', admin, permission('system.settings.manage'), async (req, res) => {
   try { await integrationRequest('health'); res.json({ ok: true }); }
   catch { res.status(422).json({ error: 'Integration health check failed. Check configuration and credentials.' }); }
-});
-app.post('/api/admin/ai', admin, permission('system.settings.manage'), async (req, res) => {
-  if (!config.get('features.ai')) return res.status(403).json({ error: 'AI features are disabled.' });
-  try { const response = await integrationRequest('ai', { prompt: String(req.body.prompt || '').slice(0, 5000) }); res.json(await response.json()); }
-  catch { res.status(503).json({ error: 'AI integration is unavailable.' }); }
 });
 app.post('/api/admin/notifications/test', admin, permission('system.settings.manage'), async (req, res) => {
   if (!config.get('notifications.enabled') || !config.get('notifications.emailEnabled')) return res.status(403).json({ error: 'Email notifications are disabled.' });
@@ -2059,6 +1990,7 @@ app.post("/api/news", admin, permission('content.news.manage'), async (req, res)
     return res.status(422).json({ error: "The selected category does not exist." });
   }
   const article = await createNewsArticle(req.body, req.admin.id);
+  await markAiContentPublished(req.body, article, req.admin.id);
   await invalidatePublicNewsCaches();
   res.status(201).json(await decorate(article));
 });
@@ -2093,6 +2025,7 @@ app.put("/api/news/:id", admin, permission('content.news.manage'), async (req, r
   }
   const article = await updateNewsArticle(req.params.id, req.body);
   if (!article) return res.status(404).json({ error: "Article not found." });
+  await markAiContentPublished(req.body, article, req.admin.id);
   await invalidatePublicNewsCaches();
   res.json(await decorate(article));
 });
@@ -2330,7 +2263,6 @@ app.get('/api/barangays', async (req, res) => {
   } catch (error) { console.error('Barangays lookup failed:', error.message); res.status(503).json({ error: 'Barangays are temporarily unavailable.' }); }
 });
 app.post('/api/admin/psgc/sync', admin, permission('directory.manage'), async (req, res) => {
-  startPsgcSyncSchedule();
   const result = await syncGetafePsgc({ force: true });
   if (!result.synced) return res.status(502).json({ error: result.error, requestedVersion: result.requestedVersion, activeVersion: result.activeVersion });
   return res.json({ synced: true, source: 'PSA official release workbook', version: result.version, requestedVersion: result.requestedVersion, activeVersion: result.activeVersion, recordCount: result.recordCount });
@@ -2836,8 +2768,7 @@ app.get("/api/health/storage", admin, permission('system.infrastructure.view'), 
 });
 
 app.get("/api/health", admin, permission('system.infrastructure.view'), async (_req, res) => {
-  await checkLifecycle();
-  const ready = coreReady && lifecycle !== 'SHUTTING_DOWN';
+  const ready = available();
   const healthy = ready && lifecycle !== 'DEGRADED';
   res.status(ready ? 200 : 503).json({
     status: !ready ? 'unhealthy' : healthy ? 'ok' : 'degraded',
@@ -3004,14 +2935,14 @@ async function startServer() {
     console.log(`[STARTUP 2/8] Environment: ${process.env.NODE_ENV || 'development'}`);
 
     console.log(`[STARTUP 3/8] Validating ${isProd ? 'production' : 'development'} configuration`);
-    for (const key of ['CMS_SUPABASE_DATABASE_URL', 'REDIS_URL', 'B2_ENDPOINT', 'B2_BUCKET_NAME', 'B2_KEY_ID', 'B2_APPLICATION_KEY']) console.info(`[STARTUP][ENV] ${key}: ${process.env[key] ? 'configured' : 'unset'}`);
+    for (const key of ['CMS_SUPABASE_DATABASE_URL', 'REDIS_URL', 'CMS_MEDIA_PROVIDER', 'STORAGE_PROVIDER', 'AZURE_STORAGE_CONNECTION_STRING', 'B2_ENDPOINT', 'B2_BUCKET_NAME', 'B2_KEY_ID', 'B2_APPLICATION_KEY']) console.info(`[STARTUP][ENV] ${key}: ${process.env[key] ? 'configured' : 'unset'}`);
     if (isProd && (!secret || /^(change-this-|replace-with-|your-)/.test(secret))) throw new Error('A bootstrap session signing secret is required.');
     const unifiedDevelopment = !isProd && process.env.PORTAL_UNIFIED_DEV_SERVER === 'true';
     const PORT = Number(isProd ? process.env.PORT || 8080 : unifiedDevelopment ? process.env.VITE_PORT || 5173 : process.env.PORT || process.env.VITE_PORT || 5173);
     if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) throw new Error('Backend port must be an integer between 1 and 65535.');
     const HOST = isProd ? '0.0.0.0' : process.env.HOST || '127.0.0.1';
     const server = createServer(app);
-    if (process.env.PORTAL_UNIFIED_DEV_SERVER === 'true') {
+    if (unifiedDevelopment) {
       const { createServer: createViteServer } = await import('vite');
       viteDevServer = await createViteServer({
         configFile: path.resolve(__dirname, '..', 'vite.config.js'),
@@ -3028,53 +2959,88 @@ async function startServer() {
     server.headersTimeout = 15_000;
     server.keepAliveTimeout = 5_000;
     server.maxRequestsPerSocket = 100;
-    let stopping = false, orphanCleanupTimer;
-    const shutdown = () => {
+    let stopping = false, maintenanceStarted = false, emailStarted = false;
+    let orphanCleanupTimer, cleanupTask, refreshTask, initialization, lastReportedState;
+    function shutdown() {
       if (stopping) return;
-      stopping = true; lifecycle = 'SHUTTING_DOWN'; coreReady = false;
-      clearInterval(lifecycleTimer); clearInterval(orphanCleanupTimer); stopPsgcSyncSchedule();
+      stopping = true;
+      lifecycle = 'SHUTTING_DOWN';
+      coreReady = false;
+      clearInterval(lifecycleTimer);
+      clearInterval(orphanCleanupTimer);
+      const psgcTask = stopPsgcSyncSchedule();
       const deadline = setTimeout(() => process.exit(1), 25000);
-      server.close(async () => {
-        try { await viteDevServer?.close(); await initialization; await stopEmailWorker(); await trafficProtector.stop(); await closeDatabaseConnection(); await closeConfigStore(); }
-        catch { process.exitCode = 1; }
-        finally { clearTimeout(deadline); }
+      const drained = new Promise(resolve => server.close(resolve));
+      (async () => {
+        await Promise.allSettled([initialization, refreshTask, cleanupTask, psgcTask, stopEmailWorker(), viteDevServer?.close(), drained]);
+        activateEmail(null);
+        activateStorage(null);
+        const closed = await Promise.allSettled([trafficProtector.stop(), closeDatabaseConnection(), closeConfigStore()]);
+        if (closed.some(item => item.status === 'rejected')) process.exitCode = 1;
+      })().catch(error => {
+        console.error('[Shutdown]', dependencyReason(error));
+        process.exitCode = 1;
+      }).finally(() => {
+        clearTimeout(deadline);
+        if (process.connected) process.disconnect();
       });
-    };
-    process.once('SIGTERM', shutdown); process.once('SIGINT', shutdown);
+    }
+    process.once('SIGTERM', shutdown);
+    process.once('SIGINT', shutdown);
+
+    function refresh() {
+      if (stopping || refreshTask) return refreshTask;
+      refreshTask = (async () => {
+        await checkLifecycle();
+        if (stopping) return;
+        const ready = available();
+        const reportState = JSON.stringify([lifecycle, dependencySnapshot.map(({ name, provider, status }) => ({ name, provider, status }))]);
+        if (reportState !== lastReportedState) {
+          lastReportedState = reportState;
+          reportStartup(dependencySnapshot);
+          if (process.connected) process.send({ type: 'portal-readiness', ready, status: evaluateDependencies(dependencySnapshot).status }, () => {});
+        }
+        if (emailHealth().status === 'degraded') retryEmailVerification();
+        if (!ready) return;
+        if (!maintenanceStarted) {
+          maintenanceStarted = true;
+          startPsgcSyncSchedule(available);
+          orphanCleanupTimer = setInterval(() => {
+            if (available() && !cleanupTask && storageHealth().status === 'healthy') {
+              cleanupTask = cleanupExpiredPendingUploads({ limit: 100 }).catch(error =>
+                console.error('[Storage] Pending-upload cleanup failed:', dependencyReason(error))).finally(() => { cleanupTask = null; });
+            }
+          }, 3600000);
+          orphanCleanupTimer.unref();
+        }
+        if (!emailStarted && isRedisReady() && emailHealth().status === 'healthy') {
+          await recoverEmailJobs();
+          if (stopping || !available()) return;
+          emailStarted = true;
+          startEmailWorker(async ({ to, subject, text, html, attachments, deliveryId, staffNotificationId }) => {
+            if (deliveryId && !await validateQueuedNotification(deliveryId)) return;
+            if (staffNotificationId && !await validateStaffEmailDelivery(staffNotificationId,to)) return;
+            await sendEmail(to, subject, text, undefined, undefined, attachments || [], html);
+            await markStaffEmailDelivery(staffNotificationId,true).catch(error=>console.error('[EMAIL] Staff delivery log update failed:',error.message));
+            await markNotificationDeliverySent(deliveryId).catch(error => console.error('[EMAIL] Delivery log update failed:', error.message));
+          }, async ({ deliveryId,staffNotificationId }, _job, error) => {
+            await markStaffEmailDelivery(staffNotificationId,false).catch(()=>{});
+            await markNotificationDeliveryFailed(deliveryId, error).catch(() => {});
+          }, () => available() && emailHealth().status === 'healthy');
+        }
+      })().catch(error => console.warn('[Background services]', dependencyReason(error))).finally(() => { refreshTask = null; });
+      return refreshTask;
+    }
 
     console.log('[STARTUP 4/8] Initializing runtime settings and CMS database');
-
-    // We already do timeouts internally in initializeServices
-    const initialization = Promise.all([initializeServices(), trafficProtector.start()]);
+    initialization = Promise.all([initializeServices(), trafficProtector.start()]);
     await initialization;
-    console.info(`[STARTUP][DATABASE] Active provider: ${getDatabaseRuntimeStatus('database').provider || 'unavailable'}`);
     if (stopping) return;
     initialized = true;
-    startPsgcSyncSchedule();
     console.log('[STARTUP 7/8] Checking dependency readiness');
-    await checkLifecycle();
-    console.info(`[STARTUP] HTTP Server READY :${PORT}`);
-    const startupResult = reportStartup(dependencySnapshot);
-    console.info(`[STARTUP] Startup complete; server is running on port ${PORT}.`);
-    if (startupResult.status === 'degraded') console.info('[STARTUP] Optional services may recover in the background; the API is available now.');
-    lifecycleTimer = setInterval(() => { void checkLifecycle(); }, 5000);
-    lifecycleTimer.unref?.();
-    if (isRedisReady()) await recoverEmailJobs().catch(error => console.error('[EMAIL] Queue recovery failed:', error.message));
-    startEmailWorker(async ({ to, subject, text, html, attachments, deliveryId, staffNotificationId }) => {
-      if (deliveryId && !await validateQueuedNotification(deliveryId)) return;
-      if (staffNotificationId && !await validateStaffEmailDelivery(staffNotificationId,to)) return;
-      await sendEmail(to, subject, text, undefined, undefined, attachments || [], html);
-      await markStaffEmailDelivery(staffNotificationId,true).catch(error=>console.error('[EMAIL] Staff delivery log update failed:',error.message));
-      await markNotificationDeliverySent(deliveryId).catch(error => console.error('[EMAIL] Delivery log update failed:', error.message));
-    }, async ({ deliveryId,staffNotificationId }, _job, error) => {
-      await markStaffEmailDelivery(staffNotificationId,false).catch(()=>{});
-      await markNotificationDeliveryFailed(deliveryId, error).catch(() => {});
-    });
-
-    orphanCleanupTimer = setInterval(() => {
-      cleanupExpiredPendingUploads({ limit: 100 }).catch(error => console.error(JSON.stringify({ event: 'storage_orphan_cleanup', result: 'failed', errorCode: error.name || error.code || 'UnknownError' })));
-    }, 60 * 60 * 1000);
-    orphanCleanupTimer.unref?.();
+    lifecycleTimer = setInterval(refresh, 5000);
+    lifecycleTimer.unref();
+    await refresh();
   } catch (error) {
     console.error('\n[STARTUP FAILED]');
     console.error('Stage: Service initialization');

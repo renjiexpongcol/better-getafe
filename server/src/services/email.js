@@ -21,6 +21,15 @@ export async function buildEmail(values, { allowUnavailable = false } = {}) {
 }
 export function activateEmail(value) { const previous = transport; transport = value; previous?.close(); }
 export function emailHealth() { return { status: !transport ? 'disabled' : transport.degraded ? 'degraded' : 'healthy', reason: transport?.degraded ? transport.failureReason : undefined }; }
+let nextVerification = 0, verifying;
+export function retryEmailVerification() {
+  if (!transport?.degraded || verifying || Date.now() < nextVerification) return;
+  const candidate = transport;
+  nextVerification = Date.now() + 60000;
+  verifying = candidate.verify().then(() => { candidate.degraded = false; })
+    .catch(error => { candidate.failureReason = dependencyReason(error); })
+    .finally(() => { verifying = undefined; });
+}
 export async function sendEmail(to, subject, text, candidate = transport, values = config.values, attachments = [], html = undefined) {
   if (!candidate) throw Object.assign(new Error('Email is not configured.'), { code: 'DEPENDENCY_UNAVAILABLE', status: 503 });
   const result = await candidate.sendMail({ from: { name: 'Getafe Citizen Portal', address: values['email.senderEmail'] }, to, replyTo: values['email.replyTo'] || undefined, subject, text, html, attachments });

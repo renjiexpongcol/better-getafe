@@ -185,4 +185,18 @@ test('complete Better Getafe schema and migration journal report database ready'
     async end() {}
   }
   await assert.doesNotReject(checkBetterGetafeSchema(URL, { PoolClass: ReadySchemaPool }));
+  let closed = false;
+  const existingPool = new ReadySchemaPool();
+  existingPool.end = async () => { closed = true; };
+  await checkBetterGetafeSchema(URL, { pool: existingPool });
+  assert.equal(closed, false, 'startup retains the verified pool for runtime settings');
+});
+
+test('saving a connection replaces duplicate active settings while preserving comments', async t => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'getafe-supabase-save-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, '.env');
+  await fs.writeFile(file, '# CMS_SUPABASE_DATABASE_URL=example\nCMS_SUPABASE_DATABASE_URL=old\nexport CMS_SUPABASE_DATABASE_URL=older\n');
+  await writeCmsUrlToEnv(URL, file);
+  assert.equal(await fs.readFile(file, 'utf8'), '# CMS_SUPABASE_DATABASE_URL=example\nCMS_SUPABASE_DATABASE_URL=' + URL + '\n');
 });

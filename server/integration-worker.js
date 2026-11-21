@@ -49,17 +49,22 @@ function workerFailure(error) {
   return { code: reason, hint: hints[reason] };
 }
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => controller.abort());
+if (process.send) {
+  process.once('disconnect', () => controller.abort());
+  if (!process.connected) controller.abort();
+}
 let startupStage = 'supabase_configuration';
 try {
-  let retryMs = 5000;
-  while (!controller.signal.aborted) {
+  const managed = Boolean(process.send) && process.argv.includes('--after-api-ready');
+  let attempts = 0, retryMs = 1000;
+  while (!managed && !controller.signal.aborted) {
     try {
       const setup = await ensureSupabaseConfigured({ interactive: false });
       await checkBetterGetafeSchema(setup.url);
       console.info('[Supabase] Better Getafe database ready for integration worker.');
       break;
     } catch (error) {
-      if (!error.retryable || rotateVault) throw error;
+      if (!error.retryable || rotateVault || ++attempts >= 3) throw error;
       console.warn(JSON.stringify({ event: 'integration_worker_waiting_for_database', hint: error.message, retryMs }));
       await pause(retryMs, undefined, { signal: controller.signal }).catch(() => {});
       retryMs = Math.min(60000, retryMs * 2);

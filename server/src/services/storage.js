@@ -21,6 +21,8 @@ import { createBackblazeHttpsAgent } from './b2HttpAgent.js';
 import { isDependencyFailure } from './dependencyFailures.js';
 import { BlobServiceClient, BlobSASPermissions } from '@azure/storage-blob';
 import { azureCredential, testAzureStorage } from './azureStorageTest.js';
+import { getVerifiedAzureStatus, storageJournalUnavailable } from './storageSelection.js';
+export { getVerifiedAzureStatus, setVerifiedAzureStatus } from './storageSelection.js';
 
 const MAX_ATTEMPTS = 3;
 const CONNECTION_TIMEOUT_MS = 8_000;
@@ -179,7 +181,8 @@ async function diagnoseEndpoint(endpoint, region, bucket, credentialsConfigured)
   if (!tlsResult?.ok) throw Object.assign(new Error('Backblaze B2 TLS connection failed.'), { code: tlsResult?.code || 'ETIMEDOUT' });
 }
 
-export async function buildStorage(values, { allowUnavailable = false, verifiedCutover = false } = {}) {
+export async function buildStorage(values, { allowUnavailable = false, verifiedCutover = false, startupCheck = false } = {}) {
+  if (storageJournalUnavailable()) throw new Error('Media cutover journal unavailable; storage activation paused.');
   const provider = values['storage.provider'];
   if (provider === 'local') return buildLocalStorage(values);
   if (provider === 'azure') {
@@ -193,8 +196,13 @@ export async function buildStorage(values, { allowUnavailable = false, verifiedC
     const service = new BlobServiceClient(`https://${account}.blob.core.windows.net`, credential);
     const bucket = values['storage.azureContainer'];
     const client = service.getContainerClient(bucket);
-    const check = await testAzureStorage(values);
-    if (!check.ok) throw new Error(`Storage test failed. ${check.error || 'Azure must pass the write, read, and delete checks before activation.'}`);
+    if (startupCheck) {
+      const properties = await client.getProperties({ abortSignal: AbortSignal.timeout(8000) });
+      if (properties.blobPublicAccess) throw new Error('The Azure media container must be private.');
+    } else {
+      const check = await testAzureStorage(values);
+      if (!check.ok) throw new Error(`Storage test failed. ${check.error || 'Azure must pass the write, read, and delete checks before activation.'}`);
+    }
     return { provider, client, bucket };
   }
   if (provider !== 'backblaze') throw new Error(`Unsupported storage provider: ${provider || '(empty)'}.`);
@@ -255,26 +263,49 @@ export function activateStorage(resource) {
   const previous = activeStorage;
   activeStorage = resource || { provider: null, client: null, bucket: null, root: null, endpoint: null, region: null };
   if (previous.client && previous.client !== activeStorage.client) previous.client.destroy?.();
+  activeStorage.checkedAt = Date.now();
 }
-let verifiedAzureStatus;
-export function getVerifiedAzureStatus() { return verifiedAzureStatus; }
-export function setVerifiedAzureStatus(status) { verifiedAzureStatus = status; }
 export function storageIsLocal() { return activeStorage.provider === 'local'; }
 
 function storageUnavailable() { return Object.assign(new Error('Media storage is temporarily unavailable.'), { code: 'STORAGE_UNAVAILABLE', status: 503 }); }
 export function localObjectExists(objectKey) { return fs.stat(localPath(objectKey)).then(stat => stat.isFile()).catch(error => { if (error.code === 'ENOENT') return false; throw error; }); }
-export function storageProvider() { return activeStorage.provider; }
-export function storageLocation() { return { provider: activeStorage.provider, bucket: activeStorage.bucket }; }
-export function storageHealth() { return { status: activeStorage.provider && activeStorage.provider !== 'degraded' && !activeStorage.degraded ? 'healthy' : 'degraded', provider: activeStorage.provider === 'backblaze' ? 'backblaze-b2' : activeStorage.provider || 'unknown' }; }
+export function storageProvider() { return activeStorage.provider === 'degraded' ? activeStorage.configuredProvider : activeStorage.provider; }
+export function storageLocation() { return { provider: storageProvider(), bucket: activeStorage.bucket }; }
+export function storageHealth() {
+  const provider = activeStorage.provider === 'degraded' ? activeStorage.configuredProvider : activeStorage.provider;
+  return { status: activeStorage.provider && activeStorage.provider !== 'degraded' && !activeStorage.degraded ? 'healthy' : 'degraded', provider: provider === 'backblaze' ? 'backblaze-b2' : provider || 'unknown' };
+}
+let healthCheck;
+export function refreshStorageHealth(now = Date.now()) {
+  if (healthCheck) return healthCheck;
+  const resource = activeStorage;
+  if (!resource.provider || resource.provider === 'degraded' || now - resource.checkedAt < 60000) return;
+  healthCheck = (async () => {
+    try {
+      if (resource.provider === 'azure') {
+        const properties = await resource.client.getProperties({ abortSignal: AbortSignal.timeout(8000) });
+        if (properties.blobPublicAccess) throw new Error('Azure container must remain private.');
+      } else if (resource.provider === 'backblaze') {
+        await resource.client.send(new HeadBucketCommand({ Bucket: resource.bucket }), { abortSignal: AbortSignal.timeout(8000) });
+      } else if (resource.provider === 'local') await fs.access(resource.root);
+      resource.degraded = false;
+      resource.failureReason = undefined;
+    } catch (error) {
+      resource.degraded = true;
+      resource.failureReason = `Storage check failed (${errorCode(error)})`;
+    } finally { resource.checkedAt = now; }
+  })().finally(() => { healthCheck = undefined; });
+  return healthCheck;
+}
 export async function initializeStorage() {
-  const verifiedCutover = Boolean(verifiedAzureStatus);
-  const resource = await buildStorage(verifiedCutover ? { ...config.values, 'storage.provider': 'azure' } : config.values, { verifiedCutover });
+  const resource = await buildStorage(config.values, { verifiedCutover: Boolean(getVerifiedAzureStatus()), startupCheck: true });
   activateStorage(resource);
   return resource;
 }
 export function runMediaWrite(operation) {
+  if (!activeStorage.provider || activeStorage.provider === 'degraded') throw storageUnavailable();
   if (activeStorage.provider === 'backblaze') return withBackblazeWrite(operation);
-  if (verifiedAzureStatus === 'active' || process.env.MEDIA_MIGRATION_FREEZE === 'true') {
+  if (getVerifiedAzureStatus() === 'active' || process.env.MEDIA_MIGRATION_FREEZE === 'true') {
     throw Object.assign(new Error('Media writes are paused for Azure migration.'), { status: 503, code: 'MEDIA_WRITES_PAUSED' });
   }
   return operation();
@@ -341,6 +372,7 @@ export function validateImageUpload(bytes, contentType, maxBytes) {
 }
 
 function azureBlob(key, bucket = activeStorage.bucket) {
+  if (!activeStorage.client) throw storageUnavailable();
   if (bucket !== activeStorage.bucket) throw new Error('Media record points outside the active Azure container.');
   return activeStorage.client.getBlockBlobClient(key);
 }
@@ -364,29 +396,19 @@ export function openAzureArticleImage(key, abortSignal) {
   return azureBlob(key).download(0, undefined, { abortSignal });
 }
 
-let legacyBackblaze;
 export async function createDownloadUrl(objectKey, targetBucket, targetProvider) {
   if (!objectKey) return null;
   if (/^https?:\/\//i.test(objectKey)) return objectKey;
   if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
+  if (targetProvider && targetProvider !== storageProvider()) throw storageUnavailable();
+  if (targetBucket && targetBucket !== activeStorage.bucket) throw storageUnavailable();
+  if (!activeStorage.client && !storageIsLocal()) throw storageUnavailable();
   if (storageProvider() === 'azure') {
     if (targetBucket === undefined || targetProvider === 'local' || targetProvider === 'backblaze') {
       const { getMediaByStoragePath } = await import('../repositories/mediaRepository.js');
       const record = await getMediaByStoragePath(objectKey);
-      if (record?.storage_provider === 'local') return `/uploads/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
-      if (record?.storage_provider === 'backblaze') {
-        const values = config.values;
-        if (legacyBackblaze?.values !== values) {
-          const previous = legacyBackblaze;
-          const resource = buildStorage({ ...values, 'storage.provider': 'backblaze' });
-          legacyBackblaze = { values, resource };
-          previous?.resource.then(storage => storage.client?.destroy()).catch(() => {});
-          resource.catch(() => { if (legacyBackblaze?.resource === resource) legacyBackblaze = undefined; });
-        }
-        const resource = await legacyBackblaze.resource;
-        if (record.storage_bucket !== resource.bucket) throw storageUnavailable();
-        return presign(resource.client, new GetObjectCommand({ Bucket: resource.bucket, Key: objectKey }), { expiresIn: 900 });
-      }
+      if (record && record.storage_provider !== 'azure') throw storageUnavailable();
+      if (record?.storage_bucket && record.storage_bucket !== activeStorage.bucket) throw storageUnavailable();
     }
     const minutes = Math.min(15, Math.max(1, Number(config.get('storage.signedUrlMinutes') || 15)));
     return azureBlob(objectKey, targetBucket).generateSasUrl({ permissions: BlobSASPermissions.parse('r'), expiresOn: new Date(Date.now() + minutes * 60000), protocol: 'https' });

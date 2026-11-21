@@ -47,12 +47,12 @@ let emailWorkerStopping = false;
 const processingKey = () => redisKeys.queue('email:processing');
 const retryKey = () => redisKeys.queue('email:retry');
 const queueKeysByPriority = () => [redisKeys.queue('email:high'), redisKeys.queue('email'), redisKeys.queue('email:low')];
-export function startEmailWorker(send, onFailure = undefined) {
+export function startEmailWorker(send, onFailure = undefined, canRun = () => true) {
   if (emailWorkerTimer) return;
   globalThis.getafeMetrics ||= Object.create(null);
   emailWorkerStopping = false;
   emailWorkerTimer = setInterval(() => {
-    if (emailWorkerTask || emailWorkerStopping) return;
+    if (emailWorkerTask || emailWorkerStopping || !canRun()) return;
     emailWorkerTask = (async () => {
     if (!isRedisReady()) return;
     let raw;

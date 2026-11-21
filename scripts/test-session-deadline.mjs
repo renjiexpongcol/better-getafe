@@ -4,7 +4,7 @@ import { sessionDeadline, sessionWarningMinutes, sessionWarningStartsAt, formatS
 import { validate } from '../server/src/config/defaults.js'
 import { resolveApiRoutePolicy } from '../server/src/services/apiRoutePolicy.js'
 import { ConfigService } from '../server/src/config/ConfigService.js'
-import { sessionIdleDeadline } from '../server/src/services/sessionRegistry.js'
+import { sessionIdleDeadline, evaluateSessionIdlePolicy } from '../server/src/services/sessionRegistry.js'
 import { sessionWarningVisible, sessionMaximumWarningVisible, shouldSendActivityUpdate, nextSessionDeadline } from '../packages/auth-client/src/sessionDeadlineState.js'
 
 test('session warning defaults to five minutes and is capped below the idle timeout', () => {
@@ -76,6 +76,14 @@ test('the resolver shortens its default warning for a five minute idle timeout',
   assert.equal(resolved.values['authentication.sessionWarningMinutes'], 4)
 })
 
+test('concurrent session policy defaults to multiple sessions and validates supported global policies', async () => {
+  const config = new ConfigService({ provider: {}, secrets: { open: async value => value }, env: {} })
+  const resolved = await config.resolve({})
+  assert.equal(resolved.values['authentication.concurrentSessionPolicy'], 'allow_multiple')
+  assert.doesNotThrow(() => validate({ 'authentication.concurrentSessionPolicy': 'single_active' }))
+  assert.throws(() => validate({ 'authentication.concurrentSessionPolicy': 'unlimited' }), /Invalid Concurrent sessions/)
+})
+
 test('session renewal is an authenticated, CSRF protected mutation', () => {
   const policy = resolveApiRoutePolicy('POST', '/api/auth/renew')
   assert.equal(policy.access, 'SESSION')
@@ -83,13 +91,39 @@ test('session renewal is an authenticated, CSRF protected mutation', () => {
   assert.equal(resolveApiRoutePolicy('GET', '/api/auth/renew').methodAllowed, false)
 })
 
-test('both reminders require two minutes without input even inside the expiry window', () => {
-  const now = 1_000_000
-  for (const visible of [sessionWarningVisible, sessionMaximumWarningVisible]) {
-    const session = { initialized: true, hasSession: true, expiresAt: now + 60_000, warningMinutes: 5, now }
-    for (const lastActivityAt of [null, now, now - 119_999]) {
-      assert.equal(visible({ ...session, lastActivityAt }), false)
-    }
-    assert.equal(visible({ ...session, lastActivityAt: now - 120_000 }), true)
-  }
+test('warning follows the authoritative deadline and opens at the configured lead time', () => {
+  const loginAt = 1_000_000
+  const deadline = loginAt + 5 * 60_000
+  const session = { initialized: true, hasSession: true, expiresAt: deadline, warningMinutes: 4 }
+  assert.equal(sessionWarningVisible({ ...session, now: loginAt, lastActivityAt: loginAt }), false)
+  assert.equal(sessionWarningVisible({ ...session, now: loginAt + 60_000, lastActivityAt: loginAt + 60_000 }), true)
+  assert.equal(sessionWarningVisible({ ...session, now: loginAt + 60_000, lastActivityAt: loginAt + 60_000, expiresAt: deadline + 60_000 }), false)
+  assert.equal(sessionMaximumWarningVisible({ ...session, now: deadline - 4 * 60_000 }), true)
+})
+
+test('passive checks do not renew inactivity and explicit renewal cannot revive expiry', () => {
+  const metadata = { lastActivityAt: 1000, idleTimeoutEnabled: true }
+  const policy = { enabled: true, idleMinutes: 5 }
+  assert.equal(evaluateSessionIdlePolicy(metadata, policy, { now: 2000 }).lastActivityAt, 1000)
+  assert.equal(evaluateSessionIdlePolicy(metadata, policy, { now: 2000, touch: true }).expiresAt, 302000)
+  assert.equal(evaluateSessionIdlePolicy(metadata, policy, { now: 301000, touch: true }).expired, true)
+})
+
+test('inactivity can be disabled without an idle deadline, and re-enabling starts a fresh window', () => {
+  const metadata = { lastActivityAt: 1000, idleTimeoutEnabled: true }
+  const disabled = evaluateSessionIdlePolicy(metadata, { enabled: false, idleMinutes: 30 }, { now: 2000000 })
+  assert.equal(disabled.expired, false)
+  assert.equal(disabled.expiresAt, null)
+  const enabled = evaluateSessionIdlePolicy(disabled, { enabled: true, idleMinutes: 15 }, { now: 3000000 })
+  assert.equal(enabled.expiresAt, 3900000)
+  assert.equal(enabled.changed, true)
+})
+
+test('turning inactivity off retains saved durations and hides only the editing controls', async () => {
+  const config = new ConfigService({ provider: {}, secrets: { open: async value => value }, env: {} })
+  const snapshot = await config.resolve({ 'authentication.sessionIdleEnabled': false, 'authentication.sessionIdleMinutes': 15, 'authentication.sessionWarningMinutes': 2 })
+  config.values = snapshot.values
+  assert.equal(config.get('authentication.sessionIdleMinutes'), 15)
+  assert.equal(config.get('authentication.sessionWarningMinutes'), 2)
+  assert.deepEqual(config.visiblePatch({ 'authentication.sessionIdleEnabled': false, 'authentication.sessionIdleMinutes': 60 }), { 'authentication.sessionIdleEnabled': false })
 })

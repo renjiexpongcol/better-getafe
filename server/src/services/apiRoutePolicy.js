@@ -27,7 +27,7 @@ export function resolveApiRoutePolicy(method, pathname) {
 // Checking the template (not a sample URL) prevents a broad parameter route
 // from silently classifying a newly added, literal endpoint.
 export function installApiRegistrationGuard(app) {
-  const middlewareMounts = new Set(['/api', '/api/auth', '/api/portal-auth', '/api/contact', '/api/analytics/events', '/api/search/complete', '/api/citizen', '/api/admin/news', '/api/admin/settings', '/api/admin/access', '/api/admin/users', '/api/admin/system/errors', '/api/public-data/datasets', '/api/eservices/payment-webhooks', '/api/integrations/webhooks']);
+  const middlewareMounts = new Set(['/api', '/api/auth', '/api/portal-auth', '/api/contact', '/api/analytics/events', '/api/search/complete', '/api/citizen', '/api/admin/news', '/api/admin/settings', '/api/admin/ai', '/api/admin/access', '/api/admin/users', '/api/admin/system/errors', '/api/public-data/datasets', '/api/eservices/payment-webhooks', '/api/integrations/webhooks']);
   const originalUse = app.use;
   app.use = function (...args) {
     const prefixes = typeof args[0] === 'string' || Array.isArray(args[0]) ? args[0] : '';
@@ -160,9 +160,12 @@ export function createApiSecurityMiddleware({ authenticate, isRevoked, validateA
       res.set('Cache-Control', 'no-store, private');
       const session = authenticate(req);
       req.apiSession = session;
-      if (!session) return privateError(res, 401, 'Authentication required.');
+      if (!session) {
+        if (policy.path === '/api/auth/renew') console.info(JSON.stringify({ event: 'session_renewal_failed', request_id: req.requestId || null, reason: 'invalid_or_expired_session' }));
+        return privateError(res, 401, 'Authentication required.');
+      }
       try {
-        if (await isRevoked(session, { touch: policy.path === '/api/auth/renew' })) return privateError(res, 401, 'Authentication required.');
+        if (await isRevoked(session, { touch: policy.path === '/api/auth/renew', requestId: req.requestId })) return privateError(res, 401, 'Authentication required.');
       } catch (error) {
         console.error('API session registry lookup failed:', error.message);
         return privateError(res, 503, 'Authentication service is temporarily unavailable.');

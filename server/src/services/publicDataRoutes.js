@@ -22,10 +22,12 @@ function catalogueQuery(query) {
   // The upstream catalogue accepts limit/offset, not page/pageSize. Its
   // catalogue also has no availability parameter; availability is a UI
   // filter only and must not be forwarded as an unknown query key.
-  const page = Math.max(1, Number(query.page) || 1);
-  const pageSize = Math.min(200, Math.max(1, Number(query.pageSize) || 10));
+  const pageNumber = Number(query.page);
+  const page = Number.isSafeInteger(pageNumber) && pageNumber > 0 ? pageNumber : 1;
+  const pageSize = Math.min(200, Math.max(1, Math.floor(Number(query.pageSize)) || 10));
+  const offset = Number(query.offset ?? (page - 1) * pageSize);
   value.limit = pageSize;
-  value.offset = (page - 1) * pageSize;
+  value.offset = Number.isSafeInteger(offset) && offset >= 0 ? offset : 0;
   return value;
 }
 

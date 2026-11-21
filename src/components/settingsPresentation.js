@@ -1,7 +1,7 @@
 import { Settings, Building2, Globe2, Database, Folder, LockKeyhole, ShieldCheck, Mail, Bell, Plug, Cloud, CloudSun, Flag, Wrench, FileText, SlidersHorizontal, Activity, History, Users, Image, KeyRound } from 'lucide-react'
 
-export const categoryLabels = { general: 'General', contact: 'Public contact & operations', database: 'Supabase Database', portalDatabase: 'Supabase Database Pool', google: 'Google Sign-in', storage: 'Storage', authentication: 'Authentication', email: 'Email', security: 'Security', notifications: 'Notifications', integrations: 'Integrations', weather: 'Weather', publicData: 'Public Data', features: 'Feature Flags', maintenance: 'Maintenance', legal: 'Legal Policies', advanced: 'Advanced', status: 'System Status', history: 'Audit History' }
-const icons = { general: Settings, database: Database, portalDatabase: Database, storage: Folder, authentication: LockKeyhole, security: ShieldCheck, email: Mail, notifications: Bell, integrations: Plug, weather: CloudSun, features: Flag, maintenance: Wrench, legal: FileText, advanced: SlidersHorizontal, status: Activity, history: History }
+export const categoryLabels = { general: 'General', contact: 'Public contact & operations', database: 'Supabase Database', portalDatabase: 'Supabase Database Pool', google: 'Google Sign-in', storage: 'Storage', authentication: 'Authentication', email: 'Email', security: 'Security', notifications: 'Notifications', integrations: 'Integrations', weather: 'Weather', publicData: 'Public Data', features: 'Feature Flags', ai: 'AI Management', maintenance: 'Maintenance', legal: 'Legal Policies', advanced: 'Advanced', status: 'System Status', history: 'Audit History' }
+const icons = { general: Settings, database: Database, portalDatabase: Database, storage: Folder, authentication: LockKeyhole, security: ShieldCheck, email: Mail, notifications: Bell, integrations: Plug, weather: CloudSun, features: Flag, ai: KeyRound, maintenance: Wrench, legal: FileText, advanced: SlidersHorizontal, status: Activity, history: History }
 export const sectionIcon = category => icons[category] || Settings
 const storageProviderFields = {
   azure: new Set(['azureAccount', 'azureContainer', 'azureAuthentication', 'azureConnectionString']),
@@ -32,6 +32,7 @@ export const categoryDescriptions = {
   weather: 'Configure weather service credentials.',
   publicData: 'Manage the public data catalog and its connections.',
   features: 'Turn portal features on or off.',
+  ai: 'Configure the secure OpenAI provider and conservative AI usage defaults.',
   maintenance: 'Control public access during maintenance.',
   legal: 'Edit the policies published on the website.',
   advanced: 'Configure application diagnostics.',
@@ -61,7 +62,9 @@ const layouts = {
     ['Administrator access', 'Manage who can view and update system configuration.', Users, ['permissionGrants']],
   ],
   authentication: [
-    ['Sessions', 'Configure session lifetime, idle timeout, warning, and remembered sign-ins.', LockKeyhole, ['sessionMinutes', 'sessionIdleMinutes', 'sessionWarningMinutes', 'rememberDays']],
+    ['Session timeout', 'Choose when inactive accounts are logged out and give people time to keep working.', LockKeyhole, ['sessionIdleEnabled', 'sessionIdleMinutes', 'sessionWarningMinutes']],
+    ['Concurrent sessions', 'Allow multiple devices or restrict each account to one active session. New sign-ins revoke earlier sessions when restricted.', KeyRound, ['concurrentSessionPolicy']],
+    ['Sign-in limits', 'Set the maximum sign-in lifetime, including remembered sign-ins. These limits apply even while someone is active.', KeyRound, ['sessionMinutes', 'rememberDays']],
     ['Password & sign-in security', 'Manage password requirements and failed login limits.', KeyRound, ['passwordMinLength', 'passwordExpiryDays', 'failedLoginLimit', 'lockoutMinutes']],
     ['Account registration', 'Control registration and account verification.', Users, ['registrationEnabled', 'requireEmailVerification', 'mfaEnabled']],
     ['Mobile number verification', 'Configure SMS delivery and verification requirements for new Google sign-ins.', ShieldCheck, ['mobileVerificationEnabled', 'smsApiKey', 'smsSenderName', 'requireMobileVerification']],
@@ -74,6 +77,7 @@ const layouts = {
     ['SMTP configuration', 'Connect your mail server for application email.', Mail, ['enabled', 'smtpHost', 'smtpPort', 'security', 'username', 'password']],
     ['Sender identity', 'Choose the sender and reply-to details for outgoing email.', Users, ['senderName', 'senderEmail', 'replyTo']],
   ],
+  ai: [['OpenAI provider', 'Store the provider credential securely on the server and configure conservative defaults.', KeyRound, ['openaiApiKey', 'defaultModel', 'monthlyBudgetUsd']]],
   integrations: [
     ['External integration', 'Connect an external service using its existing API credentials.', Plug, ['enabled', 'baseUrl', 'clientId', 'clientSecret', 'apiKey', 'oauthClientSecret']],
     ['PSA PSGC data', 'Refresh Getafe barangay references through PSA’s official token-authenticated PSGC API. The token is stored as a protected server secret.', KeyRound, ['psgcApiVersion', 'psgcApiToken']],
@@ -112,7 +116,6 @@ export function settingIsVisible(visibleWhen, values = {}) {
 }
 
 const descriptions = {
-  'authentication.requireMobileVerification': 'Enable mobile verification and configure a Semaphore SMS API key before requiring verification during Google account setup.',
   'storage.azureConnectionString': 'In Azure Portal, open the storage account and go to Access keys. Copy the full Connection string for Key 1 or Key 2. It already contains the account key. Leave this field blank to keep the saved credential.',
   'security.registrationCaptcha': 'Protect registration forms from automated submissions.',
   'integrations.psgcApiVersion': 'PSA PSGC release requested during scheduled and manual refreshes. The active local snapshot remains available if PSA cannot provide it.',
@@ -128,7 +131,7 @@ const descriptions = {
   'authentication.requireEmailVerification': 'Verify email addresses before allowing account access.',
   'authentication.mfaEnabled': 'Require an email verification code during sign-in.',
   'authentication.mobileVerificationEnabled': 'Allow residents to verify their saved mobile number by SMS.',
-  'authentication.requireMobileVerification': 'Require a verified mobile number before Google account setup can finish. Configure SMS delivery first.',
+  'authentication.requireMobileVerification': 'Require a verified mobile number to finish Google account setup. Enable mobile verification and configure the Semaphore SMS API key first.',
   'features.ai': 'Control the existing AI feature flag.',
   'maintenance.enabled': 'Display the maintenance page to public visitors.',
   'advanced.authDebug': 'Enable authentication diagnostics without including credentials.',

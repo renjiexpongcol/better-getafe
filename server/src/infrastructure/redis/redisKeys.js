@@ -9,6 +9,7 @@ export const redisKeys = Object.freeze({
   authState: key => `${prefix}auth-state:${digest(key)}`,
   session: tokenSignature => `${prefix}session:${digest(tokenSignature)}`,
   userSessions: (kind, userId) => `${prefix}sessions:${safePart(kind)}:${digest(userId)}`,
+  userSessionKeys: (kind, userId) => `${prefix}session-keys:${safePart(kind)}:${digest(userId)}`,
   sessionRevoked: sessionId => `${prefix}session-revoked:${digest(sessionId)}`,
   rateLimit: (bucket, clientId) => `${prefix}ratelimit:${safePart(bucket)}:${safePart(clientId)}`,
   rateLimitWait: (policy, clientId) => `${prefix}local:wait:${safePart(policy)}:${safePart(clientId)}`,

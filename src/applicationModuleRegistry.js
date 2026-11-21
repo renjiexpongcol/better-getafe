@@ -48,6 +48,7 @@ export const MODULE_REGISTRY = {
     departments: { permission: 'departments.manage', title: 'Departments' },
     'audit-logs': { permission: 'audit.view', title: 'Audit logs' },
     'system-settings': { permission: 'system.settings.manage', title: 'System settings' },
+    ai: { permission: 'ai.management.view', title: 'AI Management' },
     news: { permission: 'content.news.manage', title: 'News and events' },
     categories: { permission: 'content.categories.manage', title: 'Categories' },
     media: { permission: 'content.media.manage', title: 'Media library' },

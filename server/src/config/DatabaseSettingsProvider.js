@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import pg from 'pg';
+import { refreshStorageSelection } from '../services/storageSelection.js';
 import { installPoolErrorHandler } from '../services/dependencyFailures.js';
 import { DATABASE_MIGRATION_FREEZE_LOCK_ID, supabaseConnectionOptions } from '../services/postgres.js';
 let pool;
@@ -47,6 +48,7 @@ export class DatabaseSettingsProvider {
   async read() {
     const db = await this.poolProvider();
     if (db) {
+      await refreshStorageSelection(db);
       const [rows] = await db.execute('SELECT setting_key, value FROM system_settings');
       const current=Object.fromEntries(rows.map(row=>[row.setting_key,JSON.parse(row.value)]));
       // A fresh database can exist before the saved settings have been

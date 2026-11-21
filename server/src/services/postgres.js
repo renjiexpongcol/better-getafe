@@ -140,10 +140,13 @@ export function createPostgresResource(values, category, actor) {
   };
   resource.closeMediaGate = () => mediaGatePool?.end();
   resource.getConnection = async (connectionPool = pool) => {
-    const client = await connectionPool.connect();
-    const originalRelease = client.release.bind(client);
-    const rawQuery = client.query.bind(client);
+    const physical = await connectionPool.connect();
+    const client = {};
     let released = false;
+    const rawQuery = (...args) => {
+      if (released) throw new Error('Database connection has been released.');
+      return physical.query(...args);
+    };
     let transactionLock = false;
     let discard = false;
     const acquireShared = async () => {
@@ -173,6 +176,7 @@ export function createPostgresResource(values, category, actor) {
       return [result.rows, result];
     };
     client.beginTransaction = async ({ waitForMigration = true } = {}) => {
+      if (transactionLock) throw new Error('A transaction is already active on this connection.');
       if (waitForMigration) {
         await acquireShared();
       } else {
@@ -193,7 +197,7 @@ export function createPostgresResource(values, category, actor) {
     client.release = () => {
       if (released) return;
       released = true;
-      originalRelease(discard || transactionLock);
+      physical.release(discard || transactionLock);
       resource.users--;
     };
     resource.users++;

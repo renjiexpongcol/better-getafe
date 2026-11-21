@@ -3,7 +3,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { migrateMediaToAzure } from '../../../scripts/migrate-b2-to-azure.mjs'
 import { config } from '../config/index.js'
 import { getCmsPool, getPortalPool } from './database.js'
-import { activateStorage, buildStorage, getVerifiedAzureStatus, setVerifiedAzureStatus, storageHealth, storageLocation } from './storage.js'
+import { activateStorage, buildStorage, setVerifiedAzureStatus, storageHealth, storageLocation } from './storage.js'
 import { systemStatus } from './runtimeConfiguration.js'
 import { maxDirectUploadSeconds, mediaWriteLockId } from './mediaWriteGate.js'
 
@@ -214,31 +214,21 @@ export async function mediaMigrationStatus() {
   return { activeProvider, sourceBucket: config.values['storage.bucket'], target: 'lgumedia/portal-media', job: job || null }
 }
 
-function azureResource() {
-  return buildStorage({ ...config.values, 'storage.provider': 'azure' }, { verifiedCutover: true })
+function azureResource(startupCheck = false) {
+  return buildStorage({ ...config.values, 'storage.provider': 'azure' }, { verifiedCutover: true, startupCheck })
 }
 
 function activateVerifiedAzure(resource, status) {
   if (resource) activateStorage(resource)
   setVerifiedAzureStatus(status)
+  config.values['storage.provider'] = 'azure'
+  config.sources['storage.provider'] = 'migration-journal'
   systemStatus.storage = { status: 'connected', provider: 'azure', checkedAt: new Date().toISOString() }
 }
 
-let nextSync = 0
-let syncInProgress
+// Selection is refreshed with the cached runtime settings, never per request.
 export function syncVerifiedAzureCutover({ force = false } = {}) {
-  if (getVerifiedAzureStatus() === 'accepted' && !force) return
-  if (syncInProgress) return syncInProgress
-  if (!force && Date.now() < nextSync) return
-  nextSync = Date.now() + 5000
-  syncInProgress = config.serial(async () => {
-    const db = await getCmsPool()
-    const [[job]] = await db.execute("SELECT status FROM media_migration_runs WHERE status IN ('active', 'accepted') ORDER BY started_at DESC LIMIT 1")
-    if (!job || job.status === getVerifiedAzureStatus()) return
-    const resource = getVerifiedAzureStatus() && storageHealth().status === 'healthy' ? null : await azureResource()
-    activateVerifiedAzure(resource, job.status)
-  }).finally(() => { syncInProgress = undefined })
-  return syncInProgress
+  return config.load(force)
 }
 
 export function activatePreparedAzureCutover(actor) {

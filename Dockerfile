@@ -1,15 +1,20 @@
 # =========================
 # Build stage
 # =========================
-FROM node:22-alpine AS builder
+FROM node:22-alpine AS workspace
 
 WORKDIR /app
 
+# npm resolves the root lockfile against these workspace manifests.
+COPY package*.json ./
+COPY apps ./apps
+COPY packages ./packages
+COPY services ./services
+
+FROM workspace AS builder
+
 ARG VITE_WEBSITE_ANALYTICS_ENABLED=true
 ENV VITE_WEBSITE_ANALYTICS_ENABLED=$VITE_WEBSITE_ANALYTICS_ENABLED
-
-# Copy dependency files first for better Docker layer caching
-COPY package*.json ./
 
 # Install dependencies
 RUN npm ci
@@ -24,14 +29,9 @@ RUN npm run build
 # =========================
 # Production stage
 # =========================
-FROM node:22-alpine
-
-WORKDIR /app
+FROM workspace
 
 ENV NODE_ENV=production
-
-# Copy dependency files
-COPY package*.json ./
 
 # Install production dependencies
 RUN npm ci --omit=dev
@@ -39,6 +39,7 @@ RUN npm ci --omit=dev
 # Copy Express server
 COPY server.js ./
 COPY server ./server
+COPY database/migrations/postgresql ./database/migrations/postgresql
 COPY scripts ./scripts
 COPY src ./src
 

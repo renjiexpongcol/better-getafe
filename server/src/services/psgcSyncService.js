@@ -135,6 +135,22 @@ export async function syncGetafePsgc({ version = configuredVersion(), force = fa
     try {
       pool = await getCmsPool()
       const token = configuredToken()
+      if (!force) {
+        const [stateRows, snapshotRows] = await Promise.all([
+          pool.execute('SELECT source_version, record_count FROM psgc_sync_state WHERE dataset_key = ?', ['getafe_barangays']),
+          pool.execute('SELECT COUNT(*)::int AS count FROM psgc_barangay_reference WHERE municipality_code = ?', [MUNICIPALITY_CODE]),
+        ])
+        const state = stateRows[0]?.[0]
+        const snapshotCount = Number(snapshotRows[0]?.[0]?.count || 0)
+        const snapshotIsValid = snapshotCount === 24 && Number(state?.record_count) === 24
+        if (snapshotIsValid && (state.source_version === version || !token)) {
+          return {
+            configured: Boolean(token), synced: false, cached: true,
+            version: state.source_version, requestedVersion: version,
+            activeVersion: state.source_version, recordCount: snapshotCount,
+          }
+        }
+      }
       if (!token) throw new Error('PSA PSGC API token is not configured. Set the protected PSA PSGC API token in Settings or provide PSGC_API_TOKEN to the server environment.')
       const records = await fetchGetafeBarangays(version, token)
       console.info(`[PSGC] API response validated for ${version}; records=${records.length}; sourceHost=classification.psa.gov.ph.`)
@@ -189,15 +205,18 @@ export async function syncGetafePsgc({ version = configuredVersion(), force = fa
   return syncInFlight
 }
 
-export function startPsgcSyncSchedule() {
+export function startPsgcSyncSchedule(canRun = () => true) {
   if (syncSchedule) return syncSchedule
   void syncGetafePsgc().then(result => {
-    if (result.synced) console.info(`[PSGC] Refreshed ${result.recordCount} Getafe barangays from PSA ${result.version}.`)
+    if (result.cached) console.info(`[PSGC] Using ${result.recordCount} saved Getafe barangays from database snapshot ${result.activeVersion}; no API request needed.`)
+    else if (result.synced) console.info(`[PSGC] Saved ${result.recordCount} Getafe barangays from PSA ${result.version} to the database.`)
     else if (result.error) console.warn('[PSGC] Refresh failed; continuing with the local snapshot.')
   }).catch(() => console.warn('[PSGC] Refresh failed; continuing with the local snapshot.'))
   syncSchedule = setInterval(() => {
+    if (!canRun()) return
     void syncGetafePsgc().then(result => {
-      if (result.synced) console.info(`[PSGC] Refreshed ${result.recordCount} Getafe barangays from PSA ${result.version}.`)
+      if (result.cached) console.info(`[PSGC] Using ${result.recordCount} saved Getafe barangays from database snapshot ${result.activeVersion}; no API request needed.`)
+      else if (result.synced) console.info(`[PSGC] Saved ${result.recordCount} Getafe barangays from PSA ${result.version} to the database.`)
       else if (result.error) console.warn('[PSGC] Refresh failed; continuing with the local snapshot.')
     }).catch(() => console.warn('[PSGC] Refresh failed; continuing with the local snapshot.'))
   }, SYNC_INTERVAL_MS)
@@ -208,6 +227,7 @@ export function startPsgcSyncSchedule() {
 export function stopPsgcSyncSchedule() {
   clearInterval(syncSchedule)
   syncSchedule = null
+  return syncInFlight
 }
 
 export function enrichWithPsgc(item, reference) {

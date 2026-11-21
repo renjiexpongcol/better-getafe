@@ -59,6 +59,7 @@ export const ROUTES = freeze({
     errors: '/admin/system/errors',
     privacy: '/admin/privacy',
     settings: '/admin/settings',
+    ai: '/admin/ai',
     setting: category => `/admin/settings/${settingsCategorySlug(category)}`,
   }),
 })
@@ -88,6 +89,7 @@ export const ADMIN_MODULE_PATHS = freeze({
   privacy: ROUTES.admin.privacy,
   settings: '/admin/settings/general',
   'system-settings': '/admin/settings/general',
+  ai: '/admin/ai',
 })
 
 export const STAFF_MODULE_PATHS = freeze({
@@ -134,6 +136,7 @@ const SETTINGS_SLUGS = freeze({
   maintenance: 'maintenance',
   legal: 'legal-policies',
   advanced: 'advanced',
+  ai: 'ai',
   status: 'system-status',
   history: 'audit-history',
 })

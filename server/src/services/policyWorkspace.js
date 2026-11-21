@@ -32,11 +32,19 @@ export function installPolicyWorkspace(app, validateCondition) {
   app.get('/api/admin/policy-workspace',handler(async (db,actor) => {
     const manager = await hasAccess(actor,'policies.manage')
     if (!manager) await requireAccess(actor,'policies.edit')
-    const policies = await db.prepare(`SELECT p.*, perm.label AS permission_label, e.group_id AS editor_group, e.expires_at FROM auth_policies p LEFT JOIN auth_permissions perm ON perm.id=p.permission_id LEFT JOIN auth_policy_editors e ON p.id=e.policy_id `+
+    // Keep the policy directory usable on Supabase projects that have not yet
+    // applied the optional delegation/revision migration. These tables only
+    // enable workflow editing; the existing policy records remain readable.
+    const workflowSchema = await db.prepare(`SELECT to_regclass('public.auth_policy_editors') AS editors,
+      to_regclass('public.auth_policy_proposals') AS proposals`).get()
+    const workflowReady = Boolean(workflowSchema?.editors && workflowSchema?.proposals)
+    const editorFields = workflowReady ? 'e.group_id AS editor_group,e.expires_at' : 'NULL AS editor_group,NULL AS expires_at'
+    const editorJoin = workflowReady ? 'LEFT JOIN auth_policy_editors e ON p.id=e.policy_id ' : ''
+    const policies = await db.prepare(`SELECT p.*,perm.label AS permission_label,${editorFields} FROM auth_policies p LEFT JOIN auth_permissions perm ON perm.id=p.permission_id ${editorJoin}`+
       (manager ? '' : 'WHERE p.id IN ('+scope+') ')+'ORDER BY p.name').all(...(manager ? [] : [actor.id]))
-    const revisions = await db.prepare('SELECT * FROM auth_policy_proposals '+(manager ? '' : 'WHERE policy_id IN ('+scope+') ')+'ORDER BY created_at DESC').all(...(manager ? [] : [actor.id]))
-    const groups = manager ? await db.prepare('SELECT id,name FROM auth_groups WHERE enabled AND archived_at IS NULL ORDER BY name').all() : []
-    return {manager,policies,revisions,groups}
+    const revisions = workflowReady ? await db.prepare('SELECT * FROM auth_policy_proposals '+(manager ? '' : 'WHERE policy_id IN ('+scope+') ')+'ORDER BY created_at DESC').all(...(manager ? [] : [actor.id])) : []
+    const groups = manager && workflowReady ? await db.prepare('SELECT id,name FROM auth_groups WHERE enabled AND archived_at IS NULL ORDER BY name').all() : []
+    return {manager,policies,revisions,groups,readOnly:!workflowReady}
   }))
   app.post('/api/admin/policy-workspace/simulate',handler(async (db,actor,req) => {
     await requireAccess(actor,'users.view')

@@ -78,6 +78,10 @@ export async function pingRedis() {
 
 export async function closeRedis() {
   if (!redis.isOpen) return;
+  if (!redis.isReady) {
+    redis.destroy();
+    return;
+  }
   try {
     await redis.quit();
   } catch {

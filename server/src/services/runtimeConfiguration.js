@@ -1,7 +1,8 @@
 import { buildDatabase, activateDatabase, discardDatabase } from './database.js';
-import { buildStorage, activateStorage, getVerifiedAzureStatus } from './storage.js';
+import { buildStorage, activateStorage, getVerifiedAzureStatus, storageHealth } from './storage.js';
 import { buildEmail, activateEmail } from './email.js';
 import { dependencyReason } from './startupDiagnostics.js';
+import { storageJournalUnavailable } from './storageSelection.js';
 export const systemStatus = {};
 let initialized = false;
 function changed(prefix, next, previous) { return Object.keys(next).some(key => key.startsWith(`${prefix}.`) && next[key] !== previous[key]); }
@@ -41,21 +42,25 @@ export async function prepareRuntime(values, previous, context = {}) {
     local: ['localPath'],
   };
   const verifiedCutover = Boolean(getVerifiedAzureStatus());
-  const storageValues = verifiedCutover ? { ...values, 'storage.provider': 'azure' } : values;
-  const activeStorageChanged = [...(verifiedCutover ? [] : ['provider']), ...(storageKeys[storageValues['storage.provider']] || [])]
+  const storageValues = values;
+  const activeStorageChanged = ['provider', ...(storageKeys[storageValues['storage.provider']] || [])]
     .some(key => values[`storage.${key}`] !== previous[`storage.${key}`]);
-  if (!initialized || activeStorageChanged) {
+  if (!initialized || activeStorageChanged || storageHealth().status !== 'healthy' || storageJournalUnavailable()) {
     operations.push(async () => {
       if (context.initializing) console.info('[STARTUP 6/8] Initializing media storage');
       const start = Date.now();
+      const requestedProvider = storageValues['storage.provider'] || 'unknown';
+      const providerLabel = requestedProvider === 'backblaze' ? 'backblaze-b2' : requestedProvider;
+      console.info(`[Storage] Selected provider: ${providerLabel}; verifying connection`);
       let storage;
-      try { storage = await buildStorage(storageValues, { allowUnavailable: context.initializing, verifiedCutover }); }
+      try { storage = await buildStorage(storageValues, { allowUnavailable: !context.actor, startupCheck: true, verifiedCutover }); }
       catch (error) {
-        if (!context.initializing || values['storage.provider'] === 'azure') throw error;
-        console.error(`[STARTUP][B2] FAILED Required: false Reason: ${dependencyReason(error)}`);
-        storage = { provider: 'degraded', client: null, failureReason: dependencyReason(error) };
+        if (context.actor && activeStorageChanged) throw error;
+        console.error(`[STARTUP][MEDIA_STORAGE] FAILED Provider: ${providerLabel} Required: false Reason: ${dependencyReason(error)}`);
+        storage = { provider: 'degraded', configuredProvider: requestedProvider, client: null, degraded: true, failureReason: dependencyReason(error) };
       }
-      return { activate: () => { activateStorage(storage); systemStatus.storage = { status: storage.provider === 'degraded' || storage.degraded ? 'degraded' : 'connected', reason: storage.failureReason, provider: storage.provider, checkedAt: new Date().toISOString(), latencyMs: Date.now() - start }; }, discard: async () => storage.client?.destroy?.() };
+      console.info(`[Storage] ${providerLabel}: ${storage.degraded ? 'degraded' : 'connection verified'}`);
+      return { activate: () => { activateStorage(storage); systemStatus.storage = { status: storage.degraded ? 'degraded' : 'connected', reason: storage.failureReason, provider: providerLabel, configuredProvider: requestedProvider, checkedAt: new Date().toISOString(), latencyMs: Date.now() - start }; }, discard: async () => storage.client?.destroy?.() };
     });
   }
   if (!initialized || changed('email', values, previous)) {

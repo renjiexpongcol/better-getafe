@@ -12,7 +12,7 @@ const safeAccessError = (error, fallback) => [400, 401, 403, 404, 409, 422].incl
   ? String(error.message || fallback)
   : fallback
 const ids = values => [...new Set((Array.isArray(values) ? values : []).map(String).filter(Boolean))]
-const policyOperators = new Set(['equals', 'not_equals', 'contains', 'starts_with', 'ends_with', 'greater_than', 'greater_or_equal', 'less_than', 'less_or_equal'])
+const policyOperators = new Set(['exists', 'not_exists', 'equals', 'not_equals', 'contains', 'starts_with', 'ends_with', 'greater_than', 'greater_or_equal', 'less_than', 'less_or_equal'])
 const policyPath = value => typeof value === 'string' && /^[A-Za-z][A-Za-z0-9_.-]{0,119}$/.test(value)
 function validatePolicyCondition(condition, depth = 0) {
   if (!condition || typeof condition !== 'object' || Array.isArray(condition) || depth > 3) throw Object.assign(new Error('Policy conditions are invalid.'), { status: 422 })
@@ -26,6 +26,7 @@ function validatePolicyCondition(condition, depth = 0) {
   }
   if (condition.resource_field !== undefined || condition.operator !== undefined) {
     if (!policyPath(condition.resource_field) || !policyOperators.has(condition.operator)) throw Object.assign(new Error('Each policy rule needs a valid resource field and operator.'), { status: 422 })
+    if (condition.operator === 'exists' || condition.operator === 'not_exists') return
     if (condition.value_source === 'literal') {
       if (typeof condition.value !== 'string' || condition.value.length > 500) throw Object.assign(new Error('Policy values must be 500 characters or fewer.'), { status: 422 })
     } else if (condition.value_source !== 'user_field' || !policyPath(condition.user_field)) throw Object.assign(new Error('Choose a valid user field for each policy rule.'), { status: 422 })

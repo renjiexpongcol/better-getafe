@@ -8,6 +8,8 @@ const DATASET_ID = /^[A-Za-z0-9][A-Za-z0-9._~:-]{0,191}$/;
 // Bound a single upstream response to protect the process while allowing the
 // full public dataset selection to be assembled from smaller API requests.
 const MAX_RESPONSE_BYTES = 64 * 1024 * 1024;
+const MAX_CACHE_ENTRIES = 256;
+let cachedBytes = 0;
 const MAX_QUERY_POINTS = 5000;
 const MAX_QUERY_BODY_BYTES = 60 * 1024;
 
@@ -41,6 +43,10 @@ async function upstream(endpoint, { method = 'GET', query, body, ttl = cacheFor(
   const cacheKey = hash(stable({ endpoint, method, query, body, release }));
   const cached = cache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return { ...cached.value, cache: 'HIT', durationMs: 0 };
+  if (cached) {
+    cache.delete(cacheKey);
+    cachedBytes -= cached.bytes;
+  }
   if (inflight.has(cacheKey)) return inflight.get(cacheKey);
   const job = (async () => {
     const controller = new AbortController();
@@ -49,9 +55,21 @@ async function upstream(endpoint, { method = 'GET', query, body, ttl = cacheFor(
     try {
       const response = await fetch(url, { method, signal: controller.signal, headers: body ? { 'Content-Type': 'application/json', Accept: 'application/json' } : { Accept: 'application/json' }, body: body ? JSON.stringify(body) : undefined });
       const length = Number(response.headers.get('content-length') || 0);
-      if (length > MAX_RESPONSE_BYTES) throw new StatisticsError('The public statistics response was too large.', 502, 'RESPONSE_TOO_LARGE');
-      const raw = await response.text();
-      if (raw.length > MAX_RESPONSE_BYTES) throw new StatisticsError('The public statistics response was too large.', 502, 'RESPONSE_TOO_LARGE');
+      if (length > MAX_RESPONSE_BYTES) {
+        controller.abort();
+        throw new StatisticsError('The public statistics response was too large.', 502, 'RESPONSE_TOO_LARGE');
+      }
+      let bytes = 0;
+      const chunks = [];
+      for await (const chunk of response.body || []) {
+        bytes += chunk.byteLength;
+        if (bytes > MAX_RESPONSE_BYTES) {
+          controller.abort();
+          throw new StatisticsError('The public statistics response was too large.', 502, 'RESPONSE_TOO_LARGE');
+        }
+        chunks.push(chunk);
+      }
+      const raw = Buffer.concat(chunks, bytes).toString('utf8').replace(/^\uFEFF/, '');
       let data; try { data = raw ? JSON.parse(raw) : {}; } catch { throw new StatisticsError('The public statistics service returned an invalid response.', 502, 'MALFORMED_RESPONSE'); }
       console.info(JSON.stringify({ event: 'statistics.upstream', endpoint, status: response.status, durationMs: Date.now() - started, cache: 'MISS' }));
       if (!response.ok) {
@@ -63,7 +81,13 @@ async function upstream(endpoint, { method = 'GET', query, body, ttl = cacheFor(
         throw new StatisticsError(message || 'The public statistics service could not complete this request.', response.status, 'UPSTREAM_HTTP');
       }
       const value = { data, retrievedAt: new Date().toISOString(), sourceUrl: url, cache: 'MISS', durationMs: Date.now() - started };
-      cache.set(cacheKey, { value, expiresAt: Date.now() + ttl });
+      while (cache.size >= MAX_CACHE_ENTRIES || cachedBytes + bytes > MAX_RESPONSE_BYTES) {
+        const oldest = cache.keys().next().value;
+        cachedBytes -= cache.get(oldest).bytes;
+        cache.delete(oldest);
+      }
+      cache.set(cacheKey, { value, bytes, expiresAt: Date.now() + ttl });
+      cachedBytes += bytes;
       return value;
     } catch (error) {
       if (error instanceof StatisticsError) throw error;

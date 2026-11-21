@@ -8,7 +8,6 @@ export { ApiRequestError } from './apiTransport.js'
 
 const entries = new Map()
 const pending = new Map()
-const versions = new Map()
 const retryCooldowns = new Map()
 const storagePrefix = 'getafe-public-cache:v2:'
 onDataChanged(() => {
@@ -37,7 +36,6 @@ export function readCached(key, { persist = false } = {}) {
 export function invalidateCached(key, { persist = false } = {}) {
   entries.delete(key)
   pending.delete(key)
-  versions.set(key, (versions.get(key) || 0) + 1)
   if (persist) {
     try { sessionStorage.removeItem(storagePrefix + key) } catch { /* Storage can be disabled. */ }
   }
@@ -64,10 +62,9 @@ export function cachedRequest(key, fetcher, { ttl = 60000, force = false, persis
   if (pending.has(key)) return pending.get(key)
   const value = readCached(key, { persist })
   if (value !== undefined) return Promise.resolve(value)
-  const version = versions.get(key) || 0
   const request = Promise.resolve().then(fetcher).then(value => {
     // A request finishing after logout or a write must not repopulate the cache.
-    if ((versions.get(key) || 0) === version) {
+    if (pending.get(key) === request) {
       const entry = { value, expires: Date.now() + ttl }
       entries.set(key, entry)
       if (persist) {

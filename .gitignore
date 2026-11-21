@@ -1,4 +1,3 @@
-```gitignore
 # Dependencies
 node_modules/
 
@@ -57,7 +56,6 @@ vite.config.*.timestamp-*
 
 # TypeScript
 *.tsbuildinfo
-```
 
 .npm-cache/
 

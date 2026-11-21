@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Check, CheckCircle2, Info, LoaderCircle, Mail, RotateCw, Search, X } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import SettingsPermissions from './SettingsPermissions'
+import SessionTimeoutSettings from './SessionTimeoutSettings.jsx'
 import { categoryDescriptions, categoryLabels, categorySections, sectionIcon, fieldDescription, settingIsVisible, storageFieldIsVisible } from './settingsPresentation'
 import { ModuleAccessDeniedPage, ModuleNotFoundPage } from './RouteStatusPages'
 import { ROUTES } from '../routeRegistry'
@@ -174,6 +175,7 @@ export default function AdminSettings({ category = 'general', settings, settings
       setSettings(body); setPatch({}); setConnectionState('idle')
       const warningMinutes = body.values?.['authentication.sessionWarningMinutes']
       if (Number.isInteger(warningMinutes)) window.dispatchEvent(new CustomEvent('auth-session-warning-minutes', { detail: { minutes: warningMinutes } }))
+      if (activeTab === 'authentication') window.dispatchEvent(new Event('auth-session-policy-changed'))
       setMessage({ type: 'success', text: 'Your settings have been saved.' })
       onSaved?.('Changes saved')
       window.dispatchEvent(new Event('configuration-changed'))
@@ -181,7 +183,7 @@ export default function AdminSettings({ category = 'general', settings, settings
   }
 
   const globalQuery = globalSearch.trim().toLowerCase()
-  const categoryKeywords = { email: 'smtp sender mail password delivery templates acknowledgement', database: 'postgresql connection database pool ssl tls health', portalDatabase: 'postgresql portal database connection resident', google: 'oauth sign-in credentials', storage: 'bucket upload storage files media', authentication: 'login registration password session verification', security: 'captcha security headers rate limiting permissions', notifications: 'email alerts system notifications', integrations: 'connected services api webhooks', general: 'application facebook branding regional preferences', features: 'feature flags uploads reports', publicData: 'public datasets catalog', maintenance: 'maintenance mode', legal: 'privacy terms cookies', advanced: 'diagnostics' }
+  const categoryKeywords = { email: 'smtp sender mail password delivery templates acknowledgement', database: 'postgresql connection database pool ssl tls health', portalDatabase: 'postgresql portal database connection resident', google: 'oauth sign-in credentials', storage: 'bucket upload storage files media', authentication: 'login registration password session concurrent devices verification', security: 'captcha security headers rate limiting permissions', notifications: 'email alerts system notifications', integrations: 'connected services api webhooks', general: 'application facebook branding regional preferences', features: 'feature flags uploads reports', publicData: 'public datasets catalog', maintenance: 'maintenance mode', legal: 'privacy terms cookies', advanced: 'diagnostics' }
   const globalMatches = tabs.filter(key => {
     if (!globalQuery) return true
     if (['status', 'history'].includes(key)) return (categoryLabels[key] || key).toLowerCase().includes(globalQuery)
@@ -262,13 +264,13 @@ export default function AdminSettings({ category = 'general', settings, settings
         {activeTab === 'storage' && can('settings.storage.edit') && <MediaMigrationPanel canStart={can('settings.edit')} disabled={busy || dirty} onActivated={() => setSettings(current => ({ ...current, storageRuntime: { activeProvider: 'azure', source: 'migration' } }))} />}
         {databaseTab && <DatabaseRuntimeStatus runtime={settings?.databaseRuntime?.[activeTab]} category={activeTab} />}
         {filteredSections.map(section => <SettingsSection key={section.title} title={section.title} description={section.description} icon={section.icon}>
-          <div className="settings-fields">{section.fields.map(([key, definition]) => <SettingsField key={key} settingKey={key} definition={key === 'authentication.sessionWarningMinutes' ? { ...definition, max: Math.min(30, Math.max(1, Number(patch['authentication.sessionIdleMinutes'] ?? settings.values['authentication.sessionIdleMinutes']) - 1)) } : definition}
+          {activeTab === 'authentication' && section.title === 'Session timeout' ? <SessionTimeoutSettings fields={section.fields} values={effectiveSettingsValues} patch={patch} busy={busy} canEdit={writable} onChange={change} onUndo={undo} /> : <div className="settings-fields">{section.fields.map(([key, definition]) => <SettingsField key={key} settingKey={key} definition={key === 'authentication.sessionWarningMinutes' ? { ...definition, max: Math.min(30, Math.max(1, Number(patch['authentication.sessionIdleMinutes'] ?? settings.values['authentication.sessionIdleMinutes']) - 1)) } : definition}
             diagnostic={databaseTest?.connection?.target === 'active' && key === `${activeTab}.${databaseTest.field}` ? databaseTest.message : null}
             value={Object.hasOwn(patch, key) && patch[key] !== null ? patch[key] : settings.values[key]}
             secretValue={patch[key] || ''} reset={Object.hasOwn(patch, key) && patch[key] === null}
             edited={Object.hasOwn(patch, key)} disabled={busy || definition.managedByEnvironment || !writable(key, definition) ||
               (key === 'authentication.requireMobileVerification' && !smsConfigured && !effectiveSettingsValues[key])} canEdit={writable(key, definition)}
-            onChange={value => { setConnectionState('idle'); change(key, value) }} onUndo={() => undo(key)} />)}</div>
+            onChange={value => { setConnectionState('idle'); change(key, value) }} onUndo={() => undo(key)} />)}</div>}
           {section.fields.some(([key, definition]) => key === 'storage.azureAccount' && writable(key, definition)) &&
             <AzureConnectionTest busy={busy} patch={visiblePatch} />}
           {section.fields.some(([key]) => key === 'storage.configuredProvider') && connectionAction}
@@ -551,7 +553,7 @@ function SettingsField({ settingKey: key, definition, value, secretValue, reset,
       : sources[definition.source]
   const control = definition.type === 'boolean' ? <label className="settings-toggle">
     <input {...inputProps} type="checkbox" role="switch" checked={Boolean(value)} onChange={event => onChange(event.target.checked)} /><span aria-hidden="true" />
-  </label> : definition.options ? <select {...inputProps} value={value ?? ''} onChange={event => onChange(event.target.value)}>{definition.options.map(option => <option key={option} value={option}>{azureAuthenticationLabels[option] || (option === 'google' || option === 'google-standard' ? 'Google reCAPTCHA (standard)' : option === 'google-enterprise' ? 'Google reCAPTCHA Enterprise' : option === 'starttls' ? 'STARTTLS' : option === 'tls' ? 'TLS' : option === 'backblaze' ? 'Backblaze B2' : option === 'embed' ? 'Embed Facebook Page Plugin' : option === 'fallback' ? 'Use native Getafe fallback card' : option)}</option>)}</select>
+  </label> : definition.options ? <select {...inputProps} value={value ?? ''} onChange={event => onChange(event.target.value)}>{definition.options.map(option => <option key={option} value={option}>{azureAuthenticationLabels[option] || (option === 'allow_multiple' ? 'Allow multiple sessions' : option === 'single_active' ? 'One active session' : option === 'google' || option === 'google-standard' ? 'Google reCAPTCHA (standard)' : option === 'google-enterprise' ? 'Google reCAPTCHA Enterprise' : option === 'starttls' ? 'STARTTLS' : option === 'tls' ? 'TLS' : option === 'backblaze' ? 'Backblaze B2' : option === 'embed' ? 'Embed Facebook Page Plugin' : option === 'fallback' ? 'Use native Getafe fallback card' : option)}</option>)}</select>
     : key === 'security.permissionGrants' ? <div className="settings-permissions" role="group" aria-labelledby={`${key}-label`}><SettingsPermissions disabled={disabled || reset} value={value} onChange={onChange} /></div>
       : key === 'storage.azureConnectionString' ? <input {...inputProps} type="password" autoComplete="new-password" value={secretValue} onChange={event => onChange(event.target.value)} />
       : definition.secret ? <SecretInput inputProps={inputProps} value={secretValue} configured={definition.configured} onChange={onChange} />

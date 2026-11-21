@@ -3,6 +3,7 @@ import { definitions, isSettingVisible, omitInactiveSettings, validate } from '.
 import { environmentValue } from './EnvironmentProvider.js';
 import { isDependencyFailure } from '../services/dependencyFailures.js';
 import { dependencyReason } from '../services/startupDiagnostics.js';
+import { selectedStorageProvider } from '../services/storageSelection.js';
 export class ConfigService {
   constructor({ provider, secrets, env = process.env, prepare = async () => ({ activate() {}, discard() {} }) }) {
     this.provider = provider; this.secrets = secrets; this.env = env; this.prepare = prepare;
@@ -55,7 +56,10 @@ export class ConfigService {
         sources[key] = 'database';
       } else { values[key] = environment ?? d.default; sources[key] = environment !== undefined ? 'environment' : 'default'; }
     }
-    if (stored['storage.configuredProvider'] == null || sources['storage.provider'] === 'environment') {
+    const selectedProvider = selectedStorageProvider(values['storage.provider']);
+    if (selectedProvider !== values['storage.provider']) sources['storage.provider'] = 'migration-journal';
+    values['storage.provider'] = selectedProvider;
+    if (stored['storage.configuredProvider'] == null || sources['storage.provider'] === 'environment' || sources['storage.provider'] === 'migration-journal') {
       values['storage.configuredProvider'] = values['storage.provider'];
       sources['storage.configuredProvider'] = sources['storage.provider'];
     }
@@ -84,7 +88,8 @@ export class ConfigService {
         }
         const snapshot = await this.resolve(stored);
         const resources = await this.prepare(snapshot.values, this.values, { initializing: !this.loadedAt });
-        await this.provider.activateConfigDatabase?.(snapshot.values);
+        try { await this.provider.activateConfigDatabase?.(snapshot.values); }
+        catch (error) { await resources.discard(); throw error; }
         resources.activate();
         this.values = snapshot.values; this.sources = snapshot.sources; this.stored = stored; this.available = !unavailable; this.loadedAt = Date.now();
         if (!unavailable) this.failureReason = undefined;
@@ -168,6 +173,7 @@ export class ConfigService {
         candidate[key] = value; if (!d.secret && settings[key] === value) continue; settings[key] = value;
         changes.push(key);
       }
+      candidate['storage.provider'] = selectedStorageProvider(candidate['storage.provider']);
       validate(candidate);
       if (Object.keys(activePatch).some(key => key.startsWith('google.'))) this.validateGoogleConfiguration(candidate);
       const resources = await this.prepare(candidate, this.values, { actor, changed: changes });
