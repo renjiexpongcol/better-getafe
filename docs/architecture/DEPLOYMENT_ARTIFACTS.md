@@ -15,11 +15,11 @@ Every host forwards `/api/*` and `/api/v1/*` to the API container. The API is he
 ```sh
 npm run build:apps
 npm run deploy:artifacts
-docker compose -f docker-compose.yml -f docker-compose.apps.yml up -d --build
+docker compose -f docker-compose.apps.yml up -d --build
 npm run deploy:smoke
 ```
 
-The existing `docker-compose.yml` remains the local infrastructure definition. The overlay adds the API, three static application images, and the reverse proxy, so the current local `npm start` and Vite workflows remain unchanged.
+The apps Compose file uses the configured managed Redis URL from its environment file.
 
 Set `APP_PORT` to change the host port (default `8080`). In a local hosts file, map the three hostnames to `127.0.0.1` to exercise each surface through the proxy.
 
@@ -28,3 +28,4 @@ Set `APP_PORT` to change the host port (default `8080`). In a local hosts file, 
 ## Health and reuse
 
 Compose reuses existing containers by service name, restarts unhealthy services, and waits for Redis, Supabase-backed API readiness, and each static app health check before starting the reverse proxy. No database migration is run by this deployment artifact.
+

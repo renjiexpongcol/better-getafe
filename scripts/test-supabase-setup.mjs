@@ -48,6 +48,7 @@ test('existing canonical URL wins without prompting', async () => {
 
 test('canonical Supabase URL wins and legacy Supabase URL remains a fallback', () => {
   assert.equal(selectedCmsUrl({ CMS_SUPABASE_DATABASE_URL: URL, SUPABASE_DATABASE_URL: 'unused' }), URL);
+  assert.equal(selectedCmsUrl({ MY_PREFIX_POSTGRES_URL_NON_POOLING: URL, CMS_SUPABASE_DATABASE_URL: 'unused' }), URL);
   assert.equal(selectedCmsUrl({ CMS_SUPABASE_DATABASE_URL: '  ', SUPABASE_DATABASE_URL: URL }), URL);
   assert.equal(supabaseConnectionOptions('database', { SUPABASE_DATABASE_URL: URL }).connectionString,
     new globalThis.URL(URL).toString().replace('?sslmode=require', ''));

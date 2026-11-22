@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { existsSync, watch } from 'node:fs';
@@ -34,6 +35,17 @@ if (!setupOnly) {
   }
 }
 
+if (!setupOnly) {
+  try {
+    const { resolveRedisConfiguration } = await import('../server/src/infrastructure/redis/redisConfiguration.js');
+    const redis = resolveRedisConfiguration();
+    if (!redis.enabled) console.warn(JSON.stringify({ event: 'redis_configuration_missing', pid: process.pid, status: 'degraded', reason: 'Authentication sessions require the configured Redis registry; session operations will fail closed until configured.' }));
+  } catch (error) {
+    console.error(`[Portal] Redis configuration: ${error.message}`);
+    process.exit(1);
+  }
+}
+
 let databaseUrl = selectedCmsUrl(process.env);
 if (setupOnly || !databaseUrl) {
   try {
@@ -63,14 +75,15 @@ const env = {
 };
 delete env.VITE_BACKEND_URL;
 
-let backend, worker, restartTimer, workerTimer;
-let stopping = false, restarting = false, ready = false, workerFailures = 0;
+let backend, worker, restartTimer, workerTimer, backendRetryTimer, stableTimer;
+let stopping = false, restarting = false, ready = false, workerFailures = 0, backendFailures = 0, startupAttempt = 0;
+let pendingSourceChange = '';
 const watchers = [];
 const closing = new Map();
 
-function launch(file, args = []) {
+function launch(file, args = [], childEnv = env) {
   return spawn(process.execPath, [file, ...args], {
-    cwd: root, env, stdio: ['inherit', 'inherit', 'inherit', 'ipc'], windowsHide: true,
+    cwd: root, env: childEnv, stdio: ['inherit', 'inherit', 'inherit', 'ipc'], windowsHide: true,
   });
 }
 
@@ -92,8 +105,12 @@ function stop(code = 0) {
   process.exitCode = code;
   clearTimeout(restartTimer);
   clearTimeout(workerTimer);
+  clearTimeout(backendRetryTimer);
+  clearTimeout(stableTimer);
   for (const watcher of watchers) watcher.close();
-  void Promise.all([closeChild(worker), closeChild(backend)]);
+  void Promise.all([closeChild(worker), closeChild(backend)]).catch(error => {
+    console.error(JSON.stringify({ event: 'dev_children_shutdown_failed', pid: process.pid, code: error?.code || 'shutdown_error' }));
+  });
 }
 
 function startWorker() {
@@ -121,9 +138,14 @@ function startWorker() {
 }
 
 function startBackend() {
+  if (stopping || backend) return;
   ready = false;
   workerFailures = 0;
-  backend = launch('server.js');
+  const attemptId = randomUUID();
+  const attemptNumber = ++startupAttempt;
+  let becameReady = false;
+  console.info(JSON.stringify({ event: 'backend_starting', pid: process.pid, startup_attempt_id: attemptId, attempt: attemptNumber }));
+  backend = launch('server.js', [], { ...env, PORTAL_STARTUP_ATTEMPT_ID: attemptId });
   const child = backend;
   const deadline = setTimeout(() => {
     console.error('[Portal] Backend initialization exceeded 180 seconds. Check the last startup stage and the database, Redis and storage diagnostics.');
@@ -137,6 +159,15 @@ function startBackend() {
     clearDeadline();
     ready = message.ready === true;
     if (ready) {
+      becameReady = true;
+      clearTimeout(stableTimer);
+      stableTimer = setTimeout(() => { backendFailures = 0; stableTimer = undefined; }, 60000);
+      stableTimer.unref?.();
+      console.info(JSON.stringify({ event: 'backend_ready', pid: child.pid || null, startup_attempt_id: attemptId, ready: true }));
+    } else {
+      console.warn(JSON.stringify({ event: 'backend_degraded', pid: child.pid || null, startup_attempt_id: attemptId, ready: false }));
+    }
+    if (ready) {
       if (!workerTimer) startWorker();
     } else {
       void closeChild(worker);
@@ -144,9 +175,27 @@ function startBackend() {
   });
   child.once('error', error => { console.error('[Portal] Backend process error:', error.code); stop(1); });
   child.once('exit', (code, signal) => {
-    if (child !== backend || stopping || restarting) return;
-    console.error('[Portal] Backend exited (' + (signal || code) + '). Review the startup diagnostic above.');
-    stop(code || 1);
+    if (child !== backend) return;
+    backend = undefined;
+    clearTimeout(deadline);
+    if (stopping || restarting) return;
+    clearTimeout(stableTimer);
+    const failure = { event: 'backend_exit', pid: child.pid || null, startup_attempt_id: attemptId, exit_code: code, signal: signal || null };
+    console.error(JSON.stringify(failure));
+    if (!becameReady) {
+      console.error(JSON.stringify({ event: 'backend_startup_failed', pid: process.pid, startup_attempt_id: attemptId, reason: 'required_dependencies_unavailable' }));
+      stop(code || 1);
+      return;
+    }
+    backendFailures++;
+    if (backendFailures > 3) {
+      console.error(JSON.stringify({ event: 'backend_restart_limit_reached', pid: process.pid, failures: backendFailures - 1 }));
+      stop(code || 1);
+      return;
+    }
+    const retryMs = Math.min(30000, 1000 * 2 ** (backendFailures - 1));
+    console.warn(JSON.stringify({ event: 'backend_restart_scheduled', pid: process.pid, retry: backendFailures, retry_limit: 3, retry_ms: retryMs }));
+    backendRetryTimer = setTimeout(() => { backendRetryTimer = undefined; startBackend(); }, retryMs);
   });
 }
 
@@ -158,13 +207,28 @@ async function restart() {
   workerTimer = undefined;
   await Promise.all([closeChild(worker), closeChild(backend)]);
   restarting = false;
-  if (!stopping) startBackend();
+  if (!stopping) {
+    backendFailures = 0;
+    console.info(JSON.stringify({ event: 'backend_restart_for_source_change', pid: process.pid, source: pendingSourceChange || 'backend source' }));
+    pendingSourceChange = '';
+    startBackend();
+  }
 }
 
-function changed() {
+function changed(source) {
   if (stopping || restarting) return;
+  pendingSourceChange = source;
   clearTimeout(restartTimer);
   restartTimer = setTimeout(() => void restart(), 250);
+}
+
+function isBackendSourceFile(filename) {
+  if (filename == null) return false;
+  const relative = String(filename).replaceAll('\\', '/').replace(/^\.\//, '');
+  if (!/\.(?:js|mjs|cjs)$/i.test(relative)) return false;
+  if (/(?:^|\/)(?:data|logs|tmp|temp|uploads|cache|\.cache|\.output|\.next|\.turbo|\.vite|coverage|node_modules|dist|build|generated|artifacts|sessions)(?:\/|$)/i.test(relative)) return false;
+  return /^(?:index|integration-worker)\.(?:js|mjs|cjs)$/i.test(relative)
+    || /^(?:src|integrationHub)\/.+\.(?:js|mjs|cjs)$/i.test(relative);
 }
 
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => stop());
@@ -174,8 +238,10 @@ if (process.send) {
 }
 if (!preview) {
   try {
-    watchers.push(watch(path.join(root, 'server'), { recursive: true }, changed));
-    watchers.push(watch(root, (_event, file) => { if (file === 'server.js') changed(); }));
+    watchers.push(watch(path.join(root, 'server'), { recursive: true }, (event, file) => {
+      if (isBackendSourceFile(file)) changed(`${event}: server/${String(file).replaceAll('\\', '/')}`);
+    }));
+    watchers.push(watch(root, (event, file) => { if (file === 'server.js') changed(`${event}: server.js`); }));
     for (const watcher of watchers) watcher.on('error', error => {
       console.error('[Portal] Backend source watcher failed:', error.code);
       stop(1);

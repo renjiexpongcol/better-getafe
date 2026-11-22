@@ -72,14 +72,15 @@ async function publicSuggestions() {
 }
 
 export async function completeSearch(payload = {}, getPool = getCmsPool) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload) || Object.keys(payload).some(key => !['submissionId', 'topicId', 'source', 'zeroResults'].includes(key))) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) || Object.keys(payload).some(key => !['submissionId', 'topicId', 'source', 'zeroResults', 'searchMode'].includes(key))) {
     throw Object.assign(new Error('Search completion contains unsupported fields.'), { status: 400 })
   }
   const { submissionId, topicId, source, zeroResults } = payload
+  const searchMode = payload.searchMode || 'traditional'
   if (typeof submissionId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(submissionId)) {
     throw Object.assign(new Error('A valid search submission ID is required.'), { status: 400 })
   }
-  if (!['typed', 'chip'].includes(source) || typeof zeroResults !== 'boolean') throw Object.assign(new Error('Invalid search completion.'), { status: 400 })
+  if (!['typed', 'chip', 'suggested'].includes(source) || !['traditional', 'ai_assisted', 'semantic'].includes(searchMode) || typeof zeroResults !== 'boolean') throw Object.assign(new Error('Invalid search completion.'), { status: 400 })
   if (topicId !== null && (typeof topicId !== 'string' || topicId.length > 160)) throw Object.assign(new Error('Invalid search topic.'), { status: 400 })
 
   const pool = await getPool()
@@ -95,10 +96,10 @@ export async function completeSearch(payload = {}, getPool = getCmsPool) {
     const searchDate = dates[0].search_date
     const receiptDays = Math.max(1, Math.min(30, Number(process.env.WEBSITE_ANALYTICS_RECEIPT_DAYS) || 7))
     const [, insertResult] = await connection.execute(
-      `INSERT INTO search_submission_receipts (submission_id, search_date, topic_id, source, zero_results, expires_at)
-       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP + (?::integer * INTERVAL '1 day'))
+      `INSERT INTO search_submission_receipts (submission_id, search_date, topic_id, source, search_mode, zero_results, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP + (?::integer * INTERVAL '1 day'))
        ON CONFLICT (submission_id) DO NOTHING RETURNING submission_id`,
-      [submissionId, searchDate, resolvedTopicId, source, zeroResults, receiptDays],
+      [submissionId, searchDate, resolvedTopicId, source, searchMode, zeroResults, receiptDays],
     )
     if (!insertResult.rowCount) {
       await connection.commit()
@@ -126,11 +127,11 @@ export async function completeSearch(payload = {}, getPool = getCmsPool) {
       )
     }
     await connection.execute(
-      `INSERT INTO website_search_engagement_daily (report_date, topic_ref, source, completed_submissions)
-       VALUES (?, ?, ?, 1)
-       ON CONFLICT (report_date, topic_ref, source) DO UPDATE
+      `INSERT INTO website_search_engagement_daily (report_date, topic_ref, source, search_mode, completed_submissions)
+       VALUES (?, ?, ?, ?, 1)
+       ON CONFLICT (report_date, topic_ref, source, search_mode) DO UPDATE
        SET completed_submissions = website_search_engagement_daily.completed_submissions + 1`,
-      [searchDate, resolvedTopicId || 'unmatched', source],
+      [searchDate, resolvedTopicId || 'unmatched', source, searchMode],
     )
     await connection.commit()
     return { accepted: true, duplicate: false }

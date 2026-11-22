@@ -47,6 +47,7 @@ import { config } from './src/config/index.js';
 import { closeConfigStore } from './src/config/DatabaseSettingsProvider.js';
 import { installSettingsRoutes } from './src/services/settingsRoutes.js';
 import { installAiRoutes } from './src/services/aiRoutes.js';
+import { startAiKnowledgeWorker, stopAiKnowledgeWorker } from './src/services/aiKnowledgeBase.js';
 import { installPublicDataRoutes } from './src/services/publicDataRoutes.js';
 import { installAdminUsersRoutes } from './src/services/adminUsersRoutes.js';
 import { installStaffRoutes } from './src/services/staffRoutes.js';
@@ -642,17 +643,26 @@ function validateArticle(body, res) {
 
 const markAiContentPublished = async (body, article, actorId) => {
   const generationId = String(body?.ai_generation_id || '').trim();
-  if (!generationId || body.status !== 'published' || !article?.id) return;
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(generationId)) return;
+  if (body.status !== 'published' || !article?.id) return;
   const pool = await getCmsPool();
-  await pool.execute(
-    `UPDATE ai_content_generations SET publication_status = 'published', published_article_id = ?, reviewed_at = COALESCE(reviewed_at, CURRENT_TIMESTAMP), published_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
-    [String(article.id), generationId, actorId],
-  );
+  let linked = [];
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(generationId)) {
+    [linked] = await pool.execute(`UPDATE ai_content_generations SET publication_status='published',published_article_id=?,reviewed_at=COALESCE(reviewed_at,CURRENT_TIMESTAMP),published_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=? RETURNING id`, [String(article.id), generationId, actorId]);
+  } else {
+    [linked] = await pool.execute(`UPDATE ai_content_generations SET publication_status='published',reviewed_at=COALESCE(reviewed_at,CURRENT_TIMESTAMP),published_at=CURRENT_TIMESTAMP WHERE published_article_id=? AND publication_status<>'published' RETURNING id`, [String(article.id)]);
+  }
+  if (!linked.length) return;
   await pool.execute(
     `INSERT INTO ai_audit_logs (id, user_id, action, module_key, details, ip_address) VALUES (?, ?, 'ai.content.published', NULL, ?::jsonb, '')`,
-    [crypto.randomUUID(), actorId, JSON.stringify({ articleId: String(article.id), generationId })],
+    [crypto.randomUUID(), actorId, JSON.stringify({ articleId: String(article.id), generationId: generationId || linked[0].id })],
   );
+};
+
+const linkAiContentDraft = async (body, article, actorId) => {
+  const generationId = String(body?.ai_generation_id || '').trim();
+  if (!article?.id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(generationId)) return;
+  const pool = await getCmsPool();
+  await pool.execute(`UPDATE ai_content_generations SET published_article_id=? WHERE id=? AND user_id=? AND publication_status='pending_review'`, [String(article.id), generationId, actorId]);
 };
 
 function validateDraft(body, res) {
@@ -2004,6 +2014,7 @@ app.post("/api/news/drafts", admin, permission('content.news.manage'), async (re
       return res.status(422).json({ error: "The selected category does not exist." });
     }
     const article = await createNewsArticle(body, req.admin.id);
+    await linkAiContentDraft(req.body, article, req.admin.id);
     await invalidatePublicNewsCaches();
     res.status(201).json(await decorate(article));
   } catch (error) {
@@ -2046,6 +2057,7 @@ app.patch("/api/news/:id/draft", admin, permission('content.news.manage'), async
   try {
     const article = await updateNewsArticle(req.params.id, body, { expectedVersion });
     if (!article) return res.status(404).json({ error: "Article not found." });
+    await linkAiContentDraft(req.body, article, req.admin.id);
     await invalidatePublicNewsCaches();
     res.json(await decorate(article));
   } catch (error) {
@@ -2270,8 +2282,20 @@ app.post('/api/admin/psgc/sync', admin, permission('directory.manage'), async (r
 app.put('/api/barangays', admin, permission('directory.manage'), async (req, res) => {
   try {
     if (!Array.isArray(req.body)) return res.status(422).json({ error: 'Invalid barangays content.' });
+    const aiGenerations = new Map(req.body.filter(item => item && item.ai_generation_id).map(item => [String(item.id), String(item.ai_generation_id)]));
     const saved = sanitizeBarangays(req.body);
     await saveBarangays(saved);
+    const aiPool = await getCmsPool();
+    for (const item of saved) {
+      const generationId = aiGenerations.get(String(item.id));
+      let linked = [];
+      if (generationId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(generationId)) {
+        [linked] = await aiPool.execute(`UPDATE ai_content_generations SET published_article_id=?,publication_status='published',reviewed_at=COALESCE(reviewed_at,CURRENT_TIMESTAMP),published_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=? RETURNING id`, [`barangay:${item.id}`, generationId, req.admin.id]);
+      } else {
+        [linked] = await aiPool.execute(`UPDATE ai_content_generations SET publication_status='published',reviewed_at=COALESCE(reviewed_at,CURRENT_TIMESTAMP),published_at=CURRENT_TIMESTAMP WHERE published_article_id=? AND publication_status<>'published' RETURNING id`, [`barangay:${item.id}`]);
+      }
+      if (linked.length) await aiPool.execute(`INSERT INTO ai_audit_logs (id,user_id,action,module_key,details,ip_address) VALUES (?,?,'ai.content.published',NULL,?::jsonb,?)`, [crypto.randomUUID(), req.admin.id, JSON.stringify({ source: 'barangay_profile', barangayId: String(item.id), generationId: generationId || linked[0].id }), req.ip || '']);
+    }
     await syncBarangayTerms(saved, req.admin.id);
     await auditDirectoryAction(req, 'BARANGAY_OFFICIAL_TERMS_UPDATED', 'barangays', null, saved.map(item => ({ id: item.id, captain: item.captain, termStart: item.termStart || null, termEnd: item.termEnd || null })));
     await cacheService.invalidate('barangays-public');
@@ -2935,7 +2959,7 @@ async function startServer() {
     console.log(`[STARTUP 2/8] Environment: ${process.env.NODE_ENV || 'development'}`);
 
     console.log(`[STARTUP 3/8] Validating ${isProd ? 'production' : 'development'} configuration`);
-    for (const key of ['CMS_SUPABASE_DATABASE_URL', 'REDIS_URL', 'CMS_MEDIA_PROVIDER', 'STORAGE_PROVIDER', 'AZURE_STORAGE_CONNECTION_STRING', 'B2_ENDPOINT', 'B2_BUCKET_NAME', 'B2_KEY_ID', 'B2_APPLICATION_KEY']) console.info(`[STARTUP][ENV] ${key}: ${process.env[key] ? 'configured' : 'unset'}`);
+    for (const key of ['CMS_SUPABASE_DATABASE_URL', 'MY_REDIS_REDIS_URL', 'REDIS_URL', 'CMS_MEDIA_PROVIDER', 'STORAGE_PROVIDER', 'AZURE_STORAGE_CONNECTION_STRING', 'B2_ENDPOINT', 'B2_BUCKET_NAME', 'B2_KEY_ID', 'B2_APPLICATION_KEY']) console.info(`[STARTUP][ENV] ${key}: ${process.env[key] ? 'configured' : 'unset'}`);
     if (isProd && (!secret || /^(change-this-|replace-with-|your-)/.test(secret))) throw new Error('A bootstrap session signing secret is required.');
     const unifiedDevelopment = !isProd && process.env.PORTAL_UNIFIED_DEV_SERVER === 'true';
     const PORT = Number(isProd ? process.env.PORT || 8080 : unifiedDevelopment ? process.env.VITE_PORT || 5173 : process.env.PORT || process.env.VITE_PORT || 5173);
@@ -2959,7 +2983,7 @@ async function startServer() {
     server.headersTimeout = 15_000;
     server.keepAliveTimeout = 5_000;
     server.maxRequestsPerSocket = 100;
-    let stopping = false, maintenanceStarted = false, emailStarted = false;
+    let stopping = false, maintenanceStarted = false, emailStarted = false, knowledgeWorkerStarted = false;
     let orphanCleanupTimer, cleanupTask, refreshTask, initialization, lastReportedState;
     function shutdown() {
       if (stopping) return;
@@ -2972,7 +2996,7 @@ async function startServer() {
       const deadline = setTimeout(() => process.exit(1), 25000);
       const drained = new Promise(resolve => server.close(resolve));
       (async () => {
-        await Promise.allSettled([initialization, refreshTask, cleanupTask, psgcTask, stopEmailWorker(), viteDevServer?.close(), drained]);
+        await Promise.allSettled([initialization, refreshTask, cleanupTask, psgcTask, stopEmailWorker(), stopAiKnowledgeWorker(), viteDevServer?.close(), drained]);
         activateEmail(null);
         activateStorage(null);
         const closed = await Promise.allSettled([trafficProtector.stop(), closeDatabaseConnection(), closeConfigStore()]);
@@ -2991,6 +3015,7 @@ async function startServer() {
     function refresh() {
       if (stopping || refreshTask) return refreshTask;
       refreshTask = (async () => {
+        if (!isRedisReady()) await trafficProtector.start();
         await checkLifecycle();
         if (stopping) return;
         const ready = available();
@@ -3002,6 +3027,10 @@ async function startServer() {
         }
         if (emailHealth().status === 'degraded') retryEmailVerification();
         if (!ready) return;
+        if (!knowledgeWorkerStarted && serviceStatus.cmsDatabase === 'connected') {
+          knowledgeWorkerStarted = true;
+          startAiKnowledgeWorker({ isReady: () => serviceStatus.cmsDatabase === 'connected' && !stopping });
+        }
         if (!maintenanceStarted) {
           maintenanceStarted = true;
           startPsgcSyncSchedule(available);

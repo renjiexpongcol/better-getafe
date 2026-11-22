@@ -24,7 +24,7 @@ flowchart TD
   T -->|sustained excess| R
 ```
 
-The application uses token buckets with burst capacity, a strictly bounded short-delay tier, per-client route concurrency, strike-based recovery, and a final 429 rejection tier before JSON parsing or database work. With `REDIS_ENABLED=true` and `REDIS_URL`, one shared Redis client runs the Lua operation that updates token balance and strike count atomically across instances. If Redis is unavailable, the service deliberately falls back to a bounded local emergency limiter and logs `source: "local-fallback"`; it never becomes unlimited and automatically returns to Redis after reconnecting.
+The application uses token buckets with burst capacity, a strictly bounded short-delay tier, per-client route concurrency, strike-based recovery, and a final 429 rejection tier before JSON parsing or database work. With `MY_REDIS_REDIS_URL`, one shared Redis client runs the Lua operation that updates token balance and strike count atomically across instances. If Redis is unavailable, the service deliberately falls back to a bounded local emergency limiter and logs `source: "local-fallback"`; it never becomes unlimited and automatically returns to Redis after reconnecting.
 
 Identity is a server-validated service principal, authenticated-user hash, verified API-client principal, then client-IP hash. A raw caller-supplied header never creates an internal identity. Optional backend services use INTERNAL_SERVICE_ID, INTERNAL_SERVICE_SECRET, and a short-lived HMAC signature over the timestamp, method, and request path; authentication and expensive endpoint policies still apply to those requests. Forwarding headers are accepted only if the immediate socket peer is in RATE_LIMIT_TRUSTED_PROXY_CIDRS. Local/direct requests use the socket address and ignore forwarded headers. Do not add public or broad ranges to the explicit CIDR setting.
 
@@ -52,3 +52,4 @@ The service returns `429 Too Many Requests`, `Retry-After`, and standard `RateLi
 3. Inspect the reverse proxy and application logs for the targeted paths, countries/ASNs, response status, and origin-bypass attempts.
 4. If the database is under pressure, enable the portal maintenance setting while keeping trusted administrators and health checks available.
 5. After the event, remove temporary broad blocks, retain precise rules, and adjust the application limits only with observed traffic data.
+

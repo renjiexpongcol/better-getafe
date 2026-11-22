@@ -23,8 +23,8 @@ export function evaluateSessionIdlePolicy(metadata, { enabled = true, idleMinute
   };
 }
 
-export function assertSessionRegistryAvailable(ready, production = process.env.NODE_ENV === 'production') {
-  if (production && !ready) {
+export function assertSessionRegistryAvailable(ready) {
+  if (!ready) {
     const error = new Error('Session registry is unavailable.')
     error.code = 'AUTH_SESSION_REGISTRY_UNAVAILABLE'
     throw error
@@ -111,25 +111,10 @@ export function createSessionRegistry({ redis, redisKeys, isRedisReady, config, 
     const policy = config.get('authentication.concurrentSessionPolicy') || 'allow_multiple'
     if (!['allow_multiple', 'single_active'].includes(policy)) throw new Error('Invalid concurrent session policy.')
     const registryReady = isRedisReady()
-    try { assertSessionRegistryAvailable(registryReady, environment === 'production') }
+    try { assertSessionRegistryAvailable(registryReady) }
     catch (error) {
       console.error(JSON.stringify({ event: 'session_creation_failed', request_id: requestId || null, session_kind: session.kind, reason: 'registry_unavailable' }))
       throw error
-    }
-    if (!registryReady) {
-      let revoked = 0
-      if (policy === 'single_active') {
-        for (const [sid, value] of developmentSessions) {
-          if (value.userId === session.id && value.kind === session.kind) {
-            await putState(stateKey('revoked-session', sid), true, Math.max(1, Number(value.expiresAt) - now()))
-            developmentSessions.delete(sid)
-            revoked++
-          }
-        }
-      }
-      rememberDevelopmentSession(session.sid, metadata)
-      if (revoked > 0) logSessionEvent('session_revoked', requestId, session, 'single_active_policy')
-      return
     }
     const index = redisKeys.userSessions(session.kind, session.id)
     const sessionKey = redisKeys.session(session.sid)
@@ -144,6 +129,11 @@ export function createSessionRegistry({ redis, redisKeys, isRedisReady, config, 
       })
       const revoked = Number(result)
       if (!Number.isInteger(revoked) || revoked < 0) throw new Error('Session registry did not confirm the write.')
+      if (environment !== 'production' && policy === 'single_active') {
+        for (const [sid, value] of developmentSessions) {
+          if (sid !== session.sid && value.userId === session.id && value.kind === session.kind) developmentSessions.delete(sid)
+        }
+      }
       if (revoked > 0) logSessionEvent('session_revoked', requestId, session, 'single_active_policy')
     } catch (error) {
       console.error(JSON.stringify({ event: 'session_creation_failed', request_id: requestId || null, session_kind: session.kind, reason: 'registry_unavailable' }))
@@ -161,7 +151,7 @@ export function createSessionRegistry({ redis, redisKeys, isRedisReady, config, 
     }
     if (touch) logSessionEvent('session_renewal_started', requestId, session)
     const registryReady = isRedisReady()
-    try { assertSessionRegistryAvailable(registryReady, environment === 'production') }
+    try { assertSessionRegistryAvailable(registryReady) }
     catch (error) {
       if (touch) logSessionEvent('session_renewal_failed', requestId, session, 'registry_unavailable')
       throw error
@@ -182,24 +172,10 @@ export function createSessionRegistry({ redis, redisKeys, isRedisReady, config, 
       throw error
     }
     const idlePolicy = { enabled: config.get('authentication.sessionIdleEnabled') !== false, idleMinutes: config.get('authentication.sessionIdleMinutes') }
-    if (!registryReady) {
-      const metadata = developmentSessions.get(session.sid) || { lastActivityAt: session.iat, expiresAt: session.exp }
-      const idle = evaluateSessionIdlePolicy(metadata, idlePolicy, { touch, now: now() })
-      if (idle.expired) {
-        developmentSessions.delete(session.sid)
-        await putState(stateKey('revoked-session', session.sid), true, Math.max(1, session.exp - now()))
-        logSessionEvent('session_expired', requestId, session, 'idle_timeout')
-        if (touch) logSessionEvent('session_renewal_failed', requestId, session, 'expired')
-        return true
-      }
-      rememberDevelopmentSession(session.sid, { ...metadata, lastActivityAt: idle.lastActivityAt, idleTimeoutEnabled: idle.idleTimeoutEnabled })
-      session.idleExpiresAt = idle.expiresAt
-      if (touch) logSessionEvent('session_renewal_committed', requestId, session)
-      return false
-    }
+    const localSession = environment !== 'production' ? developmentSessions.get(session.sid) : null
     const key = redisKeys.session(session.sid)
     try {
-      const local = environment !== 'production' ? developmentSessions.get(session.sid) : null
+      const local = localSession
       const currentTime = now()
       const recoveredActivity = local?.expiresAt === session.exp && Number(local.lastActivityAt) > 0 ? Number(local.lastActivityAt) : 0
       const result = await redis.eval(validateRedisSessionScript, {

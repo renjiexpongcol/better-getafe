@@ -37,6 +37,9 @@ export function connectionFailure(error) {
 
 function databaseCheckError(error) {
   const failure = new Error(connectionFailure(error));
+  const rootCode = error?.code || error?.cause?.code;
+  if (rootCode && /^[A-Z0-9_]{2,48}$/.test(String(rootCode))) failure.code = String(rootCode);
+  failure.cause = error;
   failure.retryable = ['ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETUNREACH', 'ETIMEDOUT', 'ECONNRESET', '57P03', '53300'].includes(error?.code)
     || /^(timeout expired|query read timeout|timeout exceeded when trying to connect|connection terminated due to connection timeout)$/i.test(error?.message || '');
   return failure;
@@ -192,5 +195,6 @@ export async function ensureSupabaseConfigured({
 }
 
 export async function loadLocalEnvironment(envFile = localEnvPath) {
+  dotenv.config({ path: path.join(ROOT, '.env.development.local'), quiet: true });
   dotenv.config({ path: envFile, quiet: true });
 }

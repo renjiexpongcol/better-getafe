@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext'
 import { ResidentPreferencesProvider } from './context/ResidentPreferencesContext'
 const Header = lazy(() => import('./components/Header'))
 const Footer = lazy(() => import('./components/Footer'))
+const ResidentAiAssistant = lazy(() => import('./components/ResidentAiAssistant'))
 import PageTitleManager from './components/PageTitleManager'
 import { PublicConfigProvider } from './context/PublicConfig'
 import { usePublicConfig } from './context/PublicConfig'
@@ -273,6 +274,7 @@ function AppContent({ auth = { user: null, loading: false } }) {
           </Routes>}
         </RouteLayout>
         {!isAuthPage && !isCitizenDashboard && <BackToTop />}
+        {isPublicPage && !maintenance && !location.pathname.startsWith('/errors') && <Suspense fallback={null}><ResidentAiAssistant /></Suspense>}
         {isPublicPage && <Suspense fallback={null}><Footer /></Suspense>}
         </>}
         {isPublicPage && !maintenance && !location.pathname.startsWith('/errors') && <CookieCacheBanner />}

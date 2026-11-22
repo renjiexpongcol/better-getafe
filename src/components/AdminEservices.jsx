@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { esApi, useEservice, Feedback, label, money } from "./EserviceUI";
 import { invalidateCached } from "../services/requestCache";
 import StaffDepartmentAccess from "./StaffDepartmentAccess";
+import AiContentStudio from './AiContentStudio';
 import { APPLICATION_STEPS, REQUEST_STATUSES } from "../data/eserviceWorkflow";
 import { PROFILE_SOURCES } from '../data/serviceApplication';
 import { BILLING_STEPS,WORKFLOW_TYPES,PAYMENT_METHODS } from '../data/businessBillingWorkflow';
@@ -48,6 +49,7 @@ export default function AdminEservices() {
     [published, setPublished] = useState(""),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
+  const serviceContentRef = useRef(null);
   const [category, setCategory] = useState(""),
     [categorySlug, setCategorySlug] = useState("");
   const [savedPublished, setSavedPublished] = useState(false);
@@ -376,6 +378,7 @@ export default function AdminEservices() {
             <fieldset className="esc-fields" disabled={busy || !canManage}>
           {tab === "General" && (
             <div className="es-form">
+              {user?.permissions?.includes('ai.content.generate') && edit && <AiContentStudio form={{ title: edit.name || '', slug: edit.slug || '', excerpt: edit.short_description || '', content: edit.description || '' }} setForm={update => setEdit(current => { const next = typeof update === 'function' ? update({ title: current.name || '', slug: current.slug || '', excerpt: current.short_description || '', content: current.description || '' }) : update; return { ...current, name: next.title, slug: next.slug, short_description: next.excerpt, description: next.content, ai_generation_id: next.ai_generation_id || current.ai_generation_id } })} contentRef={serviceContentRef} contentType="municipal service description" canGenerate={user?.permissions?.includes('ai.content.generate')} canTranslate={user?.permissions?.includes('ai.content.translate')} />}
               {input("name", "Name")}
               {input("slug", "Slug")}
               {select(
@@ -409,6 +412,7 @@ export default function AdminEservices() {
               <label>
                 Description
                 <textarea
+                  ref={serviceContentRef}
                   value={edit.description || ""}
                   onChange={(e) => patch("description", e.target.value)}
                 />

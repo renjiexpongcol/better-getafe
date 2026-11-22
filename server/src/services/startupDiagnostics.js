@@ -1,7 +1,7 @@
 // Only allow-listed error metadata is logged. Never copy arbitrary driver
 // messages, URLs, stacks, or configuration values into dependency reports.
 export function dependencyReason(error) {
-  const cause = error?.cause || error
+  const cause = error?.cause || error?.originalError || error
   const code = /^[A-Z0-9_]{2,64}$/.test(cause?.code || '') ? cause.code : 'DEPENDENCY_ERROR'
   const status = Number(cause?.$metadata?.httpStatusCode || cause?.statusCode || cause?.status || 0)
   if (status === 401 || status === 403) return `${code}: Permission denied by dependency`

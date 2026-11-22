@@ -40,6 +40,7 @@ export async function aiOverview() {
     WHERE created_at >= date_trunc('month', CURRENT_TIMESTAMP)
   `);
   const [recentRows] = await pool.execute('SELECT id, module_key, status, model, duration_ms, error_code, created_at FROM ai_usage_events ORDER BY created_at DESC LIMIT 20');
+  const [auditRows] = await pool.execute('SELECT id, user_id, action, module_key, details, ip_address, created_at FROM ai_audit_logs ORDER BY created_at DESC LIMIT 50');
   const settings = settingsRows[0] || { enabled: false, default_model: 'gpt-4.1-mini', monthly_budget_usd: 0 };
   const provider = providerRows[0] || { status: 'not_configured', status_detail: null };
   const modules = Object.fromEntries(AI_MODULE_KEYS.map(key => {
@@ -55,6 +56,7 @@ export async function aiOverview() {
     modules,
     usage: usageRows[0] || {},
     recentRequests: recentRows,
+    auditLogs: auditRows,
   };
 }
 
@@ -76,17 +78,19 @@ export async function updateAiSettings({ enabled, defaultModel, monthlyBudgetUsd
 export async function updateAiModule(moduleKey, { enabled, model, configuration }, actor) {
   if (!AI_MODULE_KEYS.includes(moduleKey)) throw Object.assign(new Error('Unknown AI module.'), { status: 404 });
   const pool = await getCmsPool();
+  const safeConfiguration = configuration && typeof configuration === 'object' && !Array.isArray(configuration) ? configuration : {};
+  if (JSON.stringify(safeConfiguration).length > 12000) throw Object.assign(new Error('Module settings are too large.'), { status: 422 });
   await pool.execute(
     `UPDATE ai_modules SET enabled = ?, model = NULLIF(?, ''), configuration = ?::jsonb, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE module_key = ?`,
-    [Boolean(enabled), String(model || '').trim(), JSON.stringify(configuration && typeof configuration === 'object' ? configuration : {}), actor.id, moduleKey],
+    [Boolean(enabled), String(model || '').trim(), JSON.stringify(safeConfiguration), actor.id, moduleKey],
   );
   await pool.execute(
     `INSERT INTO ai_audit_logs (id, user_id, action, module_key, details, ip_address) VALUES (?, ?, 'ai.module.update', ?, ?::jsonb, ?)`,
-    [crypto.randomUUID(), actor.id, moduleKey, JSON.stringify({ enabled: Boolean(enabled), model: model || null }), actor.ip || ''],
+    [crypto.randomUUID(), actor.id, moduleKey, JSON.stringify({ enabled: Boolean(enabled), model: model || null, configuration: safeConfiguration }), actor.ip || ''],
   );
 }
 
-export async function generateCmsContent({ action, tone, facts, selectedText, title, excerpt, targetLanguage }, actor) {
+export async function generateCmsContent({ action, tone, facts, selectedText, title, excerpt, targetLanguage, contentType }, actor) {
   const allowlisted = new Set(['draft', 'titles', 'excerpt', 'improve', 'rewrite', 'expand', 'shorten', 'readability', 'bullets', 'seo', 'slug', 'translate', 'summary', 'faq', 'caption']);
   if (!allowlisted.has(action)) throw Object.assign(new Error('Unknown content action.'), { status: 422 });
   const moduleKey = action === 'translate' ? 'translation' : ['improve', 'rewrite', 'expand', 'shorten', 'readability', 'bullets'].includes(action) ? 'writing_assistant' : 'cms_content';
@@ -101,13 +105,14 @@ export async function generateCmsContent({ action, tone, facts, selectedText, ti
   const safeText = String(selectedText || '').slice(0, 12000);
   const safeTitle = String(title || '').slice(0, 500);
   const safeExcerpt = String(excerpt || '').slice(0, 2000);
+  const safeContentType = String(contentType || 'municipal content').slice(0, 80);
   const start = Date.now();
   try {
     const client = new OpenAI({ apiKey: key, timeout: 30000, maxRetries: 1 });
     const response = await client.responses.create({
       model,
-      instructions: `You are a municipal CMS writing assistant. Never invent facts, dates, figures, quotations, officials, sponsors, fees, deadlines, or requirements. If information is missing, omit it. Use ${tone || 'Formal Government'} tone. Return only the requested structured fields. Use HTML-safe paragraphs and lists for content fields. Preserve the meaning and official names. Public text must not present AI output as an official decision.`,
-      input: JSON.stringify({ action, targetLanguage: targetLanguage || 'English', facts: safeFacts, selectedText: safeText, title: safeTitle, excerpt: safeExcerpt }),
+      instructions: `You are a municipal CMS writing assistant for ${safeContentType}. Never invent facts, dates, figures, quotations, officials, sponsors, fees, deadlines, requirements, services, or policies. Use only the facts and selected text supplied by the authorized employee. If information is missing, omit it or mark it as needing staff verification. Use ${tone || 'Formal Government'} tone. Return only the requested structured fields. Use safe HTML paragraphs and lists for content fields. Preserve official names, legal references, and meaning. Public text must not present AI output as an official decision. Keep generated material as an unpublished draft for a human editor.`,
+      input: JSON.stringify({ action, contentType: safeContentType, targetLanguage: targetLanguage || 'English', facts: safeFacts, selectedText: safeText, title: safeTitle, excerpt: safeExcerpt }),
       max_output_tokens: 2500,
       text: {
         format: {

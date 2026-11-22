@@ -22,9 +22,9 @@ const ACTIONS = [
   ['caption', 'Social caption'],
 ]
 
-export default function AiContentStudio({ form, setForm, contentRef, canGenerate, canTranslate }) {
+export default function AiContentStudio({ form, setForm, contentRef, canGenerate, canTranslate, contentType = 'municipal content', onFaqSuggestions, defaultAction = 'draft', allowedActions }) {
   const [open, setOpen] = useState(false)
-  const [action, setAction] = useState('draft')
+  const [action, setAction] = useState(defaultAction)
   const [tone, setTone] = useState('Formal Government')
   const [facts, setFacts] = useState('')
   const [targetLanguage, setTargetLanguage] = useState('English')
@@ -65,6 +65,7 @@ export default function AiContentStudio({ form, setForm, contentRef, canGenerate
           title: form.title,
           excerpt: form.excerpt,
           targetLanguage,
+          contentType,
         }),
       })
       const body = await response.json().catch(() => ({}))
@@ -85,6 +86,8 @@ export default function AiContentStudio({ form, setForm, contentRef, canGenerate
 
   const appendContent = value => setForm(current => ({ ...current, ai_generation_id: result.generationId || current.ai_generation_id || '', content: `${current.content || ''}${current.content ? '\n' : ''}${value}` }))
   const insertDraft = () => {
+    const overwrites = ['title', 'slug', 'excerpt', 'content'].filter(key => result[key] && form[key] && String(result[key]) !== String(form[key]))
+    if (overwrites.length && !window.confirm(`Replace the existing ${overwrites.join(', ')} field${overwrites.length === 1 ? '' : 's'} with this generated draft? Your current editor autosave history will remain available.`)) return
     setForm(current => ({
       ...current,
       title: result.title || current.title,
@@ -95,13 +98,15 @@ export default function AiContentStudio({ form, setForm, contentRef, canGenerate
     }))
   }
   const insertOutput = () => {
-    if (action === 'titles') return setForm(current => ({ ...current, ai_generation_id: result.generationId || current.ai_generation_id || '', title: result.output || result.title || current.title }))
-    if (action === 'excerpt') return setForm(current => ({ ...current, ai_generation_id: result.generationId || current.ai_generation_id || '', excerpt: result.output || result.excerpt || current.excerpt }))
-    if (action === 'slug') return setForm(current => ({ ...current, ai_generation_id: result.generationId || current.ai_generation_id || '', slug: result.slug || result.output || current.slug }))
+    if (action === 'faq' && onFaqSuggestions) { onFaqSuggestions(result.faq || []); return }
+    if (action === 'titles') { if (form.title && !window.confirm('Replace the existing title with this suggestion?')) return; return setForm(current => ({ ...current, ai_generation_id: result.generationId || current.ai_generation_id || '', title: result.output || result.title || current.title })) }
+    if (action === 'excerpt') { if (form.excerpt && !window.confirm('Replace the existing excerpt with this suggestion?')) return; return setForm(current => ({ ...current, ai_generation_id: result.generationId || current.ai_generation_id || '', excerpt: result.output || result.excerpt || current.excerpt })) }
+    if (action === 'slug') { if (form.slug && !window.confirm('Replace the existing URL slug with this suggestion?')) return; return setForm(current => ({ ...current, ai_generation_id: result.generationId || current.ai_generation_id || '', slug: result.slug || result.output || current.slug })) }
     appendContent(result.output || result.content || result.summary || '')
   }
   const replaceSelected = () => {
     if (!selection.text) return
+    if (!window.confirm('Replace the selected text with the AI result?')) return
     const value = result.output || result.content || ''
     setForm(current => ({
       ...current,
@@ -118,7 +123,7 @@ export default function AiContentStudio({ form, setForm, contentRef, canGenerate
       {open && <ModalDialog onClose={() => setOpen(false)} label="AI Content Studio" size="large" themeClass="ai-content-modal">
         <div className="ai-content-studio">
           <aside className="ai-content-controls">
-            <label>Action<select value={action} onChange={event => { setAction(event.target.value); setResult(null) }}>{ACTIONS.filter(([key]) => key !== 'translate' || canTranslate).filter(([key]) => key === 'translate' || canGenerate).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+            <label>Action<select value={action} onChange={event => { setAction(event.target.value); setResult(null) }}>{ACTIONS.filter(([key]) => !allowedActions || allowedActions.includes(key)).filter(([key]) => key !== 'translate' || canTranslate).filter(([key]) => key === 'translate' || canGenerate).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
             <label>Writing tone<select value={tone} onChange={event => setTone(event.target.value)}><option>Formal Government</option><option>Professional</option><option>Community-Friendly</option><option>Informative</option><option>Emergency Advisory</option><option>Public Announcement</option><option>Social Media</option></select></label>
             {action === 'translate' && <label>Target language<select value={targetLanguage} onChange={event => setTargetLanguage(event.target.value)}><option>English</option><option>Filipino / Tagalog</option><option>Cebuano / Bisaya</option></select></label>}
             <label>Verified details<textarea ref={factsRef} value={facts} maxLength={12000} onChange={event => setFacts(event.target.value)} placeholder="Enter only verified names, dates, locations, steps and source facts." /></label>
@@ -127,16 +132,17 @@ export default function AiContentStudio({ form, setForm, contentRef, canGenerate
           </aside>
           <div className="ai-content-preview" aria-live="polite">
             {error && <div className="ai-content-error" role="alert">{error}</div>}
-            {!result && !error && <div className="ai-content-empty"><WandSparkles size={28}/><p>Review the result before adding it to the draft.</p></div>}
+            {!result && !error && <div className="ai-content-empty"><WandSparkles size={28}/><p>Review the {contentType} result before adding it to the draft. AI output is never published automatically.</p></div>}
             {result && <>
               <div className="ai-content-result">
                 {result.title && <div><small>Title</small><h3>{result.title}</h3></div>}
                 {result.excerpt && <div><small>Excerpt</small><p>{result.excerpt}</p></div>}
                 {(result.output || result.summary || result.caption) && <div><small>Result</small><p>{result.output || result.summary || result.caption}</p></div>}
                 {result.content && <div><small>Article content</small><div className="ai-content-html" dangerouslySetInnerHTML={{ __html: result.content }} /></div>}
+                {result.faq?.length > 0 && <div><small>Suggested FAQ questions</small><ul>{result.faq.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ul></div>}
               </div>
               <div className="ai-content-actions">
-                {action === 'draft' ? <button type="button" onClick={insertDraft}><Check size={15}/>Insert draft</button> : <button type="button" onClick={insertOutput}>Insert output</button>}
+                {action === 'draft' ? <button type="button" onClick={insertDraft}><Check size={15}/>Insert draft</button> : <button type="button" onClick={insertOutput}>{action === 'faq' && onFaqSuggestions ? 'Add FAQ suggestions' : 'Insert output'}</button>}
                 {selection.text && <button type="button" disabled={!result.output && !result.content} onClick={replaceSelected}>Replace selected text</button>}
                 <button type="button" onClick={() => appendContent(result.output || result.content || result.summary || '')}>Append</button>
                 <button type="button" onClick={copy}>{copied ? <Check size={15}/> : <Copy size={15}/>}{copied ? 'Copied' : 'Copy'}</button>

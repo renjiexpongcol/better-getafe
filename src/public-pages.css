@@ -135,6 +135,17 @@ html:not([data-focus-modality="pointer"]) .site-search-toolbar .site-search-bar:
   border: 0;
   background: var(--color-border);
 }
+.site-search-ai-summary { margin: 0 0 18px; padding: 16px 18px; border: 1px solid #c9d7ec; border-radius: 12px; background: linear-gradient(135deg, #f6f9ff, #fff); }
+.site-search-method { margin: -10px 0 12px; color: #52657f; font-size: .82rem; }
+.site-search-ai-summary h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; color: #234b83; font-size: 1rem; }
+.site-search-ai-summary p { margin: 0 0 8px; line-height: 1.55; }
+.site-search-ai-summary small { color: var(--color-text-secondary); }
+.site-search-ai-summary nav,.site-search-ai-suggestions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.site-search-ai-summary nav a,.site-search-ai-suggestions button { border: 1px solid #c9d7ec; border-radius: 999px; padding: 5px 10px; background: #fff; color: #24548f; font-size: .85rem; text-decoration: none; }
+.site-search-ai-suggestions { margin: 0 0 18px; }
+.site-search-ai-suggestions span { color: var(--color-text-secondary); font-size: .88rem; }
+.site-search-ai-suggestions button { cursor: pointer; }
+.site-search-ai-suggestions button:hover,.site-search-ai-summary nav a:hover { background: #eef4fd; }
 .site-search-page .service-directory-result-count {
   max-inline-size: min(100%, 80ch);
   overflow: hidden;

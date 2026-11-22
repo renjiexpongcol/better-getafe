@@ -1,5 +1,7 @@
 import { managedContentRepository } from '../repositories/managedContentRepository.js'
 import { sanitizeRichText } from './sanitizeHtml.js'
+import { getCmsPool } from './database.js'
+import crypto from 'node:crypto'
 
 const kinds = new Set(['page','hotlines','navigation','actions','home','help'])
 const keyPattern = /^[a-z0-9][a-z0-9-]{0,119}$/
@@ -86,6 +88,20 @@ export function registerManagedContentRoutes(app, { admin, permission, repositor
     } catch (error) { error.status = 422; throw error }
     const actorId = req.admin?.id
     if (!actorId) return res.status(403).json({ error: 'An authenticated editor is required.' })
-    res.json({ item: await repository.save(req.params.key, data, actorId) })
+    const item = await repository.save(req.params.key, data, actorId)
+    const pool = await getCmsPool()
+    const generatedId = String(req.body?.ai_generation_id || '')
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(generatedId)
+    const sourceRef = `managed:${req.params.key}`
+    let publishedGeneration = false
+    if (isUuid) {
+      const [linked] = await pool.execute(`UPDATE ai_content_generations SET published_article_id=?,reviewed_at=COALESCE(reviewed_at,CURRENT_TIMESTAMP),publication_status=CASE WHEN ? THEN 'published' ELSE 'pending_review' END,published_at=CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE NULL END WHERE id=? AND user_id=? RETURNING id`, [sourceRef, data.published, data.published, generatedId, actorId])
+      publishedGeneration = data.published && linked.length > 0
+    } else if (data.published) {
+      const [linked] = await pool.execute(`UPDATE ai_content_generations SET publication_status='published',reviewed_at=COALESCE(reviewed_at,CURRENT_TIMESTAMP),published_at=CURRENT_TIMESTAMP WHERE published_article_id=? AND publication_status<>'published' RETURNING id`, [sourceRef])
+      publishedGeneration = linked.length > 0
+    }
+    if (publishedGeneration) await pool.execute(`INSERT INTO ai_audit_logs (id,user_id,action,module_key,details,ip_address) VALUES (?,?,'ai.content.published',NULL,?::jsonb,?)`, [crypto.randomUUID(), actorId, JSON.stringify({ source: 'managed_public_content', contentKey: req.params.key, generationId: generatedId || null }), req.ip || ''])
+    res.json({ item })
   }))
 }

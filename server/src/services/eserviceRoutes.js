@@ -25,6 +25,21 @@ import { getCmsPool } from "./database.js";
 import { getMediaByStoragePath } from "../repositories/mediaRepository.js";
 import { createDownloadUrl } from "./storage.js";
 
+async function auditAiServicePublication(poolProvider, req, service, fallbackId = null) {
+  const generationId = String(req.body?.ai_generation_id || '')
+  const serviceId = String(service?.id || fallbackId || '')
+  if (!serviceId) return
+  const published = Boolean(service?.published)
+  const pool = await poolProvider()
+  let rows = []
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(generationId)) {
+    [rows] = await pool.execute(`UPDATE ai_content_generations SET published_article_id=?,reviewed_at=COALESCE(reviewed_at,CURRENT_TIMESTAMP),publication_status=CASE WHEN ? THEN 'published' ELSE 'pending_review' END,published_at=CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE NULL END WHERE id=? AND user_id=? RETURNING id`, [`service:${serviceId}`, published, published, generationId, req.admin?.id])
+  } else if (published) {
+    [rows] = await pool.execute(`UPDATE ai_content_generations SET publication_status='published',reviewed_at=COALESCE(reviewed_at,CURRENT_TIMESTAMP),published_at=CURRENT_TIMESTAMP WHERE published_article_id=? AND publication_status<>'published' RETURNING id`, [`service:${serviceId}`])
+  }
+  if (published && rows.length) await pool.execute(`INSERT INTO ai_audit_logs (id,user_id,action,module_key,details,ip_address) VALUES (?,?,'ai.content.published',NULL,?::jsonb,?)`, [crypto.randomUUID(), req.admin.id, JSON.stringify({ source: 'municipal_service', serviceId, generationId: generationId || rows[0].id }), req.ip || ''])
+}
+
 export function installEserviceRoutes(
   app,
   {
@@ -630,27 +645,21 @@ export function installEserviceRoutes(
   app.post(
     "/api/admin/services",
     admin,
-    handle(async (req, res) =>
-      res
-        .status(201)
-        .json(
-          await engine.saveService(req.admin, validateProvider(req.body), null, req.requestId),
-        ),
-    ),
+    handle(async (req, res) => {
+      const saved = await engine.saveService(req.admin, validateProvider(req.body), null, req.requestId)
+      await auditAiServicePublication(cmsPool, req, saved)
+      res.status(201).json(saved)
+    }),
   );
   app.put(
     "/api/admin/services/:id",
     admin,
-    handle(async (req, res) =>
-      res.json(
-        await engine.saveService(
-          req.admin,
-          validateProvider(req.body),
-          uuid(req.params.id),
-          req.requestId,
-        ),
-      ),
-    ),
+    handle(async (req, res) => {
+      const id = uuid(req.params.id)
+      const saved = await engine.saveService(req.admin, validateProvider(req.body), id, req.requestId)
+      await auditAiServicePublication(cmsPool, req, saved, id)
+      res.json(saved)
+    }),
   );
   app.get(
     "/api/admin/service-categories",

@@ -1,6 +1,7 @@
 import { buildDatabase, activateDatabase, discardDatabase } from './database.js';
 import { buildStorage, activateStorage, getVerifiedAzureStatus, storageHealth } from './storage.js';
 import { buildEmail, activateEmail } from './email.js';
+import { config } from '../config/index.js';
 import { dependencyReason } from './startupDiagnostics.js';
 import { storageJournalUnavailable } from './storageSelection.js';
 export const systemStatus = {};
@@ -51,6 +52,13 @@ export async function prepareRuntime(values, previous, context = {}) {
       const start = Date.now();
       const requestedProvider = storageValues['storage.provider'] || 'unknown';
       const providerLabel = requestedProvider === 'backblaze' ? 'backblaze-b2' : requestedProvider;
+      const azureAuthentication = requestedProvider === 'azure' ? storageValues['storage.azureAuthentication'] : null;
+      const credentialSource = requestedProvider !== 'azure' ? null
+        : azureAuthentication === 'managed-identity' ? 'managed-identity'
+          : storageValues['storage.azureConnectionString']
+            ? (config.sources?.['storage.azureConnectionString'] === 'environment' ? 'environment' : 'saved-setting')
+            : 'missing';
+      console.info(JSON.stringify({ event: 'storage_provider_selected', provider: providerLabel, provider_source: config.sources?.['storage.provider'] || 'runtime', authentication: azureAuthentication, credential_source: credentialSource, migration_verified: Boolean(verifiedCutover) }));
       console.info(`[Storage] Selected provider: ${providerLabel}; verifying connection`);
       let storage;
       try { storage = await buildStorage(storageValues, { allowUnavailable: !context.actor, startupCheck: true, verifiedCutover }); }

@@ -2,6 +2,12 @@ import { config } from '../config/index.js';
 import { contactAcknowledgementTemplate } from '../email/templates/contactAcknowledgement.js';
 import { dependencyReason } from './startupDiagnostics.js';
 let transport;
+const smtpFailure = error => ({
+  code: String(error?.code || error?.name || 'SMTP_CONNECTION_ERROR').slice(0, 48),
+  cause_code: String(error?.cause?.code || error?.originalError?.code || error?.errno || '').slice(0, 48) || null,
+  command: String(error?.command || '').slice(0, 24) || null,
+  reason: dependencyReason(error),
+});
 export async function buildEmail(values, { allowUnavailable = false } = {}) {
   if (!values['email.enabled']) return null;
   if (!values['email.smtpHost'] || !values['email.senderEmail']) throw new Error('SMTP host and sender email are required.');
@@ -11,7 +17,7 @@ export async function buildEmail(values, { allowUnavailable = false } = {}) {
   try { await candidate.verify(); return candidate; }
   catch (error) {
     if (allowUnavailable) {
-      console.error(JSON.stringify({ event: 'smtp_startup_degraded', code: error.code || error.name }));
+      console.error(JSON.stringify({ event: 'smtp_startup_degraded', pid: process.pid, ...smtpFailure(error) }));
       candidate.degraded = true;
       candidate.failureReason = dependencyReason(error);
       return candidate;
@@ -21,13 +27,24 @@ export async function buildEmail(values, { allowUnavailable = false } = {}) {
 }
 export function activateEmail(value) { const previous = transport; transport = value; previous?.close(); }
 export function emailHealth() { return { status: !transport ? 'disabled' : transport.degraded ? 'degraded' : 'healthy', reason: transport?.degraded ? transport.failureReason : undefined }; }
-let nextVerification = 0, verifying;
+let nextVerification = 0, verifying, verificationFailures = 0, lastVerificationLogAt = 0;
 export function retryEmailVerification() {
   if (!transport?.degraded || verifying || Date.now() < nextVerification) return;
   const candidate = transport;
   nextVerification = Date.now() + 60000;
-  verifying = candidate.verify().then(() => { candidate.degraded = false; })
-    .catch(error => { candidate.failureReason = dependencyReason(error); })
+  verifying = candidate.verify().then(() => {
+    candidate.degraded = false;
+    verificationFailures = 0;
+    console.info(JSON.stringify({ event: 'smtp_recovered', pid: process.pid }));
+  })
+    .catch(error => {
+      candidate.failureReason = dependencyReason(error);
+      verificationFailures++;
+      if (Date.now() - lastVerificationLogAt >= 300000) {
+        console.warn(JSON.stringify({ event: 'smtp_retry_failed', pid: process.pid, retry_count: verificationFailures, next_retry_ms: 60000, ...smtpFailure(error) }));
+        lastVerificationLogAt = Date.now();
+      }
+    })
     .finally(() => { verifying = undefined; });
 }
 export async function sendEmail(to, subject, text, candidate = transport, values = config.values, attachments = [], html = undefined) {

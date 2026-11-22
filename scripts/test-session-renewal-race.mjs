@@ -186,6 +186,50 @@ test('parallel renewals serialize on the current Redis deadline', async () => {
   assert.equal(JSON.parse(registryRecord).lastActivityAt, start + 2_000)
 })
 
+test('session checks fail closed while Redis is down and validate the persisted session after recovery', async () => {
+  const start = Date.now()
+  let now = start
+  let redisReady = false
+  const developmentSessions = new Map()
+  const revoked = new Set()
+  let registryRecord = JSON.stringify({ lastActivityAt: start, idleTimeoutEnabled: true })
+  const registry = createSessionRegistry({
+    redis: { eval: async (_script, { arguments: args }) => {
+      const [timestamp, enabledValue, idleMinutesValue, touchValue] = args
+      const metadata = JSON.parse(registryRecord)
+      const checkedAt = Number(timestamp)
+      const enabled = enabledValue === '1'
+      const lastActivityAt = touchValue === '1' ? checkedAt : metadata.lastActivityAt
+      if (enabled && checkedAt >= lastActivityAt + Number(idleMinutesValue) * 60_000) return [0, 0]
+      metadata.lastActivityAt = lastActivityAt
+      registryRecord = JSON.stringify(metadata)
+      return [1, String(enabled ? lastActivityAt + Number(idleMinutesValue) * 60_000 : 0), String(lastActivityAt)]
+    } },
+    redisKeys: { session: id => `session:${id}`, userSessions: () => 'user-sessions', userSessionKeys: () => 'session-keys' },
+    isRedisReady: () => redisReady,
+    config: { get: key => key === 'authentication.sessionIdleEnabled' ? true : 5 },
+    readState: async key => revoked.has(key),
+    putState: async key => revoked.add(key),
+    stateKey: (type, id) => `${type}:${id}`,
+    developmentSessions,
+    environment: 'development',
+    now: () => now,
+  })
+  const session = { id: 'resident-1', sid: 'session-fallback', signature: 'signature', kind: 'portal', role: 'resident', iat: start, exp: start + 3_600_000 }
+
+  await assert.rejects(registry.tokenIsRevoked({ ...session }, { touch: true }), error => error.code === 'AUTH_SESSION_REGISTRY_UNAVAILABLE')
+  assert.equal(developmentSessions.size, 0, 'session credentials are never accepted from an in-memory fallback')
+
+  now = start + 30_000
+  redisReady = true
+  const afterRecovery = { ...session }
+  assert.equal(await registry.tokenIsRevoked(afterRecovery), false)
+  assert.equal(afterRecovery.idleExpiresAt, start + 5 * 60_000)
+
+  now = start + 5 * 60_000
+  assert.equal(await registry.tokenIsRevoked({ ...session }), true, 'the local idle deadline remains enforced after Redis recovers')
+})
+
 test('single-active sign-in atomically replaces prior sessions while multiple-session policy preserves them', async () => {
   const records = new Map()
   const indexes = new Map()

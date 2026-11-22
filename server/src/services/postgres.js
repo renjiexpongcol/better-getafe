@@ -47,6 +47,8 @@ export function getPostgresConnectionVariable() {
 }
 
 export function getSupabaseDatabaseUrl(env = process.env) {
+  const integrated = String(env.MY_PREFIX_POSTGRES_URL_NON_POOLING || '').trim();
+  if (integrated) return { url: integrated, variable: 'MY_PREFIX_POSTGRES_URL_NON_POOLING' };
   const canonical = String(env.CMS_SUPABASE_DATABASE_URL || '').trim();
   if (canonical) return { url: canonical, variable: 'CMS_SUPABASE_DATABASE_URL' };
   const legacy = String(env.SUPABASE_DATABASE_URL || '').trim();

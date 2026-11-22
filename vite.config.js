@@ -26,6 +26,11 @@ const backendProxy = () => ({
 // https://vitejs.dev/config/
 
 export default defineConfig({
+  // Expose only the integration's publishable browser values, never its server credentials.
+  define: {
+    'import.meta.env.MY_PREFIX_VITE_SUPABASE_URLSUPABASE_URL': JSON.stringify(process.env.MY_PREFIX_VITE_SUPABASE_URLSUPABASE_URL || ''),
+    'import.meta.env.MY_PREFIX_VITE_SUPABASE_URLSUPABASE_PUBLISHABLE_KEY': JSON.stringify(process.env.MY_PREFIX_VITE_SUPABASE_URLSUPABASE_PUBLISHABLE_KEY || ''),
+  },
   customLogger: logger,
   plugins: [react()],
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Search as SearchIcon } from 'lucide-react'
+import { ArrowRight, Search as SearchIcon, Sparkles } from 'lucide-react'
 import { Button } from '@getafe/ui'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { publicRoutes } from '../../routes'
@@ -37,6 +37,7 @@ const matches = (query, value) => {
   const text = searchText(value)
   return words.every(word => text.includes(word))
 }
+const matchesAny = (queries, value) => queries.some(item => matches(item, value))
 const records = value => Array.isArray(value) ? value : Array.isArray(value?.items) ? value.items : []
 const newsParams = (query, display) => new URLSearchParams({ search: query, display, public: 'true', page: '1', limit: '100' }).toString()
 
@@ -50,11 +51,14 @@ export default function Search() {
   const [suggestionsReady, setSuggestionsReady] = useState(false)
   const [suggestionsAvailable, setSuggestionsAvailable] = useState(false)
   const [data, setData] = useState(null)
+  const [aiAssist, setAiAssist] = useState(null)
+  const [aiAssistReady, setAiAssistReady] = useState(false)
   const [loading, setLoading] = useState(Boolean(query))
   const [searchError, setSearchError] = useState('')
   const [retry, setRetry] = useState(0)
   const completedSubmissionIds = useRef(new Set())
   const completedSubmissionPromises = useRef(new Map())
+  const pendingSearchClicks = useRef(new Map())
   const submission = location.state?.searchSubmission || null
 
   useEffect(() => { setDraft(query) }, [query, location.key])
@@ -69,6 +73,46 @@ export default function Search() {
 
   const topic = useMemo(() => resolveSearchTopic(query, suggestions), [query, suggestions])
   const effectiveQuery = topic?.canonicalQuery || query
+
+  useEffect(() => {
+    if (!query) { setAiAssist(null); setAiAssistReady(true); return undefined }
+    let active = true
+    setAiAssist(null)
+    setAiAssistReady(false)
+    requestJson('/api/ai/search/assist', { method: 'POST', body: JSON.stringify({ query: effectiveQuery }) })
+      .then(value => { if (active && value?.enabled === true) setAiAssist(value) })
+      .catch(() => {})
+      .finally(() => { if (active) setAiAssistReady(true) })
+    return () => { active = false }
+  }, [effectiveQuery, query, retry])
+
+  useEffect(() => {
+    const expansions = (aiAssist?.expandedQueries || []).slice(1, 3)
+    if (!data || !expansions.length) return undefined
+    let active = true
+    const requests = expansions.flatMap(term => [
+      publicApi(`/news?${newsParams(term, 'news')}`, { persist: false }),
+      publicApi(`/news?${newsParams(term, 'events')}`, { persist: false }),
+      publicData(`/datasets?${new URLSearchParams({ q: term, availability: 'all', sort: 'recommended', page: '1', pageSize: '100' })}`),
+    ])
+    Promise.allSettled(requests).then(results => {
+      if (!active) return
+      setData(current => {
+        if (!current || current.query !== query) return current
+        const news = [...current.news], events = [...current.events], datasets = [...current.datasets]
+        results.forEach((result, index) => {
+          if (result.status !== 'fulfilled') return
+          const slot = index % 3
+          if (slot === 0) news.push(...records(result.value))
+          else if (slot === 1) events.push(...records(result.value))
+          else datasets.push(...collection(apiData(result.value)))
+        })
+        const unique = items => [...new Map(items.map(item => [String(item.id || item.slug || item.dataset_id || item.code || item.title), item])).values()]
+        return { ...current, news: unique(news), events: unique(events), datasets: unique(datasets) }
+      })
+    })
+    return () => { active = false }
+  }, [aiAssist, data?.query, query])
 
   useEffect(() => {
     if (!query) { setData(null); setLoading(false); return undefined }
@@ -117,13 +161,14 @@ export default function Search() {
       category: route.folder === 'info' ? 'Information' : route.folder === 'services' ? 'Services' : route.folder === 'data' ? 'Open Data' : route.folder[0]?.toUpperCase() + route.folder.slice(1),
       searchable: `${route.title} ${route.path.replaceAll('/', ' ')} ${pageKeywords[route.path] || route.folder}`,
     }))
-    .filter(page => matches(effectiveQuery, page.searchable)), [effectiveQuery])
-  const serviceItems = (data?.services || []).filter(item => matches(effectiveQuery, `${item.name} ${item.short_description || ''} ${item.department_name || ''}`))
-  const officeItems = (data?.offices || []).filter(item => matches(effectiveQuery, `${item.name} ${item.shortDescription || ''} ${item.slug || ''}`))
-  const barangayItems = (data?.barangays || []).filter(item => matches(effectiveQuery, `${item.name} ${item.description || ''} ${item.slug || ''} ${item.captain || ''}`))
-  const newsItems = (data?.news || []).filter(item => matches(effectiveQuery, `${item.title} ${item.excerpt || ''} ${item.content || ''}`))
-  const eventItems = (data?.events || []).filter(item => matches(effectiveQuery, `${item.title} ${item.excerpt || ''} ${item.content || ''}`))
-  const datasetItems = (data?.datasets || []).filter(item => matches(effectiveQuery, `${label(item)} ${item.description || ''} ${item.topic || ''} ${item.coverage || ''}`))
+    .filter(page => matchesAny([...new Set([effectiveQuery, ...(aiAssist?.expandedQueries || [])])].slice(0, 6), page.searchable)), [aiAssist, effectiveQuery])
+  const matchQueries = [...new Set([effectiveQuery, ...(aiAssist?.expandedQueries || [])])].slice(0, 6)
+  const serviceItems = (data?.services || []).filter(item => matchesAny(matchQueries, `${item.name} ${item.short_description || ''} ${item.department_name || ''}`))
+  const officeItems = (data?.offices || []).filter(item => matchesAny(matchQueries, `${item.name} ${item.shortDescription || ''} ${item.slug || ''}`))
+  const barangayItems = (data?.barangays || []).filter(item => matchesAny(matchQueries, `${item.name} ${item.description || ''} ${item.slug || ''} ${item.captain || ''}`))
+  const newsItems = (data?.news || []).filter(item => matchesAny(matchQueries, `${item.title} ${item.excerpt || ''} ${item.content || ''}`))
+  const eventItems = (data?.events || []).filter(item => matchesAny(matchQueries, `${item.title} ${item.excerpt || ''} ${item.content || ''}`))
+  const datasetItems = (data?.datasets || []).filter(item => matchesAny(matchQueries, `${label(item)} ${item.description || ''} ${item.topic || ''} ${item.coverage || ''}`))
   const resultCount = pages.length + serviceItems.length + officeItems.length + barangayItems.length
     + Math.max(newsItems.length, data?.newsTotal || 0) + Math.max(eventItems.length, data?.eventsTotal || 0)
     + Math.max(datasetItems.length, data?.datasetTotal || 0)
@@ -139,22 +184,29 @@ export default function Search() {
   const datasetResults = indexedResults(datasetItems, 'dataset', item => item.id || item.dataset_id || item.code)
   const recordResultClick = (resultType, resultId, position) => () => {
     if (!submission?.submissionId || !shouldRecordSearchSubmission()) return
+    const click = {
+      submissionId: submission.submissionId,
+      topicId: submission.topicId || topic?.topicId || null,
+      source: ['chip', 'suggested'].includes(submission.source) ? submission.source : 'typed',
+      resultType,
+      resultId,
+      positionBucket: position === 1 ? '1' : position <= 3 ? '2-3' : position <= 10 ? '4-10' : '11+',
+    }
     const completion = completedSubmissionPromises.current.get(submission.submissionId)
-    if (!completion) return
+    if (!completion) {
+      const queued = pendingSearchClicks.current.get(submission.submissionId) || []
+      if (queued.length < 30) pendingSearchClicks.current.set(submission.submissionId, [...queued, click])
+      return
+    }
     void completion.then(accepted => {
       if (accepted) trackSearchResultClick({
-        submissionId: submission.submissionId,
-        topicId: submission.topicId || topic?.topicId || null,
-        source: submission.source === 'chip' ? 'chip' : 'typed',
-        resultType,
-        resultId,
-        positionBucket: position === 1 ? '1' : position <= 3 ? '2-3' : position <= 10 ? '4-10' : '11+',
+        ...click,
       })
     })
   }
 
   useEffect(() => {
-    if (!submission?.submissionId || !shouldRecordSearchSubmission() || !data?.sourceSucceeded || loading || !suggestionsReady || searchError) return
+    if (!submission?.submissionId || !shouldRecordSearchSubmission() || !data?.sourceSucceeded || loading || !suggestionsReady || !aiAssistReady || searchError) return
     if (completedSubmissionIds.current.has(submission.submissionId)) return
     completedSubmissionIds.current.add(submission.submissionId)
     const completion = requestJson('/api/search/complete', {
@@ -162,18 +214,26 @@ export default function Search() {
       body: JSON.stringify({
         submissionId: submission.submissionId,
         topicId: submission.topicId || topic?.topicId || null,
-        source: submission.source === 'chip' ? 'chip' : 'typed',
+        source: ['chip', 'suggested'].includes(submission.source) ? submission.source : 'typed',
+        searchMode: aiAssist?.mode || 'traditional',
         zeroResults: resultCount === 0,
       }),
     }).then(() => true).catch(() => false)
     completedSubmissionPromises.current.set(submission.submissionId, completion)
-  }, [data, loading, resultCount, searchError, submission, suggestionsReady, topic])
+    const queuedClicks = pendingSearchClicks.current.get(submission.submissionId) || []
+    pendingSearchClicks.current.delete(submission.submissionId)
+    for (const click of queuedClicks) void completion.then(accepted => { if (accepted) trackSearchResultClick(click) })
+  }, [aiAssist, aiAssistReady, data, loading, resultCount, searchError, submission, suggestionsReady, topic])
 
   const submitSearch = event => {
     event.preventDefault()
     const value = draft.trim().replace(/\s+/g, ' ')
     if (!value) return
     const resolved = makeSearchSubmission(value, suggestions, 'typed')
+    navigate(searchResultsPath(resolved.query), { state: { searchSubmission: resolved.submission } })
+  }
+  const searchSuggested = value => {
+    const resolved = makeSearchSubmission(value, suggestions, 'suggested')
     navigate(searchResultsPath(resolved.query), { state: { searchSubmission: resolved.submission } })
   }
 
@@ -198,6 +258,9 @@ export default function Search() {
       <hr className="site-search-divider" aria-hidden="true" />
       {!query ? <div className="service-directory-empty"><h2>What are you looking for?</h2><p>Search page names, services, permits, offices, barangay profiles, news, events, and public datasets.</p></div> : <>
         <p className="service-directory-result-count" role="status">{searchPending ? 'Searching public pages and listings…' : `${resultCount} ${resultCount === 1 ? 'result' : 'results'} for “${query}”`}</p>
+        {aiAssist && <p className="site-search-method" role="status">{aiAssist.mode === 'semantic' ? 'Semantic search used approved municipal sources.' : 'Search phrases expanded to include related terms.'}</p>}
+        {aiAssist?.answerSummary && <section className="site-search-ai-summary" aria-labelledby="site-search-ai-title"><h2 id="site-search-ai-title"><Sparkles size={17} aria-hidden="true"/> AI search summary</h2><p>{aiAssist.answerSummary}</p><small>Summary based on approved municipal sources. Verify details in the linked source pages.</small><nav aria-label="Sources for AI search summary">{aiAssist.citations.map((source, index) => <a key={`${source.url}-${index}`} href={source.url} target={source.url.startsWith('http') ? '_blank' : undefined} rel={source.url.startsWith('http') ? 'noreferrer' : undefined}>[{index + 1}] {source.title}</a>)}</nav></section>}
+        {!!aiAssist?.suggestions?.length && <nav className="site-search-ai-suggestions" aria-label="Related search suggestions"><span>Related searches:</span>{aiAssist.suggestions.map(term => <button type="button" key={term} onClick={() => searchSuggested(term)}>{term}</button>)}</nav>}
         {searchError && <p className="search-results-warning" role="status">{searchError} <button type="button" onClick={() => { setSuggestionsReady(false); setRetry(value => value + 1) }}>Retry search</button></p>}
         {pages.length > 0 && <section aria-labelledby="site-search-pages"><h2 id="site-search-pages">Website pages</h2><div className="service-directory-grid">{pageResults.map(({ item: page, position }) => <article className="service-directory-card" key={page.href}><p className="service-directory-label">{page.category}</p><h2>{page.title}</h2><p>Open this public section of the Getafe website.</p><Link to={page.href} onClick={recordResultClick('page', page.href.replace(/^\//, '') || 'home', position)} className="service-directory-link">View page <ArrowRight size={16} aria-hidden="true"/></Link></article>)}</div></section>}
         {serviceItems.length > 0 && <ResultSection title="Services" items={serviceResults} render={({ item, position, resultId }) => <ResultCard key={resultId} category="Municipal service" title={item.name} description={item.short_description || item.department_name || 'Municipal service information.'} href={`/services/e-services/${encodeURIComponent(item.slug)}`} action="View service" onClick={recordResultClick('service', resultId, position)}/>}/>}

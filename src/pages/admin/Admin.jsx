@@ -1012,7 +1012,7 @@ export default function Admin() {
           <form className="cms-editor" onSubmit={saveArticle}>
             <div className="cms-title">
               <h1>{editing ? "Edit content" : "Add content"}</h1>
-              {(can('ai.content.generate') || can('ai.content.translate')) && <AiContentStudio form={form} setForm={setForm} contentRef={newsContentRef} canGenerate={can('ai.content.generate')} canTranslate={can('ai.content.translate')} />}
+              {(can('ai.content.generate') || can('ai.content.translate')) && <AiContentStudio form={form} setForm={setForm} contentRef={newsContentRef} contentType={form.content_type || 'news'} canGenerate={can('ai.content.generate')} canTranslate={can('ai.content.translate')} />}
               {autosaveState && <span className={`cms-autosave-status cms-autosave-${autosaveState}`} role="status">
                 {autosaveState === 'saving' || autosaveState === 'unsaved' ? 'Saving draft…' : autosaveState === 'retrying' ? 'Not saved — retrying…' : autosaveState === 'saved' ? 'Draft saved' : autosaveState === 'recovered' ? 'Recovered local draft' : autosaveState === 'conflict' ? 'Draft changed elsewhere' : autosaveState === 'error' ? 'Not saved — edit or save again' : 'Draft needs attention'}
               </span>}
@@ -1279,6 +1279,8 @@ export default function Admin() {
           <BarangaysEditor
             token={token}
             value={barangayRecords}
+            canGenerate={can('ai.content.generate')}
+            canTranslate={can('ai.content.translate')}
             onSaved={(value) => {
               setBarangayRecords(value);
               setNotice("Barangays updated.");
@@ -1295,7 +1297,7 @@ export default function Admin() {
           />
         )}
         {tab === 'integrations' && <AdminIntegrations permissions={user.permissions || []} />}
-        {tab === "ai" && <AdminAiManagement canManage={can('ai.management.update')} canConfigureSecret={can('settings.secrets.edit')} />}
+{tab === "ai" && <AdminAiManagement canManage={can('ai.management.update')} canManageKnowledge={can('ai.knowledge.manage')} canConfigureSecret={can('settings.secrets.edit')} />}
         {tab === "privacy" && <AdminPrivacyRequests onNotice={setNotice} />}
         {confirmDialog?.kind === 'media-references' && (
           <MediaReferencesDialog
@@ -1625,7 +1627,7 @@ function ArticleTable({
     </div>
   );
 }
-function BarangaysEditor({ token, value, onSaved }) {
+function BarangaysEditor({ token, value, onSaved, canGenerate = false, canTranslate = false }) {
   const [form, setForm] = useState(value || []);
   const [search, setSearch] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(null);
@@ -1636,6 +1638,7 @@ function BarangaysEditor({ token, value, onSaved }) {
   const [externalImages, setExternalImages] = useState([])
   const saveRef = useRef(false);
   const selectedOriginal = useRef(null);
+  const barangayContentRef = useRef(null);
   useEffect(() => {
     if (Array.isArray(value)) setForm(value);
   }, [value]);
@@ -1773,6 +1776,7 @@ function BarangaysEditor({ token, value, onSaved }) {
   const fields = selectedIndex === null ? null : form[selectedIndex];
   const editFields = fields && (
     <div className="barangay-modal-fields">
+      {(canGenerate || canTranslate) && <AiContentStudio contentType={`Barangay ${fields.name || 'profile'}`} canGenerate={canGenerate} canTranslate={canTranslate} contentRef={barangayContentRef} form={{ title: fields.name || '', slug: '', excerpt: fields.description || '', content: fields.more_information || '' }} setForm={updateForm => { const before = { title: fields.name || '', slug: '', excerpt: fields.description || '', content: fields.more_information || '' }; const next = typeof updateForm === 'function' ? updateForm(before) : updateForm; update(selectedIndex, 'name', next.title); update(selectedIndex, 'description', next.excerpt); update(selectedIndex, 'more_information', next.content); if (next.ai_generation_id) update(selectedIndex, 'ai_generation_id', next.ai_generation_id) }} />}
       <div className="official-form-row">
         <label>
           Barangay name
@@ -1840,6 +1844,7 @@ function BarangaysEditor({ token, value, onSaved }) {
       <label className="barangay-details-field">
         More information
         <textarea
+          ref={barangayContentRef}
           rows="10"
           value={fields.more_information || ""}
           onChange={(e) => update(selectedIndex, "more_information", e.target.value)}

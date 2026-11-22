@@ -173,7 +173,7 @@ export function validateAnalyticsBatch(body = {}) {
     if (event.type === 'search_result_click') {
       if (typeof event.submissionId !== 'string' || !UUID.test(event.submissionId)) throw badRequest('A valid search submission ID is required.')
       if (event.topicId !== null && (typeof event.topicId !== 'string' || event.topicId.length > 160)) throw badRequest('Choose a valid search topic.')
-      if (!['typed', 'chip'].includes(event.source) || !SEARCH_RESULT_TYPES.has(event.resultType) || !POSITION_BUCKETS.has(event.positionBucket)) throw badRequest('Choose valid search result dimensions.')
+      if (!['typed', 'chip', 'suggested'].includes(event.source) || !SEARCH_RESULT_TYPES.has(event.resultType) || !POSITION_BUCKETS.has(event.positionBucket)) throw badRequest('Choose valid search result dimensions.')
       if (typeof event.resultId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._~:/-]{0,191}$/.test(event.resultId) || event.resultId.includes('//') || event.resultId.includes('?') || event.resultId.includes('#')) throw badRequest('A valid result identifier is required.')
       return { eventId: event.eventId, type: event.type, submissionId: event.submissionId, topicId: event.topicId || null, source: event.source, resultType: event.resultType, resultId: event.resultId, positionBucket: event.positionBucket }
     }
@@ -303,7 +303,7 @@ export async function persistAnalyticsEvents(events, getPool = getCmsPool) {
         }
         navigationTotals.set(key, value)
       } else if (event.type === 'search_result_click') {
-        const [submissions] = await connection.execute('SELECT topic_id, source, search_date, has_result_click FROM search_submission_receipts WHERE submission_id = ? FOR UPDATE', [event.submissionId])
+        const [submissions] = await connection.execute('SELECT topic_id, source, search_mode, search_date, has_result_click FROM search_submission_receipts WHERE submission_id = ? FOR UPDATE', [event.submissionId])
         const submission = submissions[0]
         if (!submission || submission.source !== event.source || String(submission.topic_id || '') !== String(event.topicId || '')) throw Object.assign(new Error('Search submission is not eligible for result engagement.'), { status: 400 })
         const resultHash = crypto.createHash('sha256').update(`${event.resultType}\u001f${event.resultId}`).digest('hex')
@@ -315,17 +315,18 @@ export async function persistAnalyticsEvents(events, getPool = getCmsPool) {
         )
         if (clickReceipt.rowCount) {
           const topicRef = event.topicId || 'unmatched'
-          const key = [topicRef, event.source, event.resultType, event.positionBucket].join('\u001f')
-          const value = searchClicks.get(key) || { topicRef, source: event.source, resultType: event.resultType, positionBucket: event.positionBucket, count: 0 }
+          const searchMode = submission.search_mode || 'traditional'
+          const key = [topicRef, event.source, searchMode, event.resultType, event.positionBucket].join('\u001f')
+          const value = searchClicks.get(key) || { topicRef, source: event.source, searchMode, resultType: event.resultType, positionBucket: event.positionBucket, count: 0 }
           value.count++
           searchClicks.set(key, value)
           if (!submission.has_result_click) {
             await connection.execute('UPDATE search_submission_receipts SET has_result_click = TRUE WHERE submission_id = ?', [event.submissionId])
             await connection.execute(
-              `INSERT INTO website_search_engagement_daily (report_date, topic_ref, source, searches_with_result_click)
-               VALUES (?, ?, ?, 1)
-               ON CONFLICT (report_date, topic_ref, source) DO UPDATE SET searches_with_result_click = website_search_engagement_daily.searches_with_result_click + 1`,
-              [submission.search_date, topicRef, event.source],
+              `INSERT INTO website_search_engagement_daily (report_date, topic_ref, source, search_mode, searches_with_result_click)
+               VALUES (?, ?, ?, ?, 1)
+               ON CONFLICT (report_date, topic_ref, source, search_mode) DO UPDATE SET searches_with_result_click = website_search_engagement_daily.searches_with_result_click + 1`,
+              [submission.search_date, topicRef, event.source, searchMode],
             )
           }
         }
@@ -385,10 +386,10 @@ export async function persistAnalyticsEvents(events, getPool = getCmsPool) {
       [value.reportDate, value.placementKey, value.destinationId, value.slotPosition, value.viewport, value.impressions, value.clicks, value.impressionsWithClick],
     )
     for (const value of searchClicks.values()) await connection.execute(
-      `INSERT INTO website_search_result_click_daily (report_date, topic_ref, source, result_type, position_bucket, result_clicks)
-       VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (report_date, topic_ref, source, result_type, position_bucket)
+      `INSERT INTO website_search_result_click_daily (report_date, topic_ref, source, search_mode, result_type, position_bucket, result_clicks)
+       VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (report_date, topic_ref, source, search_mode, result_type, position_bucket)
        DO UPDATE SET result_clicks = website_search_result_click_daily.result_clicks + EXCLUDED.result_clicks`,
-      [dates[0].report_date, value.topicRef, value.source, value.resultType, value.positionBucket, value.count],
+      [dates[0].report_date, value.topicRef, value.source, value.searchMode, value.resultType, value.positionBucket, value.count],
     )
     await connection.commit()
     return { accepted, duplicates: events.length - accepted, committed: true }
@@ -449,14 +450,14 @@ async function getReport({ range, from, to, days }) {
   const engagementDateClause = custom ? 'report_date BETWEEN ?::date AND ?::date' : "report_date BETWEEN ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date - (?::integer - 1)) AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date"
   const engagementValues = custom ? [from, to] : [days]
   const [engagementRows] = await pool.execute(
-    `SELECT topic_ref AS "topicRef", source, SUM(completed_submissions)::text AS submissions,
+    `SELECT topic_ref AS "topicRef", source, search_mode AS "searchMode", SUM(completed_submissions)::text AS submissions,
             SUM(searches_with_result_click)::text AS "searchesWithClick"
        FROM website_search_engagement_daily WHERE report_date >= (SELECT date_value FROM website_analytics_settings WHERE setting_key = 'search_engagement_start')
-         AND ${engagementDateClause} GROUP BY topic_ref, source ORDER BY topic_ref, source`, engagementValues)
+         AND ${engagementDateClause} GROUP BY topic_ref, source, search_mode ORDER BY topic_ref, source, search_mode`, engagementValues)
   const [resultClickRows] = await pool.execute(
-    `SELECT topic_ref AS "topicRef", source, result_type AS "resultType", position_bucket AS "positionBucket", SUM(result_clicks)::text AS clicks
+    `SELECT topic_ref AS "topicRef", source, search_mode AS "searchMode", result_type AS "resultType", position_bucket AS "positionBucket", SUM(result_clicks)::text AS clicks
        FROM website_search_result_click_daily WHERE report_date >= (SELECT date_value FROM website_analytics_settings WHERE setting_key = 'search_engagement_start')
-         AND ${engagementDateClause} GROUP BY topic_ref, source, result_type, position_bucket ORDER BY topic_ref, source, result_type, position_bucket`, engagementValues)
+         AND ${engagementDateClause} GROUP BY topic_ref, source, search_mode, result_type, position_bucket ORDER BY topic_ref, source, search_mode, result_type, position_bucket`, engagementValues)
   const [openDataRows] = await pool.execute(
     `SELECT dataset_id AS "datasetId", activity, SUM(events)::text AS events
        FROM website_open_data_daily WHERE ${dateClause} GROUP BY dataset_id, activity ORDER BY dataset_id, activity`, values)
@@ -582,6 +583,7 @@ async function getReport({ range, from, to, days }) {
   const actions = [...actionTotals].map(([action, count]) => ({ action, actions: count }))
   const serviceJourneys = journeyRows.map(row => ({ ...row, transitions: number(row.transitions) }))
   const engagement = engagementRows.map(row => ({ ...row, submissions: number(row.submissions), searchesWithClick: number(row.searchesWithClick) }))
+  const engagementByMode = Object.values(engagement.reduce((groups, row) => { const group = groups[row.searchMode] || { searchMode: row.searchMode, submissions: 0, searchesWithClick: 0 }; group.submissions += row.submissions; group.searchesWithClick += row.searchesWithClick; groups[row.searchMode] = group; return groups }, {}))
   const resultClicks = resultClickRows.map(row => ({ ...row, clicks: number(row.clicks) }))
   const searchEngagementTotals = engagement.reduce((total, row) => ({
     submissions: total.submissions + row.submissions,
@@ -645,6 +647,7 @@ async function getReport({ range, from, to, days }) {
       resultClicks: totalResultClicks,
       clickThroughRate: searchEngagementTotals.submissions ? searchEngagementTotals.searchesWithClick / searchEngagementTotals.submissions : null,
       byTopic: engagement,
+      byMode: engagementByMode,
       clicksByResult: resultClicks,
     },
     openData,
