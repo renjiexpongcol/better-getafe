@@ -53,18 +53,20 @@ export class ConfigService {
         values[key] = environment;
         sources[key] = 'environment';
       } else if (stored[key] !== undefined && stored[key] !== null) {
-        values[key] = d.secret ? await this.secrets.open(key, stored[key]) : stored[key];
-        sources[key] = 'database';
+        if(d.secret) {
+          try {values[key]=await this.secrets.open(key,stored[key]);sources[key]='database';}
+          catch {
+            values[key]=environment??d.default;sources[key]='unavailable-secret';
+            this.unavailableSecrets??=new Set();
+            if(!this.unavailableSecrets.has(key))console.warn(JSON.stringify({event:'configuration_secret_unavailable',setting:key,reason:'The original encryption key or a replacement provider credential is required.'}));
+            this.unavailableSecrets.add(key);
+          }
+        }else{values[key]=stored[key];sources[key]='database';}
       } else { values[key] = environment ?? d.default; sources[key] = environment !== undefined ? 'environment' : 'default'; }
     }
     const selectedProvider = selectedStorageProvider(values['storage.provider']);
     if (selectedProvider !== values['storage.provider']) sources['storage.provider'] = 'migration-journal';
     values['storage.provider'] = selectedProvider;
-    if (this.env.VERCEL === '1' && values['storage.provider'] === 'local') throw new Error('Persistent local media storage is unavailable in Vercel Functions.');
-    if (this.env.VERCEL_ENV === 'preview' && values['storage.provider'] === 'azure'
-      && values['storage.azureAccount'] === 'lgumedia' && values['storage.azureContainer'] === 'portal-media') {
-      throw new Error('Preview must use a separate Azure container.');
-    }
     if (stored['storage.configuredProvider'] == null || sources['storage.provider'] === 'environment' || sources['storage.provider'] === 'migration-journal') {
       values['storage.configuredProvider'] = values['storage.provider'];
       sources['storage.configuredProvider'] = sources['storage.provider'];

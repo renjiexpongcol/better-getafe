@@ -5,12 +5,13 @@
   "buildCommand": "node scripts/vercel-npm.mjs build",
   "outputDirectory": "dist",
   "regions": ["syd1"],
+  "env": { "NODE_OPTIONS": "--experimental-require-module" },
   "crons": [
     { "path": "/api/internal/jobs/psgc", "schedule": "0 16 * * *" },
     { "path": "/api/internal/jobs/media-cleanup", "schedule": "15 16 * * *" }
   ],
   "functions": {
-    "api/index.js": { "maxDuration": 60, "includeFiles": "database/migrations/postgresql/**" }
+    "api/index.js": { "maxDuration": 60, "includeFiles": "database/**" }
   },
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api" },

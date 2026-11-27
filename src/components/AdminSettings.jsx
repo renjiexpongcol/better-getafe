@@ -4,13 +4,14 @@ import { Check, CheckCircle2, Info, LoaderCircle, Mail, RotateCw, Search, X } fr
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import SettingsPermissions from './SettingsPermissions'
 import SessionTimeoutSettings from './SessionTimeoutSettings.jsx'
+import DatabaseManagementPanel from './DatabaseManagementPanel.jsx'
 import { categoryDescriptions, categoryLabels, categorySections, sectionIcon, fieldDescription, settingIsVisible, storageFieldIsVisible } from './settingsPresentation'
 import { ModuleAccessDeniedPage, ModuleNotFoundPage } from './RouteStatusPages'
 import { ROUTES } from '../routeRegistry'
 import { normalizePublicError } from '../services/publicError'
 import './AdminSettings.css'
 
-const sources = { database: 'Saved', 'secret-manager': 'Secure storage', environment: 'Managed by environment' }
+const sources = { database: 'Saved', 'secret-manager': 'Secure storage', environment: 'Managed by environment', 'unavailable-secret':'Original encryption key required' }
 const storageLabels = { azure: 'Microsoft Azure Blob Storage', backblaze: 'Backblaze B2', local: 'Local storage' }
 const serviceLabels = { application: 'Application runtime', redis: 'Redis', authentication: 'Authentication', backgroundJobs: 'Background jobs', scheduledTasks: 'Scheduled tasks', ai: 'AI services' }
 const azureAuthenticationLabels = { 'connection-string': 'Connection string', 'managed-identity': 'Managed identity', ...storageLabels }
@@ -275,6 +276,7 @@ export default function AdminSettings({ category = 'general', settings, settings
         {activeTab === 'storage' && <StorageProviderStatus settings={settings} selected={effectiveSettingsValues['storage.configuredProvider']} />}
         {activeTab === 'storage' && can('settings.storage.edit') && <MediaMigrationPanel canStart={can('settings.edit')} disabled={busy || dirty} onActivated={() => setSettings(current => ({ ...current, storageRuntime: { activeProvider: 'azure', source: 'migration' } }))} />}
         {databaseTab && <DatabaseRuntimeStatus runtime={settings?.databaseRuntime?.[activeTab]} category={activeTab} />}
+        {activeTab==='database'&&can('settings.database.edit')&&<DatabaseManagementPanel/>}
         {filteredSections.map(section => <SettingsSection key={section.title} title={section.title} description={section.description} icon={section.icon}>
           {activeTab === 'authentication' && section.title === 'Session timeout' ? <SessionTimeoutSettings fields={section.fields} values={effectiveSettingsValues} patch={patch} busy={busy} canEdit={writable} onChange={change} onUndo={undo} /> : <div className="settings-fields">{section.fields.map(([key, definition]) => <SettingsField key={key} settingKey={key} definition={key === 'authentication.sessionWarningMinutes' ? { ...definition, max: Math.min(30, Math.max(1, Number(patch['authentication.sessionIdleMinutes'] ?? settings.values['authentication.sessionIdleMinutes']) - 1)) } : definition}
             diagnostic={databaseTest?.connection?.target === 'active' && key === `${activeTab}.${databaseTest.field}` ? databaseTest.message : null}

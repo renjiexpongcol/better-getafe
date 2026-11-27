@@ -20,7 +20,7 @@ function decodeBase32(value) {
   return Buffer.from((bits.match(/.{8}/g) || []).map(byte => Number.parseInt(byte, 2)));
 }
 
-function totp(secret, counter) {
+export function totp(secret, counter) {
   const message = Buffer.alloc(8);
   message.writeBigUInt64BE(BigInt(counter));
   const digest = crypto.createHmac('sha1', decodeBase32(secret)).update(message).digest();

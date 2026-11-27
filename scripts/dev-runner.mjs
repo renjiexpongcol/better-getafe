@@ -22,7 +22,9 @@ const databaseOnly = process.argv.includes('--database-only');
 const setupOnly = databaseOnly || process.argv.includes('--setup-only');
 const preview = process.argv.includes('--preview');
 if (preview && !existsSync(path.join(root, 'dist/index.html'))) throw new Error('Run npm run build before previewing the portal.');
+const inheritedEnvironmentKeys=new Set(Object.keys(process.env));
 await loadLocalEnvironment();
+let fileEnvironmentKeys=Object.keys(process.env).filter(key=>!inheritedEnvironmentKeys.has(key));
 const port = Number(process.env.VITE_PORT || process.env.PORT || 5173);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('VITE_PORT must be a valid TCP port.');
 
@@ -225,6 +227,13 @@ async function restart() {
     backendFailures = 0;
     console.info(JSON.stringify({ event: 'backend_restart_for_source_change', pid: process.pid, source: pendingSourceChange || 'backend source' }));
     pendingSourceChange = '';
+    for(const key of fileEnvironmentKeys)delete process.env[key];
+    await loadLocalEnvironment();
+    fileEnvironmentKeys=Object.keys(process.env).filter(key=>!inheritedEnvironmentKeys.has(key));
+    databaseUrl=selectedCmsUrl(process.env);
+    for(const key of Object.keys(env))delete env[key];
+    Object.assign(env,{...process.env,NODE_ENV:'development',HOST:'127.0.0.1',PORT:String(port),VITE_PORT:String(port),BACKEND_PORT:String(port),PORTAL_UNIFIED_DEV_SERVER:String(!preview),CMS_SUPABASE_DATABASE_URL:databaseUrl});
+    delete env.VITE_BACKEND_URL;
     startBackend();
   }
 }
@@ -255,7 +264,7 @@ if (!preview) {
     watchers.push(watch(path.join(root, 'server'), { recursive: true }, (event, file) => {
       if (isBackendSourceFile(file)) changed(`${event}: server/${String(file).replaceAll('\\', '/')}`);
     }));
-    watchers.push(watch(root, (event, file) => { if (file === 'server.js') changed(`${event}: server.js`); }));
+    watchers.push(watch(root, (event, file) => { if (['server.js','.env','.env.development.local'].includes(String(file))) changed(`${event}: ${file}`); }));
     for (const watcher of watchers) watcher.on('error', error => {
       console.error('[Portal] Backend source watcher failed:', error.code);
       stop(1);

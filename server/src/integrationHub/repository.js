@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { getPostgresRuntime } from '../repositories/postgresRuntime.js';
 import { HubError } from './security.js';
+import {recoveryJobsAllowed} from '../database/workerRecovery.js';
 
 export class HubRepository {
   constructor(database = () => getPostgresRuntime('database')) { this.database = database; }
@@ -63,6 +64,7 @@ export class HubRepository {
     return row || db.prepare('SELECT id,status FROM integration_jobs WHERE installation_id=? AND idempotency_key=?').get(installation.id, key);
   }
   async claim(workerId) {
+    if(!await recoveryJobsAllowed())return null;
     return this.transaction(async db => {
       await db.prepare('INSERT INTO integration_workers(id) VALUES (?) ON CONFLICT(id) DO UPDATE SET heartbeat_at=now()').run(workerId);
       // Serialize claim selection globally; execution still runs independently per installation.

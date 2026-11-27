@@ -74,7 +74,7 @@ for (const permission of configurationPermissions.filter(name => name.startsWith
   if (!permissionCatalog.some(item => item[0] === permission)) permissionCatalog.push([permission, 'System', permission.split('.').join(' '), 'Delegated settings access.', true])
 }
 
-const defaultGroups = [
+export const defaultGroups = [
   ['IT Support', 'Delegated technical support membership. Administrators assign permissions through group management.', []],
   ['Help Desk', 'First-line troubleshooting and employee assistance.', ['help.view']],
   ['Technical Support', 'Technical troubleshooting and service diagnostics.', ['help.view', 'system.infrastructure.view']],
@@ -94,7 +94,7 @@ async function audit(db, actorId, action, targetType, targetId, previousValue, n
 
 const authorizationBootstrap = new WeakMap()
 
-async function seedAuthorizationData(db) {
+export async function seedAuthorizationData(db) {
   const timestamp = now()
   await db.exec('BEGIN')
   try {

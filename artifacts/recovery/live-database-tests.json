@@ -1,0 +1,46 @@
+{
+  "projectRef": "dddezkhdlboujgivqvgg",
+  "scope": "Explicit isolated recovery target. Destructive missing-object fixtures were confined to an uncommitted transaction; populated tables were never dropped.",
+  "results": [
+    {
+      "name": "complete schema and essential records after empty-database reconstruction",
+      "passed": true
+    },
+    {
+      "name": "missing empty table is reconstructed with columns, constraints, indexes and backend access",
+      "passed": true
+    },
+    {
+      "name": "missing nullable column and standalone index are repaired transactionally",
+      "passed": true
+    },
+    {
+      "name": "missing settings are restored without overwriting an edited value",
+      "passed": true
+    },
+    {
+      "name": "missing approved system defaults are restored while edited AI preferences are preserved",
+      "passed": true
+    },
+    {
+      "name": "concurrent reconstruction is refused by a bounded distributed lock",
+      "passed": true
+    },
+    {
+      "name": "changed migration checksums are detected without modifying the database",
+      "passed": true
+    },
+    {
+      "name": "failed migration rolls back its DDL and is not marked applied",
+      "passed": true
+    },
+    {
+      "name": "ordinary runtime credentials cannot create schema objects or rewrite migration history",
+      "passed": true
+    },
+    {
+      "name": "repeat bootstrap skips completed migrations and preserves administrator identity",
+      "passed": true
+    }
+  ]
+}

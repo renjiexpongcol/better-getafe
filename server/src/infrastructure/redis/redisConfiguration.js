@@ -12,6 +12,8 @@ export function resolveRedisConfiguration(env = process.env) {
   if (!['redis:', 'rediss:'].includes(url.protocol) || !url.hostname || !url.password || url.hash || url.search) {
     throw new Error('MY_REDIS_REDIS_URL must be an authenticated redis:// or rediss:// URL.');
   }
-  if (env.VERCEL === '1' && url.protocol !== 'rediss:') throw new Error('Vercel Redis connections require TLS (rediss://).');
-  return Object.freeze({ enabled: true, url: value, source: primary ? 'MY_REDIS_REDIS_URL' : 'REDIS_URL' });
+  // Native Marketplace variables can use redis:// even when the same endpoint
+  // supports TLS. Upgrade on Vercel; never retry with plaintext if TLS fails.
+  if(env.VERCEL==='1'&&url.protocol==='redis:'){if(!url.port)url.port='6379';url.protocol='rediss:';}
+  return Object.freeze({ enabled: true, url: env.VERCEL==='1'?url.toString():value, source: primary ? 'MY_REDIS_REDIS_URL' : 'REDIS_URL' });
 }

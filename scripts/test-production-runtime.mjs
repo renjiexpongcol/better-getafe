@@ -6,6 +6,11 @@ process.env.NODE_ENV = 'production';
 process.env.PORTAL_SERVERLESS = 'true';
 const { deploymentConfiguration } = await import('../server/src/config/deployment.js');
 
+test('Vercel uses production cookie semantics despite a legacy development variable',()=>{
+  const result=spawnSync(process.execPath,['--input-type=module','-e',"await import('./api/index.js');if(process.env.NODE_ENV!=='production')process.exit(1);"],{encoding:'utf8',timeout:20000,windowsHide:true,env:{SystemRoot:process.env.SystemRoot,NODE_ENV:'development',VERCEL:'1',VERCEL_ENV:'preview'}});
+  assert.ifError(result.error);assert.equal(result.status,0,result.stderr);
+});
+
 test('unconfigured function liveness returns 200 and other requests return controlled 503', async () => {
   const { default: handler } = await import('../api/index.js');
   const response = () => ({ headers: {}, setHeader(k,v) { this.headers[k]=v; }, end(body) { this.body=JSON.parse(body); } });

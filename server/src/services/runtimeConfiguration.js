@@ -6,6 +6,7 @@ import { dependencyReason } from './startupDiagnostics.js';
 import { storageJournalUnavailable } from './storageSelection.js';
 export const systemStatus = {};
 let initialized = false;
+let lastStorageAttemptAt=0;
 function changed(prefix, next, previous) { return Object.keys(next).some(key => key.startsWith(`${prefix}.`) && next[key] !== previous[key]); }
 
 export async function prepareRuntimeResources(operations) {
@@ -20,7 +21,6 @@ export async function prepareRuntimeResources(operations) {
 }
 
 export async function prepareRuntime(values, previous, context = {}) {
-  if (values['email.enabled'] && (values['authentication.mfaEnabled'] || values['authentication.requireEmailVerification']) && !values['email.senderEmail']) throw new Error('Configure an SMTP sender email before requiring email verification or sign-in codes.');
   const operations = [];
   const databaseKeys = ['connectionLimit', 'connectTimeout', 'idleTimeout'];
   for (const category of ['database', 'portalDatabase']) {
@@ -46,8 +46,9 @@ export async function prepareRuntime(values, previous, context = {}) {
   const storageValues = values;
   const activeStorageChanged = ['provider', ...(storageKeys[storageValues['storage.provider']] || [])]
     .some(key => values[`storage.${key}`] !== previous[`storage.${key}`]);
-  if (!initialized || activeStorageChanged || storageHealth().status !== 'healthy' || storageJournalUnavailable()) {
+  if (!initialized || activeStorageChanged || ((storageHealth().status !== 'healthy' || storageJournalUnavailable()) && Date.now()-lastStorageAttemptAt>60000)) {
     operations.push(async () => {
+      lastStorageAttemptAt=Date.now();
       if (context.initializing) console.info('[STARTUP 6/8] Initializing media storage');
       const start = Date.now();
       const requestedProvider = storageValues['storage.provider'] || 'unknown';

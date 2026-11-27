@@ -76,7 +76,7 @@ test('unreadable cutover journals block activation and pending cutover acceptanc
   assert.equal(storage.runMediaWrite(() => 'ok'), 'ok');
   selection.setVerifiedAzureStatus(undefined);
 });
-test('runtime follows a committed Azure selection during failure and recovery while reusing database resources', async () => {
+test('runtime follows a committed Azure selection during failure and recovery while reusing database resources', async (t) => {
   selection.setVerifiedAzureStatus('accepted');
   azureFailure = Object.assign(Error('private'), { statusCode: 403 });
   const previous = { ...azureValues, 'storage.provider': 'backblaze' };
@@ -87,6 +87,9 @@ test('runtime follows a committed Azure selection during failure and recovery wh
   assert.equal(storage.storageLocation().provider, 'azure');
   await assert.rejects(storage.createUploadUrl('news/test.png', 'image/png', 7), error => error.status === 503);
   azureFailure = undefined;
+  (await prepareRuntime(azureValues, azureValues)).activate();
+  assert.equal(storage.storageHealth().status,'degraded','Automatic retries must respect the recovery cooldown.');
+  const now=Date.now();t.mock.method(Date,'now',()=>now+61001);
   (await prepareRuntime(azureValues, azureValues)).activate();
   assert.equal(databaseBuilds, 2);
   assert.deepEqual(storage.storageHealth(), { provider: 'azure', status: 'healthy' });

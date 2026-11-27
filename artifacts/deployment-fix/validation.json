@@ -1,6 +1,14 @@
 {
   "checks": [
     {
+      "name": "application/API/SQL dependency discovery",
+      "passed": true
+    },
+    {
+      "name": "complete schema reference and migration checksum binding",
+      "passed": true
+    },
+    {
       "name": "source, export, dependency, casing and ignore audit",
       "passed": true
     },
@@ -74,6 +82,50 @@
     },
     {
       "name": "syntax server/src/config/supabaseSetup.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/database/catalog.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/database/history.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/database/jobs.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/database/maintenance.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/database/managementRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/database/operator.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/database/reconciliation.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/database/repair.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/database/runtime.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/database/seeds.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/database/workerRecovery.js",
       "passed": true
     },
     {

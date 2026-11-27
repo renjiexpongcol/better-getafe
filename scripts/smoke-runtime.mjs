@@ -19,7 +19,7 @@ const script = `
 `;
 const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
   cwd: repositoryRoot, encoding: 'utf8', timeout: 20000, windowsHide: true,
-  env: { SystemRoot: process.env.SystemRoot, NODE_ENV: 'production', PORTAL_SERVERLESS: 'true', AUTH_SESSION_SECRET: 'isolated-runtime-import-fixture-without-cloud-credentials' },
+  env: { SystemRoot: process.env.SystemRoot, NODE_OPTIONS:'--experimental-require-module', NODE_ENV: 'production', PORTAL_SERVERLESS: 'true', AUTH_SESSION_SECRET: 'isolated-runtime-import-fixture-without-cloud-credentials' },
 });
 if (result.stdout) process.stdout.write(result.stdout);
 if (result.status !== 0) console.error('[Dependencies] Production runtime import failed. Run npm ci from the repository root, then rerun npm run check:runtime and npm run audit:dependencies.');

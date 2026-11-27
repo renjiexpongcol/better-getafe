@@ -227,12 +227,11 @@ export function createPostgresResource(values, category, actor) {
     try {
       const result = await pool.query('SELECT current_database() AS database, version() AS version');
       if (category === 'database') {
-        for (const table of ['users', 'categories', 'news', 'media', 'media_uploads']) await pool.query(`SELECT 1 FROM ${table} LIMIT 0`);
         if (actor) {
           const users = await pool.query('SELECT id, role FROM users WHERE id = $1', [actor.id]);
           if (!users.rows.some(user => ['admin', 'super_admin'].includes(user.role))) throw new Error('The target database must contain your administrator account.');
         }
-      } else await pool.query('SELECT 1 FROM portal_users LIMIT 0');
+      }
       return { database: result.rows[0].database, version: result.rows[0].version };
     } catch (error) {
       throw error;

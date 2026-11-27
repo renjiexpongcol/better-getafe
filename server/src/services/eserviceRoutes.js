@@ -951,6 +951,7 @@ export function installEserviceRoutes(
 // PostgreSQL outbox preserves events through Redis outages. Existing notification
 // preferences and Redis email jobs handle delivery; retries never block requests.
 export async function drainEserviceOutbox(engine = new EserviceEngine()) {
+  if(!await (await import('../database/workerRecovery.js')).recoveryJobsAllowed())return 0;
   return engine.transaction(async (db) => {
     const events = await db(
       "SELECT * FROM eservice_notification_outbox WHERE delivered_at IS NULL AND available_at<=now() ORDER BY created_at LIMIT 20 FOR UPDATE SKIP LOCKED",
