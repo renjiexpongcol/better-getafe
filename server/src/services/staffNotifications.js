@@ -2,6 +2,7 @@ import { getPostgresRuntime } from '../repositories/postgresRuntime.js'
 import { getCmsUserById } from '../repositories/cmsUserRepository.js'
 import { config } from '../config/index.js'
 import { enqueueEmail } from './redisInfrastructure.js'
+import {recoveryJobsAllowed} from '../database/workerRecovery.js'
 
 export async function createStaffNotification(db, { userId, eventKey, title, message, applicationId = null, requestId = null }) {
   await db('INSERT INTO staff_notifications(user_id,event_key,title,message,application_id,request_id) VALUES(?,?,?,?,?,?) ON CONFLICT(event_key) DO NOTHING',[userId,eventKey,title,message,applicationId,requestId])
@@ -10,6 +11,7 @@ export async function createStaffNotification(db, { userId, eventKey, title, mes
 // The inbox is committed with the business event. Email can retry independently
 // after an unavailable provider/Redis queue and never rolls back staff actions.
 export async function drainStaffNotifications({enqueue=enqueueEmail,lookup=getCmsUserById,emailEnabled=()=>config.get('notifications.enabled')&&config.get('notifications.emailEnabled')}={}) {
+  if(!await recoveryJobsAllowed())return 0
   const runtime = await getPostgresRuntime('portal')
   await runtime.exec('BEGIN')
   try {

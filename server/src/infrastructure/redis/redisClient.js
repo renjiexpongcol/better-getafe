@@ -14,11 +14,13 @@ const basePrefix = String(process.env.REDIS_PREFIX || 'getafe').trim().replace(/
 const isolatedPrefix = process.env.VERCEL_ENV && process.env.VERCEL_ENV !== 'production'
   ? `${basePrefix}:${process.env.VERCEL_ENV}:${createHash('sha256').update(process.env.VERCEL_GIT_COMMIT_REF || process.env.VERCEL_URL || 'development').digest('hex').slice(0, 12)}`
   : process.env.NODE_ENV === 'production' ? basePrefix : `${basePrefix}:${process.env.NODE_ENV || 'development'}`;
+const databaseIdentity=process.env.DATABASE_INSTANCE_ID || process.env.SUPABASE_PROJECT_REF || '';
+const databasePrefix=databaseIdentity?`${isolatedPrefix}:db:${createHash('sha256').update(databaseIdentity).digest('hex').slice(0,16)}`:isolatedPrefix;
 export const redisConfig = Object.freeze({
   enabled: managed.enabled,
   url: managed.url,
   source: managed.source,
-  prefix: isolatedPrefix,
+  prefix: databasePrefix,
   connectTimeoutMs: Math.max(1000, Number.parseInt(process.env.REDIS_CONNECT_TIMEOUT_MS || '5000', 10)),
   reconnectMaxDelayMs: Math.max(1000, Number.parseInt(process.env.REDIS_RECONNECT_MAX_DELAY_MS || '30000', 10)),
 });

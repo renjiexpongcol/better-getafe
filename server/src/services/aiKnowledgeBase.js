@@ -11,6 +11,7 @@ import { publicService } from './eservicePresentation.js';
 import { statisticsService } from './statisticsService.js';
 import { toPublicBarangays } from './publicApiDtos.js';
 import { dependencyReason } from './startupDiagnostics.js';
+import {recoveryJobsAllowed} from '../database/workerRecovery.js';
 
 const serviceEngine = new EserviceEngine();
 const contentRepository = managedContentRepository();
@@ -192,6 +193,7 @@ async function processJob(job) {
 }
 
 export async function processAiKnowledgeJobs(limit = 3) {
+  if(!await recoveryJobsAllowed())return 0;
   const pool = await getCmsPool();
   await pool.execute(`UPDATE ai_knowledge_jobs SET status='pending',last_error='Recovered an interrupted indexing job.',started_at=NULL WHERE status='processing' AND started_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'`);
   const connection = await pool.getConnection();

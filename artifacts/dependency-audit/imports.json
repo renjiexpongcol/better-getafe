@@ -1,7 +1,7 @@
 {
-  "files": 517,
+  "files": 540,
   "workspaces": 14,
-  "productionModules": 160,
+  "productionModules": 166,
   "imports": [
     {
       "file": "src/App.jsx",
@@ -788,6 +788,20 @@
       "line": 3,
       "requested": [
         "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/DatabaseManagementPanel.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
       ],
       "star": false
     },
@@ -4799,7 +4813,7 @@
       "declaration": "dependencies",
       "specifier": "express",
       "dynamic": false,
-      "line": 35,
+      "line": 36,
       "requested": [
         "default"
       ],
@@ -4812,7 +4826,7 @@
       "declaration": "dependencies",
       "specifier": "qrcode",
       "dynamic": false,
-      "line": 46,
+      "line": 47,
       "requested": [
         "default"
       ],
@@ -4825,7 +4839,7 @@
       "declaration": "devDependencies",
       "specifier": "vite",
       "dynamic": true,
-      "line": 2979,
+      "line": 2995,
       "requested": [],
       "star": false
     },
@@ -4926,6 +4940,32 @@
       "line": 7,
       "requested": [
         "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/database/operator.js",
+      "owner": "package.json",
+      "package": "dotenv",
+      "declaration": "dependencies",
+      "specifier": "dotenv",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/database/reconciliation.js",
+      "owner": "package.json",
+      "package": "@azure/storage-blob",
+      "declaration": "dependencies",
+      "specifier": "@azure/storage-blob",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "BlobServiceClient"
       ],
       "star": false
     },
@@ -5340,24 +5380,37 @@
       "star": false
     },
     {
-      "file": "scripts/migrate-b2-to-azure.mjs",
+      "file": "scripts/database.mjs",
       "owner": "package.json",
-      "package": "dotenv",
+      "package": "pg",
       "declaration": "dependencies",
-      "specifier": "dotenv",
+      "specifier": "pg",
       "dynamic": false,
-      "line": 4,
+      "line": 2,
       "requested": [
         "default"
       ],
       "star": false
     },
     {
-      "file": "scripts/migrate-postgresql.mjs",
+      "file": "scripts/discover-system.mjs",
       "owner": "package.json",
-      "package": "pg",
+      "package": "espree",
+      "declaration": "devDependencies",
+      "specifier": "espree",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "parse"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/migrate-b2-to-azure.mjs",
+      "owner": "package.json",
+      "package": "dotenv",
       "declaration": "dependencies",
-      "specifier": "pg",
+      "specifier": "dotenv",
       "dynamic": false,
       "line": 4,
       "requested": [
@@ -5385,6 +5438,32 @@
       "dynamic": false,
       "line": 4,
       "requested": [],
+      "star": false
+    },
+    {
+      "file": "scripts/test-database-management-ui.mjs",
+      "owner": "package.json",
+      "package": "playwright",
+      "declaration": "devDependencies",
+      "specifier": "playwright",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "chromium"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/test-database-recovery-live.mjs",
+      "owner": "package.json",
+      "package": "pg",
+      "declaration": "dependencies",
+      "specifier": "pg",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "default"
+      ],
       "star": false
     },
     {
@@ -5436,6 +5515,19 @@
       "line": 6,
       "requested": [
         "chromium"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/test-recovery-operations-live.mjs",
+      "owner": "package.json",
+      "package": "pg",
+      "declaration": "dependencies",
+      "specifier": "pg",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "default"
       ],
       "star": false
     },
@@ -5499,6 +5591,71 @@
       "specifier": "playwright",
       "dynamic": false,
       "line": 6,
+      "requested": [
+        "chromium"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/verify-infrastructure.mjs",
+      "owner": "package.json",
+      "package": "dotenv",
+      "declaration": "dependencies",
+      "specifier": "dotenv",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/verify-infrastructure.mjs",
+      "owner": "package.json",
+      "package": "redis",
+      "declaration": "dependencies",
+      "specifier": "redis",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "createClient"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/verify-infrastructure.mjs",
+      "owner": "package.json",
+      "package": "@azure/storage-blob",
+      "declaration": "dependencies",
+      "specifier": "@azure/storage-blob",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "BlobServiceClient"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/verify-recovery-preview.mjs",
+      "owner": "package.json",
+      "package": "dotenv",
+      "declaration": "dependencies",
+      "specifier": "dotenv",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/verify-recovery-preview.mjs",
+      "owner": "package.json",
+      "package": "playwright",
+      "declaration": "devDependencies",
+      "specifier": "playwright",
+      "dynamic": false,
+      "line": 4,
       "requested": [
         "chromium"
       ],

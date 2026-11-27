@@ -1,0 +1,21 @@
+{
+  "checkedAt": "2026-11-27T08:58:08.397Z",
+  "results": [
+    {
+      "name": "Authenticated real admin page renders complete live database inspection",
+      "passed": true
+    },
+    {
+      "name": "Connection, complete schema validation and report download controls work",
+      "passed": true
+    },
+    {
+      "name": "Mobile layout fits viewport without browser exceptions",
+      "passed": true
+    },
+    {
+      "name": "Real content draft creation, anonymous draft denial, publication, public read and owned-fixture deletion",
+      "passed": true
+    }
+  ]
+}

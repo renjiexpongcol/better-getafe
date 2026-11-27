@@ -189,7 +189,9 @@ export async function buildStorage(values, { allowUnavailable = false, verifiedC
     return buildLocalStorage(values);
   }
   if (provider === 'azure') {
-    if (!verifiedCutover && process.env.AZURE_MEDIA_MIGRATION_VERIFIED !== 'true') throw new Error('Azure activation requires a verified media migration.');
+    if(process.env.VERCEL_ENV==='preview'&&values['storage.azureAccount']==='lgumedia'&&values['storage.azureContainer']==='portal-media')throw new Error('Preview must use a separate Azure container.');
+    const freshInstallation=Boolean(process.env.DATABASE_INSTANCE_ID&&process.env.AZURE_STORAGE_INSTALLATION_ID===process.env.DATABASE_INSTANCE_ID);
+    if (!verifiedCutover && process.env.AZURE_MEDIA_MIGRATION_VERIFIED !== 'true'&&!freshInstallation) throw new Error('Azure activation requires a verified media migration or an owned fresh-installation container.');
     if (verifiedCutover && (values['storage.azureAccount'] !== 'lgumedia' || values['storage.azureContainer'] !== 'portal-media')) throw new Error('The Azure target does not match the verified migration.');
     if (values['storage.azureAuthentication'] !== 'connection-string') throw new Error('Azure runtime storage requires Connection string authentication.');
     const account = values['storage.azureAccount'];
@@ -199,6 +201,10 @@ export async function buildStorage(values, { allowUnavailable = false, verifiedC
     const service = new BlobServiceClient(`https://${account}.blob.core.windows.net`, credential, { retryOptions: { maxTries: 2, tryTimeoutInMs: 8000 } });
     const bucket = values['storage.azureContainer'];
     const client = service.getContainerClient(bucket);
+    if(freshInstallation) {
+      const properties=await client.getProperties({abortSignal:AbortSignal.timeout(8000)});
+      if(properties.blobPublicAccess||properties.metadata?.getafeinstallation!==process.env.DATABASE_INSTANCE_ID)throw new Error('Fresh Azure storage must be private and owned by this database installation.');
+    }
     if (startupCheck) {
       const properties = await client.getProperties({ abortSignal: AbortSignal.timeout(8000) });
       if (properties.blobPublicAccess) throw new Error('The Azure media container must be private.');

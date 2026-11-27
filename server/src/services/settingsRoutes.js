@@ -1,4 +1,5 @@
 import { config } from '../config/index.js';
+import { installDatabaseManagementRoutes } from '../database/managementRoutes.js';
 import { deployment } from '../config/deployment.js';
 import { categories, definitions, validate, visibleSettingDependencies } from '../config/defaults.js';
 import { authorizeChanges, permissionsFor, requirePermission } from '../config/permissions.js';
@@ -25,6 +26,7 @@ export function installSettingsRoutes(app, admin, { isTrustedProxy } = {}) {
     next();
   };
   app.use('/api/admin/settings', admin, originCheck, (req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+  installDatabaseManagementRoutes(app);
   const snapshot = user => ({
     ...config.snapshot(), permissions: permissionsFor(user), categories,
     bootstrap: ['Database connection', 'Settings encryption key', 'Session signing key'],

@@ -17,7 +17,9 @@ export function normalizedNpmEnvironment(source = process.env) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const operation = process.argv[2];
-  const args = operation === 'install' ? ['ci'] : operation === 'build' ? ['run', 'verify:deployment'] : null;
+  // Build tools are required even when runtime NODE_ENV is production. The
+  // platform's separately packaged function still contains production deps.
+  const args = operation === 'install' ? ['ci','--include=dev'] : operation === 'build' ? ['run', 'verify:deployment'] : null;
   if (!args) throw new Error('Use vercel-npm.mjs install or build.');
   const env = normalizedNpmEnvironment();
   if (Object.keys(process.env).some(key => /^npm_config_cache[-_]dir$/i.test(key))) console.info('[Build] Translated legacy npm cache-dir environment configuration to the supported cache setting.');

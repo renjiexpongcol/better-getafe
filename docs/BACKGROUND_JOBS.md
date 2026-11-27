@@ -1,5 +1,7 @@
 # Background jobs
 
+Historical database restores now persist a queue hold. Email delivery, integration claims, AI indexing and resident/staff outbox consumption remain paused until an operator reviews restored providers, identities and delivery records and runs `db:approve-restored-jobs` with explicit confirmation. See [DATABASE_RECOVERY.md](DATABASE_RECOVERY.md). A fresh installation without a restore does not have this hold.
+
 Vercel function imports do not start the HTTP listener, PSGC schedule, AI timer, email timer, e-service polling or analytics cleanup timer. Updating PSGC configuration also does not start a timer in function mode. Long media migrations are rejected from the function-hosted admin mutation route.
 
 ## Scheduled functions

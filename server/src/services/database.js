@@ -80,10 +80,8 @@ export function getDatabaseRuntimeStatus(category) {
 export async function databaseHealth(category = 'database') {
   try {
     const database = category === 'database' ? cms : portal;
-    // PostgreSQL checks table existence and SELECT privileges in one round trip.
-    const tables = category === 'database' ? ['users', 'categories', 'news', 'media', 'media_uploads'] : ['portal_users'];
-    const checks = tables.map(table => `NOT EXISTS (SELECT 1 FROM ${table} LIMIT 0)`);
-    const [rows] = await database.execute('SELECT 1 AS ok WHERE ' + checks.join(' AND '));
+    // Connectivity and complete schema compatibility are separate capabilities.
+    const [rows] = await database.execute('SELECT 1 AS ok');
     return { status: rows[0]?.ok === 1 ? 'healthy' : 'degraded' };
   } catch (error) { return { status: 'unhealthy', reason: dependencyReason(error) }; }
 }

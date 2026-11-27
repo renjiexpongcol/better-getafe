@@ -17,6 +17,8 @@ const run = (name, args, { quiet = false } = {}) => {
 };
 try {
   if (Number(process.versions.node.split('.')[0]) !== 24) throw new Error('Deployment validation requires Node 24.x.');
+  run('application/API/SQL dependency discovery', ['scripts/discover-system.mjs']);
+  run('complete schema reference and migration checksum binding', ['scripts/check-schema-manifest.mjs']);
   run('source, export, dependency, casing and ignore audit', ['scripts/audit-dependencies.mjs']);
   run('production API imports and route registration', ['scripts/smoke-runtime.mjs']);
   run('resident exports, npm configuration and API routing contracts', ['--test', 'scripts/test-deployment-contracts.mjs']);

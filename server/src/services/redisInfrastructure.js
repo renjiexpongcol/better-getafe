@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import redis, { isRedisReady } from '../infrastructure/redis/redisClient.js';
 import { redisKeys } from '../infrastructure/redis/redisKeys.js';
+import {recoveryJobsAllowed} from '../database/workerRecovery.js';
 
 export async function incrementCounter(name, id, ttlSeconds = 86400) {
   if (!isRedisReady()) return null;
@@ -54,6 +55,7 @@ export function startEmailWorker(send, onFailure = undefined, canRun = () => tru
   emailWorkerTimer = setInterval(() => {
     if (emailWorkerTask || emailWorkerStopping || !canRun()) return;
     emailWorkerTask = (async () => {
+    try{if(!await recoveryJobsAllowed())return;}catch{return;}
     if (!isRedisReady()) return;
     let raw;
     try {

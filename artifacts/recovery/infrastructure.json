@@ -1,0 +1,15 @@
+{
+  "databaseInstance": "8a05e4ad-d12d-4959-b35f-5597e315f6b5",
+  "redis": {
+    "state": "verified",
+    "tls": true,
+    "namespaceIsolation": true
+  },
+  "azure": {
+    "state": "verified",
+    "container": "getafe-preview-8a05e4add12d4959b35f5597e315f6b5",
+    "private": true,
+    "installationOwned": true,
+    "readWriteProbe": true
+  }
+}

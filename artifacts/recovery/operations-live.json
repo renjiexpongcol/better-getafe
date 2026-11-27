@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-11-27T08:42:11.150Z",
+  "results": [
+    {
+      "name": "Real MFA/CSRF maintenance authorization, operator execution and duplicate refusal",
+      "passed": true,
+      "operationId": "d635aeab-1fc9-4e01-8b12-f166c291900d"
+    },
+    {
+      "name": "All-table encrypted backup, authentication-before-write, source/destination refusal",
+      "passed": true,
+      "tables": 147,
+      "rows": 600,
+      "backupFile": "data/backups/1795768833162-12021bbd-3e47-4776-8498-192dc0229e85.gbak"
+    }
+  ]
+}

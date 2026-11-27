@@ -1,0 +1,42 @@
+{
+  "origin": "https://better-getafe-mgywdjnur-lgu-getafe.vercel.app",
+  "checkedAt": "2026-11-27T09:05:57.668Z",
+  "results": [
+    {
+      "name": "Cloud database, Redis and Azure readiness",
+      "passed": true,
+      "health": {
+        "service": "better-getafe",
+        "status": "healthy",
+        "ready": true,
+        "databaseSchema": "healthy",
+        "dependencies": [
+          {
+            "name": "CMS_DB",
+            "status": "healthy"
+          },
+          {
+            "name": "USER_DB",
+            "status": "healthy"
+          },
+          {
+            "name": "RUNTIME_CONFIG",
+            "status": "healthy"
+          },
+          {
+            "name": "REDIS",
+            "status": "healthy"
+          },
+          {
+            "name": "MEDIA_STORAGE",
+            "status": "healthy"
+          },
+          {
+            "name": "EMAIL",
+            "status": "disabled"
+          }
+        ]
+      }
+    }
+  ]
+}

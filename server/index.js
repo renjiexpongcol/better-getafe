@@ -1,5 +1,6 @@
 import { createSessionEndpoint } from './src/services/sessionEndpoint.js';
 import { deployment } from './src/config/deployment.js';
+import { runtimeDatabaseInspection,missingEndpointTables } from './src/database/runtime.js';
 import { verifySessionToken } from './src/services/sessionToken.js';
 import { saveCmsMfa, consumeCmsRecoveryCode } from './src/services/cmsMfa.js';
 import { pipeline } from 'node:stream/promises';
@@ -115,6 +116,7 @@ const invalidatePublicNewsCaches = async () => {
   await Promise.all([
     cacheService.invalidate('news-public'),
     cacheService.invalidate('news-article-public'),
+    cacheService.invalidate('news-article-public-missing'),
     cacheService.invalidate('notifications'),
   ]);
 };
@@ -126,8 +128,10 @@ let viteDevServer;
 installApiRegistrationGuard(app);
 installApiVersionAliases(app);
 let lifecycle = 'STARTING', initialized = false, coreReady = false;
+let databaseInspection={state:'not_checked',missingObjects:[]};
 let lifecycleTimer, lifecycleCheck, lastCheckedAt = 0;
-const available = () => coreReady && config.available && lifecycle !== 'SHUTTING_DOWN' && Date.now() - lastCheckedAt < 20000;
+const publicAvailable = () => coreReady && config.available && lifecycle !== 'SHUTTING_DOWN' && Date.now() - lastCheckedAt < 20000;
+const available = () => publicAvailable() && databaseInspection.state==='healthy';
 let dependencySnapshot = [];
 app.disable('x-powered-by');
 app.use((req, res, next) => {
@@ -188,6 +192,8 @@ const checkLifecycle = () => {
   lifecycleCheck = (async () => {
   if (!initialized || lifecycle === 'SHUTTING_DOWN') return;
   await config.load();
+  try { databaseInspection=await runtimeDatabaseInspection(); }
+  catch {databaseInspection={state:'unreachable',missingObjects:[]};}
   await refreshStorageHealth();
   const databases = await Promise.all([databaseHealth('database'), databaseHealth('portalDatabase')]);
   for (const [index, category] of ['database', 'portalDatabase'].entries()) systemStatus[category] = { ...systemStatus[category], status: databases[index].status === 'healthy' ? 'connected' : 'degraded', reason: databases[index].reason };
@@ -216,14 +222,24 @@ const readiness = (_req, res) => {
     service: 'better-getafe',
     status: !initialized ? 'initializing' : !ready ? 'unavailable' : lifecycle === 'DEGRADED' ? 'degraded' : 'healthy',
     ready,
+    databaseSchema:databaseInspection.state,
     dependencies: dependencySnapshot.map(({ name, status }) => ({ name, status })),
   });
 };
 app.get(['/ready', '/health/ready', '/api/ready'], readiness);
 // No application handler can run until the initial security/configuration
 // snapshot has been activated. Liveness and readiness bypass this gate.
-app.use((req, res, next) => {
-  if (initialized && available()) return next();
+app.use(async (req, res, next) => {
+  const policy=resolveApiRoutePolicy(req.method,req.path);
+  const publicRead=['GET','HEAD'].includes(req.method)&&req.publicSurface;
+  // Diagnostics and signed requests remain reachable when unrelated schema
+  // objects need repair; all downstream authentication/MFA/CSRF checks apply.
+  const recoveryRequest=/^\/api\/(?:v1\/)?admin\/settings\/database-management\/?$/.test(req.path);
+  const ready=publicRead||recoveryRequest?publicAvailable():available();
+  if (initialized && ready) {
+    if(publicRead&&(await missingEndpointTables(policy,databaseInspection)).length)return res.status(503).json({code:'DATABASE_SCHEMA_INCOMPLETE',error:'This service requires database maintenance.'});
+    return next();
+  }
   if (req.method === 'POST' && /^\/api\/analytics\/events\/?$/i.test(req.path)) {
     console.warn(JSON.stringify({ event: 'website_analytics_ingest_failed', request_id: req.requestId, reason: 'application_not_ready' }));
   }
