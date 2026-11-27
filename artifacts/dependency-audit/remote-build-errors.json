@@ -1,0 +1,13 @@
+{
+  "deployment": "dpl_FvuH9d5KjdyeptX3J2ouNVbppSo5",
+  "observedStatus": "ERROR",
+  "errors": [
+    "Skipping build cache since Node.js version changed from \"26.x\" to \"24.x\"",
+    "[UNRESOLVED_IMPORT] Could not resolve '../../data/residentContact' in src/pages/app/Setup.jsx",
+    "[UNRESOLVED_IMPORT] Could not resolve '../data/serviceApplication' in src/components/EserviceUI.jsx",
+    "[UNRESOLVED_IMPORT] Could not resolve '../../data/serviceApplication' in src/pages/app/Erequest.jsx",
+    "Node.js v24.22.3",
+    "Error: [BUILD_UTILS_SPAWN_1] Command \"npm run build\" exited with 1"
+  ],
+  "remediation": "Root-anchor .vercelignore runtime data exclusions; no deployment was performed."
+}

@@ -4,6 +4,8 @@ The portal uses React + Vite on Vercel, a Node.js Express function, Supabase Pos
 
 Start with the [deployment runbook](docs/VERCEL_DEPLOYMENT.md), [environment contract](docs/ENVIRONMENT_VARIABLES.md), [architecture](docs/ARCHITECTURE.md) and [production-readiness report](docs/PRODUCTION_READINESS_REPORT.md). A passing build does not establish that cloud credentials, sessions, media or external workers are operational.
 
+For missing-package errors and reproducible installation, follow [dependency setup and checks](docs/DEPENDENCIES.md). Install once from this repository root with `npm ci`; avoid running installation concurrently with development, tests or a Vercel build.
+
 <img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/270f54cf-7398-4c68-95c9-1ac4c80cc071" />
 
 **Better Getafe** is a modern digital government portal for the **Municipality of Getafe, Bohol, Philippines**, designed to provide residents, visitors, businesses, and the wider community with centralized access to municipal information and digital services.

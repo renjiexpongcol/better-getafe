@@ -1,0 +1,24 @@
+{
+  "node": "v24.14.1",
+  "driver": "8.23.1",
+  "files": 509,
+  "workspaces": 14,
+  "productionModules": 157,
+  "dependencyFindings": 0,
+  "cycles": 0,
+  "tests": {
+    "default": 131,
+    "production": 14
+  },
+  "lint": "passed",
+  "cleanInstall": "passed",
+  "isolatedProductionInstall": "passed",
+  "viteBuild": "passed",
+  "workspaceBuilds": "passed",
+  "vercelBuild": "passed",
+  "packagedDriver": "passed",
+  "packagedMediaCopyMatchesSource": true,
+  "localConfigurationPresent": false,
+  "liveStartup": "blocked by missing local configuration",
+  "deployed": false
+}

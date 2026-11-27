@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { deploymentConfiguration } from '../server/src/config/deployment.js';
+// Keep workstation credentials out of this serverless contract test process.
+process.env.NODE_ENV = 'production';
+process.env.PORTAL_SERVERLESS = 'true';
+const { deploymentConfiguration } = await import('../server/src/config/deployment.js');
 
 test('unconfigured function liveness returns 200 and other requests return controlled 503', async () => {
   const { default: handler } = await import('../api/index.js');

@@ -5,7 +5,16 @@ import path from 'node:path';
 import { existsSync, watch } from 'node:fs';
 import { createServer } from 'node:net';
 import { probeBackendReadiness } from './readiness-probe.mjs';
-import { loadLocalEnvironment, ensureSupabaseConfigured, checkBetterGetafeSchema, selectedCmsUrl } from '../server/src/config/supabaseSetup.js';
+import { checkInstalledDependencies, reportStartupDependencyError } from './dependency-preflight.mjs';
+
+let loadLocalEnvironment, ensureSupabaseConfigured, checkBetterGetafeSchema, selectedCmsUrl;
+try {
+  checkInstalledDependencies({ development: true });
+  ({ loadLocalEnvironment, ensureSupabaseConfigured, checkBetterGetafeSchema, selectedCmsUrl } = await import('../server/src/config/supabaseSetup.js'));
+} catch (error) {
+  reportStartupDependencyError(error);
+  process.exit(1);
+}
 
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');

@@ -16,7 +16,7 @@ Target the existing team `lgu-getafe`, project `better-getafe` (`prj_0gnvJzzefBf
 
 ## Build and verify
 
-`vercel.json` sets `npm ci`, `npm run build`, output `dist`, a 60-second Node function, Sydney region, static cache headers and API-first routing. `package.json` pins Node 24.x, the locally tested runtime; it overrides the inspected project's older selection of 26.x. Confirm platform support and function region/cron entitlements in the current plan before deployment.
+`vercel.json` runs `node scripts/vercel-npm.mjs install` (which executes `npm ci`) and `node scripts/vercel-npm.mjs build` (which executes `npm run verify:deployment`, including the production Vite build). These wrappers translate the platform's unsupported npm cache-dir environment key to npm's supported cache key. Output is `dist`, with a 60-second Node function, Sydney region, static cache headers and API-first routing. Root engines, local version files, CI and Vercel project settings now use Node 24.x. Vercel's separate function-packaging install still emits its platform-injected cache-dir warning; it is recorded rather than suppressed.
 
 Run:
 
@@ -27,6 +27,7 @@ npm run test:production
 npm run test:redis
 npm run test:session-timeout-ui
 npm run lint
+npm run verify:deployment
 npm run build
 vercel project inspect better-getafe --scope lgu-getafe --non-interactive
 vercel build
@@ -34,7 +35,7 @@ vercel build
 
 CLI 65.16.0 encountered a Windows builder symlink permission failure in this environment. The JavaScript CLI fallback used for local diagnostics is recorded in the readiness report. Do not interpret a frontend build alone as deployment verification. Sensitive Vercel variables pull as placeholders and cannot supply local runtime credentials. Inject local test credentials through a secure channel outside Git.
 
-Review a Preview only after isolation and required values are configured. No preview or production deployment is created by these repository changes. On a verified deployment, check:
+The build repair produced an uncached Preview with a passing Linux build, but its API remains unavailable pending isolated runtime configuration. See [the build repair report](VERCEL_BUILD_REPAIR.md). Do not promote it. After isolation and required values are configured, check:
 
 - Direct refresh of `/services`, a news detail route, `/admin` and a resident route.
 - `/api/health/live` returns JSON 200 even during a dependency outage; `/api/ready` reflects required dependencies. Unknown API paths return API 404, never SPA HTML.

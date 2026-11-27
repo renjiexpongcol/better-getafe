@@ -1,0 +1,84 @@
+{
+  "commit": "d0213e4",
+  "exclusion": "src/data removed by the original unanchored data rule",
+  "errors": [
+    {
+      "code": "UNRESOLVED_IMPORT",
+      "file": "<snapshot>/src/pages/app/Erequest.jsx",
+      "line": 8,
+      "import": "../../data/serviceApplication"
+    },
+    {
+      "code": "UNRESOLVED_IMPORT",
+      "file": "<snapshot>/src/pages/app/Erequests.jsx",
+      "line": 8,
+      "import": "../../data/serviceApplication"
+    },
+    {
+      "code": "UNRESOLVED_IMPORT",
+      "file": "<snapshot>/src/pages/dashboard/Profile.jsx",
+      "line": 14,
+      "import": "../../data/residentContact"
+    },
+    {
+      "code": "UNRESOLVED_IMPORT",
+      "file": "<snapshot>/src/pages/app/Setup.jsx",
+      "line": 16,
+      "import": "../../data/residentContact"
+    },
+    {
+      "code": "UNRESOLVED_IMPORT",
+      "file": "<snapshot>/src/pages/app/Ebilling.jsx",
+      "line": 5,
+      "import": "../../data/businessBillingWorkflow"
+    },
+    {
+      "code": "UNRESOLVED_IMPORT",
+      "file": "<snapshot>/src/pages/info/AboutUs.jsx",
+      "line": 4,
+      "import": "../../data/getafe"
+    },
+    {
+      "code": "UNRESOLVED_IMPORT",
+      "file": "<snapshot>/src/components/ServiceDetails.jsx",
+      "line": 6,
+      "import": "../data/serviceApplication"
+    },
+    {
+      "code": "UNRESOLVED_IMPORT",
+      "file": "<snapshot>/src/components/EserviceUI.jsx",
+      "line": 8,
+      "import": "../data/serviceApplication"
+    },
+    {
+      "code": "UNRESOLVED_IMPORT",
+      "file": "<snapshot>/src/components/MobileVerification.jsx",
+      "line": 3,
+      "import": "../data/residentContact"
+    },
+    {
+      "code": "UNRESOLVED_IMPORT",
+      "file": "<snapshot>/src/components/StaffEservices.jsx",
+      "line": 3,
+      "import": "../data/eserviceWorkflow"
+    },
+    {
+      "code": "UNRESOLVED_IMPORT",
+      "file": "<snapshot>/src/components/AdminEservices.jsx",
+      "line": 6,
+      "import": "../data/eserviceWorkflow"
+    },
+    {
+      "code": "UNRESOLVED_IMPORT",
+      "file": "<snapshot>/src/components/AdminEservices.jsx",
+      "line": 7,
+      "import": "../data/serviceApplication"
+    },
+    {
+      "code": "UNRESOLVED_IMPORT",
+      "file": "<snapshot>/src/components/AdminEservices.jsx",
+      "line": 8,
+      "import": "../data/businessBillingWorkflow"
+    }
+  ]
+}

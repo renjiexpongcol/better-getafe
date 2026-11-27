@@ -16,13 +16,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - run: npm run audit:dependencies
+      - run: npm run check:runtime
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
       - run: npm test
       - run: npm run test:production
       - run: npm run test:redis
-      - run: npm run build
+      - run: npm run verify:deployment
       - run: npm run build:apps
       - run: npm run deploy:artifacts
+      # Run last: replacing node_modules while tests/dev/builds run causes
+      # transient ERR_MODULE_NOT_FOUND errors despite a correct lockfile.
+      - run: npm ci --omit=dev
+      - run: npm ls --omit=dev
+      - run: npm run check:runtime

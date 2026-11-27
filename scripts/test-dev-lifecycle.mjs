@@ -14,6 +14,7 @@ test('the dev runner gates workers, restarts the process pair and drains childre
   for (const dir of ['scripts', 'server/src/config', 'server/src/infrastructure/redis', 'server/src/.cache']) await fs.mkdir(file(dir), { recursive: true });
   await fs.writeFile(file('package.json'), '{"type":"module"}');
   await fs.copyFile(new URL('./dev-runner.mjs', import.meta.url), file('scripts/dev-runner.mjs'));
+  await fs.copyFile(new URL('./dependency-preflight.mjs', import.meta.url), file('scripts/dependency-preflight.mjs'));
   await fs.copyFile(new URL('./readiness-probe.mjs', import.meta.url), file('scripts/readiness-probe.mjs'));
   await fs.copyFile(new URL('../server/src/infrastructure/redis/redisConfiguration.js', import.meta.url), file('server/src/infrastructure/redis/redisConfiguration.js'));
   await fs.writeFile(file('server/src/config/supabaseSetup.js'), `

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
-import { migrateMediaToAzure } from '../../../scripts/migrate-b2-to-azure.mjs'
+import { migrateMediaToAzure } from './azureMediaCopy.js'
 import { config } from '../config/index.js'
 import { getCmsPool, getPortalPool } from './database.js'
 import { activateStorage, buildStorage, setVerifiedAzureStatus, storageHealth, storageLocation } from './storage.js'

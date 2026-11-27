@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 
@@ -32,11 +32,29 @@ const scan = (text, source, history = false) => {
     if (history) line++;
   }
 };
-const history=execFileSync('git',['log','--all','--format=SCAN_COMMIT %H','-p','--no-ext-diff','--unified=0','--','.',' :(exclude)package-lock.json'.trim(),':(exclude)artifacts/**'],{encoding:'utf8',maxBuffer:256*1024*1024,windowsHide:true});
-scan(history,'git-history',true);
-const files=execFileSync('git',['ls-files','-z'],{encoding:'utf8',windowsHide:true}).split('\0').filter(file=>/\.(?:js|mjs|jsx|json|md|sql|ya?ml|env|txt|example)$|(?:^|\/)\.env/.test(file));
-for (const path of files) { try { const data=await fs.readFile(path,'utf8'); if(data.length<2000000) {line=0;scan(data,path);} } catch { /* A concurrent working-tree deletion is not a scanned file. */ } }
+const hasGit = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { encoding: 'utf8', windowsHide: true }).status === 0;
+const files = [];
+if (hasGit) {
+  const history=execFileSync('git',['log','--all','--format=SCAN_COMMIT %H','-p','--no-ext-diff','--unified=0','--','.',' :(exclude)package-lock.json'.trim(),':(exclude)artifacts/**'],{encoding:'utf8',maxBuffer:256*1024*1024,windowsHide:true});
+  scan(history,'git-history',true);
+  files.push(...execFileSync('git',['ls-files','--cached','--others','--exclude-standard','-z'],{encoding:'utf8',windowsHide:true}).split('\0').filter(Boolean));
+} else {
+  // Uploaded build sources intentionally omit Git metadata and private env files.
+  async function walk(directory = '.') {
+    for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+      if (['node_modules', '.git', '.vercel', 'dist', 'build', 'artifacts', '.cache'].includes(entry.name)) continue;
+      if (directory === '.' && ['data', 'uploads', 'tmp', 'temp'].includes(entry.name)) continue;
+      if (entry.name.startsWith('.env') && entry.name !== '.env.example') continue;
+      const file = directory === '.' ? entry.name : `${directory}/${entry.name}`;
+      if (entry.isDirectory()) await walk(file);
+      else if (entry.isFile()) files.push(file);
+    }
+  }
+  await walk();
+}
+const textFiles = files.filter(file=>/\.(?:js|mjs|jsx|json|md|sql|ya?ml|env|txt|example)$|(?:^|\/)\.env/.test(file) && !file.startsWith('artifacts/'));
+for (const path of textFiles) { try { const data=await fs.readFile(path,'utf8'); if(data.length<2000000) {line=0;scan(data,path);} } catch { /* A concurrent working-tree deletion is not a scanned file. */ } }
 const unique=[...new Map(output.map(row=>[JSON.stringify(row),row])).values()];
 await fs.mkdir('artifacts/production-readiness',{recursive:true});
-await fs.writeFile('artifacts/production-readiness/secret-scan.json',JSON.stringify({scope:'all reachable Git history plus tracked working-tree text files; heuristic scan, not a complete guarantee',commits:Number(execFileSync('git',['rev-list','--all','--count'],{encoding:'utf8'})),candidates:unique},null,2));
+await fs.writeFile('artifacts/production-readiness/secret-scan.json',JSON.stringify({scope:hasGit ? 'all reachable Git history plus tracked and unignored working-tree text files; heuristic scan' : 'uploaded source text files; Git history unavailable in this build; heuristic scan',commits:hasGit ? Number(execFileSync('git',['rev-list','--all','--count'],{encoding:'utf8'})) : null,candidates:unique},null,2));
 console.log(JSON.stringify({candidates:unique.length,nonFixtureCandidates:unique.filter(item=>!item.fixturePossible).length,report:'artifacts/production-readiness/secret-scan.json'}));

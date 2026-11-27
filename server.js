@@ -1,6 +1,15 @@
 import { setTimeout as delay } from 'node:timers/promises';
-import { ensureSupabaseConfigured, checkBetterGetafeSchema, selectedCmsUrl } from './server/src/config/supabaseSetup.js';
-import { getConfigPool, closeConfigStore } from './server/src/config/DatabaseSettingsProvider.js';
+import { checkInstalledDependencies, reportStartupDependencyError } from './scripts/dependency-preflight.mjs';
+
+let ensureSupabaseConfigured, checkBetterGetafeSchema, selectedCmsUrl, getConfigPool, closeConfigStore;
+try {
+  checkInstalledDependencies();
+  ({ ensureSupabaseConfigured, checkBetterGetafeSchema, selectedCmsUrl } = await import('./server/src/config/supabaseSetup.js'));
+  ({ getConfigPool, closeConfigStore } = await import('./server/src/config/DatabaseSettingsProvider.js'));
+} catch (error) {
+  reportStartupDependencyError(error);
+  process.exit(1);
+}
 
 if (process.send) {
   const disconnected = () => {
@@ -33,5 +42,12 @@ try {
   process.exit(1);
 }
 
-const { startServer } = await import('./server/index.js');
-await startServer();
+try {
+  const { startServer } = await import('./server/index.js');
+  await startServer();
+} catch (error) {
+  if (!['ERR_MODULE_NOT_FOUND', 'MODULE_NOT_FOUND', 'ERR_PACKAGE_PATH_NOT_EXPORTED'].includes(error.code)) throw error;
+  reportStartupDependencyError(error);
+  await closeConfigStore();
+  process.exitCode = 1;
+}

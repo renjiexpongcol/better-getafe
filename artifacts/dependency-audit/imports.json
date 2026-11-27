@@ -1,0 +1,5774 @@
+{
+  "files": 513,
+  "workspaces": 14,
+  "productionModules": 160,
+  "imports": [
+    {
+      "file": "src/App.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "lazy",
+        "Suspense",
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/App.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Routes",
+        "Route",
+        "Navigate",
+        "useLocation",
+        "useParams",
+        "matchPath"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/applicationModuleRegistry.js",
+      "owner": "package.json",
+      "package": "@getafe/auth-client",
+      "declaration": "dependencies",
+      "specifier": "@getafe/auth-client",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "hasPermission"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminAccessManagement.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useEffect",
+        "useMemo",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminAccessManagement.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Archive",
+        "Check",
+        "ChevronLeft",
+        "ChevronRight",
+        "KeyRound",
+        "Plus",
+        "Search",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminAiManagement.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminAiManagement.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Activity",
+        "Bot",
+        "BrainCircuit",
+        "CheckCircle2",
+        "CircleOff",
+        "Database",
+        "Gauge",
+        "KeyRound",
+        "RefreshCw",
+        "ShieldCheck",
+        "Sparkles",
+        "Wrench"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminApiKeys.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useCallback",
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminApiKeys.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Copy",
+        "KeyRound",
+        "Plus",
+        "RotateCw",
+        "ShieldCheck",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminDepartments.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminDestinations.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminErrorLogs.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useMemo",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminErrorLogs.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Search",
+        "RefreshCw",
+        "X",
+        "CheckCircle2",
+        "CircleAlert",
+        "Clock3"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminEservices.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminIntegrations.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useCallback",
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminIntegrations.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Plug",
+        "RefreshCw",
+        "Search"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminPrivacyRequests.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminPrivacyRequests.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Ban",
+        "CheckCircle2",
+        "CircleAlert",
+        "Clock3",
+        "Info",
+        "LoaderCircle",
+        "ShieldCheck",
+        "XCircle"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminPublicContent.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useCallback",
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminSettings.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminSettings.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Check",
+        "CheckCircle2",
+        "Info",
+        "LoaderCircle",
+        "Mail",
+        "RotateCw",
+        "Search",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AdminSettings.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link",
+        "useNavigate",
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AiContentStudio.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AiContentStudio.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Check",
+        "Copy",
+        "RefreshCw",
+        "Sparkles",
+        "WandSparkles",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AppointmentFields.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useId",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/AppointmentFields.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "CalendarDays",
+        "ChevronLeft",
+        "ChevronRight"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ArticleGallery.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ArticleGallery.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "ChevronLeft",
+        "ChevronRight"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/BackToTop.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/BackToTop.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/BackToTop.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Accessibility",
+        "ArrowUp",
+        "Eye",
+        "FileText",
+        "X",
+        "ZoomIn",
+        "ZoomOut",
+        "Contrast",
+        "Lightbulb",
+        "Link",
+        "Type",
+        "RotateCcw"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/BarangayModal.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useRef"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/BarangayModal.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "MapPin",
+        "Users",
+        "UserRound",
+        "ExternalLink",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/BarangayModal.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/BarangayRelatedSection.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "ArrowRight",
+        "Newspaper"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/BarangayRelatedSection.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/BusinessBillingPanel.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/CitizenActions.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "ArrowRight",
+        "Building2",
+        "CalendarDays",
+        "FileText",
+        "HelpCircle",
+        "MessageSquare",
+        "ShieldCheck"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/CitizenActions.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/CitizenLayout.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "createContext",
+        "lazy",
+        "Suspense",
+        "useCallback",
+        "useContext",
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/CitizenLayout.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Bell",
+        "CalendarDays",
+        "ChevronDown",
+        "CircleHelp",
+        "CreditCard",
+        "FileText",
+        "FolderOpen",
+        "Home",
+        "LayoutGrid",
+        "LogOut",
+        "Menu",
+        "Search",
+        "Settings",
+        "UserRound"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/CitizenLayout.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Link",
+        "NavLink",
+        "useLocation",
+        "useNavigate"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/CitizenWidgets.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/CitizenWidgets.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "ArrowRight",
+        "CalendarDays",
+        "Check",
+        "Download",
+        "FileText",
+        "FolderOpen",
+        "Search",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/CitizenWidgets.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/CommentsModeration.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/CookieCacheBanner.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/CookieCacheBanner.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Cookie",
+        "Settings",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/CookieCacheBanner.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/DiscoverGetafe.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/DynamicApplication.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/DynamicApplication.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Link",
+        "useNavigate"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/EmergencyAlert.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/EmergencyAlert.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "ArrowRight",
+        "Bell",
+        "ShieldAlert"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/EmergencyAlert.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/EmployeeProfile.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/EmployeeSelect.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/EserviceUI.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/EserviceUI.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/EventCalendar.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/EventCalendar.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "ChevronLeft",
+        "ChevronRight"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/EventCalendar.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/EventsSection.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useMemo",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/EventsSection.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "ArrowRight",
+        "CalendarDays",
+        "ChevronLeft",
+        "ChevronRight",
+        "Clock3",
+        "MapPin"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/EventsSection.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/FacebookPageFeed.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "ExternalLink"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/FacebookPageFeed.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "memo",
+        "useEffect",
+        "useLayoutEffect",
+        "useMemo",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/Footer.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/Footer.jsx",
+      "owner": "package.json",
+      "package": "react-icons",
+      "declaration": "dependencies",
+      "specifier": "react-icons/fa6",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "FaFacebookF",
+        "FaGithub",
+        "FaInstagram",
+        "FaYoutube",
+        "FaXTwitter",
+        "FaRss"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/Footer.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Mail",
+        "MapPin",
+        "Phone"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/Footer.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/Header.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useEffect",
+        "useLayoutEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/Header.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "NavLink",
+        "Link",
+        "useLocation"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/Header.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "Accessibility",
+        "ArrowRight",
+        "BookOpen",
+        "Building2",
+        "CalendarDays",
+        "ChevronDown",
+        "ClipboardCheck",
+        "CloudSun",
+        "Compass",
+        "FileCheck2",
+        "HeartHandshake",
+        "Info",
+        "Landmark",
+        "Mail",
+        "Map",
+        "Menu",
+        "Newspaper",
+        "PhoneCall",
+        "Rocket",
+        "Siren",
+        "Users",
+        "WalletCards",
+        "ChartNoAxesCombined",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/HeaderInfoWidget.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/HeaderInfoWidget.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Coins"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/HeaderInfoWidget.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/HeaderWeather.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/HeaderWeather.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Cloud",
+        "CloudFog",
+        "CloudLightning",
+        "CloudRain",
+        "CloudSun",
+        "Droplets",
+        "Moon",
+        "Snowflake",
+        "Sun",
+        "Thermometer",
+        "Wind"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/Hero.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "ArrowRight",
+        "Info",
+        "Search"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/Hero.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/Hero.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link",
+        "useNavigate"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/HomeSectionBoundary.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Component"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/HomeSectionBoundary.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ImageLightbox.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useId",
+        "useRef"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ImageLightbox.jsx",
+      "owner": "package.json",
+      "package": "react-dom",
+      "declaration": "dependencies",
+      "specifier": "react-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "createPortal"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ImageLightbox.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "ChevronLeft",
+        "ChevronRight",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ImportantAnnouncement.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useLayoutEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ImportantAnnouncement.jsx",
+      "owner": "package.json",
+      "package": "react-dom",
+      "declaration": "dependencies",
+      "specifier": "react-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "createPortal"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ImportantAnnouncement.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "ArrowRight",
+        "CalendarDays",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/LguUpdatesFeed.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "ExternalLink"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/MaintenancePage.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/MediaFolderBrowser.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/MediaFolderBrowser.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "ChevronRight",
+        "Cloud",
+        "Folder",
+        "ImageOff",
+        "Search",
+        "Trash2",
+        "Upload"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/MobileVerification.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ModalDialog.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ModalDialog.jsx",
+      "owner": "package.json",
+      "package": "react-dom",
+      "declaration": "dependencies",
+      "specifier": "react-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "createPortal"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ModalDialog.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ModalFrame.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useRef"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/NarrationControl.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Headphones",
+        "Pause",
+        "Play",
+        "Square"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/NewsletterTokenAction.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/NewsletterTokenAction.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Link",
+        "useParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/NewsSection.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "ArrowUpRight",
+        "ChevronLeft",
+        "ChevronRight",
+        "Newspaper"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/NewsSection.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/NewsSection.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/OpenStreetMap.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useRef"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/OpenStreetMap.jsx",
+      "owner": "package.json",
+      "package": "leaflet",
+      "declaration": "dependencies",
+      "specifier": "leaflet",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/OpenStreetMap.jsx",
+      "owner": "package.json",
+      "package": "leaflet",
+      "declaration": "dependencies",
+      "specifier": "leaflet/dist/leaflet.css",
+      "dynamic": false,
+      "line": 3,
+      "requested": [],
+      "star": false
+    },
+    {
+      "file": "src/components/PageTitleManager.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/PageTitleManager.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "matchPath",
+        "useLocation"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/PasswordChangeModal.jsx",
+      "owner": "package.json",
+      "package": "react-dom",
+      "declaration": "dependencies",
+      "specifier": "react-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "createPortal"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/PasswordChangeModal.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/PasswordChangeModal.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Check",
+        "Eye",
+        "EyeOff",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/PolicyWorkspace.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/PopularServiceLinks.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "ArrowUpRight"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/PopularServiceLinks.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ProfileModal.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useRef"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ProfileModal.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/PublishedPage.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Link",
+        "useLocation"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/PublishedPage.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useRef"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/RecordNavigation.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "NavLink"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ResidentAiAssistant.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ResidentAiAssistant.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Bot",
+        "ChevronDown",
+        "Copy",
+        "ExternalLink",
+        "MessageCircle",
+        "Send",
+        "ShieldCheck",
+        "Sparkles",
+        "ThumbsDown",
+        "ThumbsUp",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ResidentBarangayField.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useLayoutEffect",
+        "useMemo",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ResidentBusinesses.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/RouteStatusPages.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Component",
+        "useEffect",
+        "useLayoutEffect",
+        "useMemo",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/RouteStatusPages.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link",
+        "useLocation",
+        "useParams",
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/SearchManagement.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useCallback",
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/SearchManagement.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Plus",
+        "RefreshCw",
+        "Search",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ServiceCatalog.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useId",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ServiceCatalog.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "ArrowUpRight",
+        "Building2",
+        "ChevronDown",
+        "Clock3"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ServiceCatalog.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link",
+        "useLocation"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ServiceDetails.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Link",
+        "useParams",
+        "useNavigate",
+        "useLocation"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ServiceDetails.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ServicePageLayout.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Phone",
+        "MapPin",
+        "Clock",
+        "ArrowLeft",
+        "ArrowRight",
+        "CheckCircle2"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ServicePageLayout.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useEffect",
+        "useRef"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ServicesSection.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ServicesSection.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "ArrowRight"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/SessionTimeoutSettings.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Info"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/SessionTimeoutWarning.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/SessionTimeoutWarning.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "LoaderCircle"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/SessionTimeoutWarning.jsx",
+      "owner": "package.json",
+      "package": "@getafe/auth-client",
+      "declaration": "dependencies",
+      "specifier": "@getafe/auth-client",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "formatSessionCountdown",
+        "sessionMaximumWarningVisible",
+        "sessionWarningVisible"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/SettingsPermissions.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/settingsPresentation.js",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Settings",
+        "Building2",
+        "Globe2",
+        "Database",
+        "Folder",
+        "LockKeyhole",
+        "ShieldCheck",
+        "Mail",
+        "Bell",
+        "Plug",
+        "Cloud",
+        "CloudSun",
+        "Flag",
+        "Wrench",
+        "FileText",
+        "SlidersHorizontal",
+        "Activity",
+        "History",
+        "Users",
+        "Image",
+        "KeyRound"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StableAvatar.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StaffAccount.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StaffAssessment.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StaffBillingOperations.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useState",
+        "useEffect"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StaffDepartmentAccess.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useId",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StaffEservices.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StaffEservices.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "useParams",
+        "useSearchParams",
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StaffLegacyAssignment.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useState",
+        "useRef"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StaffOperations.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StaffOperations.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Link",
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StaffRequestProcessing.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useId",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StaffUtilityPages.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useState",
+        "useRef"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StaffUtilityPages.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StatisticalReportTable.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/StatisticalReportTable.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "ArrowDown",
+        "ArrowUp",
+        "Download"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/ui/Primitives.css",
+      "owner": "package.json",
+      "package": "@getafe/ui",
+      "declaration": "dependencies",
+      "specifier": "@getafe/ui/styles.css",
+      "dynamic": false
+    },
+    {
+      "file": "src/components/ui/Primitives.jsx",
+      "owner": "package.json",
+      "package": "@getafe/ui",
+      "declaration": "dependencies",
+      "specifier": "@getafe/ui",
+      "dynamic": false,
+      "line": 4,
+      "requested": [],
+      "star": true
+    },
+    {
+      "file": "src/components/WebsiteAnalytics.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useMemo",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/components/WebsiteAnalytics.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "BarChart3",
+        "Eye",
+        "Globe2",
+        "Search",
+        "Smartphone"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/context/AuthContext.jsx",
+      "owner": "package.json",
+      "package": "@getafe/auth-client",
+      "declaration": "dependencies",
+      "specifier": "@getafe/auth-client",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "AUTH_ENDPOINTS",
+        "createAuthClient",
+        "nextSessionDeadline",
+        "shouldSendActivityUpdate"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/context/AuthContext.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "createContext",
+        "useCallback",
+        "useContext",
+        "useEffect",
+        "useMemo",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/context/CitizenContext.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "createContext",
+        "useCallback",
+        "useContext",
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/context/CitizenContext.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "useLocation"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/context/ErrorNavigation.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "createContext",
+        "useContext",
+        "useEffect",
+        "useRef"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/context/ErrorNavigation.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useLocation"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/context/PublicConfig.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "createContext",
+        "useContext",
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/context/ResidentPreferencesContext.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "createContext",
+        "useCallback",
+        "useContext",
+        "useEffect",
+        "useMemo",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/context/ResidentPreferencesContext.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useLocation"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/context/RouteActivity.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "createContext",
+        "useContext",
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/hooks/useOpenStats.js",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/hooks/usePublicResource.js",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useCallback",
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/hooks/useSpeechSynthesis.js",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/index.css",
+      "owner": "package.json",
+      "package": "@getafe/design-system",
+      "declaration": "dependencies",
+      "specifier": "@getafe/design-system/tokens.css",
+      "dynamic": false
+    },
+    {
+      "file": "src/main.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/main.jsx",
+      "owner": "package.json",
+      "package": "react-dom",
+      "declaration": "dependencies",
+      "specifier": "react-dom/client",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/main.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "BrowserRouter"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/admin/Admin.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 10,
+      "requested": [
+        "lazy",
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/admin/Admin.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 11,
+      "requested": [
+        "Navigate",
+        "NavLink",
+        "useLocation",
+        "useNavigate"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/admin/Admin.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 25,
+      "requested": [
+        "LayoutDashboard",
+        "Newspaper",
+        "Tags",
+        "Images",
+        "Users",
+        "MapPin",
+        "Settings",
+        "ShieldCheck",
+        "LogOut",
+        "Menu",
+        "X",
+        "ChevronDown",
+        "UserRound",
+        "ArrowRight",
+        "Plus",
+        "Search",
+        "FileText",
+        "Camera",
+        "MoreVertical",
+        "GripVertical",
+        "ExternalLink",
+        "ArrowUp",
+        "ArrowDown",
+        "ChevronsUp",
+        "ChevronsDown",
+        "ImageOff",
+        "Check",
+        "Copy",
+        "Download",
+        "Eye",
+        "RotateCcw",
+        "Info",
+        "AlertTriangle",
+        "ClipboardList",
+        "BarChart3",
+        "Clock3",
+        "RefreshCw",
+        "Sparkles"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/admin/Admin.jsx",
+      "owner": "package.json",
+      "package": "@getafe/auth-client",
+      "declaration": "dependencies",
+      "specifier": "@getafe/auth-client",
+      "dynamic": false,
+      "line": 33,
+      "requested": [
+        "hasPermission"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Application.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Application.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Link",
+        "useParams",
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Appointments.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Appointments.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Appointments.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 6,
+      "requested": [
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Documents.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Documents.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Ebilling.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useParams",
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Ebilling.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Epayment.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useParams",
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Erequest.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useParams",
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Erequest.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Erequests.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Erequests.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 12,
+      "requested": [
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/FulfillmentNoteModal.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/FulfillmentNoteModal.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Help.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Help.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "Link",
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Help.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 6,
+      "requested": [
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Notifications.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Notifications.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Link",
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Notifications.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Bell",
+        "CheckCheck"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Payments.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Payments.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Payments.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "CreditCard",
+        "FileCheck2",
+        "WalletCards"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Services.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Link",
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Settings.jsx",
+      "owner": "package.json",
+      "package": "react-dom",
+      "declaration": "dependencies",
+      "specifier": "react-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "createPortal"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Settings.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Component",
+        "forwardRef",
+        "useCallback",
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Settings.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "Bell",
+        "ChevronRight",
+        "CircleHelp",
+        "Download",
+        "ExternalLink",
+        "Globe2",
+        "LockKeyhole",
+        "Palette",
+        "ShieldCheck",
+        "Smartphone",
+        "UserRound",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Settings.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 9,
+      "requested": [
+        "Link",
+        "Navigate"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Setup.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Setup.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Upload",
+        "UserRound",
+        "ChevronLeft",
+        "ChevronRight",
+        "Check"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/Setup.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "Navigate",
+        "useNavigate"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/StaffRequestModal.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/StaffSysparm.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "lazy",
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/StaffSysparm.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Bell",
+        "CircleHelp",
+        "ClipboardList",
+        "ChevronDown",
+        "LayoutDashboard",
+        "LogOut",
+        "Menu",
+        "Settings"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/StaffSysparm.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "Link",
+        "useLocation",
+        "useNavigate"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/app/StaffSysparm.jsx",
+      "owner": "package.json",
+      "package": "@getafe/auth-client",
+      "declaration": "dependencies",
+      "specifier": "@getafe/auth-client",
+      "dynamic": false,
+      "line": 19,
+      "requested": [
+        "hasPermission"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/auth/ForgotPassword.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/auth/ForgotPassword.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "ArrowLeft",
+        "Info",
+        "KeyRound",
+        "LoaderCircle",
+        "Mail"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/auth/ForgotPassword.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link",
+        "useNavigate"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/auth/Login.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/auth/Login.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "useNavigate",
+        "Link",
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/auth/Login.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "Mail",
+        "Lock",
+        "Eye",
+        "EyeOff",
+        "Loader2",
+        "KeyRound",
+        "User",
+        "ArrowLeft",
+        "Info"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/community/CivicTechCommunity.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/community/CivicTechCommunity.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "ArrowLeft",
+        "CheckCircle2",
+        "ExternalLink",
+        "Lightbulb",
+        "MessageSquare",
+        "Users",
+        "Wrench"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/dashboard/Dashboard.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "ArrowRight",
+        "Bell",
+        "CalendarDays",
+        "CircleAlert",
+        "CreditCard",
+        "FilePlus2",
+        "FileText",
+        "FolderOpen",
+        "MessageSquare",
+        "Plus",
+        "BriefcaseBusiness"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/dashboard/Dashboard.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/dashboard/Profile.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "forwardRef",
+        "useCallback",
+        "useEffect",
+        "useImperativeHandle",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/dashboard/Profile.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Camera",
+        "Save"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/dashboard/Profile.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "Navigate"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/dashboard/RequestDocument.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Navigate",
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/data/Barangays.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/data/BarangayStatistics.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Link",
+        "useParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/data/Data.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/data/Data.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Link",
+        "useNavigate"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/data/Data.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "ArrowRight",
+        "Database",
+        "Search",
+        "SlidersHorizontal"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/data/DatasetDetail.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/data/DatasetDetail.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "ExternalLink"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/data/DatasetDetail.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Link",
+        "useParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/data/Datasets.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/data/Datasets.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Link",
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/data/Datasets.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Search"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/data/SupabaseTodos.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/departments/Department.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/departments/Department.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Link",
+        "useParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/departments/Departments.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/departments/Departments.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/discover/Destination.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Link",
+        "useParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/discover/Discover.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/discover/Discover.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/events/Events.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useEffect",
+        "useMemo",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/events/Events.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "ChevronRight"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/events/Events.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/home/Home.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 9,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/info/AboutUs.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useMemo",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/info/AboutUs.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/info/AboutUs.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Landmark",
+        "Eye",
+        "Target",
+        "Users",
+        "Goal",
+        "MapPin",
+        "Ruler",
+        "Layers",
+        "Wallet",
+        "TrendingUp",
+        "Home",
+        "BarChart3",
+        "Navigation",
+        "Search",
+        "Percent",
+        "ArrowUpRight",
+        "ArrowDownRight",
+        "Mountain",
+        "Flag",
+        "Compass",
+        "Database",
+        "Info",
+        "Ship",
+        "Sun"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/info/Contact.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/info/Contact.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "MapPin",
+        "Mail",
+        "Clock",
+        "Send",
+        "User",
+        "Building2",
+        "MessageSquare",
+        "Landmark",
+        "CheckCircle2",
+        "Phone"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/info/History.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "History",
+        "Landmark",
+        "Music2",
+        "ScrollText",
+        "Wheat",
+        "Fish",
+        "Mountain",
+        "AudioLines",
+        "Star",
+        "Handshake",
+        "TreePine",
+        "Flower2",
+        "Bird",
+        "Leaf",
+        "Music"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/info/OfficialProfile.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useMemo",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/info/OfficialProfile.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "ArrowLeft"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/info/OfficialProfile.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link",
+        "useParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/info/Officials.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useMemo",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/info/Officials.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/info/Officials.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "Landmark",
+        "Users",
+        "MapPin",
+        "Building2"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/info/Sitemap.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/info/Sitemap.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Home",
+        "Info",
+        "Wrench",
+        "Newspaper",
+        "Scale",
+        "ArrowUpRight"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/news/Article.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/news/Article.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "ArrowUpRight",
+        "Flag",
+        "MoreVertical",
+        "Share2",
+        "SlidersHorizontal",
+        "ThumbsDown",
+        "ThumbsUp",
+        "MessageSquare"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/news/Article.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link",
+        "useLocation",
+        "useParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/news/News.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/news/News.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/search/Search.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useEffect",
+        "useMemo",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/search/Search.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "ArrowRight",
+        "Search",
+        "Sparkles"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/search/Search.jsx",
+      "owner": "package.json",
+      "package": "@getafe/ui",
+      "declaration": "dependencies",
+      "specifier": "@getafe/ui",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Button"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/search/Search.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link",
+        "useLocation",
+        "useNavigate",
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BarangayDetail.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BarangayDetail.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "ArrowRight",
+        "MapPin"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BarangayDetail.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link",
+        "useParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BarangayOfficial.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BarangayOfficial.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "ArrowLeft"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BarangayOfficial.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link",
+        "Navigate",
+        "useParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BarangayOfficialProfile.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BarangayOfficialProfile.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "ArrowLeft",
+        "ArrowRight",
+        "UserRound"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BarangayOfficialProfile.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link",
+        "useParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BarangayOfficials.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BarangayOfficials.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "ArrowLeft",
+        "ArrowRight",
+        "UserRound"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BarangayOfficials.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link",
+        "useParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/Barangays.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/Barangays.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/Barangays.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "MapPin"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BarangayServices.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Link",
+        "useParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BarangayServices.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "ArrowLeft"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/BusinessTrade.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Navigate"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/Directory.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "useEffect",
+        "useMemo",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/Directory.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "ArrowRight",
+        "Building2",
+        "FileCheck2",
+        "Search"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/Directory.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Link",
+        "useSearchParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/EmergencyHotlines.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/EmergencyHotlines.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "AlertTriangle",
+        "Ambulance",
+        "ArrowRight",
+        "Check",
+        "CloudSun",
+        "Droplets",
+        "HeartHandshake",
+        "Landmark",
+        "MapPin",
+        "Package",
+        "Phone",
+        "ShieldAlert",
+        "ShieldCheck",
+        "Siren",
+        "Waves"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/services/OfficeDetail.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "Navigate",
+        "useParams"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/tourism/Tourism.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useMemo",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/tourism/Tourism.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "ArrowUpRight",
+        "Compass",
+        "Search",
+        "Waves"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/tourism/Tourism.jsx",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/weather/Weather.jsx",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "useEffect",
+        "useMemo",
+        "useRef",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/pages/weather/Weather.jsx",
+      "owner": "package.json",
+      "package": "lucide-react",
+      "declaration": "dependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "Activity",
+        "AlertTriangle",
+        "CalendarDays",
+        "ChevronDown",
+        "CircleHelp",
+        "CloudRain",
+        "Droplets",
+        "Eye",
+        "Gauge",
+        "MapPin",
+        "Sun",
+        "Sunrise",
+        "Thermometer",
+        "Wind",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/routeConfig.js",
+      "owner": "package.json",
+      "package": "@getafe/auth-client",
+      "declaration": "dependencies",
+      "specifier": "@getafe/auth-client",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "accessState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/routes.js",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "lazy"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/services/destinations.js",
+      "owner": "package.json",
+      "package": "react",
+      "declaration": "dependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "useCallback",
+        "useEffect",
+        "useState"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/services/statusPresentation.js",
+      "owner": "package.json",
+      "package": "@getafe/design-system",
+      "declaration": "dependencies",
+      "specifier": "@getafe/design-system",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "statusPresentation"
+      ],
+      "star": false
+    },
+    {
+      "file": "src/utils/supabase.js",
+      "owner": "package.json",
+      "package": "@supabase/supabase-js",
+      "declaration": "dependencies",
+      "specifier": "@supabase/supabase-js",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "createClient"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/index.js",
+      "owner": "package.json",
+      "package": "express",
+      "declaration": "dependencies",
+      "specifier": "express",
+      "dynamic": false,
+      "line": 35,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/index.js",
+      "owner": "package.json",
+      "package": "qrcode",
+      "declaration": "dependencies",
+      "specifier": "qrcode",
+      "dynamic": false,
+      "line": 46,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/index.js",
+      "owner": "package.json",
+      "package": "vite",
+      "declaration": "devDependencies",
+      "specifier": "vite",
+      "dynamic": true,
+      "line": 2979,
+      "requested": [],
+      "star": false
+    },
+    {
+      "file": "server/scripts/cleanupWebsiteAnalytics.js",
+      "owner": "package.json",
+      "package": "pg",
+      "declaration": "dependencies",
+      "specifier": "pg",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/scripts/diagnose-b2.js",
+      "owner": "package.json",
+      "package": "@aws-sdk/client-s3",
+      "declaration": "dependencies",
+      "specifier": "@aws-sdk/client-s3",
+      "dynamic": false,
+      "line": 8,
+      "requested": [
+        "DeleteObjectCommand",
+        "GetObjectCommand",
+        "HeadBucketCommand",
+        "HeadObjectCommand",
+        "PutObjectCommand",
+        "S3Client"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/scripts/diagnose-b2.js",
+      "owner": "package.json",
+      "package": "@smithy/node-http-handler",
+      "declaration": "dependencies",
+      "specifier": "@smithy/node-http-handler",
+      "dynamic": false,
+      "line": 16,
+      "requested": [
+        "NodeHttpHandler"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/scripts/test-b2-network.js",
+      "owner": "package.json",
+      "package": "@aws-sdk/client-s3",
+      "declaration": "dependencies",
+      "specifier": "@aws-sdk/client-s3",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "DeleteObjectCommand",
+        "GetObjectCommand",
+        "HeadObjectCommand",
+        "PutObjectCommand"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/config/bootstrap.js",
+      "owner": "package.json",
+      "package": "dotenv",
+      "declaration": "dependencies",
+      "specifier": "dotenv",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/config/supabaseSetup.js",
+      "owner": "package.json",
+      "package": "pg",
+      "declaration": "dependencies",
+      "specifier": "pg",
+      "dynamic": false,
+      "line": 6,
+      "requested": [
+        "Client",
+        "Pool"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/config/supabaseSetup.js",
+      "owner": "package.json",
+      "package": "dotenv",
+      "declaration": "dependencies",
+      "specifier": "dotenv",
+      "dynamic": false,
+      "line": 7,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/infrastructure/redis/redisClient.js",
+      "owner": "package.json",
+      "package": "redis",
+      "declaration": "dependencies",
+      "specifier": "redis",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "createClient"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/integrationHub/registry.js",
+      "owner": "package.json",
+      "package": "ajv",
+      "declaration": "dependencies",
+      "specifier": "ajv/dist/2020.js",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/integrationHub/registry.js",
+      "owner": "package.json",
+      "package": "ajv-formats",
+      "declaration": "dependencies",
+      "specifier": "ajv-formats",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/integrationHub/security.js",
+      "owner": "package.json",
+      "package": "ipaddr.js",
+      "declaration": "dependencies",
+      "specifier": "ipaddr.js",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/aiKnowledgeBase.js",
+      "owner": "package.json",
+      "package": "openai",
+      "declaration": "dependencies",
+      "specifier": "openai",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/aiManagement.js",
+      "owner": "package.json",
+      "package": "openai",
+      "declaration": "dependencies",
+      "specifier": "openai",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/aiResidentAssistant.js",
+      "owner": "package.json",
+      "package": "openai",
+      "declaration": "dependencies",
+      "specifier": "openai",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/aiSmartSearch.js",
+      "owner": "package.json",
+      "package": "openai",
+      "declaration": "dependencies",
+      "specifier": "openai",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/azureMediaCopy.js",
+      "owner": "package.json",
+      "package": "@aws-sdk/client-s3",
+      "declaration": "dependencies",
+      "specifier": "@aws-sdk/client-s3",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "S3Client",
+        "ListObjectsV2Command",
+        "GetObjectCommand"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/azureMediaCopy.js",
+      "owner": "package.json",
+      "package": "@smithy/node-http-handler",
+      "declaration": "dependencies",
+      "specifier": "@smithy/node-http-handler",
+      "dynamic": false,
+      "line": 6,
+      "requested": [
+        "NodeHttpHandler"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/azureMediaCopy.js",
+      "owner": "package.json",
+      "package": "@azure/storage-blob",
+      "declaration": "dependencies",
+      "specifier": "@azure/storage-blob",
+      "dynamic": false,
+      "line": 7,
+      "requested": [
+        "BlobServiceClient"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/azureStorageTest.js",
+      "owner": "package.json",
+      "package": "@azure/identity",
+      "declaration": "dependencies",
+      "specifier": "@azure/identity",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "ManagedIdentityCredential"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/azureStorageTest.js",
+      "owner": "package.json",
+      "package": "@azure/storage-blob",
+      "declaration": "dependencies",
+      "specifier": "@azure/storage-blob",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "BlobServiceClient",
+        "StorageSharedKeyCredential"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/citizenRoutes.js",
+      "owner": "package.json",
+      "package": "express",
+      "declaration": "dependencies",
+      "specifier": "express",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/database.js",
+      "owner": "package.json",
+      "package": "pg",
+      "declaration": "dependencies",
+      "specifier": "pg",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/databaseConnectionTest.js",
+      "owner": "package.json",
+      "package": "pg",
+      "declaration": "dependencies",
+      "specifier": "pg",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/email.js",
+      "owner": "package.json",
+      "package": "nodemailer",
+      "declaration": "dependencies",
+      "specifier": "nodemailer",
+      "dynamic": true,
+      "line": 15,
+      "requested": [],
+      "star": false
+    },
+    {
+      "file": "server/src/services/eserviceRoutes.js",
+      "owner": "package.json",
+      "package": "express",
+      "declaration": "dependencies",
+      "specifier": "express",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/externalApi.js",
+      "owner": "package.json",
+      "package": "ipaddr.js",
+      "declaration": "dependencies",
+      "specifier": "ipaddr.js",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/postgres.js",
+      "owner": "package.json",
+      "package": "pg",
+      "declaration": "dependencies",
+      "specifier": "pg",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/postgresPool.js",
+      "owner": "package.json",
+      "package": "pg",
+      "declaration": "dependencies",
+      "specifier": "pg",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/sanitizeHtml.js",
+      "owner": "package.json",
+      "package": "sanitize-html",
+      "declaration": "dependencies",
+      "specifier": "sanitize-html",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/staffRoutes.js",
+      "owner": "package.json",
+      "package": "express",
+      "declaration": "dependencies",
+      "specifier": "express",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/storage.js",
+      "owner": "package.json",
+      "package": "@aws-sdk/client-s3",
+      "declaration": "dependencies",
+      "specifier": "@aws-sdk/client-s3",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "S3Client",
+        "HeadBucketCommand",
+        "HeadObjectCommand",
+        "ListObjectsV2Command",
+        "DeleteObjectCommand",
+        "PutObjectCommand",
+        "GetObjectCommand",
+        "GetBucketAclCommand"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/storage.js",
+      "owner": "package.json",
+      "package": "@aws-sdk/s3-request-presigner",
+      "declaration": "dependencies",
+      "specifier": "@aws-sdk/s3-request-presigner",
+      "dynamic": false,
+      "line": 12,
+      "requested": [
+        "getSignedUrl"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/storage.js",
+      "owner": "package.json",
+      "package": "@smithy/node-http-handler",
+      "declaration": "dependencies",
+      "specifier": "@smithy/node-http-handler",
+      "dynamic": false,
+      "line": 13,
+      "requested": [
+        "NodeHttpHandler"
+      ],
+      "star": false
+    },
+    {
+      "file": "server/src/services/storage.js",
+      "owner": "package.json",
+      "package": "@azure/storage-blob",
+      "declaration": "dependencies",
+      "specifier": "@azure/storage-blob",
+      "dynamic": false,
+      "line": 22,
+      "requested": [
+        "BlobServiceClient",
+        "BlobSASPermissions"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/audit-dependencies.mjs",
+      "owner": "package.json",
+      "package": "espree",
+      "declaration": "devDependencies",
+      "specifier": "espree",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "parse"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/audit-dependencies.mjs",
+      "owner": "package.json",
+      "package": "ignore",
+      "declaration": "devDependencies",
+      "specifier": "ignore",
+      "dynamic": false,
+      "line": 6,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/backend-connection.mjs",
+      "owner": "package.json",
+      "package": "dotenv",
+      "declaration": "dependencies",
+      "specifier": "dotenv",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/build-frontend.mjs",
+      "owner": "package.json",
+      "package": "vite",
+      "declaration": "devDependencies",
+      "specifier": "vite",
+      "dynamic": true,
+      "line": 4,
+      "requested": [],
+      "star": false
+    },
+    {
+      "file": "scripts/migrate-b2-to-azure.mjs",
+      "owner": "package.json",
+      "package": "dotenv",
+      "declaration": "dependencies",
+      "specifier": "dotenv",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/migrate-postgresql.mjs",
+      "owner": "package.json",
+      "package": "pg",
+      "declaration": "dependencies",
+      "specifier": "pg",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/reproduce-vercel-import-errors.mjs",
+      "owner": "package.json",
+      "package": "vite",
+      "declaration": "devDependencies",
+      "specifier": "vite",
+      "dynamic": true,
+      "line": 21,
+      "requested": [],
+      "star": false
+    },
+    {
+      "file": "scripts/route-inventory.mjs",
+      "owner": "package.json",
+      "package": "espree",
+      "declaration": "devDependencies",
+      "specifier": "espree",
+      "dynamic": false,
+      "line": 4,
+      "requested": [],
+      "star": false
+    },
+    {
+      "file": "scripts/test-infrastructure-status-ui.mjs",
+      "owner": "package.json",
+      "package": "vite",
+      "declaration": "devDependencies",
+      "specifier": "vite",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "createServer"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/test-infrastructure-status-ui.mjs",
+      "owner": "package.json",
+      "package": "@vitejs/plugin-react",
+      "declaration": "devDependencies",
+      "specifier": "@vitejs/plugin-react",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/test-infrastructure-status-ui.mjs",
+      "owner": "package.json",
+      "package": "playwright",
+      "declaration": "devDependencies",
+      "specifier": "playwright",
+      "dynamic": false,
+      "line": 6,
+      "requested": [
+        "chromium"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/test-routing.mjs",
+      "owner": "package.json",
+      "package": "react-router-dom",
+      "declaration": "dependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 6,
+      "requested": [
+        "matchRoutes"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/test-session-renewal-race.mjs",
+      "owner": "package.json",
+      "package": "express",
+      "declaration": "dependencies",
+      "specifier": "express",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/test-session-timeout-ui.mjs",
+      "owner": "package.json",
+      "package": "vite",
+      "declaration": "devDependencies",
+      "specifier": "vite",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "createServer"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/test-session-timeout-ui.mjs",
+      "owner": "package.json",
+      "package": "@vitejs/plugin-react",
+      "declaration": "devDependencies",
+      "specifier": "@vitejs/plugin-react",
+      "dynamic": false,
+      "line": 5,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "scripts/test-session-timeout-ui.mjs",
+      "owner": "package.json",
+      "package": "playwright",
+      "declaration": "devDependencies",
+      "specifier": "playwright",
+      "dynamic": false,
+      "line": 6,
+      "requested": [
+        "chromium"
+      ],
+      "star": false
+    },
+    {
+      "file": "apps/admin-portal/vite.config.js",
+      "owner": "apps/admin-portal/package.json",
+      "package": "vite",
+      "declaration": "devDependencies",
+      "specifier": "vite",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "defineConfig"
+      ],
+      "star": false
+    },
+    {
+      "file": "apps/admin-portal/vite.config.js",
+      "owner": "apps/admin-portal/package.json",
+      "package": "@vitejs/plugin-react",
+      "declaration": "devDependencies",
+      "specifier": "@vitejs/plugin-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "apps/public-web/vite.config.js",
+      "owner": "apps/public-web/package.json",
+      "package": "vite",
+      "declaration": "devDependencies",
+      "specifier": "vite",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "defineConfig"
+      ],
+      "star": false
+    },
+    {
+      "file": "apps/public-web/vite.config.js",
+      "owner": "apps/public-web/package.json",
+      "package": "@vitejs/plugin-react",
+      "declaration": "devDependencies",
+      "specifier": "@vitejs/plugin-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "apps/resident-app/vite.config.js",
+      "owner": "apps/resident-app/package.json",
+      "package": "vite",
+      "declaration": "devDependencies",
+      "specifier": "vite",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "defineConfig"
+      ],
+      "star": false
+    },
+    {
+      "file": "apps/resident-app/vite.config.js",
+      "owner": "apps/resident-app/package.json",
+      "package": "@vitejs/plugin-react",
+      "declaration": "devDependencies",
+      "specifier": "@vitejs/plugin-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
+      "file": "packages/ui/src/index.jsx",
+      "owner": "packages/ui/package.json",
+      "package": "react",
+      "declaration": "peerDependencies",
+      "specifier": "react",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "forwardRef",
+        "useId",
+        "cloneElement"
+      ],
+      "star": false
+    },
+    {
+      "file": "packages/ui/src/index.jsx",
+      "owner": "packages/ui/package.json",
+      "package": "react-router-dom",
+      "declaration": "peerDependencies",
+      "specifier": "react-router-dom",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "Link"
+      ],
+      "star": false
+    },
+    {
+      "file": "packages/ui/src/index.jsx",
+      "owner": "packages/ui/package.json",
+      "package": "lucide-react",
+      "declaration": "peerDependencies",
+      "specifier": "lucide-react",
+      "dynamic": false,
+      "line": 3,
+      "requested": [
+        "AlertCircle",
+        "FolderOpen",
+        "Search",
+        "X"
+      ],
+      "star": false
+    },
+    {
+      "file": "packages/ui/src/index.jsx",
+      "owner": "packages/ui/package.json",
+      "package": "@getafe/design-system",
+      "declaration": "dependencies",
+      "specifier": "@getafe/design-system",
+      "dynamic": false,
+      "line": 4,
+      "requested": [
+        "statusPresentation"
+      ],
+      "star": false
+    },
+    {
+      "file": "vite.config.js",
+      "owner": "package.json",
+      "package": "vite",
+      "declaration": "devDependencies",
+      "specifier": "vite",
+      "dynamic": false,
+      "line": 1,
+      "requested": [
+        "createLogger",
+        "defineConfig"
+      ],
+      "star": false
+    },
+    {
+      "file": "vite.config.js",
+      "owner": "package.json",
+      "package": "@vitejs/plugin-react",
+      "declaration": "devDependencies",
+      "specifier": "@vitejs/plugin-react",
+      "dynamic": false,
+      "line": 2,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    }
+  ],
+  "problems": [],
+  "cycles": [],
+  "unresolvedDynamicImports": [],
+  "deprecated": [],
+  "multipleVersions": [
+    {
+      "name": "ajv",
+      "versions": {
+        "8.20.0": [
+          "node_modules/ajv"
+        ],
+        "6.15.0": [
+          "node_modules/eslint/node_modules/ajv"
+        ]
+      }
+    },
+    {
+      "name": "cookie",
+      "versions": {
+        "1.1.1": [
+          "node_modules/cookie"
+        ],
+        "0.7.2": [
+          "node_modules/express/node_modules/cookie"
+        ]
+      }
+    },
+    {
+      "name": "eslint-visitor-keys",
+      "versions": {
+        "3.4.3": [
+          "node_modules/eslint-visitor-keys"
+        ],
+        "5.0.1": [
+          "node_modules/eslint/node_modules/eslint-visitor-keys",
+          "node_modules/espree/node_modules/eslint-visitor-keys"
+        ]
+      }
+    },
+    {
+      "name": "json-schema-traverse",
+      "versions": {
+        "0.4.1": [
+          "node_modules/eslint/node_modules/json-schema-traverse"
+        ],
+        "1.0.0": [
+          "node_modules/json-schema-traverse"
+        ]
+      }
+    },
+    {
+      "name": "find-up",
+      "versions": {
+        "5.0.0": [
+          "node_modules/find-up"
+        ],
+        "4.1.0": [
+          "node_modules/qrcode/node_modules/find-up"
+        ]
+      }
+    },
+    {
+      "name": "hookified",
+      "versions": {
+        "1.15.1": [
+          "node_modules/hookified"
+        ],
+        "2.2.0": [
+          "node_modules/qified/node_modules/hookified"
+        ]
+      }
+    },
+    {
+      "name": "ipaddr.js",
+      "versions": {
+        "2.5.0": [
+          "node_modules/ipaddr.js"
+        ],
+        "1.9.1": [
+          "node_modules/proxy-addr/node_modules/ipaddr.js"
+        ]
+      }
+    },
+    {
+      "name": "locate-path",
+      "versions": {
+        "6.0.0": [
+          "node_modules/locate-path"
+        ],
+        "5.0.0": [
+          "node_modules/qrcode/node_modules/locate-path"
+        ]
+      }
+    },
+    {
+      "name": "p-limit",
+      "versions": {
+        "3.1.0": [
+          "node_modules/p-limit"
+        ],
+        "2.3.0": [
+          "node_modules/qrcode/node_modules/p-limit"
+        ]
+      }
+    },
+    {
+      "name": "p-locate",
+      "versions": {
+        "5.0.0": [
+          "node_modules/p-locate"
+        ],
+        "4.1.0": [
+          "node_modules/qrcode/node_modules/p-locate"
+        ]
+      }
+    }
+  ]
+}

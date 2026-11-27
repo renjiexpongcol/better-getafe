@@ -1,0 +1,644 @@
+{
+  "checks": [
+    {
+      "name": "source, export, dependency, casing and ignore audit",
+      "passed": true
+    },
+    {
+      "name": "production API imports and route registration",
+      "passed": true
+    },
+    {
+      "name": "resident exports, npm configuration and API routing contracts",
+      "passed": true
+    },
+    {
+      "name": "syntax server/index.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/integration-worker.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/managed-worker.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/scripts/cleanupWebsiteAnalytics.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/scripts/diagnose-b2.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/scripts/test-b2-network.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/config/bootstrap.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/config/ConfigService.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/config/DatabaseSettingsProvider.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/config/defaults.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/config/deployment.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/config/EnvironmentProvider.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/config/index.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/config/permissions.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/config/SecretProvider.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/config/supabaseSetup.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/email/templates/contactAcknowledgement.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/email/templates/newsletterWelcome.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/email/templates/notification.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/email/templates/verificationCode.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/infrastructure/redis/redisClient.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/infrastructure/redis/redisConfiguration.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/infrastructure/redis/redisKeys.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/integrationHub/oauth.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/integrationHub/registry.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/integrationHub/repository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/integrationHub/routes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/integrationHub/security.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/integrationHub/service.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/barangaysRepository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/categoryRepository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/cmsUserRepository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/contactMessagesRepository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/contentMediaRepository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/departmentsRepository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/destinationsRepository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/governmentOfficialsRepository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/managedContentRepository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/mediaRepository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/newsRepository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/officialsRepository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/popularServicesRepository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/portalUserRepository.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/postgresCompatibility.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/repositories/postgresRuntime.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/accessManagementRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/adminUsersRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/aiKnowledgeBase.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/aiManagement.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/aiResidentAssistant.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/aiRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/aiSmartSearch.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/apiEndpointPolicies.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/apiInputValidation.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/apiRoutePolicy.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/apiVersioning.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/applicationSettings.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/appointmentScheduling.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/authDiagnostics.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/authorizationService.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/authPayload.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/authSecurity.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/authState.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/azureMediaCopy.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/azureStorageTest.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/b2HttpAgent.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/betterGov/client.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/betterGov/normalization.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/businessBilling.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/cacheService.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/citizenRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/cmsMfa.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/contactRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/csrf.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/database.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/databaseConnectionTest.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/departmentRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/departmentValidation.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/dependencyFailures.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/destinationRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/destinationValidation.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/email.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/employeeProvisioning.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/errorCenterRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/errorHandling.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/eserviceEngine.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/eservicePaymentProviders.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/eservicePresentation.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/eserviceRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/eserviceValidation.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/externalApi.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/externalApiRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/getafeWeather.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/googleOAuth.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/googleOnboarding.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/headerExchangeRates.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/homepageMetadata.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/identifiers.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/infrastructureHealth.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/initialization.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/integrations.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/loginAccount.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/managedContentRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/mediaMaintenance.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/mediaMigration.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/mediaRecovery.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/mediaService.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/mediaUploadPath.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/mediaWriteGate.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/mfa.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/newsletterRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/notificationService.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/officials/termResolver.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/passwordHashing.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/passwordPolicy.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/passwords.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/policyWorkspace.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/postgres.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/postgresPool.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/psgcSyncService.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/psgcWorkbook.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/publicApiDtos.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/publicDataRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/publicMediaAccess.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/recaptchaVerification.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/redisInfrastructure.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/requestOrigin.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/residentPreferences.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/runtimeConfiguration.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/sanitizeHtml.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/scheduledJobs.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/searchRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/sessionEndpoint.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/sessionRegistry.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/sessionToken.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/settingsRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/sms.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/staffNotifications.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/staffOperations.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/staffQueryScope.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/staffRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/startupDiagnostics.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/startupPage.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/statisticsService.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/storage.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/storageSelection.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/submissionPersistence.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/supabaseDataApi.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/trafficProtection.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/weatherAggregator.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/weatherNormalizer.js",
+      "passed": true
+    },
+    {
+      "name": "syntax server/src/services/websiteAnalyticsRoutes.js",
+      "passed": true
+    },
+    {
+      "name": "syntax api/index.js",
+      "passed": true
+    },
+    {
+      "name": "root backend syntax",
+      "passed": true
+    },
+    {
+      "name": "repository credential scan",
+      "passed": true
+    },
+    {
+      "name": "production frontend compilation",
+      "passed": true
+    }
+  ],
+  "runtime": "not verified by compilation",
+  "productionPromotionAllowed": false,
+  "browserSecrets": "no protected injected values found; public VITE_ names checked",
+  "status": "passed"
+}

@@ -1,0 +1,63 @@
+{
+  "origin": "https://better-getafe-n6s31m4ne-lgu-getafe.vercel.app",
+  "liveness": {
+    "path": "/api/health/live",
+    "status": 200,
+    "body": {
+      "status": "ok",
+      "service": "better-getafe"
+    }
+  },
+  "checks": [
+    {
+      "path": "/app/setup",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "rootEntry": true
+    },
+    {
+      "path": "/app/profile",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "rootEntry": true
+    },
+    {
+      "path": "/app/e-billing/business",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "rootEntry": true
+    },
+    {
+      "path": "/app/e-payment/preview-check",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "rootEntry": true
+    },
+    {
+      "path": "/app/e-requests",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "rootEntry": true
+    },
+    {
+      "path": "/app/e-requests/preview-check",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "rootEntry": true
+    },
+    {
+      "path": "/api/ready",
+      "status": 503,
+      "contentType": "application/json",
+      "rootEntry": false,
+      "body": "{\"code\":\"SERVICE_UNAVAILABLE\",\"error\":\"The service is temporarily unavailable.\"}"
+    },
+    {
+      "path": "/api/not-a-route",
+      "status": 503,
+      "contentType": "application/json",
+      "rootEntry": false,
+      "body": "{\"code\":\"SERVICE_UNAVAILABLE\",\"error\":\"The service is temporarily unavailable.\"}"
+    }
+  ]
+}

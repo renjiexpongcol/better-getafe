@@ -11,8 +11,8 @@
   "scripts": {
     "worker:managed": "node server/managed-worker.js",
     "test:infrastructure-ui": "node scripts/test-infrastructure-status-ui.mjs",
-    "test:production": "node --experimental-test-module-mocks --test scripts/test-production-runtime.mjs scripts/test-config-service.mjs scripts/test-scheduled-jobs.mjs scripts/test-postgres-pooling.mjs",
-    "test": "node --experimental-test-module-mocks --test scripts/test-api-versioning.mjs scripts/test-appointment-scheduling.mjs scripts/test-error-handling.mjs scripts/test-google-oauth.mjs scripts/test-header-navigation.mjs scripts/test-media-upload-paths.mjs scripts/test-policy-editor.mjs scripts/test-policy-workspace.mjs scripts/test-postgres-lease.mjs scripts/test-readiness-probe.mjs scripts/test-request-cache.mjs scripts/test-resident-preferences.mjs scripts/test-route-inventory.mjs scripts/test-routing.mjs scripts/test-session-deadline.mjs scripts/test-settings-navigation.mjs scripts/test-start-runner-preflight.mjs scripts/test-statistics-service.mjs scripts/test-supabase-setup.mjs scripts/test-time-aware-officials.mjs scripts/test-session-endpoint.mjs scripts/test-session-renewal-race.mjs scripts/test-storage-selection.mjs scripts/test-storage-runtime.mjs scripts/test-dev-lifecycle.mjs scripts/test-psgc-startup-cache.mjs",
+    "test:production": "node --experimental-test-module-mocks --test scripts/test-production-runtime.mjs scripts/test-config-service.mjs scripts/test-scheduled-jobs.mjs scripts/test-postgres-pooling.mjs scripts/test-media-copy-engine.mjs scripts/test-deployment-contracts.mjs",
+    "test": "node --experimental-test-module-mocks --test scripts/test-api-versioning.mjs scripts/test-appointment-scheduling.mjs scripts/test-error-handling.mjs scripts/test-google-oauth.mjs scripts/test-header-navigation.mjs scripts/test-media-upload-paths.mjs scripts/test-policy-editor.mjs scripts/test-policy-workspace.mjs scripts/test-postgres-lease.mjs scripts/test-readiness-probe.mjs scripts/test-request-cache.mjs scripts/test-resident-preferences.mjs scripts/test-route-inventory.mjs scripts/test-routing.mjs scripts/test-session-deadline.mjs scripts/test-settings-navigation.mjs scripts/test-start-runner-preflight.mjs scripts/test-statistics-service.mjs scripts/test-supabase-setup.mjs scripts/test-time-aware-officials.mjs scripts/test-session-endpoint.mjs scripts/test-session-renewal-race.mjs scripts/test-storage-selection.mjs scripts/test-storage-runtime.mjs scripts/test-dev-lifecycle.mjs scripts/test-psgc-startup-cache.mjs scripts/test-dependency-preflight.mjs",
     "lint:undefined": "eslint server src scripts server.js vite.config.js --rule no-undef:error --max-warnings 0",
     "dev": "node scripts/dev-runner.mjs",
     "setup": "node scripts/dev-runner.mjs --setup-only",
@@ -50,13 +50,22 @@
     "test:stabilization": "node --experimental-test-module-mocks --test scripts/test-session-endpoint.mjs scripts/test-storage-selection.mjs scripts/test-storage-runtime.mjs scripts/test-readiness-probe.mjs scripts/test-dev-lifecycle.mjs scripts/test-supabase-setup.mjs scripts/test-start-runner-preflight.mjs scripts/test-psgc-startup-cache.mjs",
     "test:session-timeout-ui": "node scripts/test-session-timeout-ui.mjs",
     "test:session-registry": "node --test scripts/test-session-renewal-race.mjs scripts/test-session-endpoint.mjs scripts/test-session-deadline.mjs",
-    "audit:secrets": "node scripts/audit-secrets.mjs"
+    "audit:secrets": "node scripts/audit-secrets.mjs",
+    "audit:dependencies": "node scripts/audit-dependencies.mjs",
+    "test:dependencies": "node --test scripts/test-dependency-preflight.mjs",
+    "check:runtime": "node scripts/check-runtime-dependencies.mjs && node scripts/smoke-runtime.mjs",
+    "postinstall": "node scripts/check-runtime-dependencies.mjs",
+    "verify:production-install": "node scripts/verify-production-install.mjs",
+    "verify:deployment": "node scripts/verify-deployment.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1172.0",
     "@aws-sdk/s3-request-presigner": "^3.1172.0",
     "@azure/identity": "^4.14.1",
     "@azure/storage-blob": "^12.34.0",
+    "@getafe/auth-client": "0.0.0",
+    "@getafe/design-system": "0.0.0",
+    "@getafe/ui": "0.0.0",
     "@smithy/node-http-handler": "^4.12.1",
     "@supabase/supabase-js": "^2.119.1",
     "ajv": "^8.20.0",
@@ -83,10 +92,13 @@
     "@vitejs/plugin-react": "^6.3.0",
     "eslint": "^10.14.0",
     "espree": "^11.2.0",
+    "ignore": "5.3.2",
     "playwright": "^1.65.0",
     "vite": "^8.3.8"
   },
   "engines": {
-    "node": "24.x"
-  }
+    "node": "24.x",
+    "npm": "11.x"
+  },
+  "packageManager": "npm@11.21.0"
 }

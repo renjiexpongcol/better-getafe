@@ -1,5 +1,7 @@
 # Production-readiness report — 2026-11-27
 
+Follow-up: the [dependency/startup repair report](DEPENDENCY_STARTUP_REPAIR.md) records the corrected Vercel upload exclusion for `src/data`, explicit workspace ownership, clean production-only installation, and the newer 131/14 test results. The initial local build did not reveal the upload-exclusion problem; it has now been reproduced and regression-tested. No production redeployment was performed.
+
 ## Executive status
 
 **Not ready for production promotion.** The repository now builds a Vite frontend plus a Node 24 Express function for Vercel, and a critical live Supabase permission exposure has been repaired. Cloud credentials, Preview isolation, external worker provisioning and end-to-end verification remain incomplete. No Preview or Production deployment was created, promoted or assigned a domain.
