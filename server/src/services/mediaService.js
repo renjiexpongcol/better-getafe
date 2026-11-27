@@ -267,6 +267,7 @@ export async function deleteMediaAsset({ mediaId, force = false, actorId }) {
 export async function cleanupExpiredPendingUploads({ limit = 100 } = {}) {
   const pending = await listExpiredPendingUploads(limit);
   let removed = 0;
+  let failed = 0;
   for (const upload of pending) {
     const key = upload.storage_path;
     if (!key || !validateObjectKey(key) || !/^[a-zA-Z0-9_\/-]+\/[0-9a-f-]{36}\.(jpg|png|webp)$/i.test(key)) {
@@ -285,10 +286,11 @@ export async function cleanupExpiredPendingUploads({ limit = 100 } = {}) {
       removed++;
       console.info(JSON.stringify({ event: 'storage_orphan_cleanup', operation: 'delete_expired_upload', key, result: 'ok' }));
     } catch (error) {
+      failed++;
       console.error(JSON.stringify({ event: 'storage_orphan_cleanup', operation: 'delete_expired_upload', key, result: 'failed', errorCode: error.name || error.code || 'UnknownError' }));
     }
   }
-  return { scanned: pending.length, removed };
+  return { scanned: pending.length, removed, failed };
 }
 
 export function mediaErrorPayload(error, id) {

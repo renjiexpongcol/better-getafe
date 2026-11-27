@@ -184,7 +184,10 @@ async function diagnoseEndpoint(endpoint, region, bucket, credentialsConfigured)
 export async function buildStorage(values, { allowUnavailable = false, verifiedCutover = false, startupCheck = false } = {}) {
   if (storageJournalUnavailable()) throw new Error('Media cutover journal unavailable; storage activation paused.');
   const provider = values['storage.provider'];
-  if (provider === 'local') return buildLocalStorage(values);
+  if (provider === 'local') {
+    if (process.env.VERCEL === '1') throw new Error('Persistent local storage is unavailable in Vercel Functions.');
+    return buildLocalStorage(values);
+  }
   if (provider === 'azure') {
     if (!verifiedCutover && process.env.AZURE_MEDIA_MIGRATION_VERIFIED !== 'true') throw new Error('Azure activation requires a verified media migration.');
     if (verifiedCutover && (values['storage.azureAccount'] !== 'lgumedia' || values['storage.azureContainer'] !== 'portal-media')) throw new Error('The Azure target does not match the verified migration.');
@@ -193,7 +196,7 @@ export async function buildStorage(values, { allowUnavailable = false, verifiedC
     if (!/^[a-z0-9]{3,24}$/.test(account || '')) throw new Error('Set a valid Azure storage account.');
     const credential = azureCredential(values, account);
     if (!credential) throw new Error('Use an HTTPS Azure account-key connection string for the configured account.');
-    const service = new BlobServiceClient(`https://${account}.blob.core.windows.net`, credential);
+    const service = new BlobServiceClient(`https://${account}.blob.core.windows.net`, credential, { retryOptions: { maxTries: 2, tryTimeoutInMs: 8000 } });
     const bucket = values['storage.azureContainer'];
     const client = service.getContainerClient(bucket);
     if (startupCheck) {
@@ -326,7 +329,16 @@ export async function createUploadUrl(objectKey, contentType, fileSize) {
   return runMediaWrite(async () => {
     if (!validObjectKey(objectKey)) throw new Error('Invalid storage object key.');
     if (!contentType || !Number.isSafeInteger(Number(fileSize)) || Number(fileSize) < 1) throw new Error('Invalid upload metadata.');
-    if (storageProvider() === 'azure') return `/api/media/upload-proxy?storagePath=${encodeURIComponent(objectKey)}&contentType=${encodeURIComponent(contentType)}`;
+    if (storageProvider() === 'azure') {
+      if (!activeStorage.client) throw storageUnavailable();
+      // Create permission permits a single new blob, with no read/list/delete or
+      // overwrite permission. Finalization still verifies bytes and ownership.
+      return activeStorage.client.getBlockBlobClient(objectKey).generateSasUrl({
+        permissions: BlobSASPermissions.parse('c'), protocol: 'https',
+        startsOn: new Date(Date.now() - 60000),
+        expiresOn: new Date(Date.now() + Math.min(maxDirectUploadSeconds, Number(config.get('storage.signedUrlMinutes') || 15) * 60) * 1000),
+      });
+    }
     if (storageIsLocal()) {
       const target = localPath(objectKey);
       await fs.mkdir(path.dirname(target), { recursive: true });

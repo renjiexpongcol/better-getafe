@@ -59,7 +59,7 @@ test('canonical Supabase URL wins and legacy Supabase URL remains a fallback', (
   assert.throws(() => supabaseConnectionOptions('database', {
     DATABASE_URL: 'postgresql://localhost/getafe_portal',
     DB_HOST: '127.0.0.1', DB_NAME: 'getafe_portal', DB_USER: 'getafe_app', DB_PASSWORD: 'unused',
-  }), /CMS_SUPABASE_DATABASE_URL/);
+  }), /DATABASE_URL/);
 });
 
 test('Supabase uses TLS encryption and enables CA verification for explicit verify modes', () => {

@@ -33,4 +33,5 @@ try {
   process.exit(1);
 }
 
-await import('./server/index.js');
+const { startServer } = await import('./server/index.js');
+await startServer();

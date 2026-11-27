@@ -83,16 +83,22 @@ export function startEmailWorker(send, onFailure = undefined, canRun = () => tru
       }
       job.attempts = (job.attempts || 0) + 1;
       globalThis.getafeMetrics.job_failed = (globalThis.getafeMetrics.job_failed || 0) + 1;
-      await redis.lRem(processingKey(), 1, raw).catch(() => {});
-      if (job.attempts < 5) await redis.zAdd(retryKey(), [{ score: Date.now() + Math.min(300_000, 1000 * 2 ** job.attempts + Math.floor(Math.random() * 500)), value: JSON.stringify(job) }]).catch(() => {});
-      else {
+      const due = Date.now() + Math.min(300_000, 1000 * 2 ** job.attempts + Math.floor(Math.random() * 500));
+      // Persist the next state before removing the processing record, in one
+      // Redis transaction. An outage cannot discard the only copy of a job.
+      const moved = await redis.eval(`
+        if redis.call('LREM',KEYS[1],1,ARGV[1])==0 then return 0 end
+        if tonumber(ARGV[3])<5 then redis.call('ZADD',KEYS[2],ARGV[4],ARGV[2])
+        else redis.call('RPUSH',KEYS[3],ARGV[2]); redis.call('LTRIM',KEYS[3],-1000,-1); redis.call('EXPIRE',KEYS[3],2592000) end
+        return 1`, { keys: [processingKey(), retryKey(), redisKeys.queue('email:dead')], arguments: [raw, JSON.stringify(job), String(job.attempts), String(due)] });
+      if (job.attempts >= 5 && Number(moved) === 1) {
         await onFailure?.(job.message, job, error);
-        console.error(JSON.stringify({ event: 'email_job_dead_letter', job_id: job.id, attempts: job.attempts, error: error?.message || 'delivery failed' }));
+        console.error(JSON.stringify({ event: 'email_job_dead_letter', job_id: job.id, attempts: job.attempts }));
       }
     }
     })().catch(error => {
       // Includes delivery callbacks and queue bookkeeping, not only SMTP.
-      console.error(JSON.stringify({ event: 'email_worker_failed', code: error?.code || error?.name, message: error?.message }));
+      console.error(JSON.stringify({ event: 'email_worker_failed', code: error?.code || error?.name }));
     }).finally(() => { emailWorkerTask = null; });
   }, 500);
   emailWorkerTimer.unref?.();

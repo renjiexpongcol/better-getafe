@@ -1,0 +1,14 @@
+.env*
+!.env.example
+.git
+.agents
+.vscode
+artifacts
+data
+uploads
+tmp
+temp
+*.log
+deploy
+docker-compose*.yml
+node_modules

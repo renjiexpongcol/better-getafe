@@ -1,4 +1,5 @@
 import { createSessionEndpoint } from './src/services/sessionEndpoint.js';
+import { deployment } from './src/config/deployment.js';
 import { verifySessionToken } from './src/services/sessionToken.js';
 import { saveCmsMfa, consumeCmsRecoveryCode } from './src/services/cmsMfa.js';
 import { pipeline } from 'node:stream/promises';
@@ -21,12 +22,12 @@ import { safeReturnPath, loginDestination, resolvePostAuthDestination } from '..
 // Continuing to serve requests after an uncaught exception or unhandled
 // rejection can leave shared state partially updated. Log the fatal error and
 // terminate so the process supervisor can start a clean worker.
-process.on('uncaughtException', (error) => {
+if (!deployment.serverless) process.on('uncaughtException', (error) => {
   console.error(JSON.stringify({ event: 'uncaught_exception', message: redactDiagnostic(error?.message), stack: redactDiagnostic(error?.stack) }));
   process.exit(1);
 });
 
-process.on('unhandledRejection', (error) => {
+if (!deployment.serverless) process.on('unhandledRejection', (error) => {
   console.error(JSON.stringify({ event: 'unhandled_rejection', message: redactDiagnostic(error?.message || error), stack: redactDiagnostic(error?.stack) }));
   process.exit(1);
 });
@@ -198,9 +199,9 @@ const checkLifecycle = () => {
     { name: 'CMS_DB', required: true, ...databases[0] },
     { name: 'USER_DB', required: true, ...databases[1] },
     { name: 'RUNTIME_CONFIG', required: true, status: config.available ? 'healthy' : 'unhealthy', reason: config.failureReason },
-    { name: 'REDIS', required: process.env.NODE_ENV === 'production', status: systemStatus.redis.status, reason: isRedisReady() ? undefined : 'Redis is not ready' },
+    { name: 'REDIS', required: false, status: systemStatus.redis.status, reason: isRedisReady() ? undefined : 'Authentication is unavailable until Redis recovers' },
     { name: 'MEDIA_STORAGE', provider: storageHealth().provider, required: false, status: storageHealth().status, reason: storageHealth().status === 'healthy' ? undefined : systemStatus.storage?.reason || 'Media storage is unavailable' },
-    { name: 'EMAIL', required: Boolean(config.get('authentication.mfaEnabled') || config.get('authentication.requireEmailVerification')), ...email },
+    { name: 'EMAIL', required: false, ...email },
   ];
   const result = evaluateDependencies(dependencySnapshot);
   coreReady = result.ready;
@@ -1689,6 +1690,12 @@ app.post("/api/portal-auth/register", async (req, res) => {
 });
 
 installSettingsRoutes(app, admin, { isTrustedProxy: isTrustedProxyAddress });
+app.get('/api/internal/jobs/:name', async (req, res) => {
+  const { authorizedCron, runScheduledJob } = await import('./src/services/scheduledJobs.js');
+  if (!authorizedCron(req.get('authorization'))) return res.status(401).json({ error: 'Scheduler authentication required.' });
+  try { return res.json(await runScheduledJob(req.params.name)); }
+  catch (error) { return res.status(error.status || 503).json({ error: 'Scheduled execution is unavailable.' }); }
+});
 installAiRoutes(app, admin);
 installAdminUsersRoutes(app, admin);
 installStaffRoutes(app, admin);
@@ -1700,14 +1707,14 @@ installCitizenRoutes(app, resident, safeUser, { rotateSession: async (req, res) 
 } });
 installEserviceRoutes(app, { resident, admin, permission });
 let eserviceWorkerBusy = false;
-const eserviceWorker = setInterval(async () => {
+const eserviceWorker = deployment.serverless ? null : setInterval(async () => {
   if (eserviceWorkerBusy) return;
   eserviceWorkerBusy = true;
   try { await drainEserviceOutbox(); await drainStaffNotifications(); }
   catch { /* Durable events remain pending; health monitoring reports database/Redis outages. */ }
   finally { eserviceWorkerBusy = false; }
 }, 30000);
-eserviceWorker.unref();
+eserviceWorker?.unref();
 installPublicDataRoutes(app);
 installContactRoutes(app);
 
@@ -2673,7 +2680,9 @@ app.post("/api/media/complete", admin, permission('content.media.manage'), media
   }
 
   try {
-    uploadedBytes ||= await readObject(storagePath, bucketName);
+    uploadedBytes ||= azureUpload
+      ? await readAzureMediaVersion(storagePath, verifiedFileSize, storageMetadata.ETag)
+      : await readObject(storagePath, bucketName);
   } catch {
     return res.status(404).json({ error: "Uploaded file could not be read. Upload may have failed." });
   }
@@ -2952,7 +2961,7 @@ app.use((error, req, res, next) => {
   return sendPublicError(res, req, error, { status: 500 }).catch(() => res.status(500).type('text/plain').send('The service is temporarily unavailable.'));
 });
 
-async function startServer() {
+export async function startServer() {
   try {
     console.log('[STARTUP 1/8] Process started');
     const isProd = process.env.NODE_ENV === 'production';
@@ -3081,4 +3090,23 @@ async function startServer() {
   }
 }
 
-startServer();
+let applicationInitialization;
+let initializationRetryAt = 0;
+export async function ensureApplicationReady() {
+  if (!initialized) {
+    if (Date.now() < initializationRetryAt) throw new Error('Application initialization is cooling down.');
+    applicationInitialization ||= Promise.all([initializeServices(), trafficProtector.start()])
+      .then(() => { initialized = true; })
+      .catch(error => { initializationRetryAt = Date.now() + 15000; throw error; })
+      .finally(() => { applicationInitialization = null; });
+    await applicationInitialization;
+  }
+  if (Date.now() - lastCheckedAt >= 15000) {
+    if (!isRedisReady()) await trafficProtector.start();
+    await checkLifecycle();
+  }
+}
+
+export default app;
+// Retain the direct local entry point used by startup checks.
+if (!deployment.serverless && process.argv[1] && path.resolve(process.argv[1]) === __filename) await startServer();

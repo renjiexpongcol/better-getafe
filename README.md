@@ -1,5 +1,9 @@
 # Better Getafe
 
+The portal uses React + Vite on Vercel, a Node.js Express function, Supabase PostgreSQL, private Azure Blob Storage and Marketplace Redis. Local development remains `npm run dev` at http://localhost:5173. Use Node 24.x. No local Docker or Redis service is required.
+
+Start with the [deployment runbook](docs/VERCEL_DEPLOYMENT.md), [environment contract](docs/ENVIRONMENT_VARIABLES.md), [architecture](docs/ARCHITECTURE.md) and [production-readiness report](docs/PRODUCTION_READINESS_REPORT.md). A passing build does not establish that cloud credentials, sessions, media or external workers are operational.
+
 <img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/270f54cf-7398-4c68-95c9-1ac4c80cc071" />
 
 **Better Getafe** is a modern digital government portal for the **Municipality of Getafe, Bohol, Philippines**, designed to provide residents, visitors, businesses, and the wider community with centralized access to municipal information and digital services.
@@ -201,7 +205,7 @@ Before running the project locally, make sure you have:
 * Node.js
 * npm
 * Git
-* Docker Desktop with Docker Compose
+* Access to the intended cloud database; Docker is optional for legacy tooling
 
 Check your installed versions:
 
@@ -238,7 +242,7 @@ npm install
 Copy `.env.example` to `.env` and set `CMS_SUPABASE_DATABASE_URL` to the backend-only
 PostgreSQL connection string for the Supabase database containing all portal data.
 See [Supabase PostgreSQL setup](docs/POSTGRESQL.md) for connection, readiness, and migration details.
-For Vercel frontend deployment with a separately hosted API, see [Vercel deployment](docs/VERCEL_DEPLOYMENT.md).
+For the Vercel frontend and API function, see [Vercel deployment](docs/VERCEL_DEPLOYMENT.md).
 
 Run `npm run dev`. Setup verifies the Supabase connection and Better Getafe schema
 before starting the backend. If schema migrations are pending, run
@@ -368,7 +372,7 @@ Do not commit private environment files.
 Example:
 
 ```env
-VITE_API_URL=http://localhost:3000
+APP_URL=https://your-approved-portal-origin.example
 ```
 
 Only variables intended to be exposed to the browser should use the `VITE_` prefix.

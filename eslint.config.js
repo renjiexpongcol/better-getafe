@@ -16,5 +16,5 @@ export default [
     rules: { 'no-undef': 'error', 'no-dupe-keys': 'error', 'no-unreachable': 'error' },
   },
   { files: ['src/**', 'apps/**', 'packages/**'], languageOptions: { globals: browser } },
-  { files: ['server.js', 'eslint.config.js', '**/vite.config.js', 'scripts/**', 'server/**', 'services/**', 'packages/configuration/**'], languageOptions: { globals: readonly('Buffer process') } },
+  { files: ['server.js', 'eslint.config.js', '**/vite.config.js', 'scripts/**', 'server/**', 'api/**', 'services/**', 'packages/configuration/**'], languageOptions: { globals: readonly('Buffer process') } },
 ]

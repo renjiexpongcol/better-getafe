@@ -718,5 +718,5 @@ export function registerWebsiteAnalyticsRoutes(app, { admin, permission }) {
       return res.set('Cache-Control', 'no-store, private').status(status).json({ error: status === 400 ? error.message : 'Website analytics are temporarily unavailable.' })
     }
   })
-  return scheduleWebsiteAnalyticsCleanup()
+  return process.env.VERCEL === '1' || process.env.PORTAL_SERVERLESS === 'true' ? undefined : scheduleWebsiteAnalyticsCleanup()
 }

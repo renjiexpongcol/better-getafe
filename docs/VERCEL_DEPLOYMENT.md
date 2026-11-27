@@ -1,54 +1,50 @@
-# Deploying Better Getafe with Vercel and Supabase
+# Vercel deployment runbook
 
-Better Getafe's frontend is a Vite static build (`npm run build`, output in
-`dist/`). Its API is a persistent Express server (`server.js`) that initializes
-PostgreSQL, Redis, session handling, storage, and background workers. Vercel's
-current project configuration is the Vite frontend; it does not create or run
-that Express server. Adding database environment variables to the Vite project
-does not deploy the API or workers.
+Target the existing team `lgu-getafe`, project `better-getafe` (`prj_0gnvJzzefBfHs8lA5ZHW5TfiaR55`). Root directory is the repository root. The inspected project uses the Vite preset. Do not create a replacement project. Production promotion and domain changes require explicit approval.
 
-## Vercel frontend variables
+## Prepare
 
-Set these for Production and Preview builds:
+1. Connect the GitHub repository to this existing Vercel project. Enable Preview builds for reviewed branches. Protect the production branch and require passing CI/review before release. Check the Git connection in the dashboard; automatic deployment behavior was not changed by this work.
+2. Configure the existing Supabase project `wrgbfwexraarwxpoqzpv` for Production. It is in Sydney and currently has a 60-connection server limit. Use the exact Session pooler URL from Connect, not a guessed hostname. Supply `SUPABASE_PROJECT_REF`. Runtime code validates this against the pooler username.
+3. Keep the existing Marketplace Redis integration. It generates `MY_REDIS_REDIS_URL`. Require a TLS `rediss://` endpoint; remove a conflicting `REDIS_URL` alias. Verify memory capacity and eviction policy with the provider; a variable's presence is not a successful connection test.
+4. Configure `APP_URL`, the existing `AUTH_SESSION_SECRET` or `CMS_SESSION_SECRET`, and the existing `SETTINGS_ENCRYPTION_KEY`. Do not generate a new encryption key for saved encrypted settings. Configure Azure credentials for `lgumedia/portal-media` and a random `CRON_SECRET` of at least 32 characters.
+5. Preview must use an isolated Supabase project/branch, a separate Azure container and its own Redis namespace. The production project ref is rejected in Preview. Set `PREVIEW_DATA_ISOLATED=true` only after verifying all three. Existing integration environment metadata initially assigned the same variables to Preview and Production; isolation was not verified.
+6. Register the exact `https://<approved-origin>/auth/callback` in Google Cloud. Set `GOOGLE_REDIRECT_URI`, client ID and client secret together for that environment. The browser callback sends its code to the API. Redirect origins must match `APP_URL`.
+7. Apply only reviewed migrations, once, from a direct or session-mode connection. See [migration guidance](DATABASE_MIGRATIONS.md). Never run migrations in the Vite build or a function startup.
+8. Configure Azure CORS for the approved frontend origins, PUT/GET/HEAD/OPTIONS and Content-Type/x-ms-blob-type headers. Keep the container private.
+9. Provision the external worker described in [background jobs](BACKGROUND_JOBS.md). Verify its heartbeat and a disposable email/indexing job before enabling features that depend on it.
 
-| Variable | Visibility | Purpose |
-| --- | --- | --- |
-| `VITE_SUPABASE_URL` | Public | Supabase project URL used only by the browser client |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Public | Supabase publishable key; protect exposed data with RLS |
+## Build and verify
 
-Only variables prefixed with `VITE_` are compiled into the browser. Never set
-`CMS_SUPABASE_DATABASE_URL`, a database password, or a service-role/secret key
-as a `VITE_*` variable.
+`vercel.json` sets `npm ci`, `npm run build`, output `dist`, a 60-second Node function, Sydney region, static cache headers and API-first routing. `package.json` pins Node 24.x, the locally tested runtime; it overrides the inspected project's older selection of 26.x. Confirm platform support and function region/cron entitlements in the current plan before deployment.
 
-## Backend and database variables
+Run:
 
-Deploy the Express backend as a persistent Node service (the repository's
-Dockerfile can be used by a container host) and configure these server-side:
+```powershell
+npm ci
+npm test
+npm run test:production
+npm run test:redis
+npm run test:session-timeout-ui
+npm run lint
+npm run build
+vercel project inspect better-getafe --scope lgu-getafe --non-interactive
+vercel build
+```
 
-| Variable | Purpose |
-| --- | --- |
-| `CMS_SUPABASE_DATABASE_URL` | Canonical PostgreSQL URL for Supabase; required by the backend and workers |
-| `AUTH_SESSION_SECRET` | Session signing key |
-| `SETTINGS_ENCRYPTION_KEY` | Stable key used to decrypt admin-managed integration secrets |
-| `PUBLIC_SITE_URL` | Public site origin used for redirects and generated links |
-| `API_CORS_ORIGINS` | Exact Vercel frontend origin when frontend and backend use separate origins |
+CLI 65.16.0 encountered a Windows builder symlink permission failure in this environment. The JavaScript CLI fallback used for local diagnostics is recorded in the readiness report. Do not interpret a frontend build alone as deployment verification. Sensitive Vercel variables pull as placeholders and cannot supply local runtime credentials. Inject local test credentials through a secure channel outside Git.
 
-The backend also needs the configured Redis and Azure Blob Storage values for
-the enabled features. Keep the frontend and API on the same public origin using
-a reverse proxy when possible; API calls and session cookies are same-origin.
-If separate origins are used, configure exact CORS origins and cookie/security
-settings deliberately before enabling login.
+Review a Preview only after isolation and required values are configured. No preview or production deployment is created by these repository changes. On a verified deployment, check:
 
-`SUPABASE_DATABASE_URL` is still accepted as a legacy backend fallback, but
-`CMS_SUPABASE_DATABASE_URL` takes precedence and is the only name used in new
-deployments. CMS and resident database pools share this one Supabase database.
+- Direct refresh of `/services`, a news detail route, `/admin` and a resident route.
+- `/api/health/live` returns JSON 200 even during a dependency outage; `/api/ready` reflects required dependencies. Unknown API paths return API 404, never SPA HTML.
+- Separate requests/instances can validate, renew and revoke the same disposable session; MFA and permission denial still work.
+- Direct Azure upload, finalization, preview, download, expired URL recovery and orphan cleanup.
+- Redis failure returns 503 for authentication while public routes remain usable.
+- Cron requests without a valid bearer secret fail; repeated authorized delivery is idempotent.
 
-Apply the PostgreSQL migrations with `npm run migrate:postgres` before sending
-traffic. The backend checks Better Getafe schema readiness and fails closed if
-the Supabase connection or schema is unavailable. It never falls back to local
-PostgreSQL.
+## Release and rollback
 
-After changing Vercel environment variables, redeploy the frontend. Deploy and
-restart the persistent backend separately. Do not deploy the frontend as a
-working portal until `/api` is routed to that backend and its readiness endpoint
-reports ready.
+For an approved release, stage a production deployment without assigning domains, verify it using production configuration and controlled disposable records, then obtain the explicit promotion approval. A Preview promoted into Production can rebuild with different values; it is not evidence that the tested artifact is unchanged. Retain the prior deployment and follow [rollback](ROLLBACK.md). Do not change production domains or automatically promote as part of verification.
+
+Current official references: [Express functions](https://vercel.com/docs/frameworks/backend/express), [function limits](https://vercel.com/docs/functions/limitations), [cron plan constraints](https://vercel.com/docs/cron-jobs/usage-and-pricing), [Supabase connection modes](https://supabase.com/docs/guides/database/connecting-to-postgres).

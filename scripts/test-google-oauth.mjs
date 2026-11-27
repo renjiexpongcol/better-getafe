@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { createPkcePair, getGoogleRedirectUri, normalizeGoogleRedirectUri } from '../server/src/services/googleOAuth.js';
+import { createPkcePair, getGoogleRedirectUri, normalizeGoogleRedirectUri, googleRedirectFromState } from '../server/src/services/googleOAuth.js';
 
 test('quoted redirect URIs are normalized before authorization', () => {
   const quoted = '"http://localhost:5173/auth/callback"';
@@ -19,4 +19,9 @@ test('PKCE pairs use an S256 challenge and a high-entropy verifier', () => {
   assert.match(verifier, /^[A-Za-z0-9_-]{43}$/);
   assert.equal(challenge, crypto.createHash('sha256').update(verifier).digest('base64url'));
   assert.notEqual(challenge, verifier);
+});
+
+test('production callbacks cannot leave the configured application origin or change mid-flow', () => {
+  assert.throws(() => getGoogleRedirectUri({ configured: 'https://other.example/auth/callback', publicSiteUrl: 'https://getafe.gov.ph', production: true }), /origin/);
+  assert.throws(() => googleRedirectFromState({ redirectUri: 'https://other.example/auth/callback', configured: 'https://getafe.gov.ph/auth/callback', publicSiteUrl: 'https://getafe.gov.ph', production: true }), /changed/);
 });

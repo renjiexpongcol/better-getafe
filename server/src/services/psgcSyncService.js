@@ -43,10 +43,12 @@ function normalizeApiRecord(source, version) {
   }
 }
 
-async function fetchGetafeBarangays(version, token) {
+async function fetchGetafeBarangays(version, token, budgetMs = 300000) {
+  const deadline = Date.now() + budgetMs;
   const records = new Map()
   const pageSize = 1000
   for (let page = 1; page <= 10; page++) {
+    if (Date.now() >= deadline) throw new Error('PSGC synchronization exceeded its execution budget; the saved snapshot is retained.');
     const url = new URL(`${API_BASE_URL}/${encodeURIComponent(version)}/barangays`)
     url.searchParams.set('token', token)
     url.searchParams.set('reg', '7')
@@ -57,7 +59,7 @@ async function fetchGetafeBarangays(version, token) {
     const response = await fetch(url, {
       redirect: 'error',
       headers: { Accept: 'application/json', 'User-Agent': 'BetterGetafePortal/1.0 (PSGC data refresh)' },
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(Math.max(1, Math.min(30000, deadline - Date.now()))),
     })
     const finalHost = (() => { try { return new URL(response.url).hostname } catch { return 'unknown' } })()
     const contentType = response.headers.get('content-type') || ''
@@ -127,7 +129,7 @@ export async function getPsgcSyncState() {
   } catch { return null }
 }
 
-export async function syncGetafePsgc({ version = configuredVersion(), force = false } = {}) {
+export async function syncGetafePsgc({ version = configuredVersion(), force = false, budgetMs = 300000 } = {}) {
   if (syncInFlight) return syncInFlight
   syncInFlight = (async () => {
     const attemptedAt = new Date()
@@ -152,7 +154,7 @@ export async function syncGetafePsgc({ version = configuredVersion(), force = fa
         }
       }
       if (!token) throw new Error('PSA PSGC API token is not configured. Set the protected PSA PSGC API token in Settings or provide PSGC_API_TOKEN to the server environment.')
-      const records = await fetchGetafeBarangays(version, token)
+      const records = await fetchGetafeBarangays(version, token, budgetMs)
       console.info(`[PSGC] API response validated for ${version}; records=${records.length}; sourceHost=classification.psa.gov.ph.`)
 
       const connection = await pool.getConnection()

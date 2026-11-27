@@ -1,5 +1,6 @@
 // Audited method/path declarations. Never populate this from live route discovery.
 export const endpointPolicies = [
+  { method: 'GET', path: '/api/internal/jobs/:name', access: 'INTERNAL', permissions: [], authorization: 'cron', body: 'none', ownership: 'Authenticated scheduler only', csrf: 'not applicable', validation: 'Constant-time CRON_SECRET verification, fixed job allowlist, durable daily claim and bounded retries' },
   { method:'GET',path:'/api/ai/assistant/config',access:'PUBLIC',permissions:[],authorization:'none',body:'none',ownership:'Public assistant visibility and approved display configuration only',csrf:'not applicable',validation:'Returns only public assistant settings; configuration changes are read live' },
   { method:'POST',path:'/api/ai/assistant/chat',access:'PUBLIC',permissions:[],authorization:'none',body:'json',ownership:'Anonymous resident question and published portal sources only',csrf:'not applicable',validation:'Resident assistant and knowledge retrieval flags, question length limit, source-grounded response and rate limit' },
   { method:'POST',path:'/api/ai/assistant/feedback',access:'PUBLIC',permissions:[],authorization:'none',body:'json',ownership:'Anonymous feedback on a generated assistant response',csrf:'not applicable',validation:'Allowlisted rating and server-generated response ID; no question text stored' },

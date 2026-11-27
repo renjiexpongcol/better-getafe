@@ -22,6 +22,7 @@ export async function uploadMediaImage(file, { context = 'media', folder } = {})
     if (grant.reused) return grant.media
     const url = new URL(grant.uploadUrl, window.location.origin)
     const options = { method: 'PUT', headers: { 'Content-Type': file.type }, body: file }
+    if (url.hostname.endsWith('.blob.core.windows.net')) options.headers['x-ms-blob-type'] = 'BlockBlob'
     const result = url.origin === window.location.origin
       ? await apiFetch(url.pathname + url.search, options)
       : await fetch(url, { ...options, credentials: 'omit' })

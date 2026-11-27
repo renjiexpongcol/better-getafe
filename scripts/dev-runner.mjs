@@ -41,8 +41,7 @@ if (!setupOnly) {
     const redis = resolveRedisConfiguration();
     if (!redis.enabled) console.warn(JSON.stringify({ event: 'redis_configuration_missing', pid: process.pid, status: 'degraded', reason: 'Authentication sessions require the configured Redis registry; session operations will fail closed until configured.' }));
   } catch (error) {
-    console.error(`[Portal] Redis configuration: ${error.message}`);
-    process.exit(1);
+    console.warn(`[Portal] Redis configuration is invalid; authentication will remain unavailable until corrected.`);
   }
 }
 

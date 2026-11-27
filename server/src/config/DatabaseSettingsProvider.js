@@ -1,12 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import pg from 'pg';
+import { acquirePostgresPool } from '../services/postgresPool.js';
 import { refreshStorageSelection } from '../services/storageSelection.js';
 import { installPoolErrorHandler } from '../services/dependencyFailures.js';
 import { DATABASE_MIGRATION_FREEZE_LOCK_ID, supabaseConnectionOptions } from '../services/postgres.js';
 let pool;
 function postgresPool() {
-  const next = new pg.Pool({
+  const next = acquirePostgresPool({
     ...supabaseConnectionOptions('database'),
     max: Number(process.env.DB_CONNECTION_LIMIT || 5), connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS || 10000), idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS || 60000),
     query_timeout: Number(process.env.DB_QUERY_TIMEOUT_MS || 10000),

@@ -4,6 +4,7 @@ import { environmentValue } from './EnvironmentProvider.js';
 import { isDependencyFailure } from '../services/dependencyFailures.js';
 import { dependencyReason } from '../services/startupDiagnostics.js';
 import { selectedStorageProvider } from '../services/storageSelection.js';
+const protectedInfrastructure = key => key === 'general.url' || /^storage\.(?:provider|configuredProvider|azureAccount|azureContainer|azureAuthentication|azureConnectionString)$/.test(key) || /^google\./.test(key);
 export class ConfigService {
   constructor({ provider, secrets, env = process.env, prepare = async () => ({ activate() {}, discard() {} }) }) {
     this.provider = provider; this.secrets = secrets; this.env = env; this.prepare = prepare;
@@ -14,7 +15,7 @@ export class ConfigService {
   get(key) { if (!definitions[key]) throw new Error(`Unknown setting: ${key}`); return isSettingVisible(key, this.values) ? this.values[key] : definitions[key].default; }
   managedByEnvironment(key) {
     return this.sources[key] === 'environment'
-      && (key === 'storage.provider' || key === 'storage.configuredProvider' || (/^google\./.test(key) && Boolean(this.localGoogleConfiguration())) || (/^(database|portalDatabase)\./.test(key)
+      && (protectedInfrastructure(key) || (/^google\./.test(key) && Boolean(this.localGoogleConfiguration())) || (/^(database|portalDatabase)\./.test(key)
         && this.env.NODE_ENV !== 'production'));
   }
   localGoogleConfiguration() {
@@ -45,7 +46,7 @@ export class ConfigService {
       const useDevelopmentDatabase = this.env.NODE_ENV !== 'production'
         && /^(database|portalDatabase)\./.test(key)
         && environment !== undefined;
-      if (useDevelopmentDatabase || (key === 'storage.provider' && environment !== undefined)) {
+      if (useDevelopmentDatabase || (protectedInfrastructure(key) && environment !== undefined)) {
         values[key] = environment;
         sources[key] = 'environment';
       } else if (d.secret && stored[key]?.secret_ref && environment !== undefined) {
@@ -59,6 +60,11 @@ export class ConfigService {
     const selectedProvider = selectedStorageProvider(values['storage.provider']);
     if (selectedProvider !== values['storage.provider']) sources['storage.provider'] = 'migration-journal';
     values['storage.provider'] = selectedProvider;
+    if (this.env.VERCEL === '1' && values['storage.provider'] === 'local') throw new Error('Persistent local media storage is unavailable in Vercel Functions.');
+    if (this.env.VERCEL_ENV === 'preview' && values['storage.provider'] === 'azure'
+      && values['storage.azureAccount'] === 'lgumedia' && values['storage.azureContainer'] === 'portal-media') {
+      throw new Error('Preview must use a separate Azure container.');
+    }
     if (stored['storage.configuredProvider'] == null || sources['storage.provider'] === 'environment' || sources['storage.provider'] === 'migration-journal') {
       values['storage.configuredProvider'] = values['storage.provider'];
       sources['storage.configuredProvider'] = sources['storage.provider'];

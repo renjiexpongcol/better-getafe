@@ -239,11 +239,15 @@ export function resolveClient(req, getAuthenticatedId = () => null) {
   // Express computes req.ip by walking the forwarding chain right-to-left
   // through the configured trusted-proxy CIDRs. Never select the first raw
   // X-Forwarded-For or Cloudflare header supplied by an untrusted client.
-  const address = isTrustedProxyAddress(upstream) ? normalizeAddress(req.ip) || upstream : upstream;
+  const address = resolveClientAddress(req);
   return { type: 'ip', value: hash(`ip:${address}`) };
 }
 
 export function resolveClientAddress(req) {
+  // Vercel overwrites this dedicated header at its ingress. Trust it only in
+  // the platform runtime; local HTTP callers cannot opt in with a header.
+  const platformAddress = process.env.VERCEL === '1' ? normalizeAddress(requestHeader(req, 'x-vercel-forwarded-for')) : '';
+  if (platformAddress) return platformAddress;
   const upstream = normalizeAddress(req.socket?.remoteAddress) || 'unknown';
   return isTrustedProxyAddress(upstream) ? normalizeAddress(req.ip) || upstream : upstream;
 }

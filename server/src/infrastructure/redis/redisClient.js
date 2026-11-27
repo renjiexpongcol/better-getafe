@@ -2,15 +2,23 @@ import '../../config/bootstrap.js';
 import { dependencyReason } from '../../services/startupDiagnostics.js';
 import { createClient } from 'redis';
 import { resolveRedisConfiguration } from './redisConfiguration.js';
+import { createHash } from 'node:crypto';
 
 
-const managed = resolveRedisConfiguration();
+// Invalid optional infrastructure must not throw while importing the API.
+let managed;
+try { managed = resolveRedisConfiguration(); }
+catch { managed = { enabled: false, url: null, source: 'invalid' }; console.warn(JSON.stringify({ event: 'redis_configuration_invalid', status: 'unavailable' })); }
 const redisEndpoint = managed.url ? new URL(managed.url) : null;
+const basePrefix = String(process.env.REDIS_PREFIX || 'getafe').trim().replace(/:+$/, '') || 'getafe';
+const isolatedPrefix = process.env.VERCEL_ENV && process.env.VERCEL_ENV !== 'production'
+  ? `${basePrefix}:${process.env.VERCEL_ENV}:${createHash('sha256').update(process.env.VERCEL_GIT_COMMIT_REF || process.env.VERCEL_URL || 'development').digest('hex').slice(0, 12)}`
+  : process.env.NODE_ENV === 'production' ? basePrefix : `${basePrefix}:${process.env.NODE_ENV || 'development'}`;
 export const redisConfig = Object.freeze({
   enabled: managed.enabled,
   url: managed.url,
   source: managed.source,
-  prefix: String(process.env.REDIS_PREFIX || 'getafe').trim().replace(/:+$/, '') || 'getafe',
+  prefix: isolatedPrefix,
   connectTimeoutMs: Math.max(1000, Number.parseInt(process.env.REDIS_CONNECT_TIMEOUT_MS || '5000', 10)),
   reconnectMaxDelayMs: Math.max(1000, Number.parseInt(process.env.REDIS_RECONNECT_MAX_DELAY_MS || '30000', 10)),
 });
@@ -34,6 +42,8 @@ const redis = createClient({
     reconnectStrategy: retryDelay,
   },
   disableOfflineQueue: true,
+  commandsQueueMaxLength: 1000,
+  commandOptions: { timeout: 5000 },
 });
 
 let connectionPromise = null;

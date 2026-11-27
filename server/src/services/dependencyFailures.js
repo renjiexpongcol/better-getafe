@@ -18,7 +18,11 @@ export function dependencyStatus(error) {
   return isDependencyFailure(error) ? 503 : 500;
 }
 
+const observedPools = new WeakSet();
 export function installPoolErrorHandler(pool, category) {
+  const target = pool.sharedTarget || pool;
+  if (observedPools.has(target)) return pool;
+  observedPools.add(target);
   // pg removes a failed idle client before emitting this event. The next
   // checkout creates a connection; restarting the application is unnecessary.
   pool.on('error', error => {

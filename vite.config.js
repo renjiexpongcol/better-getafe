@@ -7,7 +7,7 @@ loadLocalEnvironment()
 // The API listens on IPv4 during local development. Using 127.0.0.1 avoids
 // Windows/Node resolving localhost to ::1 and making the Vite proxy fail.
 const unifiedDevServer = process.env.PORTAL_UNIFIED_DEV_SERVER === 'true'
-const backendTarget = unifiedDevServer ? null : backendConnection().target
+const backendTarget = process.env.NODE_ENV === 'production' || unifiedDevServer ? null : backendConnection().target
 const logger = proxyLogger(createLogger())
 
 const backendProxy = () => ({
@@ -55,7 +55,7 @@ export default defineConfig({
     allowedHosts: ['getafe.supra-intra.org'],
 
     proxy: {
-      ...(unifiedDevServer ? {} : {
+      ...(!backendTarget ? {} : {
         '/api': { ...backendProxy() },
         '/rss.xml': { ...backendProxy() },
         // Local media URLs are returned as /uploads/... so they stay relative

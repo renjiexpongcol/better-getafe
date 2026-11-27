@@ -1,0 +1,1146 @@
+{
+  "date": "2026-11-27",
+  "intendedProject": {
+    "vercel": "prj_0gnvJzzefBfHs8lA5ZHW5TfiaR55",
+    "supabase": "wrgbfwexraarwxpoqzpv"
+  },
+  "environmentMetadata": [
+    {
+      "key": "MY_REDIS_REDIS_URL",
+      "target": [
+        "development",
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_POSTGRES_USER",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_SUPABASE_SECRET_KEY",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_POSTGRES_PASSWORD",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_VITE_SUPABASE_URLSUPABASE_URL",
+      "target": [
+        "development",
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_POSTGRES_URL",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_VITE_SUPABASE_URLSUPABASE_PUBLISHABLE_KEY",
+      "target": [
+        "development",
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_SUPABASE_PUBLISHABLE_KEY",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_SUPABASE_ANON_KEY",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_VITE_SUPABASE_URLSUPABASE_ANON_KEY",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_SUPABASE_JWT_SECRET",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_POSTGRES_DATABASE",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_SUPABASE_SERVICE_ROLE_KEY",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_POSTGRES_PRISMA_URL",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_POSTGRES_URL_NON_POOLING",
+      "target": [
+        "development",
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_SUPABASE_URL",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "MY_PREFIX_POSTGRES_HOST",
+      "target": [
+        "preview",
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "VITE_SUPABASE_PUBLISHABLE_KEY",
+      "target": [
+        "production",
+        "preview",
+        "development"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "VITE_SUPABASE_URL",
+      "target": [
+        "production",
+        "preview",
+        "development"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "POSTGRES_URL",
+      "target": [
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "POSTGRES_PRISMA_URL",
+      "target": [
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "POSTGRES_URL_NON_POOLING",
+      "target": [
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "POSTGRES_USER",
+      "target": [
+        "production"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "POSTGRES_HOST",
+      "target": [
+        "production"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "POSTGRES_PASSWORD",
+      "target": [
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "POSTGRES_DATABASE",
+      "target": [
+        "production"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "SUPABASE_URL",
+      "target": [
+        "production"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "SUPABASE_JWT_SECRET",
+      "target": [
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "SUPABASE_ANON_KEY",
+      "target": [
+        "production"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "SUPABASE_SERVICE_ROLE_KEY",
+      "target": [
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "SUPABASE_PUBLISHABLE_KEY",
+      "target": [
+        "production"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "SUPABASE_SECRET_KEY",
+      "target": [
+        "production"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_URL",
+      "target": [
+        "production"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "target": [
+        "production"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+      "target": [
+        "production"
+      ],
+      "type": "encrypted"
+    },
+    {
+      "key": "HOST",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "PORT",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "VITE_PORT",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "NODE_ENV",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "REDIS_ENABLED",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "REDIS_URL",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "RATE_LIMIT_ENABLED",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "VITE_GETAFE_FACEBOOK_URL",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "VITE_GETAFE_INSTAGRAM_URL",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "VITE_GETAFE_YOUTUBE_URL",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "VITE_GETAFE_X_URL",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "VITE_GETAFE_GITHUB_URL",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "VITE_GETAFE_WEBSITE_URL",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GOOGLE_CLIENT_ID",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GOOGLE_CLIENT_SECRET",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "GOOGLE_REDIRECT_URI",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "CMS_SESSION_SECRET",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "CMS_ADMIN_PASSWORD",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "CMS_DATABASE_PROVIDER",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "USER_DATABASE_PROVIDER",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "PORTAL_DATABASE_PROVIDER",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "CMS_MEDIA_PROVIDER",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "B2_ENDPOINT",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "B2_REGION",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "B2_BUCKET_NAME",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "B2_KEY_ID",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "B2_APPLICATION_KEY",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "INTEGRATION_VAULT_KEYS",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "INTEGRATION_VAULT_VERSION",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    },
+    {
+      "key": "CMS_SUPABASE_DATABASE_URL",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "type": "sensitive"
+    }
+  ],
+  "permissionVerification": [
+    {
+      "verification": {
+        "tables_without_rls": 0,
+        "anonymous_account_read": false,
+        "anonymous_account_write": false,
+        "authenticated_settings_read": false,
+        "public_category_view": true,
+        "counts": {
+          "users": 2,
+          "residents": 8,
+          "media": 45,
+          "news": 5
+        }
+      }
+    }
+  ],
+  "finalSecurity": [
+    {
+      "final_security_state": {
+        "tables": 144,
+        "without_rls": 0,
+        "granted_tables": 0,
+        "job_tables_private": true,
+        "latest_migrations": [
+          "056_restrict_browser_database_access.sql",
+          "057_scheduled_job_runs.sql"
+        ]
+      }
+    }
+  ],
+  "schemaInventory": [
+    {
+      "schema_inventory": {
+        "relations": [
+          {
+            "relname": "ai_audit_logs",
+            "relkind": "r"
+          },
+          {
+            "relname": "ai_content_generations",
+            "relkind": "r"
+          },
+          {
+            "relname": "ai_knowledge_documents",
+            "relkind": "r"
+          },
+          {
+            "relname": "ai_knowledge_jobs",
+            "relkind": "r"
+          },
+          {
+            "relname": "ai_knowledge_manual_documents",
+            "relkind": "r"
+          },
+          {
+            "relname": "ai_knowledge_sources",
+            "relkind": "r"
+          },
+          {
+            "relname": "ai_modules",
+            "relkind": "r"
+          },
+          {
+            "relname": "ai_prompt_templates",
+            "relkind": "r"
+          },
+          {
+            "relname": "ai_provider_config",
+            "relkind": "r"
+          },
+          {
+            "relname": "ai_settings",
+            "relkind": "r"
+          },
+          {
+            "relname": "ai_usage_events",
+            "relkind": "r"
+          },
+          {
+            "relname": "application_assignments",
+            "relkind": "r"
+          },
+          {
+            "relname": "application_documents",
+            "relkind": "r"
+          },
+          {
+            "relname": "application_status_history",
+            "relkind": "r"
+          },
+          {
+            "relname": "applications",
+            "relkind": "r"
+          },
+          {
+            "relname": "appointment_closures",
+            "relkind": "r"
+          },
+          {
+            "relname": "appointment_schedule_config",
+            "relkind": "r"
+          },
+          {
+            "relname": "appointments",
+            "relkind": "r"
+          },
+          {
+            "relname": "audit_logs",
+            "relkind": "r"
+          },
+          {
+            "relname": "auth_audit_logs",
+            "relkind": "r"
+          },
+          {
+            "relname": "auth_group_permissions",
+            "relkind": "r"
+          },
+          {
+            "relname": "auth_group_policies",
+            "relkind": "r"
+          },
+          {
+            "relname": "auth_groups",
+            "relkind": "r"
+          },
+          {
+            "relname": "auth_permissions",
+            "relkind": "r"
+          },
+          {
+            "relname": "auth_policies",
+            "relkind": "r"
+          },
+          {
+            "relname": "auth_policy_editors",
+            "relkind": "r"
+          },
+          {
+            "relname": "auth_policy_proposals",
+            "relkind": "r"
+          },
+          {
+            "relname": "auth_state",
+            "relkind": "r"
+          },
+          {
+            "relname": "auth_user_bootstrap",
+            "relkind": "r"
+          },
+          {
+            "relname": "auth_user_groups",
+            "relkind": "r"
+          },
+          {
+            "relname": "barangay_appointment_integrations",
+            "relkind": "r"
+          },
+          {
+            "relname": "bettergov_cache",
+            "relkind": "r"
+          },
+          {
+            "relname": "billing_accounts",
+            "relkind": "r"
+          },
+          {
+            "relname": "billing_statement_items",
+            "relkind": "r"
+          },
+          {
+            "relname": "billing_statements",
+            "relkind": "r"
+          },
+          {
+            "relname": "business_applications",
+            "relkind": "r"
+          },
+          {
+            "relname": "business_owners",
+            "relkind": "r"
+          },
+          {
+            "relname": "businesses",
+            "relkind": "r"
+          },
+          {
+            "relname": "categories",
+            "relkind": "r"
+          },
+          {
+            "relname": "contact_messages",
+            "relkind": "r"
+          },
+          {
+            "relname": "content_media",
+            "relkind": "r"
+          },
+          {
+            "relname": "database_migration_runs",
+            "relkind": "r"
+          },
+          {
+            "relname": "database_migration_tables",
+            "relkind": "r"
+          },
+          {
+            "relname": "department_services",
+            "relkind": "r"
+          },
+          {
+            "relname": "departments",
+            "relkind": "r"
+          },
+          {
+            "relname": "destination_legacy_routes",
+            "relkind": "r"
+          },
+          {
+            "relname": "destinations",
+            "relkind": "r"
+          },
+          {
+            "relname": "employee_profile_defaults",
+            "relkind": "r"
+          },
+          {
+            "relname": "employee_profiles",
+            "relkind": "r"
+          },
+          {
+            "relname": "eservice_department_members",
+            "relkind": "r"
+          },
+          {
+            "relname": "eservice_idempotency",
+            "relkind": "r"
+          },
+          {
+            "relname": "eservice_notification_outbox",
+            "relkind": "r"
+          },
+          {
+            "relname": "external_api_key_audit",
+            "relkind": "r"
+          },
+          {
+            "relname": "external_api_keys",
+            "relkind": "r"
+          },
+          {
+            "relname": "external_sync_mappings",
+            "relkind": "r"
+          },
+          {
+            "relname": "external_sync_runs",
+            "relkind": "r"
+          },
+          {
+            "relname": "google_profiles",
+            "relkind": "r"
+          },
+          {
+            "relname": "government_office_assignments",
+            "relkind": "r"
+          },
+          {
+            "relname": "government_people",
+            "relkind": "r"
+          },
+          {
+            "relname": "government_positions",
+            "relkind": "r"
+          },
+          {
+            "relname": "integration_audit",
+            "relkind": "r"
+          },
+          {
+            "relname": "integration_executions",
+            "relkind": "r"
+          },
+          {
+            "relname": "integration_installations",
+            "relkind": "r"
+          },
+          {
+            "relname": "integration_jobs",
+            "relkind": "r"
+          },
+          {
+            "relname": "integration_oauth_states",
+            "relkind": "r"
+          },
+          {
+            "relname": "integration_webhook_events",
+            "relkind": "r"
+          },
+          {
+            "relname": "integration_workers",
+            "relkind": "r"
+          },
+          {
+            "relname": "legacy_account_imports",
+            "relkind": "r"
+          },
+          {
+            "relname": "managed_public_content",
+            "relkind": "r"
+          },
+          {
+            "relname": "managed_public_content_audit",
+            "relkind": "r"
+          },
+          {
+            "relname": "managed_worker_state",
+            "relkind": "r"
+          },
+          {
+            "relname": "media",
+            "relkind": "r"
+          },
+          {
+            "relname": "media_migration_entries",
+            "relkind": "r"
+          },
+          {
+            "relname": "media_migration_reference_backup",
+            "relkind": "r"
+          },
+          {
+            "relname": "media_migration_runs",
+            "relkind": "r"
+          },
+          {
+            "relname": "media_uploads",
+            "relkind": "r"
+          },
+          {
+            "relname": "news",
+            "relkind": "r"
+          },
+          {
+            "relname": "newsletter_subscriptions",
+            "relkind": "r"
+          },
+          {
+            "relname": "notification_deliveries",
+            "relkind": "r"
+          },
+          {
+            "relname": "notifications",
+            "relkind": "r"
+          },
+          {
+            "relname": "official_external_sync_reviews",
+            "relkind": "r"
+          },
+          {
+            "relname": "payment_adjustments",
+            "relkind": "r"
+          },
+          {
+            "relname": "payment_allocations",
+            "relkind": "r"
+          },
+          {
+            "relname": "payment_attempts",
+            "relkind": "r"
+          },
+          {
+            "relname": "payment_gateway_checkouts",
+            "relkind": "r"
+          },
+          {
+            "relname": "payment_order_items",
+            "relkind": "r"
+          },
+          {
+            "relname": "payment_orders",
+            "relkind": "r"
+          },
+          {
+            "relname": "payment_receipts",
+            "relkind": "r"
+          },
+          {
+            "relname": "payments",
+            "relkind": "r"
+          },
+          {
+            "relname": "popular_services",
+            "relkind": "r"
+          },
+          {
+            "relname": "portal_user_preferences",
+            "relkind": "r"
+          },
+          {
+            "relname": "portal_users",
+            "relkind": "r"
+          },
+          {
+            "relname": "privacy_request_events",
+            "relkind": "r"
+          },
+          {
+            "relname": "privacy_requests",
+            "relkind": "r"
+          },
+          {
+            "relname": "psgc_barangay_reference",
+            "relkind": "r"
+          },
+          {
+            "relname": "psgc_sync_state",
+            "relkind": "r"
+          },
+          {
+            "relname": "request_actions",
+            "relkind": "r"
+          },
+          {
+            "relname": "request_assignments",
+            "relkind": "r"
+          },
+          {
+            "relname": "request_business_billing",
+            "relkind": "r"
+          },
+          {
+            "relname": "request_documents",
+            "relkind": "r"
+          },
+          {
+            "relname": "request_form_values",
+            "relkind": "r"
+          },
+          {
+            "relname": "request_notes",
+            "relkind": "r"
+          },
+          {
+            "relname": "request_status_history",
+            "relkind": "r"
+          },
+          {
+            "relname": "resident_profiles",
+            "relkind": "r"
+          },
+          {
+            "relname": "scheduled_job_runs",
+            "relkind": "r"
+          },
+          {
+            "relname": "schema_migrations",
+            "relkind": "r"
+          },
+          {
+            "relname": "search_daily_unmatched",
+            "relkind": "r"
+          },
+          {
+            "relname": "search_submission_receipts",
+            "relkind": "r"
+          },
+          {
+            "relname": "search_topic_daily",
+            "relkind": "r"
+          },
+          {
+            "relname": "search_topic_terms",
+            "relkind": "r"
+          },
+          {
+            "relname": "search_topics",
+            "relkind": "r"
+          },
+          {
+            "relname": "service_categories",
+            "relkind": "r"
+          },
+          {
+            "relname": "service_fees",
+            "relkind": "r"
+          },
+          {
+            "relname": "service_form_definitions",
+            "relkind": "r"
+          },
+          {
+            "relname": "service_form_fields",
+            "relkind": "r"
+          },
+          {
+            "relname": "service_requests",
+            "relkind": "r"
+          },
+          {
+            "relname": "service_requirements",
+            "relkind": "r"
+          },
+          {
+            "relname": "service_workflow_steps",
+            "relkind": "r"
+          },
+          {
+            "relname": "service_workflows",
+            "relkind": "r"
+          },
+          {
+            "relname": "services",
+            "relkind": "r"
+          },
+          {
+            "relname": "settings_lock",
+            "relkind": "r"
+          },
+          {
+            "relname": "settlement_requests",
+            "relkind": "r"
+          },
+          {
+            "relname": "site_pages",
+            "relkind": "r"
+          },
+          {
+            "relname": "staff_notifications",
+            "relkind": "r"
+          },
+          {
+            "relname": "system_error_groups",
+            "relkind": "r"
+          },
+          {
+            "relname": "system_settings",
+            "relkind": "r"
+          },
+          {
+            "relname": "user_notification_preferences",
+            "relkind": "r"
+          },
+          {
+            "relname": "users",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_action_daily",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_analytics_event_receipts",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_analytics_settings",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_announcement_daily",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_announcement_impression_receipts",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_content_view_daily",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_navigation_daily",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_navigation_impression_receipts",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_open_data_daily",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_operation_daily",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_page_view_daily",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_public_404_daily",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_search_engagement_daily",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_search_result_click_daily",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_search_result_click_receipts",
+            "relkind": "r"
+          },
+          {
+            "relname": "website_service_journey_daily",
+            "relkind": "r"
+          }
+        ],
+        "constraints": 457,
+        "indexes": 295,
+        "triggers": 71,
+        "extensions": [
+          "plpgsql",
+          "pg_stat_statements",
+          "uuid-ossp",
+          "pgcrypto",
+          "supabase_vault",
+          "vector"
+        ]
+      }
+    }
+  ],
+  "transactionTestPassed": true
+}

@@ -61,3 +61,4 @@ vite.config.*.timestamp-*
 
 data/.settings-encryption-key
 .vercel
+supabase/.temp/

@@ -1,0 +1,234 @@
+[
+  {
+    "script": "auth:import:legacy",
+    "missingFile": "scripts/import-legacy-accounts.mjs"
+  },
+  {
+    "script": "auth:check:legacy",
+    "missingFile": "scripts/import-legacy-accounts.mjs"
+  },
+  {
+    "script": "content:import:legacy-barangays",
+    "missingFile": "scripts/import-legacy-barangays.mjs"
+  },
+  {
+    "script": "test:legacy-barangay-import",
+    "missingFile": "scripts/test-legacy-barangay-import.mjs"
+  },
+  {
+    "script": "content:import:legacy-news",
+    "missingFile": "scripts/import-legacy-news.mjs"
+  },
+  {
+    "script": "test:legacy-news-import",
+    "missingFile": "scripts/test-legacy-news-import.mjs"
+  },
+  {
+    "script": "test:legacy-account-import",
+    "missingFile": "scripts/test-legacy-account-import.mjs"
+  },
+  {
+    "script": "test:login-migration-ui",
+    "missingFile": "scripts/test-login-migration-ui.mjs"
+  },
+  {
+    "script": "test:login-account-selection",
+    "missingFile": "scripts/test-login-account-selection.mjs"
+  },
+  {
+    "script": "migrate:integrations",
+    "missingFile": "scripts/migrate-integration-hub.mjs"
+  },
+  {
+    "script": "check:integrations",
+    "missingFile": "scripts/check-integration-hub.mjs"
+  },
+  {
+    "script": "test:six-issues",
+    "missingFile": "scripts/test-six-issue-regressions.mjs"
+  },
+  {
+    "script": "test:service-editor",
+    "missingFile": "scripts/test-service-editor-regression.mjs"
+  },
+  {
+    "script": "test:password-change-http",
+    "missingFile": "scripts/test-password-change-http.mjs"
+  },
+  {
+    "script": "deploy:local",
+    "missingFile": "scripts/deploy/orchestrate.mjs"
+  },
+  {
+    "script": "deploy:staging",
+    "missingFile": "scripts/deploy/orchestrate.mjs"
+  },
+  {
+    "script": "deploy:production",
+    "missingFile": "scripts/deploy/orchestrate.mjs"
+  },
+  {
+    "script": "test:dev-server",
+    "missingFile": "scripts/test-unified-dev-server.mjs"
+  },
+  {
+    "script": "test:traffic",
+    "missingFile": "scripts/test-traffic-protection.mjs"
+  },
+  {
+    "script": "test:eservices",
+    "missingFile": "scripts/test-eservices.mjs"
+  },
+  {
+    "script": "test:eservices-ui",
+    "missingFile": "scripts/test-eservices-ui.mjs"
+  },
+  {
+    "script": "test:staff-assessment-ui",
+    "missingFile": "scripts/test-staff-assessment-ui.mjs"
+  },
+  {
+    "script": "test:staff-processing-ui",
+    "missingFile": "scripts/test-staff-processing-ui.mjs"
+  },
+  {
+    "script": "test:service-details-ui",
+    "missingFile": "scripts/test-service-details-ui.mjs"
+  },
+  {
+    "script": "test:business-billing-ui",
+    "missingFile": "scripts/test-business-billing-ui.mjs"
+  },
+  {
+    "script": "test:api-security",
+    "missingFile": "scripts/test-api-security.mjs"
+  },
+  {
+    "script": "test:api-security-http",
+    "missingFile": "scripts/test-api-security-http.mjs"
+  },
+  {
+    "script": "test:api-keys",
+    "missingFile": "scripts/test-external-api-keys.mjs"
+  },
+  {
+    "script": "test:auth",
+    "missingFile": "scripts/test-auth-hardening.mjs"
+  },
+  {
+    "script": "test:auth-isolation",
+    "missingFile": "scripts/test-auth-isolation-http.mjs"
+  },
+  {
+    "script": "test:auth-isolation-ui",
+    "missingFile": "scripts/test-public-auth-ui.mjs"
+  },
+  {
+    "script": "test:startup-ui",
+    "missingFile": "scripts/test-startup-ui.mjs"
+  },
+  {
+    "script": "test:runtime-resilience",
+    "missingFile": "scripts/test-runtime-resilience.mjs"
+  },
+  {
+    "script": "test:dependency-recovery",
+    "missingFile": "scripts/test-dependency-recovery.mjs"
+  },
+  {
+    "script": "test:backend-watch",
+    "missingFile": "scripts/test-backend-watch.mjs"
+  },
+  {
+    "script": "test:mobile-profile",
+    "missingFile": "scripts/test-mobile-profile.mjs"
+  },
+  {
+    "script": "test:mobile-profile-ui",
+    "missingFile": "scripts/test-mobile-profile-ui.mjs"
+  },
+  {
+    "script": "test:setup-loading-ui",
+    "missingFile": "scripts/test-setup-loading-ui.mjs"
+  },
+  {
+    "script": "test:employees",
+    "missingFile": "scripts/test-employee-provisioning.mjs"
+  },
+  {
+    "script": "test:employee-ui",
+    "missingFile": "scripts/test-employee-profile-ui.mjs"
+  },
+  {
+    "script": "test:admin-users",
+    "missingFile": "scripts/test-admin-users.mjs"
+  },
+  {
+    "script": "cms:check",
+    "missingFile": "scripts/verify-cms-configuration.mjs"
+  },
+  {
+    "script": "migrate",
+    "missingFile": "scripts/migrate-settings.mjs"
+  },
+  {
+    "script": "media:reconcile",
+    "missingFile": "scripts/reconcile-media.mjs"
+  },
+  {
+    "script": "media:reconcile:b2",
+    "missingFile": "scripts/reconcile-b2-media.mjs"
+  },
+  {
+    "script": "test:departments",
+    "missingFile": "scripts/test-departments.mjs"
+  },
+  {
+    "script": "test:storage",
+    "missingFile": "scripts/test-storage.mjs"
+  },
+  {
+    "script": "test:ui-overhaul",
+    "missingFile": "scripts/test-ui-overhaul.mjs"
+  },
+  {
+    "script": "test:ui-overhaul-interactions",
+    "missingFile": "scripts/test-ui-overhaul-interactions.mjs"
+  },
+  {
+    "script": "test:ui-review",
+    "missingFile": "scripts/test-ui-review.mjs"
+  },
+  {
+    "script": "test:ui-review-interactions",
+    "missingFile": "scripts/test-ui-review-interactions.mjs"
+  },
+  {
+    "script": "test:ui-review-overlays",
+    "missingFile": "scripts/test-ui-review-overlays.mjs"
+  },
+  {
+    "script": "test:security-boundaries",
+    "missingFile": "scripts/test-security-boundaries.mjs"
+  },
+  {
+    "script": "test:integrations",
+    "missingFile": "scripts/test-integration-hub.mjs"
+  },
+  {
+    "script": "test:integrations-http",
+    "missingFile": "scripts/test-integration-hub-http.mjs"
+  },
+  {
+    "script": "test:integrations-ui",
+    "missingFile": "scripts/test-integration-hub-ui.mjs"
+  },
+  {
+    "script": "content:restore-footer-navigation",
+    "missingFile": "scripts/restore-footer-navigation.mjs"
+  },
+  {
+    "script": "test:frontend-readiness",
+    "missingFile": "scripts/test-frontend-readiness.mjs"
+  }
+]

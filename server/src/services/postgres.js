@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { acquirePostgresPool } from './postgresPool.js';
 import { X509Certificate } from 'node:crypto';
 import { installPoolErrorHandler } from './dependencyFailures.js';
 
@@ -43,10 +44,12 @@ function toPostgresQuery(sql, params = []) {
 }
 
 export function getPostgresConnectionVariable() {
-  return 'CMS_SUPABASE_DATABASE_URL';
+  return getSupabaseDatabaseUrl().variable;
 }
 
 export function getSupabaseDatabaseUrl(env = process.env) {
+  const runtime = String(env.DATABASE_URL || '').trim();
+  if (runtime) return { url: runtime, variable: 'DATABASE_URL' };
   const integrated = String(env.MY_PREFIX_POSTGRES_URL_NON_POOLING || '').trim();
   if (integrated) return { url: integrated, variable: 'MY_PREFIX_POSTGRES_URL_NON_POOLING' };
   const canonical = String(env.CMS_SUPABASE_DATABASE_URL || '').trim();
@@ -80,13 +83,24 @@ export function supabaseConnectionOptions(_category, env = process.env) {
       url.searchParams.getAll('sslmode').some(mode => !['require', 'verify-ca', 'verify-full'].includes(mode))) {
     throw new Error(`Use a TLS-enabled Supabase direct or Session pooler connection string in ${variable}.`);
   }
+  if (env.VERCEL === '1') {
+    if (!url.hostname.endsWith('.pooler.supabase.com') || (url.port && url.port !== '5432')) {
+      throw new Error('Vercel requires the Supabase Session pooler on port 5432 because the application uses session advisory locks.');
+    }
+    if (!env.SUPABASE_PROJECT_REF || decodeURIComponent(url.username).split('.').at(-1) !== env.SUPABASE_PROJECT_REF) {
+      throw new Error('SUPABASE_PROJECT_REF must match the configured pooler user.');
+    }
+    if (env.VERCEL_ENV === 'preview' && env.SUPABASE_PROJECT_REF === 'wrgbfwexraarwxpoqzpv') {
+      throw new Error('Preview must use an isolated Supabase project or database branch.');
+    }
+  }
   const sslMode = url.searchParams.get('sslmode');
   const hasRootCertificate = url.searchParams.has('getafe_root_ca');
   url.searchParams.delete('sslmode');
   try {
     // Require encryption for every Supabase connection. CA verification is
     // enabled when explicitly requested, or when a root CA is provided.
-    const ssl = { rejectUnauthorized: hasRootCertificate || ['verify-ca', 'verify-full'].includes(sslMode) };
+    const ssl = { rejectUnauthorized: env.VERCEL === '1' || hasRootCertificate || ['verify-ca', 'verify-full'].includes(sslMode) };
     return postgresUrlOptions(url.toString(), ssl);
   } catch {
     throw new Error(`The Supabase root certificate in ${variable} is invalid.`);
@@ -116,7 +130,7 @@ export function createPostgresResource(values, category, actor) {
     application_name: 'getafe-portal',
     query_timeout: Math.max(1000, Number(get('connectTimeout')) || 10000),
   };
-  const pool = new Pool(poolOptions);
+  const pool = acquirePostgresPool(poolOptions);
   installPoolErrorHandler(pool, category);
   const execute = async (sql, params = []) => {
     try {

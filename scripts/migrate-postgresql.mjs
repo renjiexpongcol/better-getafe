@@ -8,7 +8,10 @@ import { DATABASE_MIGRATION_FREEZE_LOCK_ID, supabaseConnectionOptions } from '..
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let client;
 try {
-  const setup = await ensureSupabaseConfigured();
+  const migrationEnvironment = process.env.DIRECT_DATABASE_URL
+    ? { ...process.env, DATABASE_URL: process.env.DIRECT_DATABASE_URL, MY_PREFIX_POSTGRES_URL_NON_POOLING: '', CMS_SUPABASE_DATABASE_URL: process.env.DIRECT_DATABASE_URL }
+    : process.env;
+  const setup = await ensureSupabaseConfigured({ env: migrationEnvironment });
   if (setup.cancelled) process.exit(0);
   client = new pg.Client({ ...supabaseConnectionOptions('database', { CMS_SUPABASE_DATABASE_URL: setup.url }), connectionTimeoutMillis: 7000, application_name: 'better-getafe-schema-migration' });
   await client.connect();

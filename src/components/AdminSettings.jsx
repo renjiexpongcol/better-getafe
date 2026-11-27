@@ -12,6 +12,7 @@ import './AdminSettings.css'
 
 const sources = { database: 'Saved', 'secret-manager': 'Secure storage', environment: 'Managed by environment' }
 const storageLabels = { azure: 'Microsoft Azure Blob Storage', backblaze: 'Backblaze B2', local: 'Local storage' }
+const serviceLabels = { application: 'Application runtime', redis: 'Redis', authentication: 'Authentication', backgroundJobs: 'Background jobs', scheduledTasks: 'Scheduled tasks', ai: 'AI services' }
 const azureAuthenticationLabels = { 'connection-string': 'Connection string', 'managed-identity': 'Managed identity', ...storageLabels }
 async function request(path, options = {}, { connectionTest = false } = {}) {
   const response = await fetch(`/api/admin/settings${path}`, {
@@ -253,7 +254,18 @@ export default function AdminSettings({ category = 'general', settings, settings
     </div>}
     {activeTab === 'status' ? <SettingsSection title="System status" description="Service health and the latest connection checks." icon={sectionIcon('status')}>
       {loading ? <p className="settings-empty" role="status">Loading service status…</p> : <div className="settings-status">{Object.entries(status).map(([name, service]) =>
-        <article key={name}><div><h3>{categoryLabels[name] || name}</h3><p>{service.latencyMs !== undefined && `${service.latencyMs} ms · `}{service.checkedAt ? new Date(service.checkedAt).toLocaleString() : 'Not checked'}</p></div><StatusBadge>{service.status || 'Not checked'}</StatusBadge></article>,
+        <article key={name}><div><h3>{serviceLabels[name] || categoryLabels[name] || name}</h3>
+          {service.provider && <p>{service.provider}</p>}
+          <p>{service.latencyMs !== undefined && `${service.latencyMs} ms · `}{service.checkedAt ? new Date(service.checkedAt).toLocaleString() : 'Not checked'}</p>
+          {service.reason && <p>{service.reason}</p>}
+          {name === 'redis' && can('system.infrastructure.view') && <button type="button" className="settings-button secondary" disabled={busy} onClick={() => run(async () => {
+            const result = await request('/test/redis', { method: 'POST', body: JSON.stringify({}) })
+            setStatus(current => ({ ...current, redis: { ...current.redis, ...result } }))
+          }, error => {
+            setStatus(current => ({ ...current, redis: { ...current.redis, status: 'unavailable', latencyMs: undefined, reason: 'Verify the managed Redis endpoint and configuration.', checkedAt: new Date().toISOString() } }))
+            return { type: 'connection-error', text: error.message }
+          })}>{busy ? 'Testing connection…' : 'Test connection'}</button>}
+        </div><StatusBadge>{service.status || 'Not checked'}</StatusBadge></article>,
       )}</div>}
     </SettingsSection> : activeTab === 'history' ? <AuditHistory history={history} loading={loading} /> : <>
       {settingsLoading || !categoryReady ? <p role="status">{settingsLoading ? "Loading settings…" : "Settings could not be loaded. Reload this page to try again."}</p> :

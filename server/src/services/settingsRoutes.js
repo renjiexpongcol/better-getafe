@@ -1,4 +1,5 @@
 import { config } from '../config/index.js';
+import { deployment } from '../config/deployment.js';
 import { categories, definitions, validate, visibleSettingDependencies } from '../config/defaults.js';
 import { authorizeChanges, permissionsFor, requirePermission } from '../config/permissions.js';
 import { databaseHealth, getDatabaseRuntimeStatus } from './database.js';
@@ -42,6 +43,7 @@ export function installSettingsRoutes(app, admin, { isTrustedProxy } = {}) {
     catch { res.status(503).json({ error: 'Migration status is unavailable. Check that PostgreSQL migration 047 has been applied.' }); }
   });
   app.post('/api/admin/settings/media-migration', migrationAdmin, permission('settings.storage.edit'), permission('settings.edit'), async (req, res) => {
+    if (deployment.serverless) return res.status(409).json({ error: 'Run media migrations with the documented external migration command; they cannot run inside a Vercel Function.' });
     const { action, confirmed } = req.body || {};
     if (!['inventory', 'copy', 'cutover', 'activate', 'accept'].includes(action) || (['cutover', 'activate', 'accept'].includes(action) && confirmed !== true)) {
       return res.status(422).json({ error: 'Choose a valid migration action and confirm deployment changes.' });
@@ -68,13 +70,20 @@ export function installSettingsRoutes(app, admin, { isTrustedProxy } = {}) {
   app.get('/api/admin/settings/status', permission('settings.view'), async (req, res) => {
     const status = Object.fromEntries(Object.entries(systemStatus).map(([key, value]) => [key, { ...value, source: config.sources[`${key}.provider`] || config.sources['email.enabled'] }]));
     for (const category of ['database', 'portalDatabase']) { if (status[category]) status[category] = { ...status[category], ...(await databaseHealth(category)) }; }
-    res.json({ application: { status: config.available ? 'healthy' : 'degraded', checkedAt: new Date().toISOString() }, ...status });
+    const { infrastructureStatus } = await import('./infrastructureHealth.js');
+    res.set('Cache-Control', 'private, no-store').json({ ...status, ...await infrastructureStatus() });
   });
   app.post('/api/admin/settings/test/:service', permission('settings.view'), async (req, res) => {
     let resource;
     const start = Date.now();
     try {
       const service = req.params.service;
+      if (service === 'redis') {
+        requirePermission(req.admin, 'system.infrastructure.view');
+        const { connectRedis, pingRedis } = await import('../infrastructure/redis/redisClient.js');
+        const ok = await connectRedis() && await pingRedis();
+        return res.status(ok ? 200 : 503).json({ ok, status: ok ? 'healthy' : 'unavailable', checkedAt: new Date().toISOString(), latencyMs: Date.now() - start, ...(ok ? {} : { error: 'Redis connection could not be verified. Check its TLS endpoint and configuration.' }) });
+      }
       if (service === 'database' || service === 'portalDatabase') {
         requirePermission(req.admin, 'settings.edit');
         requirePermission(req.admin, 'settings.database.edit');
@@ -130,8 +139,8 @@ export function installSettingsRoutes(app, admin, { isTrustedProxy } = {}) {
     if (Object.hasOwn(patch, 'storage.provider')) return res.status(422).json({ error: 'Provider activation is separate from Storage settings. Use the verified deployment cutover.' });
     try {
       await config.update(patch, { ...req.admin, ip: req.ip });
-      if (Object.hasOwn(patch, 'integrations.psgcApiVersion')) {
-        stopPsgcSyncSchedule();
+      if (!deployment.serverless && Object.hasOwn(patch, 'integrations.psgcApiVersion')) {
+        await stopPsgcSyncSchedule();
         startPsgcSyncSchedule();
       }
       res.json({ ...snapshot(req.admin), saved: true });

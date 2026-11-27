@@ -47,6 +47,9 @@ export function getGoogleRedirectUri({ configured, publicSiteUrl, protocol, host
   if (production && parsed.protocol !== 'https:') {
     throw new Error('Google OAuth requires an HTTPS redirect URI in production.');
   }
+  if (production && publicSiteUrl && parsed.origin !== new URL(publicSiteUrl).origin) {
+    throw new Error('Google OAuth callback origin must match the configured application origin.');
+  }
   if (parsed.protocol === 'http:' && !LOCAL_HOSTS.has(parsed.hostname)) {
     throw new Error('Google OAuth only permits HTTP callbacks on localhost during development.');
   }
@@ -66,6 +69,8 @@ export function googleRedirectFromState({ redirectUri, configured, publicSiteUrl
       || parsed.pathname !== '/auth/callback') {
       throw new Error('Google OAuth redirect URI changed during sign-in.');
     }
+    const expected = getGoogleRedirectUri({ configured, publicSiteUrl, protocol, host, production });
+    if (production && selected !== expected) throw new Error('Google OAuth redirect URI changed during sign-in.');
     return selected;
   }
   return getGoogleRedirectUri({ configured, publicSiteUrl, protocol, host, production });

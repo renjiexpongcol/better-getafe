@@ -70,6 +70,7 @@ const putFile = (url, file, onProgress) => {
   const promise = new Promise((resolve, reject) => {
     request.open("PUT", url);
     request.setRequestHeader("Content-Type", file.type);
+    if (new URL(url, window.location.origin).hostname.endsWith('.blob.core.windows.net')) request.setRequestHeader('x-ms-blob-type', 'BlockBlob');
     if (url.startsWith("/api/media/upload-proxy")) request.setRequestHeader("X-Requested-With", "GetafeCitizenPortal");
     request.upload.onprogress = (e) => {
       if (e.lengthComputable)

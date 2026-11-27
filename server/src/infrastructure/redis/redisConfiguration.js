@@ -12,5 +12,6 @@ export function resolveRedisConfiguration(env = process.env) {
   if (!['redis:', 'rediss:'].includes(url.protocol) || !url.hostname || !url.password || url.hash || url.search) {
     throw new Error('MY_REDIS_REDIS_URL must be an authenticated redis:// or rediss:// URL.');
   }
+  if (env.VERCEL === '1' && url.protocol !== 'rediss:') throw new Error('Vercel Redis connections require TLS (rediss://).');
   return Object.freeze({ enabled: true, url: value, source: primary ? 'MY_REDIS_REDIS_URL' : 'REDIS_URL' });
 }

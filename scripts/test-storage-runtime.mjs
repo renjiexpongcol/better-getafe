@@ -18,7 +18,7 @@ const container = {
   getBlockBlobClient(key) { return {
     async uploadData(bytes) { operations.push(['upload', key, bytes.toString()]); },
     async downloadToBuffer() { operations.push(['download', key]); return Buffer.from('fixture'); },
-    async generateSasUrl() { operations.push(['url', key]); return 'https://fixture.invalid/signed'; },
+    async generateSasUrl(options) { operations.push(['url', key, options]); return 'https://fixture.invalid/signed'; },
     async getProperties() { return { contentLength: 7 }; },
   }; },
   listBlobsByHierarchy() { return { byPage: () => ({ next: async () => ({ value: { segment: { blobPrefixes: [{ name: 'news/' }], blobItems: [] } } }) }) }; },
@@ -46,6 +46,12 @@ test('Azure activation verifies the container and all operations use that contai
   assert.deepEqual(operations.map(item => item[0]), ['upload', 'download', 'url']);
   await assert.rejects(storage.createDownloadUrl('news/test.png', 'old-bucket', 'backblaze'), error => error.status === 503);
   assert.equal(b2Calls, 0);
+  const upload = await storage.createUploadUrl('news/new.png', 'image/png', 7);
+  assert.equal(upload, 'https://fixture.invalid/signed');
+  const options = operations.at(-1)[2];
+  assert.equal(options.permissions, 'c');
+  assert.equal(options.protocol, 'https');
+  assert.ok(options.expiresOn.getTime() - Date.now() <= 900000);
 });
 test('storage health checks are cached, coalesced and report Azure unavailable without switching providers', async () => {
   const before = propertiesCalls;

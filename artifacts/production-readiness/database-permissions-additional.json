@@ -1,0 +1,875 @@
+{
+  "captured": "2026-11-27",
+  "project": "wrgbfwexraarwxpoqzpv",
+  "sequences": [
+    {
+      "relname": "ai_knowledge_jobs_id_seq",
+      "relacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+    },
+    {
+      "relname": "eservice_request_reference",
+      "relacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+    },
+    {
+      "relname": "eservice_order_reference",
+      "relacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+    },
+    {
+      "relname": "employee_eid_seq",
+      "relacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+    },
+    {
+      "relname": "eservice_bill_reference",
+      "relacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+    },
+    {
+      "relname": "eservice_payment_reference",
+      "relacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+    },
+    {
+      "relname": "eservice_business_reference",
+      "relacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+    },
+    {
+      "relname": "managed_public_content_audit_id_seq",
+      "relacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+    }
+  ],
+  "functions": [
+    {
+      "proname": "halfvec_recv",
+      "args": "internal, oid, integer",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_typmod_in",
+      "args": "cstring[]",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_send",
+      "args": "halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "l2_distance",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "inner_product",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "cosine_distance",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "l1_distance",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_dims",
+      "args": "halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "l2_norm",
+      "args": "halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "l2_normalize",
+      "args": "halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "binary_quantize",
+      "args": "halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "subvector",
+      "args": "halfvec, integer, integer",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_add",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_sub",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_mul",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_concat",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_ge",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_gt",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_cmp",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_l2_squared_distance",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_lt",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_le",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_eq",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_ne",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_negative_inner_product",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_spherical_distance",
+      "args": "halfvec, halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_accum",
+      "args": "double precision[], halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_avg",
+      "args": "double precision[]",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_combine",
+      "args": "double precision[], double precision[]",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "avg",
+      "args": "halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sum",
+      "args": "halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec",
+      "args": "halfvec, integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_to_vector",
+      "args": "halfvec, integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_to_halfvec",
+      "args": "vector, integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "array_to_halfvec",
+      "args": "integer[], integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "array_to_halfvec",
+      "args": "real[], integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "array_to_halfvec",
+      "args": "double precision[], integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "array_to_halfvec",
+      "args": "numeric[], integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_to_float4",
+      "args": "halfvec, integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "hamming_distance",
+      "args": "bit, bit",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "jaccard_distance",
+      "args": "bit, bit",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_in",
+      "args": "cstring, oid, integer",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_out",
+      "args": "sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_typmod_in",
+      "args": "cstring[]",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_recv",
+      "args": "internal, oid, integer",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_send",
+      "args": "sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "l2_distance",
+      "args": "sparsevec, sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "inner_product",
+      "args": "sparsevec, sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "cosine_distance",
+      "args": "sparsevec, sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "l1_distance",
+      "args": "sparsevec, sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "l2_norm",
+      "args": "sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "l2_normalize",
+      "args": "sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_lt",
+      "args": "sparsevec, sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_le",
+      "args": "sparsevec, sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_eq",
+      "args": "sparsevec, sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_ne",
+      "args": "sparsevec, sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_ge",
+      "args": "sparsevec, sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_gt",
+      "args": "sparsevec, sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_cmp",
+      "args": "sparsevec, sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_l2_squared_distance",
+      "args": "sparsevec, sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_negative_inner_product",
+      "args": "sparsevec, sparsevec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec",
+      "args": "sparsevec, integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_to_sparsevec",
+      "args": "vector, integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_to_vector",
+      "args": "sparsevec, integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_to_sparsevec",
+      "args": "halfvec, integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sparsevec_to_halfvec",
+      "args": "sparsevec, integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "array_to_sparsevec",
+      "args": "integer[], integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "array_to_sparsevec",
+      "args": "real[], integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "array_to_sparsevec",
+      "args": "double precision[], integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "array_to_sparsevec",
+      "args": "numeric[], integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "ai_knowledge_enqueue",
+      "args": "source_name text, record_id text",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "ai_knowledge_news_changed",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "ai_knowledge_service_changed",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "vector_typmod_in",
+      "args": "cstring[]",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_recv",
+      "args": "internal, oid, integer",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_send",
+      "args": "vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "l2_distance",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "inner_product",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "cosine_distance",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "l1_distance",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_dims",
+      "args": "vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_norm",
+      "args": "vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "l2_normalize",
+      "args": "vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "binary_quantize",
+      "args": "vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "subvector",
+      "args": "vector, integer, integer",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_add",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_sub",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_mul",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_concat",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_lt",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_le",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_eq",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_ne",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_ge",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_gt",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_cmp",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_l2_squared_distance",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_negative_inner_product",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_spherical_distance",
+      "args": "vector, vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_accum",
+      "args": "double precision[], vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "ivfflat_bit_support",
+      "args": "internal",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_avg",
+      "args": "double precision[]",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_combine",
+      "args": "double precision[], double precision[]",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "avg",
+      "args": "vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "sum",
+      "args": "vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector",
+      "args": "vector, integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "array_to_vector",
+      "args": "integer[], integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "array_to_vector",
+      "args": "real[], integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "array_to_vector",
+      "args": "double precision[], integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "array_to_vector",
+      "args": "numeric[], integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_to_float4",
+      "args": "vector, integer, boolean",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "ivfflathandler",
+      "args": "internal",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "hnswhandler",
+      "args": "internal",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "ivfflat_halfvec_support",
+      "args": "internal",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "hnsw_halfvec_support",
+      "args": "internal",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "hnsw_bit_support",
+      "args": "internal",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "hnsw_sparsevec_support",
+      "args": "internal",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_in",
+      "args": "cstring, oid, integer",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "halfvec_out",
+      "args": "halfvec",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "protect_payment_attempt",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "eservice_immutable",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "eservice_payment_immutable",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "eservice_audit_immutable",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "eservice_order_integrity",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "provision_employee_profile",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "protect_employee_identity",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "rls_auto_enable",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "vector_in",
+      "args": "cstring, oid, integer",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "vector_out",
+      "args": "vector",
+      "proacl": "{=X/supabase_admin,supabase_admin=X/supabase_admin,postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "proname": "ai_knowledge_department_changed",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "ai_knowledge_service_child_changed",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "ai_knowledge_department_service_changed",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "ai_knowledge_barangay_changed",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "ai_knowledge_managed_content_changed",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "proname": "ai_knowledge_manual_document_changed",
+      "args": "",
+      "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    }
+  ],
+  "views": null,
+  "counts": {
+    "users": 2,
+    "residents": 8,
+    "media": 45,
+    "news": 5
+  },
+  "api_view": [
+    {
+      "schemaname": "portal_api",
+      "viewname": "categories",
+      "viewowner": "postgres"
+    }
+  ],
+  "defaults": [
+    {
+      "owner": "postgres",
+      "schema": "public",
+      "defaclobjtype": "r",
+      "defaclacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+    },
+    {
+      "owner": "postgres",
+      "schema": "public",
+      "defaclobjtype": "f",
+      "defaclacl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "owner": "postgres",
+      "schema": "public",
+      "defaclobjtype": "S",
+      "defaclacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "public",
+      "defaclobjtype": "S",
+      "defaclacl": "{postgres=rwU/supabase_admin,anon=rwU/supabase_admin,authenticated=rwU/supabase_admin,service_role=rwU/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "public",
+      "defaclobjtype": "r",
+      "defaclacl": "{postgres=arwdDxtm/supabase_admin,anon=arwdDxtm/supabase_admin,authenticated=arwdDxtm/supabase_admin,service_role=arwdDxtm/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "public",
+      "defaclobjtype": "f",
+      "defaclacl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "owner": "postgres",
+      "schema": "storage",
+      "defaclobjtype": "r",
+      "defaclacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+    },
+    {
+      "owner": "postgres",
+      "schema": "storage",
+      "defaclobjtype": "f",
+      "defaclacl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+    },
+    {
+      "owner": "postgres",
+      "schema": "storage",
+      "defaclobjtype": "S",
+      "defaclacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+    },
+    {
+      "owner": "supabase_auth_admin",
+      "schema": "auth",
+      "defaclobjtype": "r",
+      "defaclacl": "{postgres=arwdDxtm/supabase_auth_admin,dashboard_user=arwdDxtm/supabase_auth_admin}"
+    },
+    {
+      "owner": "supabase_auth_admin",
+      "schema": "auth",
+      "defaclobjtype": "S",
+      "defaclacl": "{postgres=rwU/supabase_auth_admin,dashboard_user=rwU/supabase_auth_admin}"
+    },
+    {
+      "owner": "supabase_auth_admin",
+      "schema": "auth",
+      "defaclobjtype": "f",
+      "defaclacl": "{postgres=X/supabase_auth_admin,dashboard_user=X/supabase_auth_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "graphql_public",
+      "defaclobjtype": "S",
+      "defaclacl": "{postgres=rwU/supabase_admin,anon=rwU/supabase_admin,authenticated=rwU/supabase_admin,service_role=rwU/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "graphql_public",
+      "defaclobjtype": "r",
+      "defaclacl": "{postgres=arwdDxtm/supabase_admin,anon=arwdDxtm/supabase_admin,authenticated=arwdDxtm/supabase_admin,service_role=arwdDxtm/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "graphql_public",
+      "defaclobjtype": "f",
+      "defaclacl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "extensions",
+      "defaclobjtype": "r",
+      "defaclacl": "{postgres=a*r*w*d*D*x*t*m*/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "extensions",
+      "defaclobjtype": "f",
+      "defaclacl": "{postgres=X*/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "extensions",
+      "defaclobjtype": "S",
+      "defaclacl": "{postgres=r*w*U*/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "graphql",
+      "defaclobjtype": "r",
+      "defaclacl": "{postgres=arwdDxtm/supabase_admin,anon=arwdDxtm/supabase_admin,authenticated=arwdDxtm/supabase_admin,service_role=arwdDxtm/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "graphql",
+      "defaclobjtype": "f",
+      "defaclacl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "graphql",
+      "defaclobjtype": "S",
+      "defaclacl": "{postgres=rwU/supabase_admin,anon=rwU/supabase_admin,authenticated=rwU/supabase_admin,service_role=rwU/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "realtime",
+      "defaclobjtype": "S",
+      "defaclacl": "{postgres=rwU/supabase_admin,dashboard_user=rwU/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "realtime",
+      "defaclobjtype": "f",
+      "defaclacl": "{postgres=X/supabase_admin,dashboard_user=X/supabase_admin}"
+    },
+    {
+      "owner": "supabase_admin",
+      "schema": "realtime",
+      "defaclobjtype": "r",
+      "defaclacl": "{postgres=a*r*wdDxtm/supabase_admin,dashboard_user=arwdDxtm/supabase_admin}"
+    }
+  ]
+}

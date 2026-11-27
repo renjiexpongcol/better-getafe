@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-27",
+  "productionReady": false,
+  "defaultTests": {
+    "passed": 128,
+    "failed": 0
+  },
+  "productionTests": {
+    "passed": 12,
+    "failed": 0
+  },
+  "redisTests": {
+    "passed": 9,
+    "failed": 0
+  },
+  "lint": "passed",
+  "viteBuild": "passed through Vercel build",
+  "workspaceBuilds": "all three passed",
+  "deploymentArtifacts": "passed",
+  "vercelBuild": {
+    "status": "passed",
+    "cli": "50.44.0",
+    "runtime": "nodejs24.x",
+    "maxDuration": 60
+  },
+  "browserFixtures": {
+    "sessionTimeout": "passed",
+    "infrastructureStatus": "passed"
+  },
+  "npmProductionAudit": {
+    "vulnerabilities": 0
+  },
+  "scriptTargets": {
+    "commands": 42,
+    "missing": 0
+  },
+  "liveDevelopmentStartup": "blocked: usable Supabase/Redis configuration absent",
+  "cloudDeployment": "not attempted",
+  "packagedSourceComparison": [
+    {
+      "file": "server/index.js",
+      "matches": true
+    },
+    {
+      "file": "server/src/services/trafficProtection.js",
+      "matches": true
+    },
+    {
+      "file": "server/src/services/psgcSyncService.js",
+      "matches": true
+    },
+    {
+      "file": "server/src/services/settingsRoutes.js",
+      "matches": true
+    },
+    {
+      "file": "server/src/services/storage.js",
+      "matches": true
+    }
+  ]
+}
