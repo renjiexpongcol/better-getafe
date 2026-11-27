@@ -25,6 +25,9 @@ try{
   assert.ok(sessionCookies.length);assert.ok(sessionCookies.every(cookie=>cookie.secure));
   const inspection=await get('/api/admin/settings/database-management');assert.equal(inspection.status(),200);const report=await inspection.json();assert.equal(report.state,'healthy');assert.equal(report.identity.instance,'8a05e4ad-d12d-4959-b35f-5597e315f6b5');
   results.push({name:'Real cloud MFA, secure HttpOnly cookies and protected database inspection',passed:true,cookieAttributes:sessionCookies.map(({name,httpOnly,secure,sameSite})=>({name,httpOnly,secure,sameSite}))});
+  assert.equal((await post('/api/auth/renew',{})).status(),200);
+  assert.equal((await get('/api/auth/me')).status(),200);
+  results.push({name:'Cloud session validation and authenticated renewal',passed:true});
   await context.route('**/*',async route=>{const request=route.request();await route.continue({headers:{...request.headers(),...(new URL(request.url()).origin===origin?{'x-vercel-trusted-oidc-idp-token':trusted}:{})}});});
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.name));await page.goto(origin+'/admin/settings/database',{waitUntil:'networkidle',timeout:60000});
   await page.getByRole('heading',{name:'Database management',exact:true}).waitFor({timeout:30000});assert.ok(await page.getByText('healthy',{exact:true}).count());assert.deepEqual(errors,[]);
@@ -32,6 +35,8 @@ try{
   results.push({name:'Real deployed admin interface renders live database state without browser exceptions',passed:true});
   assert.equal((await post('/api/auth/logout',{})).status(),200);
   assert.equal((await get('/api/admin/settings/database-management')).status(),401);
+  const revoked=sessionCookies[0];
+  assert.equal((await context.request.get(origin+'/api/admin/settings/database-management',{headers:{...headers(),Cookie:`${revoked.name}=${revoked.value}`}})).status(),401);
   results.push({name:'Cloud logout revokes protected access',passed:true});
   console.info(JSON.stringify({origin,passed:results.length}));
 }finally{
