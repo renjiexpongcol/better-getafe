@@ -1,5 +1,5 @@
 {
-  "files": 513,
+  "files": 517,
   "workspaces": 14,
   "productionModules": 160,
   "imports": [
@@ -5388,6 +5388,19 @@
       "star": false
     },
     {
+      "file": "scripts/test-dependency-preflight.mjs",
+      "owner": "package.json",
+      "package": "ignore",
+      "declaration": "devDependencies",
+      "specifier": "ignore",
+      "dynamic": false,
+      "line": 10,
+      "requested": [
+        "default"
+      ],
+      "star": false
+    },
+    {
       "file": "scripts/test-infrastructure-status-ui.mjs",
       "owner": "package.json",
       "package": "vite",
@@ -5636,7 +5649,8 @@
       "line": 1,
       "requested": [
         "createLogger",
-        "defineConfig"
+        "defineConfig",
+        "loadEnv"
       ],
       "star": false
     },
@@ -5647,7 +5661,7 @@
       "declaration": "devDependencies",
       "specifier": "@vitejs/plugin-react",
       "dynamic": false,
-      "line": 2,
+      "line": 3,
       "requested": [
         "default"
       ],

@@ -7,13 +7,18 @@ import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { checkInstalledDependencies } from './dependency-preflight.mjs';
+import ignore from 'ignore';
 
-test('Vercel keeps application data modules while excluding root runtime data and secrets', () => {
-  const source = spawnSync('git', ['-c', 'core.excludesFile=.vercelignore', 'check-ignore', '--no-index', 'src/data/serviceApplication.js', 'src/data/residentContact.js'], { encoding: 'utf8', windowsHide: true });
-  assert.equal(source.status, 1, `Application source must be uploaded: ${source.stdout}`);
-  const privateFiles = spawnSync('git', ['-c', 'core.excludesFile=.vercelignore', 'check-ignore', '--no-index', '.env.development.local', 'data/private-upload', 'uploads/private'], { encoding: 'utf8', windowsHide: true });
-  assert.equal(privateFiles.status, 0);
-  assert.equal(privateFiles.stdout.trim().split(/\r?\n/).length, 3);
+test('Vercel keeps application data modules while excluding root runtime data and secrets', async () => {
+  // Git's global-excludes emulation is overridden by intentional Git env
+  // tracking rules. Deployment filtering evaluates .vercelignore separately.
+  const deploymentIgnore = ignore().add(await fs.readFile(new URL('../.vercelignore', import.meta.url), 'utf8'));
+  for (const source of ['src/data/serviceApplication.js', 'src/data/residentContact.js']) {
+    assert.equal(deploymentIgnore.ignores(source), false, `Application source must be uploaded: ${source}`);
+  }
+  for (const file of ['.env.development.local', 'data/private-upload', 'uploads/private']) {
+    assert.equal(deploymentIgnore.ignores(file), true, `Private/runtime file must stay out of deployment uploads: ${file}`);
+  }
 });
 
 test('production preflight accepts omitted build tools and development preflight explains their absence', () => {

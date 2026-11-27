@@ -9,7 +9,7 @@ import { checkInstalledDependencies, reportStartupDependencyError } from './depe
 
 let loadLocalEnvironment, ensureSupabaseConfigured, checkBetterGetafeSchema, selectedCmsUrl;
 try {
-  checkInstalledDependencies({ development: true });
+  checkInstalledDependencies({ development: !process.argv.includes('--database-only') });
   ({ loadLocalEnvironment, ensureSupabaseConfigured, checkBetterGetafeSchema, selectedCmsUrl } = await import('../server/src/config/supabaseSetup.js'));
 } catch (error) {
   reportStartupDependencyError(error);
@@ -18,7 +18,8 @@ try {
 
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const setupOnly = process.argv.includes('--setup-only');
+const databaseOnly = process.argv.includes('--database-only');
+const setupOnly = databaseOnly || process.argv.includes('--setup-only');
 const preview = process.argv.includes('--preview');
 if (preview && !existsSync(path.join(root, 'dist/index.html'))) throw new Error('Run npm run build before previewing the portal.');
 await loadLocalEnvironment();
@@ -61,6 +62,11 @@ if (setupOnly || !databaseUrl) {
     if (setup.cancelled) process.exit(0);
     databaseUrl = setup.url;
     if (setupOnly) {
+      if (databaseOnly) {
+        console.info('[Supabase] Database connection verified with a read-only query. Schema, Redis, storage and portal initialization were not run.');
+        console.info('[Supabase] You can connect the remaining services later using npm run setup:cloud.');
+        process.exit(0);
+      }
       await checkBetterGetafeSchema(databaseUrl);
       console.info('[Supabase] Connection and schema verified.');
       process.exit(0);

@@ -1,7 +1,9 @@
-import { createLogger, defineConfig } from 'vite'
+import { createLogger, defineConfig, loadEnv } from 'vite'
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { handleProxyError, proxyLogger } from './scripts/proxy-errors.mjs'
 import { backendConnection, loadLocalEnvironment, proxyRequestOrigin } from './scripts/backend-connection.mjs'
+import { publicSupabaseConfiguration } from './scripts/cloud-connections.mjs'
 
 loadLocalEnvironment()
 // The API listens on IPv4 during local development. Using 127.0.0.1 avoids
@@ -9,6 +11,11 @@ loadLocalEnvironment()
 const unifiedDevServer = process.env.PORTAL_UNIFIED_DEV_SERVER === 'true'
 const backendTarget = process.env.NODE_ENV === 'production' || unifiedDevServer ? null : backendConnection().target
 const logger = proxyLogger(createLogger())
+const browserSupabase = publicSupabaseConfiguration(loadEnv(
+  process.env.NODE_ENV === 'production' ? 'production' : 'development',
+  fileURLToPath(new URL('.', import.meta.url)),
+  '',
+))
 
 const backendProxy = () => ({
   target: backendTarget,
@@ -28,8 +35,8 @@ const backendProxy = () => ({
 export default defineConfig({
   // Expose only the integration's publishable browser values, never its server credentials.
   define: {
-    'import.meta.env.MY_PREFIX_VITE_SUPABASE_URLSUPABASE_URL': JSON.stringify(process.env.MY_PREFIX_VITE_SUPABASE_URLSUPABASE_URL || ''),
-    'import.meta.env.MY_PREFIX_VITE_SUPABASE_URLSUPABASE_PUBLISHABLE_KEY': JSON.stringify(process.env.MY_PREFIX_VITE_SUPABASE_URLSUPABASE_PUBLISHABLE_KEY || ''),
+    'import.meta.env.MY_PREFIX_VITE_SUPABASE_URLSUPABASE_URL': JSON.stringify(browserSupabase.url),
+    'import.meta.env.MY_PREFIX_VITE_SUPABASE_URLSUPABASE_PUBLISHABLE_KEY': JSON.stringify(browserSupabase.publishableKey),
   },
   customLogger: logger,
   plugins: [react()],

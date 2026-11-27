@@ -5,9 +5,11 @@ node_modules/
 dist/
 build/
 
-# Local environment files
+# Runtime credentials stay local; only templates belong in source control.
 .env*
 !.env.example
+!.env.sample
+!.env.template
 
 # Logs
 *.log

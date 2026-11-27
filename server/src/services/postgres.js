@@ -52,6 +52,8 @@ export function getSupabaseDatabaseUrl(env = process.env) {
   if (runtime) return { url: runtime, variable: 'DATABASE_URL' };
   const integrated = String(env.MY_PREFIX_POSTGRES_URL_NON_POOLING || '').trim();
   if (integrated) return { url: integrated, variable: 'MY_PREFIX_POSTGRES_URL_NON_POOLING' };
+  const marketplace = String(env.POSTGRES_URL_NON_POOLING || '').trim();
+  if (marketplace) return { url: marketplace, variable: 'POSTGRES_URL_NON_POOLING' };
   const canonical = String(env.CMS_SUPABASE_DATABASE_URL || '').trim();
   if (canonical) return { url: canonical, variable: 'CMS_SUPABASE_DATABASE_URL' };
   const legacy = String(env.SUPABASE_DATABASE_URL || '').trim();
@@ -87,10 +89,12 @@ export function supabaseConnectionOptions(_category, env = process.env) {
     if (!url.hostname.endsWith('.pooler.supabase.com') || (url.port && url.port !== '5432')) {
       throw new Error('Vercel requires the Supabase Session pooler on port 5432 because the application uses session advisory locks.');
     }
-    if (!env.SUPABASE_PROJECT_REF || decodeURIComponent(url.username).split('.').at(-1) !== env.SUPABASE_PROJECT_REF) {
+    const poolerRef = decodeURIComponent(url.username).split('.').at(-1);
+    const projectRef = env.SUPABASE_PROJECT_REF || poolerRef;
+    if (!/^[a-z0-9]{20}$/.test(projectRef) || poolerRef !== projectRef) {
       throw new Error('SUPABASE_PROJECT_REF must match the configured pooler user.');
     }
-    if (env.VERCEL_ENV === 'preview' && env.SUPABASE_PROJECT_REF === 'wrgbfwexraarwxpoqzpv') {
+    if (env.VERCEL_ENV === 'preview' && projectRef === 'wrgbfwexraarwxpoqzpv') {
       throw new Error('Preview must use an isolated Supabase project or database branch.');
     }
   }

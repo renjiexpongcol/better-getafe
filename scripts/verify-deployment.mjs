@@ -48,7 +48,7 @@ try {
     report.runtime = 'bootstrap settings structurally valid; live service checks still required';
   }
   run('production frontend compilation', ['scripts/build-frontend.mjs']);
-  const protectedNames = /^(?:AUTH_SESSION_SECRET|CMS_SESSION_SECRET|SESSION_SECRET|SETTINGS_ENCRYPTION_KEY|MFA_ENCRYPTION_KEY|DATABASE_URL|CMS_SUPABASE_DATABASE_URL|MY_PREFIX_POSTGRES_URL_NON_POOLING|MY_REDIS_REDIS_URL|REDIS_URL|AZURE_STORAGE_CONNECTION_STRING|GOOGLE_CLIENT_SECRET|OPENAI_API_KEY|B2_APPLICATION_KEY|SMTP_PASSWORD)$/;
+  const protectedNames = /^(?:(?:MY_PREFIX_)?POSTGRES_(?:URL(?:_NON_POOLING|_PRISMA)?|PRISMA_URL|PASSWORD)|(?:MY_PREFIX_)?SUPABASE_(?:SECRET_KEY|SERVICE_ROLE_KEY|JWT_SECRET)|AUTH_SESSION_SECRET|CMS_SESSION_SECRET|SESSION_SECRET|SETTINGS_ENCRYPTION_KEY|MFA_ENCRYPTION_KEY|DATABASE_URL|CMS_SUPABASE_DATABASE_URL|MY_REDIS_REDIS_URL|REDIS_URL|AZURE_STORAGE_CONNECTION_STRING|GOOGLE_CLIENT_SECRET|OPENAI_API_KEY|B2_APPLICATION_KEY|SMTP_PASSWORD)$/;
   const protectedValues = Object.entries(env).filter(([key, value]) => protectedNames.test(key) && value.length >= 16 && !/SENSITIVE|replace-with|fixture|example/i.test(value));
   async function inspect(directory) {
     for (const entry of await fs.readdir(directory, { withFileTypes: true })) {

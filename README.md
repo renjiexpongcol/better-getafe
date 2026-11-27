@@ -6,6 +6,10 @@ Start with the [deployment runbook](docs/VERCEL_DEPLOYMENT.md), [environment con
 
 For missing-package errors and reproducible installation, follow [dependency setup and checks](docs/DEPENDENCIES.md). Install once from this repository root with `npm ci`; avoid running installation concurrently with development, tests or a Vercel build.
 
+Runtime environment files stay local and are excluded from Git and deployment uploads. Commit `.env.example` with placeholders; connect Supabase and Redis through the existing Vercel integrations to supply deployed credentials. Private repositories still enforce GitHub push protection. Dependencies, build outputs, runtime data/uploads, logs, caches and `.vercel` credentials remain ignored.
+
+To connect the database before initializing the rest of the portal, run `npm run setup:database`. Use `npm run setup:cloud` to inspect the existing Vercel connections, or `npm run setup:cloud -- --open supabase` / `--open redis` for the providers' authorized SSO screens. See [database-first cloud setup](docs/CLOUD_SETUP.md). These checks do not run migrations or start the application.
+
 <img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/270f54cf-7398-4c68-95c9-1ac4c80cc071" />
 
 **Better Getafe** is a modern digital government portal for the **Municipality of Getafe, Bohol, Philippines**, designed to provide residents, visitors, businesses, and the wider community with centralized access to municipal information and digital services.

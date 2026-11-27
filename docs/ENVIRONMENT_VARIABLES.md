@@ -1,6 +1,6 @@
 # Environment variables
 
-Infrastructure values belong in the deployment environment. Vercel injects them directly; production does not load a .env file. Local bootstrap reads .env.development.local and .env. See .env.example for safe placeholders. Never commit actual values or add secrets under VITE_.
+Vercel injects infrastructure values directly; production does not load a .env file. Local bootstrap reads .env.development.local and .env. Runtime environment files are ignored by Git and deployment uploads; commit only placeholder templates. Private repositories still enforce GitHub push protection. Connect managed providers through Vercel to provision deployed credentials automatically. Never put server secrets under VITE_. See .env.example for placeholder documentation.
 
 | Variable | Requirement and meaning |
 | --- | --- |
@@ -9,9 +9,10 @@ Infrastructure values belong in the deployment environment. Vercel injects them 
 | SETTINGS_ENCRYPTION_KEY | Required existing 32-byte base64 key for encrypted settings. A new random value cannot decrypt saved configuration. |
 | DATABASE_URL | Preferred runtime URL. Supabase Session pooler, 5432, required by session advisory locks. |
 | MY_PREFIX_POSTGRES_URL_NON_POOLING | Existing Marketplace-generated runtime alias, used if DATABASE_URL is absent. |
+| POSTGRES_URL_NON_POOLING | Standard Supabase Marketplace session/direct alias, used after the prefixed alias and before legacy CMS aliases. Transaction-pooler URLs remain rejected. |
 | CMS_SUPABASE_DATABASE_URL / SUPABASE_DATABASE_URL | Retained server-side aliases, lower precedence than the integration URL. |
 | DIRECT_DATABASE_URL | Direct/session URL for explicit migrations; never a transaction pooler. |
-| SUPABASE_PROJECT_REF | Required in Vercel; must match the pooler username. Production ref is wrgbfwexraarwxpoqzpv. |
+| SUPABASE_PROJECT_REF | Optional when the session-pooler username identifies the project; otherwise set explicitly. An explicit value must match that username. Production ref wrgbfwexraarwxpoqzpv remains rejected in Preview, including when inferred. |
 | MY_REDIS_REDIS_URL | Existing Marketplace native Redis endpoint. TLS rediss:// required in Vercel. |
 | REDIS_URL | Fallback alias; remove it if it conflicts with the integration value. |
 | REDIS_PREFIX | Production default getafe retained. Preview adds environment/branch isolation; local adds NODE_ENV. |
@@ -29,6 +30,7 @@ Infrastructure values belong in the deployment environment. Vercel injects them 
 | INTEGRATION_VAULT_KEYS / INTEGRATION_VAULT_VERSION / INTEGRATION_ALLOWED_HOSTS | Required only for enabled external connectors; stable encryption keyring and exact approved hosts. |
 | VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY | Public-only browser client values. Backing data still needs explicit public grants/RLS. |
 | MY_PREFIX_VITE_SUPABASE_URLSUPABASE_URL / MY_PREFIX_VITE_SUPABASE_URLSUPABASE_PUBLISHABLE_KEY | Existing generated public aliases explicitly exposed by Vite; no server credential is exposed. |
+| SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY | Standard Marketplace values mapped by the build to browser configuration. Prefixed Supabase and NEXT_PUBLIC aliases are also accepted. Only the exact URL and publishable key are exposed; secret/service-role/JWT values are never fallbacks. |
 | VERCEL / VERCEL_ENV / VERCEL_URL / VERCEL_GIT_COMMIT_REF | Platform-managed deployment identity. Do not manually fake them in production. |
 | HOST / PORT / VITE_PORT / BACKEND_PORT | Local persistent server settings; irrelevant to static production builds and function listening. |
 

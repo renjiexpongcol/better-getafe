@@ -8,6 +8,7 @@ const rules = [
   ['provider-api-key', /\b(?:sk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{24,}|AIza[A-Za-z0-9_-]{30,}|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,})\b/g],
   ['credential-url', /\b(?:postgres(?:ql)?|rediss?):\/\/[^\s:@'"`]+:([^\s@'"`]{8,})@[^\s'"`]+/g],
   ['azure-account-key', /AccountKey=([A-Za-z0-9+/]{64,}={0,2})/gi],
+  ['supabase-secret-key', /\bsb_secret_[A-Za-z0-9_-]{16,}\b/g],
   ['assigned-secret', /\b(?:AUTH_SESSION_SECRET|CMS_SESSION_SECRET|SETTINGS_ENCRYPTION_KEY|B2_APPLICATION_KEY|GOOGLE_CLIENT_SECRET|SMTP_PASSWORD)\s*[:=]\s*['"]?([A-Za-z0-9_+\/.=-]{24,})/g],
 ];
 const ignored = /fixture|example|replace|change-this|test-secret|your-|\$\{|process\.env|undefined/i;
