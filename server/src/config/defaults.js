@@ -105,8 +105,6 @@ export const definitions = {
   'ai.openaiApiKey': secret('OpenAI API key', 'OPENAI_API_KEY'),
   'ai.defaultModel': text('Default OpenAI model', '', 'gpt-4.1-mini'),
   'ai.monthlyBudgetUsd': number('Monthly AI budget (USD)', '', 0, 0, 1000000),
-  'weather.openWeatherApiKey': secret('OpenWeather API key', 'OPENWEATHER_API_KEY'),
-  'weather.accuWeatherApiKey': secret('AccuWeather API key', 'ACCUWEATHER_API_KEY'),
   'features.uploads': bool('File uploads', '', true),
   'features.reports': bool('Reports', '', true),
   'features.ai': bool('AI features', ''),

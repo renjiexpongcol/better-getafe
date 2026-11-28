@@ -1,6 +1,7 @@
 import pg from 'pg';
 import { acquirePostgresPool } from './postgresPool.js';
 import { X509Certificate } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { installPoolErrorHandler } from './dependencyFailures.js';
 
 const { Pool } = pg;
@@ -105,7 +106,20 @@ export function supabaseConnectionOptions(_category, env = process.env) {
     // Require encryption for every Supabase connection. CA verification is
     // enabled when explicitly requested, or when a root CA is provided.
     const ssl = { rejectUnauthorized: env.VERCEL === '1' || hasRootCertificate || ['verify-ca', 'verify-full'].includes(sslMode) };
-    return postgresUrlOptions(url.toString(), ssl);
+    const options = postgresUrlOptions(url.toString(), ssl);
+    if (env.VERCEL === '1' && !hasRootCertificate) {
+      // Supabase's project root is not present in Node's default trust store
+      // on every Vercel runtime. Keep certificate verification enabled by
+      // supplying the public Supabase root CA bundled with this function.
+      return {
+        ...options,
+        ssl: {
+          ...options.ssl,
+          ca: readFileSync(new URL('../../../database/certs/supabase-root-2021.crt', import.meta.url), 'utf8'),
+        },
+      };
+    }
+    return options;
   } catch {
     throw new Error(`The Supabase root certificate in ${variable} is invalid.`);
   }

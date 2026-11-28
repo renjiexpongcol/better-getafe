@@ -35,10 +35,8 @@ if (!deployment.serverless) process.on('unhandledRejection', (error) => {
 
 import express from "express";
 import { createServer } from 'node:http';
-import { getGetafeWeather } from './src/services/getafeWeather.js';
 import { getHeaderExchangeRates } from './src/services/headerExchangeRates.js';
-import { getAggregatedCurrent, getAggregatedForecast, providerKeys } from './src/services/weatherAggregator.js';
-import { normalizeWeather } from './src/services/weatherNormalizer.js';
+import { isPublicWeatherPath, publicWeatherHandler } from './src/services/publicWeather.js';
 import { closeDatabaseConnection, databaseHealth, getPortalPool, getCmsPool, getActiveDatabaseConnectionOptions, getDatabaseRuntimeStatus } from './src/services/database.js';
 import { getDataApiCategories } from './src/services/supabaseDataApi.js';
 import path from "path";
@@ -227,6 +225,13 @@ const readiness = (_req, res) => {
   });
 };
 app.get(['/ready', '/health/ready', '/api/ready'], readiness);
+// Public weather requests use an independent provider path and can respond
+// even while application database readiness is degraded or unavailable.
+app.use((req, res, next) => {
+  const pathname = String(req.originalUrl || req.url || '').split('?')[0];
+  if (!isPublicWeatherPath(pathname)) return next();
+  return publicWeatherHandler(req, res);
+});
 // No application handler can run until the initial security/configuration
 // snapshot has been activated. Liveness and readiness bypass this gate.
 app.use(async (req, res, next) => {
@@ -250,14 +255,6 @@ app.use(async (req, res, next) => {
   if (sendStartupPage(req, res, { starting })) return;
   res.json({ code: starting ? 'APPLICATION_STARTING' : 'SERVICE_UNAVAILABLE', error: 'The service is temporarily unavailable. Please try again shortly.' });
 });
-
-async function configuredWeatherProviders() {
-  try { await config.load(); } catch { /* Environment defaults remain available when settings storage is unavailable. */ }
-  return providerKeys({
-    openWeatherApiKey: config.get('weather.openWeatherApiKey'),
-    accuWeatherApiKey: config.get('weather.accuWeatherApiKey'),
-  });
-}
 
 const secret = process.env.AUTH_SESSION_SECRET || process.env.CMS_SESSION_SECRET || process.env.SESSION_SECRET || (
   process.env.NODE_ENV === "production" ? null : "change-this-local-development-session-secret"
@@ -405,38 +402,6 @@ app.get('/api/public/exchange-rates', async (req, res) => {
   }
 });
 
-app.get('/api/weather/getafe', async (req, res) => {
-  try {
-    const weather = await getGetafeWeather();
-    res.set('Cache-Control', 'public, max-age=900').json(weather);
-  } catch {
-    res.status(502).json({ error: 'Getafe weather is temporarily unavailable.' });
-  }
-});
-app.get('/api/weather/forecast', async (req, res) => {
-  const latitude = Number(req.query.lat), longitude = Number(req.query.lon);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return res.status(400).json({ error: 'A valid location is required.' });
-  try {
-    const keys = await configuredWeatherProviders();
-    const requestedName = typeof req.query.name === 'string' ? req.query.name.trim().slice(0, 100) : '';
-    const data = await getAggregatedForecast({ name: requestedName || 'Weather location', lat: latitude, lon: longitude }, keys);
-    res.set('Cache-Control', 'public, max-age=900').json(data);
-  } catch { res.status(502).json({ error: 'Weather forecast unavailable.' }); }
-});
-app.get('/api/weather', async (req, res) => {
-  const locations = [
-    { name: 'Getafe, Bohol', municipality: 'Getafe', province: 'Bohol', region: 'Central Visayas', country: 'Philippines', lat: 10.15, lon: 124.15, timezone: 'Asia/Manila' },
-    { name: 'Manila', municipality: 'Manila', province: 'Metro Manila', region: 'National Capital Region', country: 'Philippines', lat: 14.5995, lon: 120.9842, timezone: 'Asia/Manila' },
-    { name: 'Cebu City', municipality: 'Cebu City', province: 'Cebu', region: 'Central Visayas', country: 'Philippines', lat: 10.3157, lon: 123.8854, timezone: 'Asia/Manila' },
-    { name: 'Davao City', municipality: 'Davao City', province: 'Davao del Sur', region: 'Davao Region', country: 'Philippines', lat: 7.1907, lon: 125.4553, timezone: 'Asia/Manila' },
-    { name: 'Baguio City', municipality: 'Baguio City', province: 'Benguet', region: 'Cordillera Administrative Region', country: 'Philippines', lat: 16.4023, lon: 120.596, timezone: 'Asia/Manila' },
-  ];
-  try {
-    const keys = await configuredWeatherProviders();
-    const results = await Promise.all(locations.map(location => getAggregatedCurrent(location, keys)));
-    res.set('Cache-Control', 'public, max-age=900').json(results.map((result, index) => normalizeWeather(result, locations[index])));
-  } catch { res.status(502).json({ error: 'Weather providers are temporarily unavailable.' }); }
-});
 app.use(['/api/auth', '/api/portal-auth'], (req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Vary', 'Cookie');

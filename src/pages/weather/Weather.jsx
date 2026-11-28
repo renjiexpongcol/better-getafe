@@ -1,7 +1,7 @@
-import {routeRequest} from '../../services/routeRequests'
+import { requestWeather } from '../../services/weatherClient'
 import ModalDialog from '../../components/ModalDialog'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Activity, AlertTriangle, CalendarDays, ChevronDown, CircleHelp, CloudRain, Droplets, Eye, Gauge, MapPin, Sun, Sunrise, Thermometer, Wind, X } from 'lucide-react'
+import { Activity, AlertTriangle, CalendarDays, ChevronDown, CircleHelp, CloudRain, Droplets, Eye, Gauge, MapPin, RefreshCw, Sun, Sunrise, Thermometer, Wind, X } from 'lucide-react'
 
 const hasValue = value => value !== null && value !== undefined && Number.isFinite(Number(value))
 const compactNumber = (value, digits = 1) => hasValue(value) ? String(Number(Number(value).toFixed(digits))) : null
@@ -355,8 +355,8 @@ function dailyRows(day, timezone) {
 function FiveDayOutlook({ days = [], location }) {
   const [expandedDate, setExpandedDate] = useState(null)
   if (!days.length) return null
-  return <section className="weather-outlook" aria-labelledby="weather-outlook-title"><div className="weather-outlook-heading"><div><p className="eyebrow">Plan ahead</p><h2 id="weather-outlook-title">5-day outlook for {location.name}</h2></div><span>Daily forecast</span></div>
-    <div className="weather-outlook-grid">{days.slice(0, 5).map(day => {
+  return <section className="weather-outlook" aria-labelledby="weather-outlook-title"><div className="weather-outlook-heading"><div><p className="eyebrow">Plan ahead</p><h2 id="weather-outlook-title">{days.length}-day outlook for {location.name}</h2></div><span>Daily forecast</span></div>
+    <div className="weather-outlook-grid">{days.slice(0, 7).map(day => {
       const expanded = expandedDate === day.date
       const weekday = formatForecastDate(day.date, location.timezone, { weekday: 'short' })
       const dateLabel = formatForecastDate(day.date, location.timezone, { month: 'short', day: 'numeric' })
@@ -402,11 +402,11 @@ function CurrentWeatherCard({ weather, now, onOpenAlerts }) {
     { label: 'Dew point', value: unitValue(current.dewPoint, '°C', 1), icon: Thermometer },
   ].filter(item => item.value !== null)
   return <article className={`weather-current weather-sky-${weatherTone(current)}`} aria-label={`Current weather for ${location.name}`}>
-    <div className="weather-current-topline"><div><p className="weather-current-eyebrow">Current weather</p><p className="weather-location"><MapPin size={14} aria-hidden="true" />{location.name}</p>{(location.province || location.region) && <p className="weather-location-area">{[location.province, location.region].filter(Boolean).join(' · ')}</p>}</div>{hasAlerts(weather) && <button className="weather-alert-badge" type="button" onClick={onOpenAlerts}><AlertTriangle size={13} />{weather.alerts.length} {weather.alerts.length === 1 ? 'Alert' : 'Alerts'}</button>}</div>
+    <div className="weather-current-topline"><div><p className="weather-current-eyebrow">{weather.providers?.type === 'model_forecast' ? 'Model-based forecast' : 'Current conditions'}</p><p className="weather-location"><MapPin size={14} aria-hidden="true" />{location.name}</p>{(location.province || location.region) && <p className="weather-location-area">{[location.province, location.region].filter(Boolean).join(' · ')}</p>}</div>{hasAlerts(weather) && <button className="weather-alert-badge" type="button" onClick={onOpenAlerts}><AlertTriangle size={13} />{weather.alerts.length} {weather.alerts.length === 1 ? 'Alert' : 'Alerts'}</button>}</div>
     <div className="weather-current-time"><CalendarDays size={13} /><span>{localNow(now, location.timezone, { weekday: 'short', month: 'short', day: 'numeric' })}</span><b>{localNow(now, location.timezone, { hour: 'numeric', minute: '2-digit' })}</b></div>
     <div className="weather-current-summary"><div className="weather-current-reading">{hasValue(current.temperature) && <strong className="weather-temp" id="weather-current-title">{compactNumber(current.temperature, 0)}<sup>°C</sup></strong>}{current.description && <p className="weather-description">{current.description}</p>}{hasValue(current.feelsLike) && <p className="weather-feels-like"><Thermometer size={14} aria-hidden="true" /> Feels like {compactNumber(current.feelsLike, 0)}°C</p>}{typeof current.isDay === 'boolean' && <span className="weather-day-night">{current.isDay ? 'Daytime' : 'Nighttime'}</span>}</div><div className="weather-current-art"><WeatherIcon weather={current} className="weather-current-icon" alt={current.description || 'Current conditions'} /></div></div>
     {metrics.length > 0 && <div className="weather-current-metrics" aria-label="Current weather metrics">{metrics.map(({ label, value, icon: Icon }) => <div className="weather-metric" key={label}><Icon size={15} aria-hidden="true" /><span>{label}</span><strong>{value}</strong></div>)}</div>}
-    <div className="weather-current-meta"><span>{location.timezone && `Timezone · ${location.timezone}`}</span>{hasValue(current.observationTime) && <span>Observed {localNow(new Date(Number(current.observationTime) * 1000), location.timezone, { hour: 'numeric', minute: '2-digit' })}</span>}</div>
+    <div className="weather-current-meta"><span>{location.timezone && `Timezone · ${location.timezone}`}</span>{hasValue(current.observationTime) && <span>Observed {localNow(new Date(Number(current.observationTime) * 1000), location.timezone, { hour: 'numeric', minute: '2-digit' })}</span>}{hasValue(current.modelValidAt) && <span>Forecast valid {localNow(new Date(Number(current.modelValidAt) * 1000), location.timezone, { hour: 'numeric', minute: '2-digit' })}</span>}</div>
     <details className="weather-more-details"><summary>More current details <ChevronDown size={15} /></summary><MetricList rows={currentDetailRows(weather)} className="weather-current-details" /></details>
   </article>
 }
@@ -427,37 +427,84 @@ export default function Weather() {
   const [now, setNow] = useState(() => new Date())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [partialNotice, setPartialNotice] = useState('')
   const hourlyPanelRef = useRef(null)
   const weatherController = useRef(null)
   const lastWeatherLoad = useRef(0)
-  const load = () => {
+  const lastWeather = useRef(null)
+  const retryCount = useRef(0)
+  const retryTimer = useRef(null)
+  const loadRef = useRef(null)
+  const load = async ({ force = false } = {}) => {
     if (document.visibilityState === 'hidden') return
+    clearTimeout(retryTimer.current)
     weatherController.current?.abort()
     const controller = new AbortController()
     weatherController.current = controller
     setLoading(true)
-    setError('')
-    routeRequest('/api/weather', {signal:controller.signal})
-      .then(value => {
-        if (controller.signal.aborted) return
-        if (!Array.isArray(value) || !value.some(item => item?.location && item?.current)) throw new Error('The weather feed returned no current conditions.')
-        setLocations(value.filter(item => item?.location && item?.current))
-        lastWeatherLoad.current = Date.now()
-      })
-      .catch(value => { if (!controller.signal.aborted) setError(value.message || 'Weather data is unavailable right now.') })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    const results = await Promise.allSettled([
+      requestWeather('current', { signal: controller.signal, force }),
+      requestWeather('hourly', { signal: controller.signal, force }),
+      requestWeather('forecast', { signal: controller.signal, force }),
+      requestWeather('advisories', { signal: controller.signal, force }),
+    ])
+    if (controller.signal.aborted) return
+    const [currentResult, hourlyResult, forecastResult, advisoriesResult] = results
+    if (currentResult.status === 'rejected' || (currentResult.status === 'fulfilled' && !Number.isFinite(currentResult.value?.current?.temperature))) {
+      if (lastWeather.current) {
+        const stale = { ...lastWeather.current, stale: true }
+        setLocations([stale])
+        setPartialNotice('Live updates are delayed. Showing the last available weather information.')
+        setError('')
+      } else {
+        setError('Weather providers are currently unreachable. Other municipal services remain available.')
+      }
+      if (retryCount.current < 4) {
+        const delay = Math.min(30_000 * (2 ** retryCount.current++), 5 * 60 * 1000)
+        retryTimer.current = setTimeout(() => loadRef.current?.({ force: true }), delay)
+      }
+    } else {
+      const currentData = currentResult.value
+      const hourly = hourlyResult.status === 'fulfilled' ? hourlyResult.value.hourly || [] : []
+      const daily = forecastResult.status === 'fulfilled' ? forecastResult.value.daily || [] : []
+      const advisories = advisoriesResult.status === 'fulfilled' ? advisoriesResult.value : { status: 'unavailable', source: 'DOST-PAGASA', officialUrl: 'https://bagong.pagasa.dost.gov.ph/', alerts: [] }
+      const activeAlerts = (advisories.alerts || []).filter(alert => !alert.expires || alert.expires > Math.floor(Date.now() / 1000))
+      const merged = {
+        ...currentData, hourly, daily, advisories, alerts: activeAlerts,
+        providers: { ...currentData.providers, sources: [...new Set([currentData.providers?.name, ...(hourlyResult.status === 'fulfilled' ? hourlyResult.value.providers?.sources || [] : []), ...(forecastResult.status === 'fulfilled' ? forecastResult.value.providers?.sources || [] : [])].filter(Boolean))] },
+        stale: Boolean(
+          currentData.stale || Date.now() / 1000 - currentData.fetchedAt > 5 * 60
+          || hourlyResult.value?.stale || Date.now() / 1000 - (hourlyResult.value?.fetchedAt || 0) > 15 * 60
+          || forecastResult.value?.stale || Date.now() / 1000 - (forecastResult.value?.fetchedAt || 0) > 30 * 60,
+        ),
+      }
+      lastWeather.current = merged
+      setLocations([merged])
+      setError('')
+      const missingDetails = hourlyResult.status === 'rejected' || forecastResult.status === 'rejected'
+      setPartialNotice(merged.stale ? 'Live updates are delayed. Showing the last available weather information.' : missingDetails ? 'Some forecast details are temporarily delayed.' : '')
+      if (!missingDetails && advisories.status === 'available') retryCount.current = 0
+      else if (retryCount.current < 4) {
+        const delay = Math.min(60_000 * (2 ** retryCount.current++), 5 * 60 * 1000)
+        retryTimer.current = setTimeout(() => loadRef.current?.({ force: true }), delay)
+      }
+    }
+    lastWeatherLoad.current = Date.now()
+    setLoading(false)
   }
+  loadRef.current = load
 
   useEffect(() => {
-    load()
-    const refresh = setInterval(load, 15 * 60 * 1000)
+    loadRef.current?.()
+    const refresh = setInterval(() => loadRef.current?.({ force: true }), 15 * 60 * 1000)
     const clock = setInterval(() => { if (document.visibilityState === 'visible') setNow(new Date()) }, 60 * 1000)
     const resume = () => {
-      if (document.visibilityState === 'visible' && Date.now() - lastWeatherLoad.current >= 15 * 60 * 1000) load()
+      if (document.visibilityState === 'visible' && Date.now() - lastWeatherLoad.current >= 15 * 60 * 1000) loadRef.current?.({ force: true })
     }
     document.addEventListener('visibilitychange', resume)
     return () => {
       weatherController.current?.abort()
+      clearTimeout(retryTimer.current)
       document.removeEventListener('visibilitychange', resume)
       clearInterval(refresh)
       clearInterval(clock)
@@ -470,7 +517,11 @@ export default function Weather() {
     return () => document.removeEventListener('keydown', closeOnEscape)
   }, [selectedLocation, alertsOpen])
 
-  const currentWeather = locations.find(item => item.location?.municipality === 'Getafe') || locations[0]
+  const currentWeatherBase = locations.find(item => item.location?.municipality === 'Getafe') || locations[0]
+  const currentWeather = currentWeatherBase ? {
+    ...currentWeatherBase,
+    alerts: (currentWeatherBase.alerts || []).filter(alert => !alert.expires || alert.expires > Math.floor(now.getTime() / 1000)),
+  } : null
   const hourly = currentWeather?.hourly || []
   const daily = currentWeather?.daily || []
   const providerName = currentWeather?.providers?.name || currentWeather?.providers?.sources?.join(' · ') || null
@@ -482,8 +533,10 @@ export default function Weather() {
   }
 
   return <main className="weather-page"><section className="section"><div className="container">
-    <div className="weather-heading"><div><h2>Weather updates</h2></div><a className="weather-heading-help" href="#weather-about-title" aria-label="Learn about weather data" data-icon-button="ghost"><CircleHelp size={16} aria-hidden="true" /></a></div>
-    {error ? <div className="weather-error"><strong>Weather unavailable</strong><p>{error}</p><button onClick={load}>Try again</button></div> : currentWeather ? <>
+    <div className="weather-heading"><div><h2>Weather updates</h2><p className="weather-page-subtitle">Live public weather information for Getafe, Bohol</p></div><div className="weather-heading-actions"><button className="weather-refresh-button" type="button" onClick={() => load({ force: true })} disabled={loading} aria-label="Refresh weather information"><RefreshCw size={16} aria-hidden="true" />{loading ? 'Updating' : 'Refresh'}</button><a className="weather-heading-help" href="#weather-about-title" aria-label="Learn about weather data" data-icon-button="ghost"><CircleHelp size={16} aria-hidden="true" /></a></div></div>
+    {partialNotice && currentWeather && <div className="weather-status-note" role="status"><span>{partialNotice}</span><button type="button" onClick={() => load({ force: true })}>Refresh</button></div>}
+    {error && !currentWeather && <div className="weather-unavailable" role="alert"><div><strong>Live weather temporarily unavailable</strong><p>Weather providers are currently unreachable. Other municipal services remain available.</p></div><button type="button" onClick={() => load({ force: true })}>Try again</button></div>}
+    {currentWeather ? <>
       <div className={`weather-dashboard ${hasHourlyForecast(currentWeather) ? '' : 'solo'}`}><CurrentWeatherCard weather={currentWeather} now={now} onOpenAlerts={() => setAlertsOpen(true)} />{hasHourlyForecast(currentWeather) && <HourlyForecast hours={hourly} timezone={currentWeather.location.timezone} panelRef={hourlyPanelRef} requestedChart={requestedChart} onChartChange={setRequestedChart} />}</div>
       <div className="weather-insights-grid">
         {hasPrecipitation(currentWeather) && <PrecipitationCard weather={currentWeather} onRainChart={() => focusHourlyChart('rain')} />}
@@ -492,11 +545,11 @@ export default function Weather() {
         {hasAirQuality(currentWeather) && <AirQualityCard weather={currentWeather} />}
       </div>
       <FiveDayOutlook days={daily} location={currentWeather.location} />
-      {hasAlerts(currentWeather) && <section className="weather-alerts" aria-labelledby="weather-alerts-title"><div className="weather-outlook-heading"><div><p className="eyebrow">Official advisories</p><h2 id="weather-alerts-title">Weather alerts</h2></div><button className="weather-alert-badge" type="button" onClick={() => setAlertsOpen(true)}><AlertTriangle size={14} />{currentWeather.alerts.length} {currentWeather.alerts.length === 1 ? 'Alert' : 'Alerts'}</button></div><div className="weather-alert-summary-list">{currentWeather.alerts.map((alert, index) => <button type="button" key={`${alert.type || alert.headline}-${alert.effective || index}`} onClick={() => setAlertsOpen(true)}><b>{alert.headline || alert.type || 'Weather advisory'}</b>{(alert.severity || alert.urgency || alert.source) && <span>{alert.severity || alert.urgency || alert.source}</span>}</button>)}</div></section>}
+      <section className="weather-alerts" aria-labelledby="weather-alerts-title"><div className="weather-outlook-heading"><div><p className="eyebrow">Official source · PAGASA</p><h2 id="weather-alerts-title">Weather advisories</h2></div>{hasAlerts(currentWeather) && <button className="weather-alert-badge" type="button" onClick={() => setAlertsOpen(true)}><AlertTriangle size={14} />{currentWeather.alerts.length} {currentWeather.alerts.length === 1 ? 'Alert' : 'Alerts'}</button>}</div>{hasAlerts(currentWeather) ? <div className="weather-alert-summary-list">{currentWeather.alerts.map((alert, index) => <button type="button" key={`${alert.type || alert.headline}-${alert.effective || index}`} onClick={() => setAlertsOpen(true)}><b>{alert.headline || alert.type || 'Weather advisory'}</b>{(alert.severity || alert.urgency || alert.source) && <span>{alert.severity || alert.urgency || alert.source}</span>}</button>)}</div> : currentWeather.advisories?.status === 'available' ? <p className="weather-advisory-empty">No active PAGASA advisories in the latest feed.</p> : <p className="weather-advisory-empty">The PAGASA alert feed is temporarily unavailable. Check the <a href={currentWeather.advisories?.officialUrl || 'https://bagong.pagasa.dost.gov.ph/'} target="_blank" rel="noreferrer">official PAGASA advisories</a>.</p>}</section>
       <WeatherLocations items={locations} selected={currentWeather} onSelect={setSelectedLocation} />
-      {hasValue(current.lastUpdatedAt) && <p className="weather-data-footer">Last updated: {localDateTime(current.lastUpdatedAt, currentWeather.location.timezone, { hour: 'numeric', minute: '2-digit' })}{providerName && <> · Weather data: {providerName}</>}{hasValue(current.observationTime) && <> · Observation: {localDateTime(current.observationTime, currentWeather.location.timezone, { hour: 'numeric', minute: '2-digit' })}</>}</p>}
-    </> : loading ? <p className="weather-loading">Loading the latest weather conditions…</p> : null}
-    <section className="weather-about" aria-labelledby="weather-about-title"><h2 id="weather-about-title">About Weather Data</h2><p className="weather-about-intro">Current conditions, hourly trends, and the 5-day outlook use the municipality weather feed, combining available observations with global forecast models.</p><p className="weather-about-refresh-note"><strong>Refresh schedule:</strong> Weather information refreshes every 15 minutes from a shared cached response.</p><div className="weather-about-grid"><article className="weather-about-item"><h3>Understanding the Data</h3><p>Temperatures are displayed in Celsius. Measurements appear when a weather provider supplies a valid value; unsupported fields are omitted.</p></article><article className="weather-about-item"><h3>Weather Advisories</h3><p>For official weather advisories, warnings, and detailed forecasts, visit the <a href="https://bagong.pagasa.dost.gov.ph/" target="_blank" rel="noreferrer">PAGASA official website</a>.</p></article></div><p className="weather-about-source">Sources: {currentWeather?.providers?.sources?.join(' · ') || currentWeather?.providers?.name || 'Weather providers'}</p></section>
+      {hasValue(current.fetchedAt) && <p className="weather-data-footer">Weather data updated: {localDateTime(current.fetchedAt, currentWeather.location.timezone, { hour: 'numeric', minute: '2-digit' })}{providerName && <> · Source: {providerName}</>}{currentWeather.providers?.type === 'model_forecast' && ' · Model forecast, not a PAGASA warning'}</p>}
+    </> : loading ? <div className="weather-skeleton" role="status" aria-label="Loading weather for Getafe"><span /><span /><span /></div> : null}
+    <section className="weather-about" aria-labelledby="weather-about-title"><h2 id="weather-about-title">About Weather Data</h2><p className="weather-about-intro">Current conditions, hourly trends, and the seven-day outlook use public weather forecast models for Getafe, Bohol. Model forecasts are estimates and are not official PAGASA warnings.</p><p className="weather-about-refresh-note"><strong>Refresh schedule:</strong> Current weather refreshes every 5 minutes; hourly forecasts every 15 minutes and daily forecasts every 30 minutes.</p><div className="weather-about-grid"><article className="weather-about-item"><h3>Forecast source</h3><p>Data is fetched from Open-Meteo, with MET Norway as a fallback. <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo data attribution</a>.</p></article><article className="weather-about-item"><h3>Official advisories</h3><p>Only alerts received from PAGASA’s official public feed are presented as official advisories. Visit <a href="https://bagong.pagasa.dost.gov.ph/" target="_blank" rel="noreferrer">PAGASA</a> for current bulletins and warnings.</p></article></div><p className="weather-about-source">Forecast sources: {currentWeather?.providers?.sources?.join(' · ') || currentWeather?.providers?.name || 'Open-Meteo'} · Advisory source: DOST-PAGASA</p></section>
   </div></section>
   {selectedLocation && <WeatherDetailsModal weather={selectedLocation} onClose={() => setSelectedLocation(null)} />}
   {alertsOpen && currentWeather && <AlertDetails alerts={currentWeather.alerts} timezone={currentWeather.location.timezone} onClose={() => setAlertsOpen(false)} />}

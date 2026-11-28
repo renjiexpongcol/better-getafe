@@ -1,4 +1,5 @@
 import { deployment } from '../server/src/config/deployment.js';
+import { isPublicWeatherPath, publicWeatherHandler } from '../server/src/services/publicWeather.js';
 
 // Imported project variables can contain a legacy development NODE_ENV. Vercel
 // always needs production auth/cookie semantics before loading the application.
@@ -19,6 +20,9 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
     return res.end(JSON.stringify({ status: 'ok', service: 'better-getafe' }));
   }
+  // Weather is a public data service. Dispatch it before loading route policy,
+  // database inspection, Redis, configuration stores, or the CMS application.
+  if (isPublicWeatherPath(pathname)) return publicWeatherHandler(req, res);
   try {
     const {resolveApiRoutePolicy}=await import('../server/src/services/apiRoutePolicy.js');
     const policy=resolveApiRoutePolicy(req.method,pathname);

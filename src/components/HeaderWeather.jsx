@@ -1,4 +1,4 @@
-import { routeRequest } from '../services/routeRequests.js'
+import { requestWeather } from '../services/weatherClient.js'
 import { useEffect, useState } from 'react'
 import { Cloud, CloudFog, CloudLightning, CloudRain, CloudSun, Droplets, Moon, Snowflake, Sun, Thermometer, Wind } from 'lucide-react'
 
@@ -23,12 +23,13 @@ export function useHeaderWeather() {
     let controller
     let retryTimer
     let lastAttempt = 0
+    let retryCount = 0
 
     const scheduleRetry = () => {
       if (!retryTimer) retryTimer = setTimeout(() => {
         retryTimer = undefined
         load()
-      }, 60 * 1000)
+      }, Math.min(30_000 * (2 ** retryCount++), 5 * 60 * 1000))
     }
 
     const load = async () => {
@@ -38,16 +39,18 @@ export function useHeaderWeather() {
       controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 12000)
       try {
-        const data = await routeRequest('/api/weather/getafe', { signal: controller.signal })
-        if (!Number.isFinite(data.temperature) || Date.now() / 1000 - data.updatedAt > 7200) throw new Error('Weather unavailable')
+        const data = await requestWeather('current', { signal: controller.signal })
+        const current = data?.current
+        if (!Number.isFinite(current?.temperature) || (data.stale && Date.now() / 1000 - data.fetchedAt > 7200)) throw new Error('Weather unavailable')
         if (active) {
           clearTimeout(retryTimer)
           retryTimer = undefined
-          setWeather(data)
+          retryCount = 0
+          setWeather({ ...data, stale: Boolean(data.stale || Date.now() / 1000 - data.fetchedAt > 5 * 60) })
         }
       } catch {
         if (active) {
-          setWeather(null)
+          // Keep the last good reading visible while a refresh is retried.
           scheduleRetry()
         }
       } finally {
@@ -62,13 +65,14 @@ export function useHeaderWeather() {
     return () => { active = false; controller?.abort(); clearInterval(refresh); clearTimeout(retryTimer); document.removeEventListener('visibilitychange', resume) }
   }, [])
 
-  const [description, WeatherIcon] = condition(weather?.code, weather?.isDay)
+  const current = weather?.current
+  const [description, WeatherIcon] = condition(current?.code, current?.isDay)
   return weather ? [
-    { icon: WeatherIcon, text: `${Math.round(weather.temperature)}°C ${description}` },
-    Number.isFinite(weather.rainChance) && { icon: CloudRain, text: `${Math.round(weather.rainChance)}% rain chance` },
-    Number.isFinite(weather.feelsLike) && { icon: Thermometer, text: `Feels like ${Math.round(weather.feelsLike)}°C` },
-    Number.isFinite(weather.humidity) && { icon: Droplets, text: `Humidity ${Math.round(weather.humidity)}%` },
-    Number.isFinite(weather.wind) && { icon: Wind, text: `Wind ${Math.round(weather.wind)} km/h` },
+    { icon: WeatherIcon, text: `${Math.round(current.temperature)}°C ${description}${weather.stale ? ' · Updating' : ''}` },
+    Number.isFinite(current.precipitationProbability) && { icon: CloudRain, text: `${Math.round(current.precipitationProbability)}% rain chance` },
+    Number.isFinite(current.feelsLike) && { icon: Thermometer, text: `Feels like ${Math.round(current.feelsLike)}°C` },
+    Number.isFinite(current.humidity) && { icon: Droplets, text: `Humidity ${Math.round(current.humidity)}%` },
+    Number.isFinite(current.windSpeed) && { icon: Wind, text: `Wind ${Math.round(current.windSpeed * 3.6)} km/h` },
   ].filter(Boolean) : [{ icon: CloudSun, text: loading ? 'Loading…' : 'Unavailable' }]
 
 }
